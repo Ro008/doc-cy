@@ -1138,6 +1138,132 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     }
   });
 
+  test("Services: a price list she adds to, edits and removes from, every change recorded", async ({ page }) => {
+    test.setTimeout(120_000);
+    const recorded = async (type: string) =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", type)
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const saved = async () =>
+      (
+        await admin
+          .from("professional_services")
+          .select("name, price")
+          .eq("professional_id", seeded!.professionalId)
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    // Start from an empty list, through the same function the page uses.
+    for (const row of (
+      await admin.from("professional_services").select("id").eq("professional_id", seeded!.professionalId)
+    ).data ?? []) {
+      await admin.rpc("professional_service_remove", {
+        p_professional_id: seeded!.professionalId,
+        p_service_id: row.id,
+      });
+    }
+    const addsBefore = (await recorded("professional_service_add")).length;
+    const changesBefore = (await recorded("professional_service_change")).length;
+    const removalsBefore = (await recorded("professional_service_removal")).length;
+
+    await openSettings(page, seeded!, "services");
+    const card = page.getByTestId("settings-services");
+    const form = card.getByTestId("settings-service-form");
+    const rows = card.getByRole("listitem");
+    const toastText = (text: string | RegExp) => page.locator("[data-sonner-toast]").getByText(text);
+
+    // Nothing listed: the form is already open, with nothing to cancel.
+    await expect(card.getByText(/Nothing listed yet/)).toBeVisible({ timeout: 20_000 });
+    await expect(form).toBeVisible();
+    await expect(form.getByRole("button", { name: "Cancel" })).toHaveCount(0);
+
+    // A name is needed, and the price is an amount in euros.
+    await expect(async () => {
+      await form.getByRole("button", { name: "Add service" }).click({ timeout: 2_000 });
+      await expect(form.getByText("Enter the name of the service.")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await form.getByLabel(/^Service/).fill("First consultation");
+    await form.getByLabel(/^Price/).fill("sixty");
+    await form.getByRole("button", { name: "Add service" }).click();
+    await expect(form.getByText("Enter an amount in euros, for example 60 or 49.50.")).toBeVisible();
+
+    await form.getByLabel(/^Price/).fill("60");
+    await form.getByRole("button", { name: "Add service" }).click();
+    await expect(toastText("Service added to your price list.")).toBeVisible({ timeout: 20_000 });
+    await expect(rows).toHaveText([/First consultation.*€60/]);
+    await expect(card.getByTestId("settings-services-count")).toHaveText("1 of 20");
+    await expect(form).toHaveCount(0);
+
+    // A starting price reads "From €80".
+    await card.getByRole("button", { name: "+ Add a service" }).click();
+    await form.getByLabel(/^Service/).fill("Facial laser");
+    await form.getByLabel(/^Price/).fill("80");
+    await form.getByLabel(/This is a starting price/).check();
+    await form.getByRole("button", { name: "Add service" }).click();
+    await expect(rows).toHaveText([/First consultation.*€60/, /Facial laser.*From €80/], { timeout: 20_000 });
+
+    // The same name twice is refused before anything is sent.
+    await card.getByRole("button", { name: "+ Add a service" }).click();
+    await form.getByLabel(/^Service/).fill("first  CONSULTATION");
+    await form.getByRole("button", { name: "Add service" }).click();
+    await expect(form.getByText("You already list a service with this name.")).toBeVisible();
+    await form.getByRole("button", { name: "Cancel" }).click();
+    await expect(form).toHaveCount(0);
+
+    // Editing a line in place: the form opens with its values.
+    await card.getByRole("button", { name: "Edit First consultation" }).click();
+    await expect(form.getByLabel(/^Service/)).toHaveValue("First consultation");
+    await expect(form.getByLabel(/^Price/)).toHaveValue("60");
+    await form.getByLabel(/^Price/).fill("70");
+    await form.getByRole("button", { name: "Save" }).click();
+    await expect(toastText("Service saved.")).toBeVisible({ timeout: 20_000 });
+    await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
+
+    // Removing is immediate, and can be undone from the toast.
+    await card.getByRole("button", { name: "Remove First consultation" }).click();
+    await expect(rows).toHaveText([/Facial laser.*From €80/], { timeout: 20_000 });
+    await page.locator("[data-sonner-toast]").getByRole("button", { name: "Undo" }).click();
+    await expect(toastText("Service put back.")).toBeVisible({ timeout: 20_000 });
+    await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
+
+    await card.getByRole("button", { name: "Remove Facial laser" }).click();
+    await expect(rows).toHaveText([/First consultation.*€70/], { timeout: 20_000 });
+
+    // Saved, and each step recorded: three added (one by Undo), one changed, two removed.
+    await expect.poll(saved, { timeout: 20_000 }).toEqual([{ name: "First consultation", price: "70" }]);
+    expect(
+      (await recorded("professional_service_add")).slice(addsBefore).map((row) => [row.status, row.details.name, row.details.price]),
+    ).toEqual([
+      ["recorded", "First consultation", "60"],
+      ["recorded", "Facial laser", "From 80"],
+      ["recorded", "First consultation", "70"],
+    ]);
+    expect(
+      (await recorded("professional_service_change")).slice(changesBefore).map((row) => [row.details.name, row.details.price]),
+    ).toEqual([["First consultation", "70"]]);
+    expect(
+      (await recorded("professional_service_removal")).slice(removalsBefore).map((row) => row.details.name),
+    ).toEqual(["First consultation", "Facial laser"]);
+
+    // Still there after a reload.
+    await page.reload();
+    await expect(page.getByTestId("settings-services").getByRole("listitem")).toHaveText(
+      [/First consultation.*€70/],
+      { timeout: 20_000 },
+    );
+
+    // The old route is gone.
+    const direct = await page.evaluate(async () => {
+      const res = await fetch("/api/doctor-services", { method: "POST", body: "{}" });
+      return res.status;
+    });
+    expect(direct).toBe(404);
+  });
+
   test("Profile and Services link to the public profile", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "profile");

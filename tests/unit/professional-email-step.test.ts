@@ -74,7 +74,7 @@ describe("isProfessionalApiPath", () => {
       "/api/doctor-gesy",
       "/api/doctor-locations",
       "/api/doctor-online-bookings",
-      "/api/doctor-services",
+      "/api/professional-services",
       "/api/doctor-settings",
       "/api/doctor-settings/trial-notice",
       "/api/professional-clinics/abc/dismiss-pause-notice",

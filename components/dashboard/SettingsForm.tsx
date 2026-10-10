@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Clock, ExternalLink, Lock, Save, Trash2, X } from "lucide-react";
+import { Clock, ExternalLink, Lock, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
@@ -101,6 +101,8 @@ import {
   type ProfileChangeState,
 } from "@/lib/profile-change-requests";
 import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
+import { ServicesCard } from "@/components/dashboard/settings/ServicesCard";
+import { parseSavedServices } from "@/lib/settings-services";
 import type { PatientAges, SavedQualification } from "@/lib/settings-profile-details";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
 import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
@@ -538,13 +540,6 @@ export function SettingsForm({
   const [holidayEndInput, setHolidayEndInput] = React.useState(
     formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate)
   );
-  const [services, setServices] = React.useState<DoctorServiceItem[]>(
-    Array.isArray(initial.services) ? initial.services : []
-  );
-  const [serviceName, setServiceName] = React.useState("");
-  const [servicePrice, setServicePrice] = React.useState("");
-  const [serviceSubmitting, setServiceSubmitting] = React.useState(false);
-  const [deletingServiceId, setDeletingServiceId] = React.useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarCropping, setAvatarCropping] = React.useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
@@ -887,82 +882,6 @@ export function SettingsForm({
       closeAvatarCropModal();
     } finally {
       setAvatarCropping(false);
-    }
-  }
-
-  async function handleAddService() {
-    const name = serviceName.trim();
-    const price = servicePrice.trim();
-    if (!name) {
-      toast.error("Service name is required.");
-      return;
-    }
-    setServiceSubmitting(true);
-    try {
-      const addOnce = async () => {
-        const res = await fetch("/api/doctor-services", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            doctorId: initial.doctorId,
-            name,
-            price: price || null,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        return { res, data };
-      };
-
-      let { res, data } = await addOnce();
-      // Occasionally the first request can race with auth/session propagation.
-      if (!res.ok && [401, 403, 500].includes(res.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const retry = await addOnce();
-        res = retry.res;
-        data = retry.data;
-      }
-
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not add service.");
-        return;
-      }
-
-      const newService = data.service as DoctorServiceItem | undefined;
-      if (newService) setServices((prev) => [...prev, newService]);
-      setServiceName("");
-      setServicePrice("");
-      toast.success("Service added.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not add service.");
-    } finally {
-      setServiceSubmitting(false);
-    }
-  }
-
-  async function handleDeleteService(serviceId: string) {
-    setDeletingServiceId(serviceId);
-    try {
-      const res = await fetch("/api/doctor-services", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctorId: initial.doctorId,
-          serviceId,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not delete service.");
-        return;
-      }
-      setServices((prev) => prev.filter((s) => s.id !== serviceId));
-      toast.success("Service removed.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not delete service.");
-    } finally {
-      setDeletingServiceId(null);
     }
   }
 
@@ -1623,63 +1542,7 @@ export function SettingsForm({
           </li>
         </ul>
       </section>
-      <section className={SECTION_CARD_CLASS}>
-        <fieldset disabled={serviceSubmitting} className="grid min-w-0 gap-3 sm:grid-cols-[1fr_180px_auto]">
-          <input
-            type="text"
-            value={serviceName}
-            onChange={(e) => setServiceName(e.target.value)}
-            placeholder="Treatment name (e.g. Facial laser)"
-            aria-label="Treatment name"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <input
-            type="text"
-            value={servicePrice}
-            onChange={(e) => setServicePrice(e.target.value)}
-            placeholder="e.g. 120 or From 80"
-            aria-label="Price"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <button
-            type="button"
-            onClick={handleAddService}
-            disabled={serviceSubmitting}
-            aria-busy={serviceSubmitting}
-            className={SETTINGS_PRIMARY_BUTTON_CLASS}
-          >
-            <BusyLabel busy={serviceSubmitting} busyText="Adding…">
-              Add
-            </BusyLabel>
-          </button>
-        </fieldset>
-        {services.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-800">
-            {services.map((service) => (
-              <li key={service.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
-                  {service.price ? <p className="text-xs text-slate-400">{service.price}</p> : null}
-                </div>
-                <button
-                  type="button"
-                  disabled={deletingServiceId !== null}
-                  aria-busy={deletingServiceId === service.id}
-                  onClick={() => handleDeleteService(service.id)}
-                  aria-label={`Delete ${service.name}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-progress aria-busy:opacity-100"
-                >
-                  {deletingServiceId === service.id ? <BusySpinner /> : <Trash2 className="h-4 w-4" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-slate-400">
-            Add what you offer so patients know what to book you for.
-          </p>
-        )}
-      </section>
+      <ServicesCard initial={parseSavedServices(initial.services)} />
     </div>
   );
 

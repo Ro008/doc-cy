@@ -58,7 +58,7 @@ export const PROFESSIONAL_API_ROUTES = [
   "/api/doctor-gesy",
   "/api/doctor-locations",
   "/api/doctor-online-bookings",
-  "/api/doctor-services",
+  "/api/professional-services",
   "/api/doctor-settings",
   "/api/professional-clinics",
   "/api/professional-mobile",

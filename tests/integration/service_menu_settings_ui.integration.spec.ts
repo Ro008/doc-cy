@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 test.describe("Integration UI: doctor settings Service Menu", () => {
   test("doctor can add and delete a service from settings", async ({ page }) => {
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -67,7 +68,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       doctorId = String(doctorInsert.data.id);
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "Laser & Medical Aesthetics",
-        licenseNumber: `LIC-SVC-UI-${nonce}`,
+        licenseNumber: `LIC-SVC-UI-${nonce}`,
       });
 
       await page.goto("/login");
@@ -75,24 +76,30 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       await page.locator('input[name="password"]').fill(doctorPassword);
       await page.getByRole("button", { name: /sign in/i }).click();
       await finishEmailedSignIn(page, admin, doctorEmail);
-      await page.waitForURL(/\/agenda/, { timeout: 30_000 });
+      await page.waitForURL(/\/(agenda|dashboard)/, { timeout: 30_000 });
       await page.goto("/settings?section=services");
 
       const uniqueService = `UI Service ${Date.now()}`;
-      const serviceInput = page.getByPlaceholder("Treatment name (e.g. Facial laser)");
-      const priceInput = page.getByPlaceholder("e.g. 120 or From 80");
-      const addButton = page.getByRole("button", { name: /^Add$/ });
+      // The price list (2026-10-10): a name, an amount in euros and "starting price".
+      const form = page.getByTestId("settings-service-form");
+      const serviceInput = form.getByLabel(/^Service/);
 
       await expect(serviceInput).toBeVisible({ timeout: 15000 });
-      await serviceInput.fill(uniqueService);
-      await priceInput.fill("From 90€");
-      await addButton.click();
+      const row = page.getByTestId("settings-services").getByRole("listitem").filter({ hasText: uniqueService });
+      // Retried until the page reacts (a click before hydration does nothing); once the
+      // service is listed the form has closed and there is nothing left to fill.
+      await expect(async () => {
+        if (await form.isVisible()) {
+          await serviceInput.fill(uniqueService, { timeout: 2_000 });
+          await form.getByLabel(/^Price/).fill("90", { timeout: 2_000 });
+          await form.getByLabel(/This is a starting price/).check({ timeout: 2_000 });
+          await form.getByRole("button", { name: "Add service" }).click({ timeout: 2_000 });
+        }
+        await expect(row).toContainText("From €90", { timeout: 10_000 });
+      }).toPass({ timeout: 60_000 });
 
-      await expect(page.getByText(uniqueService)).toBeVisible({ timeout: 15000 });
-      await expect(page.getByText("From 90€")).toBeVisible({ timeout: 15000 });
-
-      await page.getByRole("button", { name: `Delete ${uniqueService}` }).click();
-      await expect(page.getByText(uniqueService)).toHaveCount(0);
+      await page.getByRole("button", { name: `Remove ${uniqueService}` }).click();
+      await expect(row).toHaveCount(0, { timeout: 15000 });
     } finally {
       if (doctorId) {
         await admin.from("professional_services").delete().eq("professional_id", doctorId);

@@ -138,6 +138,26 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   patients cannot pick one when booking yet, Notion task "Booking: el paciente elige un
   servicio y el doctor lo ve en la cita").
 
+- **Price list: built (Livio, 2026-10-10).** `ServicesCard`: each line is the name with
+  its price on the right ("€60", "From €80", or "No price"), a pencil to edit it in place
+  and a bin; removing is immediate with "Undo" in the toast (Undo adds it again). At most
+  20, no name twice. No founder; each change recorded (`professional_service_add` /
+  `_change` / `_removal`, with the list she had before).
+  - `POST /api/professional-services` `{ name, price: amount | null, priceFrom? }` → 201
+    `{ service: { id, name, price } }`; 400 with `errors` per field; 409 at 20 or name taken.
+  - `PUT` `{ id, name, price, priceFrom? }` → 200 `{ service, changed }`; 404 not hers; 409.
+  - `DELETE ?id=…` → 200; 404 not hers. `/api/doctor-services` is gone.
+  - The price stays text in `professional_services.price`: `"60"` or `"From 80"`
+    (helpers in `lib/settings-services.ts`: `formatServicePrice` gives "€60" / "From €80").
+  - Migrations `20261010170000_professional_service_requests` (Production before the
+    merge) and `20261010180000_professional_services_not_writable` (Production after it).
+- For Ro008 (`feat/profile-redesign`): the public profile's services list; use
+  `formatServicePrice` so prices read the same as in Settings.
+- **Later (user, 2026-10-10):** after the public list, the patient picks a service on the
+  appointment request form (API and DB already take `professionalServiceId`); with it, an
+  optional "usual length" per service that only pre-fills the visit length on her review
+  page (no change to the times offered).
+
 ### Contact & phone (removed, Livio 2026-10-10)
 - Each clinic's phone is on its card in Clinics and the personal mobile is in Account,
   so the section is gone (`components/dashboard/PhoneNumbersSettings.tsx` deleted).
