@@ -2,7 +2,7 @@ import { isValidPhoneNumber, parsePhoneNumberFromString } from "libphonenumber-j
 
 /**
  * The professional's personal mobile (`professionals.mobile_number`), checked the same
- * way on the server for /register and Settings → Profile: a real mobile for its
+ * way on the server for /register and Settings → Account: a real mobile for its
  * country (the `mobile` metadata refuses landlines and wrong prefixes), written with
  * its "+" country code, stored as "+" and digits. The forms compose that value from
  * the country picker (lib/register-phone.ts); this is the server's last word.

@@ -11,7 +11,7 @@ export type SettingsDirtySnapshot = {
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
-  // The personal mobile and its "show on my profile" switch are not here either: they
+  // The personal mobile (Account) and its "show on my profile" switch are not here either: they
   // save through their own route (components/dashboard/settings/PersonalMobileCard.tsx).
   //
   // pauseOnlineBookings is intentionally excluded: the toggle saves itself through

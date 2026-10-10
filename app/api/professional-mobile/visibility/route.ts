@@ -5,7 +5,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
- * Settings → Profile (user, 2026-10-09): show or hide the personal mobile on the public
+ * Settings → Account (user, 2026-10-09): show or hide the personal mobile on the public
  * profile. Off by default; no founder, but recorded
  * (`professional_mobile_visibility_set` writes the switch and its request_log row together).
  * - 200 { changed, show } · 400 show is not true/false · 401 signed out · 403 not a

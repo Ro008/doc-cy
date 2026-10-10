@@ -1,7 +1,7 @@
 -- Database tests for the professional's personal mobile and its visibility switch
 -- (migration *_professional_mobile_change_requests).
 --
--- Settings → Profile (user, 2026-10-09): the professional changes her own mobile
+-- Settings → Account (user, 2026-10-09): the professional changes her own mobile
 -- and decides whether it shows on her public profile. Neither needs a founder:
 -- each change is a request_log row born "recorded", with the old value in
 -- before_snapshot. The change and its record happen together or not at all.

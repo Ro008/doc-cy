@@ -107,7 +107,7 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 
-  it("has no mobile: Profile's mobile card saves itself (2026-10-09)", () => {
+  it("has no mobile: Account's mobile card saves itself (2026-10-09)", () => {
     const snapshot = buildSettingsDirtySnapshot(baseSnapshotInput());
     assert.equal("mobileNumber" in snapshot, false);
   });

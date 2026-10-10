@@ -52,7 +52,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - No page-wide "Save settings". Booking limits, languages and turning holiday mode off
   save at once; a clinic's hours, the bio and holiday dates have their own
   Save / Cancel (`lib/settings-save-groups.ts`). The personal mobile is not part of it:
-  its card in Profile saves through its own routes (below).
+  its card in Account saves through its own routes (below).
 - Still `POST /api/doctor-settings`, unchanged. That API replaces everything it is sent,
   so each save sends **the last saved settings with only that block changed**. Expect
   more, smaller saves than before. If you ever make that API accept partial updates,
@@ -98,23 +98,6 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
 - "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
   "Opening…" and then a toast.
-- **Personal mobile (Livio, 2026-10-09; built).** Card under Languages
-  (`components/dashboard/settings/PersonalMobileCard.tsx`): the /register country picker,
-  its own Save (a real mobile for the country, `lib/professional-mobile.ts`, the same
-  check the register server now makes), and a "Show on my profile" switch that saves at
-  once (off by default; refused without a saved mobile). No founder: each change is a
-  `request_log` row born `recorded` with the old value in `before_snapshot`
-  (`professional_mobile_change`, `professional_mobile_visibility_change`).
-  - `POST /api/professional-mobile` `{ mobile }` → 200 `{ changed, mobile }` · 400 not a
-    valid mobile · 409 used by another professional. Same number: `changed: false`.
-  - `POST /api/professional-mobile/visibility` `{ show }` → 200 `{ changed, show }` ·
-    400 not true/false · 409 no saved mobile.
-  - Both behind the emailed sign-in step (middleware), writing through the service role
-    via `professional_mobile_set` / `professional_mobile_visibility_set`.
-  - `/api/doctor-settings` no longer saves the mobile (an old page's `doctorPhone` is
-    ignored). Where the mobile shows on the public profile is Ro008's decision on
-    `feat/profile-redesign` (`docs/handoff/profile-redesign.md`); nothing shows it yet.
-  - When SMS 2FA arrives, a new number will need verifying before it is saved.
 
 ### Services & prices
 - A short "What are services?" block above the list says what they are and how they
@@ -124,7 +107,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 
 ### Contact & phone
 - Clinic phones only, read-only, pointing to Clinics → Request a change. The personal
-  mobile moved to Profile (2026-10-09).
+  mobile moved to Account (2026-10-10).
 - **Planned (Livio, 2026-10-09):** each clinic's phone moves into its card in Clinics;
   then this section goes away.
 
@@ -147,6 +130,24 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - "Sign-in & security": the email with "Change email" (section 3.8, waits for you),
   "Change password" (calls the existing `POST /api/auth/forgot-password` with the
   account email), sign out other devices (result as a toast), sign out.
+- **Personal mobile (Livio, 2026-10-09; built; in Account since 2026-10-10, not Profile:
+  it is DocCy's way to reach her and a future SMS sign-in factor).** Card under "Sign-in & security"
+  (`components/dashboard/settings/PersonalMobileCard.tsx`): the /register country picker,
+  its own Save (a real mobile for the country, `lib/professional-mobile.ts`, the same
+  check the register server now makes), and a "Show on my profile" switch that saves at
+  once (off by default; refused without a saved mobile). No founder: each change is a
+  `request_log` row born `recorded` with the old value in `before_snapshot`
+  (`professional_mobile_change`, `professional_mobile_visibility_change`).
+  - `POST /api/professional-mobile` `{ mobile }` → 200 `{ changed, mobile }` · 400 not a
+    valid mobile · 409 used by another professional. Same number: `changed: false`.
+  - `POST /api/professional-mobile/visibility` `{ show }` → 200 `{ changed, show }` ·
+    400 not true/false · 409 no saved mobile.
+  - Both behind the emailed sign-in step (middleware), writing through the service role
+    via `professional_mobile_set` / `professional_mobile_visibility_set`.
+  - `/api/doctor-settings` no longer saves the mobile (an old page's `doctorPhone` is
+    ignored). Where the mobile shows on the public profile is Ro008's decision on
+    `feat/profile-redesign` (`docs/handoff/profile-redesign.md`); nothing shows it yet.
+  - When SMS 2FA arrives, a new number will need verifying before it is saved.
 
 ### Buttons and loading states (frontend only; keep them when you add to Settings)
 - One button system by role (primary, secondary, ghost/Cancel, danger, text link) in
@@ -294,7 +295,7 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
     through the session, so Production **after** merge.
   - DB tests: `supabase/tests/professional_mobile_change.test.sql`,
     `supabase/tests/professionals_update_columns.test.sql`.
-- New writes: the mobile and its switch (above). Otherwise none.
+- New writes: the mobile and its switch (section 2, Account). Otherwise none.
 - New reads: `professional_clinics.id` (clinic phones on cards,
   `lib/settings-clinic-phones.ts`); `professionals.pro_access_until` (Plan & billing).
 - Changed read: clinic names come from `clinics.name` (section 2, Clinics).

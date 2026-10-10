@@ -23,7 +23,8 @@ import {
 } from "@/lib/register-phone";
 
 /**
- * Settings → Profile, personal mobile (user, 2026-10-09). She changes it with its own
+ * Settings → Account, personal mobile (user, 2026-10-09; in Account since 2026-10-10:
+ * it is DocCy's way to reach her and a future SMS sign-in factor). She changes it with its own
  * Save (a real mobile for the chosen country, as on /register) and decides with a
  * switch, saved at once, whether patients see it on her profile. Both changes are
  * recorded for DocCy (request_log, no approval). The clinic phone stays the main

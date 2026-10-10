@@ -1,4 +1,4 @@
--- The professional's personal mobile and its visibility switch (Settings → Profile,
+-- The professional's personal mobile and its visibility switch (Settings,
 -- user 2026-10-09).
 --
 -- She changes her own mobile and decides whether it shows on her public profile.
@@ -19,7 +19,7 @@ values
     'professional_mobile_change',
     false,
     true,
-    'The professional changed her personal mobile (Settings → Profile). Recorded at once; before_snapshot keeps the old number.'
+    'The professional changed her personal mobile in Settings. Recorded at once; before_snapshot keeps the old number.'
   ),
   (
     'professional_mobile_visibility_change',
@@ -27,7 +27,7 @@ values
     true,
     'The professional turned the personal mobile on her public profile on or off. Recorded at once; before_snapshot keeps the old value.'
   )
-on conflict (name) do nothing;
+on conflict (name) do update set description = excluded.description;
 
 -- 2. The switch. Hidden unless she opts in.
 alter table public.professional_settings
@@ -220,6 +220,6 @@ grant execute on function public.professional_mobile_set(uuid, text) to service_
 grant execute on function public.professional_mobile_visibility_set(uuid, boolean) to service_role;
 
 comment on function public.professional_mobile_set(uuid, text) is
-  'Settings → Profile: change the professional''s personal mobile and record it (request_log, recorded). Null when unchanged. Service role only.';
+  'Settings: change the professional''s personal mobile and record it (request_log, recorded). Null when unchanged. Service role only.';
 comment on function public.professional_mobile_visibility_set(uuid, boolean) is
-  'Settings → Profile: show or hide the personal mobile on the public profile and record it (request_log, recorded). Null when unchanged. Service role only.';
+  'Settings: show or hide the personal mobile on the public profile and record it (request_log, recorded). Null when unchanged. Service role only.';

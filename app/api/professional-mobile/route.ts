@@ -13,7 +13,7 @@ import {
 } from "@/lib/professional-contact";
 
 /**
- * Settings → Profile (user, 2026-10-09): the professional changes her personal mobile.
+ * Settings → Account (user, 2026-10-09): the professional changes her personal mobile.
  * A real mobile for its country, as on /register; no founder, but recorded
  * (`professional_mobile_set` writes the change and its request_log row together).
  * When SMS 2FA arrives, the new number will need verifying first.

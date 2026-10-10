@@ -134,7 +134,7 @@ export type DoctorSettingsFormData = {
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
-  /** Her personal mobile (Profile, its own card and route). */
+  /** Her personal mobile (Account, its own card and route). */
   mobileNumber?: string;
   /** Patients see the personal mobile on her profile (off by default). */
   showMobileOnProfile?: boolean;
@@ -2080,10 +2080,6 @@ export function SettingsForm({
           </p>
         ) : null}
       </section>
-      <PersonalMobileCard
-        initialMobile={initial.mobileNumber ?? ""}
-        initialShowOnProfile={Boolean(initial.showMobileOnProfile)}
-      />
       {profileExtra}
     </div>
   );
@@ -2100,8 +2096,12 @@ export function SettingsForm({
 
   const accountSection = (
     <div className="space-y-5">
-      {sectionTitle("Account", "How you sign in to DocCy.")}
+      {sectionTitle("Account", "How you sign in and how DocCy reaches you.")}
       {account}
+      <PersonalMobileCard
+        initialMobile={initial.mobileNumber ?? ""}
+        initialShowOnProfile={Boolean(initial.showMobileOnProfile)}
+      />
     </div>
   );
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { normalizeProfessionalMobile } from "../../lib/professional-mobile";
 
-describe("professional personal mobile (register + Settings → Profile)", () => {
+describe("professional personal mobile (register + Settings → Account)", () => {
   it("accepts a real mobile with its country code and stores + and digits", () => {
     assert.deepEqual(normalizeProfessionalMobile("+35799123456"), { ok: true, e164: "+35799123456" });
     assert.deepEqual(normalizeProfessionalMobile("  +357 99 123 456 "), { ok: true, e164: "+35799123456" });

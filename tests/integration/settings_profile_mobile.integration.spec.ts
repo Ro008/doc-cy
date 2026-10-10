@@ -5,7 +5,9 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
 import { createTestDoctor, deleteTestDoctor, loginDoctorUi, type TestDoctorFixture } from "./helpers/test-doctor";
 
 /**
- * Settings → Profile, personal mobile (user, 2026-10-09): the professional changes her
+ * Settings → Account, personal mobile (user, 2026-10-09; moved from Profile to Account
+ * 2026-10-10: it is DocCy's way to reach her, hidden from patients unless she opts in,
+ * and it will be a sign-in factor with SMS 2FA): the professional changes her
  * own mobile (a real mobile for its country, as on /register) and decides whether it
  * shows on her public profile. No founder: each change is a request_log row born
  * "recorded". Contact & phone no longer edits the mobile.
@@ -61,12 +63,17 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
     expect((await request.post("/api/professional-mobile/visibility", { data: { show: true } })).status()).toBe(401);
   });
 
-  test("Profile shows her mobile, hidden from patients by default; Contact & phone no longer edits it", async () => {
+  test("Account shows her mobile, hidden from patients by default; Profile and Contact & phone don't edit it", async () => {
     test.setTimeout(120_000);
-    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     await expect(card()).toBeVisible({ timeout: 20_000 });
     await expect(card().getByLabel("Mobile number")).toHaveValue(startMobile.slice(4), { timeout: 20_000 });
     await expect(card().getByRole("switch", { name: "Show on my profile" })).toHaveAttribute("aria-checked", "false");
+
+    await page.goto("/settings?section=profile", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#settings-bio")).toBeVisible({ timeout: 20_000 });
+    // Every section stays in the page; only the open one shows.
+    await expect(card()).toBeHidden();
 
     await page.goto("/settings?section=contact", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("settings-clinic-phones")).toBeVisible({ timeout: 20_000 });
@@ -75,7 +82,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
 
   test("she changes her mobile: saved and recorded with the old number", async () => {
     test.setTimeout(120_000);
-    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     const input = card().getByLabel("Mobile number");
     await expect(input).toHaveValue(startMobile.slice(4), { timeout: 20_000 });
     // Typing before hydration is wiped: retry until the form reacts.
@@ -98,7 +105,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
   });
 
   test("a landline is refused in the form and by the route", async () => {
-    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     const input = card().getByLabel("Mobile number");
     await expect(input).toHaveValue(newMobile.slice(4), { timeout: 20_000 });
     await expect(async () => {
@@ -134,7 +141,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
 
   test("the switch shows her mobile on her profile, saved at once and recorded", async () => {
     test.setTimeout(120_000);
-    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     const toggle = card().getByRole("switch", { name: "Show on my profile" });
     await expect(toggle).toHaveAttribute("aria-checked", "false", { timeout: 20_000 });
     await expect(async () => {

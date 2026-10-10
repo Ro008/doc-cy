@@ -20,7 +20,7 @@ type PhoneNumbersSettingsProps = {
  * phone on the public Call buttons, whether or not the clinic takes online bookings.
  * Clinics are curated by DocCy, so their phones are read-only here; one way to change
  * them, "Request a change" on the clinic's card in Clinics (user, 2026-10-01). The
- * personal mobile moved to Profile (PersonalMobileCard, user 2026-10-09); the clinic
+ * personal mobile moved to Account (PersonalMobileCard, user 2026-10-10); the clinic
  * phones are to move onto each clinic card, and then this section goes.
  */
 export function PhoneNumbersSettings({
