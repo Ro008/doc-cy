@@ -42,9 +42,9 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   `/agenda/settings` redirects there keeping `?section=`. Same middleware gate as
   `/agenda` (`isProfessionalGatedPath`).
 - A sidebar of sections, kept in `?section=` (default `profile`; Livio, 2026-10-09):
-  Profile · Clinics · Services & prices · Contact & phone · Promote | Plan & billing ·
+  Profile · Clinics · Services & prices · Promote | Plan & billing ·
   Account (`lib/settings-sections.ts`). A thin line on wide screens sets the last two
-  apart. Old `?section=availability` links open Clinics. The dashboard's paused-clinic
+  apart. Old `?section=availability` and `?section=contact` links open Clinics. The dashboard's paused-clinic
   notice links to `?section=clinics`.
 - Old `/settings?section=account#promote-practice` links land on Promote.
 
@@ -68,6 +68,13 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
 - A clinic's **name, address and phone change only by request** ("Request a change").
   Only hours are editable.
+- **The clinic's phone is on its card** (Livio, 2026-10-10), shown as "+357 25 123456",
+  with its own "Request a change" next to it. That opens a phone field in the card (a
+  Cyprus landline or mobile only, grouped as she types) and sends
+  `POST /api/clinic-change-requests` with `{ locationId, changes: { phone } }`, the
+  contract of section 3.2 (backend pending). **Founders approve every clinic phone
+  change, however many people work at the clinic** (Livio, 2026-10-10). Then the card
+  shows "Change in review" (`components/dashboard/settings/ClinicPhoneField.tsx`).
 - **One clinic name everywhere: DocCy's `clinics.name`.** A doctor at a shared clinic
   must not rename it for their patients. `professionalClinicRowToLocation`
   (`lib/professional-clinic-locations.ts`) now maps `label` from `clinics.name` and only
@@ -105,11 +112,9 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   patients cannot pick one when booking yet, Notion task "Booking: el paciente elige un
   servicio y el doctor lo ve en la cita").
 
-### Contact & phone
-- Clinic phones only, read-only, pointing to Clinics → Request a change. The personal
-  mobile moved to Account (2026-10-10).
-- **Planned (Livio, 2026-10-09):** each clinic's phone moves into its card in Clinics;
-  then this section goes away.
+### Contact & phone (removed, Livio 2026-10-10)
+- Each clinic's phone is on its card in Clinics and the personal mobile is in Account,
+  so the section is gone (`components/dashboard/PhoneNumbersSettings.tsx` deleted).
 
 ### Promote (frontend only)
 - QR, booking link (`mydoccy.com/<slug>`, Copy link), scripts that fold.

@@ -14,7 +14,7 @@ describe("settings sections (sidebar)", () => {
   it("lists the sidebar sections in order: the practice first, account admin last (user, 2026-10-09)", () => {
     assert.deepEqual(
       SETTINGS_SECTIONS.map((s) => s.id),
-      ["profile", "clinics", "services", "contact", "promote", "plan", "account"],
+      ["profile", "clinics", "services", "promote", "plan", "account"],
     );
   });
 
@@ -47,10 +47,16 @@ describe("settings sections (sidebar)", () => {
     assert.equal(legacySettingsRedirect({ section: "availability" }), "/settings?section=clinics");
   });
 
+  it("has no Contact & phone section; each clinic card holds its phone and the mobile is in Account (user, 2026-10-10)", () => {
+    assert.equal(SETTINGS_SECTIONS.some((s) => (s.id as string) === "contact"), false);
+    assert.equal(parseSettingsSection("contact"), "clinics");
+    assert.equal(legacySettingsRedirect({ section: "contact" }), "/settings?section=clinics");
+  });
+
   it("reads a known section from the URL", () => {
     assert.equal(parseSettingsSection("clinics"), "clinics");
     assert.equal(parseSettingsSection("profile"), "profile");
-    assert.equal(parseSettingsSection(" Contact "), "contact");
+    assert.equal(parseSettingsSection(" Services "), "services");
   });
 
   it("uses the first value when the param repeats", () => {

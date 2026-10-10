@@ -1,13 +1,14 @@
 /** The settings page's sidebar (design B1): one section on screen at a time, kept in `?section=`. */
 
-// Order (user, 2026-10-09): who I am, where I work, what I offer, how I'm reached, bringing
-// patients in; then account admin, set apart in the sidebar (`group: "account"`).
+// Order (user, 2026-10-09): who I am, where I work, what I offer, bringing patients in;
+// then account admin, set apart in the sidebar (`group: "account"`).
 // No "Availability" section: it only repeated each clinic card's status (user, 2026-10-09).
+// No "Contact & phone" section: each clinic card holds its phone, and the personal mobile
+// is in Account (user, 2026-10-10).
 export const SETTINGS_SECTIONS = [
   { id: "profile", label: "Profile" },
   { id: "clinics", label: "Clinics" },
   { id: "services", label: "Services & prices" },
-  { id: "contact", label: "Contact & phone" },
   // QR, print sign and scripts: their own section, not part of Account (user, 2026-10-01).
   { id: "promote", label: "Promote" },
   // The professional's own terms: free period, price after it (user, 2026-10-01).
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = "profile";
 /** Sections that no longer exist, and where their old links land. */
 const RETIRED_SECTIONS: Readonly<Record<string, SettingsSectionId>> = {
   availability: "clinics",
+  contact: "clinics",
 };
 
 /** Settings is its own page, not part of the agenda (user, 2026-09-30). */

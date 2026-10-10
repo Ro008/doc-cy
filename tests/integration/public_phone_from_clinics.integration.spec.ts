@@ -18,8 +18,8 @@ import {
  *   whether or not the clinic takes online bookings;
  * - a professional's personal mobile is never shown (Point E5 dropped the scraped
  *   `professionals.phone` and the unused phone settings);
- * - the settings page shows the clinic phone read-only, and sends you to Clinics to
- *   change it (one way to change a clinic: "Request a change" on its card).
+ * - the settings page shows the clinic phone on the clinic's card (changing it:
+ *   settings_clinic_phone.integration.spec.ts).
  */
 test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e" }, () => {
   // Server-rendered pages plus a sign-in: the default 30s leaves no room on a cold server.
@@ -138,22 +138,14 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     await expect(page.locator(`a[href="tel:${mobile}"]`)).toHaveCount(0);
   });
 
-  test("settings show the clinic phone read-only", async ({ page }) => {
+  test("settings show the clinic phone on the clinic's card", async ({ page }) => {
     await loginDoctorUi(page, registered!.email, registered!.password);
-    await page.goto("/settings?section=contact", { waitUntil: "domcontentloaded" });
-    const phones = page.getByTestId("settings-clinic-phones");
-    await expect(phones).toBeVisible({ timeout: 20_000 });
-    await expect(phones).toContainText(`Clinic Phone Practice ${nonce}`);
-    await expect(phones).toContainText(`+357 ${clinicPhone.slice(0, 2)} ${clinicPhone.slice(2)}`);
-    await expect(phones).not.toContainText(/contact us/i);
-    await expect(phones).toContainText("To change a clinic’s phone, go to Clinics and use Request a change.");
-    await phones.getByRole("link", { name: "Clinics" }).click();
-    await expect(page).toHaveURL(/section=clinics/);
-    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible();
-    await expect(
-      page.getByTestId("settings-clinic-card").first().getByRole("button", { name: "Request a change" }),
-    ).toBeVisible();
-    await expect(page.locator("#clinicPhone")).toHaveCount(0);
+    await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible({ timeout: 20_000 });
+    const card = page.getByTestId("settings-clinic-card").filter({ hasText: `Clinic Phone Practice ${nonce}` });
+    await expect(card).toContainText(`+357 ${clinicPhone.slice(0, 2)} ${clinicPhone.slice(2)}`);
+    await expect(card).not.toContainText(/contact us/i);
+    await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
     await expect(page.getByRole("switch", { name: /Show a Call button/i })).toHaveCount(0);
   });
 });

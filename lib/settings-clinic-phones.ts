@@ -22,9 +22,10 @@ type JoinRow = {
 };
 
 /**
- * The clinic phones a professional's settings page shows read-only (user, 2026-09-29):
- * the public Call buttons show `clinics.phone`, and clinics are admin-curated, so a
- * professional asks us to change one. Primary clinic first, archived clinics left out.
+ * The clinic phones on a professional's clinic cards in Settings (user, 2026-09-29 and
+ * 2026-10-10): the public Call buttons show `clinics.phone`, and clinics are
+ * admin-curated, so she asks DocCy to change one. Primary clinic first, archived
+ * clinics left out.
  */
 export async function loadSettingsClinicPhones(
   professionalId: string,

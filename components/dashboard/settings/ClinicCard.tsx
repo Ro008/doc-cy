@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronDown, Lock } from "lucide-react";
 import type { ClinicBookingStatus } from "@/lib/settings-clinic-summary";
 import type { PendingClinicChange } from "@/components/dashboard/settings/ClinicChangeRequestDialog";
+import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { Collapse } from "@/components/dashboard/settings/Collapse";
 import {
   SETTINGS_DANGER_BUTTON_CLASS,
@@ -29,7 +30,7 @@ function pendingSummary(pending: PendingClinicChange): string {
   if (pending.changes.clinicId) parts.push("move to a DocCy clinic");
   if (pending.changes.name) parts.push(`name “${pending.changes.name}”`);
   if (pending.changes.address) parts.push(`address “${pending.changes.address}”`);
-  if (pending.changes.phone) parts.push(`phone ${pending.changes.phone}`);
+  if (pending.changes.phone) parts.push(`phone ${formatCyprusPhoneDisplay(pending.changes.phone)}`);
   return parts.join(", ");
 }
 
@@ -40,7 +41,7 @@ export function ClinicCard({
   status,
   bookingSwitch,
   address,
-  phone,
+  phoneField,
   pendingChange,
   onRequestChange,
   summary,
@@ -58,7 +59,8 @@ export function ClinicCard({
   status: ClinicBookingStatus;
   bookingSwitch: React.ReactNode;
   address: string;
-  phone: string;
+  /** The clinic's phone, with its own "Request a change" (ClinicPhoneField). */
+  phoneField: React.ReactNode;
   pendingChange: PendingClinicChange | null;
   /** null while the clinic is still being set up (its address is set in the editor). */
   onRequestChange: (() => void) | null;
@@ -108,7 +110,6 @@ export function ClinicCard({
         <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
         <span className={`min-w-0 flex-1 ${address ? "" : "text-amber-200"}`}>
           {address || "No address yet"}
-          {phone ? <span className="text-slate-400"> · {phone}</span> : null}
         </span>
         {onRequestChange && !pendingChange ? (
           <button
@@ -120,6 +121,7 @@ export function ClinicCard({
           </button>
         ) : null}
       </div>
+      {phoneField}
 
       <dl className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {stats.map(([label, value]) => (

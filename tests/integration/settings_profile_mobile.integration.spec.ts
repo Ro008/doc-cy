@@ -10,7 +10,7 @@ import { createTestDoctor, deleteTestDoctor, loginDoctorUi, type TestDoctorFixtu
  * and it will be a sign-in factor with SMS 2FA): the professional changes her
  * own mobile (a real mobile for its country, as on /register) and decides whether it
  * shows on her public profile. No founder: each change is a request_log row born
- * "recorded". Contact & phone no longer edits the mobile.
+ * "recorded". Profile no longer edits the mobile.
  */
 test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => {
   test.describe.configure({ mode: "serial" });
@@ -66,7 +66,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
     expect((await request.post("/api/professional-mobile/visibility", { data: { show: true } })).status()).toBe(401);
   });
 
-  test("Account shows her mobile, hidden from patients by default; Profile and Contact & phone don't edit it", async () => {
+  test("Account shows her mobile, hidden from patients by default; Profile doesn't edit it", async () => {
     test.setTimeout(120_000);
     await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     await expect(card()).toBeVisible({ timeout: 20_000 });
@@ -77,9 +77,6 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
     await expect(page.locator("#settings-bio")).toBeVisible({ timeout: 20_000 });
     // Every section stays in the page; only the open one shows.
     await expect(card()).toBeHidden();
-
-    await page.goto("/settings?section=contact", { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("settings-clinic-phones")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#mobileNumber")).toHaveCount(0);
   });
 

@@ -332,7 +332,7 @@ export default async function AgendaSettingsPage({
     showMobileOnProfile: Boolean(
       (settings as { show_mobile_on_profile?: boolean | null } | null)?.show_mobile_on_profile,
     ),
-    // Shown read-only: patients see these, and clinics are admin-curated.
+    // On each clinic card: patients see these.
     clinicPhones: await loadSettingsClinicPhones(doctor.id),
     // The primary clinic, not the copies on professionals (Point E).
     district: (primaryClinic?.district ?? "").trim(),

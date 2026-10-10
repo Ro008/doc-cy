@@ -23,3 +23,16 @@ export function normalizeCyprusClinicPhone(value: string | null | undefined): st
 
 /** Shown under the field. */
 export const CLINIC_PHONE_HINT = "A Cyprus landline or mobile, e.g. 25 123456 or 99 123456.";
+
+/**
+ * What the clinic phone field shows while she types (Settings → Clinics): the 8 national
+ * digits grouped the Cypriot way, "25 123456". A pasted country code is dropped; "+357"
+ * sits in front of the field.
+ */
+export function formatCyprusClinicPhoneInput(typed: string): string {
+  let digits = String(typed ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00357")) digits = digits.slice(5);
+  else if (digits.startsWith("357") && digits.length > 8) digits = digits.slice(3);
+  digits = digits.slice(0, 8);
+  return digits.length > 2 ? `${digits.slice(0, 2)} ${digits.slice(2)}` : digits;
+}

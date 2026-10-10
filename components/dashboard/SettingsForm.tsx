@@ -47,7 +47,6 @@ import {
   validateAddSpecialtyRequest,
   type AddSpecialtyErrors,
 } from "@/lib/settings-specialty-request";
-import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
@@ -88,6 +87,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
+import { ClinicPhoneField } from "@/components/dashboard/settings/ClinicPhoneField";
 import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
@@ -138,7 +138,7 @@ export type DoctorSettingsFormData = {
   mobileNumber?: string;
   /** Patients see the personal mobile on her profile (off by default). */
   showMobileOnProfile?: boolean;
-  /** The phones patients see, one per clinic; read-only here (clinics are curated). */
+  /** The phones patients see, one per clinic, on the clinic cards. */
   clinicPhones?: SettingsClinicPhone[];
   district: string;
   clinicAddress: string;
@@ -1622,7 +1622,18 @@ export function SettingsForm({
               />
             }
             address={row.clinicAddress.trim() || savedAddress}
-            phone={phoneOf(row.id)}
+            phoneField={
+              <ClinicPhoneField
+                clinicName={name}
+                locationId={row.id}
+                phone={phoneOf(row.id)}
+                // Not while the clinic is still being set up, nor with a change in review.
+                canRequest={row.id !== "primary" && !pendingClinicChanges[row.id]}
+                onSent={(pending) =>
+                  setPendingClinicChanges((prev) => ({ ...prev, [row.id]: pending }))
+                }
+              />
+            }
             pendingChange={pendingClinicChanges[row.id] ?? null}
             onRequestChange={row.id === "primary" ? null : () => setChangeRequestFor(row.id)}
             summary={{
@@ -2084,16 +2095,6 @@ export function SettingsForm({
     </div>
   );
 
-  const contactSection = (
-    <div className="space-y-5">
-      {sectionTitle("Contact & phone", "How DocCy and your patients reach you.")}
-      <PhoneNumbersSettings
-        clinicPhones={initial.clinicPhones ?? []}
-        onOpenClinics={() => selectSection("clinics")}
-      />
-    </div>
-  );
-
   const accountSection = (
     <div className="space-y-5">
       {sectionTitle("Account", "How you sign in and how DocCy reaches you.")}
@@ -2123,7 +2124,6 @@ export function SettingsForm({
     clinics: clinicsSection,
     services: servicesSection,
     profile: profileSection,
-    contact: contactSection,
     promote: promoteSection,
     plan: planSection,
     account: accountSection,
