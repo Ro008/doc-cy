@@ -38,7 +38,7 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
-import { clinicHoursProblems, clinicTimeOptions } from "@/lib/clinic-hours-check";
+import { clinicHoursProblems } from "@/lib/clinic-hours-check";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import {
@@ -89,6 +89,7 @@ import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
 import { ClinicPhoneField } from "@/components/dashboard/settings/ClinicPhoneField";
+import { ClinicTimePicker } from "@/components/dashboard/settings/ClinicTimePicker";
 import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
@@ -307,9 +308,6 @@ const DAY_LABELS: Record<DayKey, string> = {
   sunday: "Sunday",
 };
 
-// Times are picked by quarter hours (user, 2026-10-10), from a list: no 17:02.
-const TIME_SELECT_CLASS =
-  "w-28 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm tabular-nums text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 aria-[invalid=true]:border-red-400/70";
 
 function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkplaceFormData[] {
   if (initial.locations && initial.locations.length > 0) {
@@ -1439,52 +1437,25 @@ export function SettingsForm({
               </label>
               {value ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <label htmlFor={`${key}-start`} className="sr-only">
-                    {label} start time
-                  </label>
-                  <select
-                    id={`${key}-start`}
+                  <ClinicTimePicker
+                    label={`${label} start time`}
                     value={timeToInputValue(weeklySchedule[key].start_time)}
-                    onChange={(e) =>
-                      setWeeklySchedule((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], start_time: `${e.target.value}:00` },
-                      }))
+                    onChange={(time) =>
+                      setWeeklySchedule((prev) => ({ ...prev, [key]: { ...prev[key], start_time: `${time}:00` } }))
                     }
-                    className={TIME_SELECT_CLASS}
-                  >
-                    {clinicTimeOptions({ keep: weeklySchedule[key].start_time }).map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <span aria-hidden>–</span>
-                  <label htmlFor={`${key}-end`} className="sr-only">
-                    {label} end time
-                  </label>
-                  <select
-                    id={`${key}-end`}
-                    aria-invalid={Boolean(hoursProblems.days[key])}
-                    aria-describedby={hoursProblems.days[key] ? `${key}-hours-problem` : undefined}
+                  <ClinicTimePicker
+                    label={`${label} end time`}
                     value={timeToInputValue(weeklySchedule[key].end_time)}
-                    onChange={(e) =>
-                      setWeeklySchedule((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], end_time: `${e.target.value}:00` },
-                      }))
+                    after={weeklySchedule[key].start_time}
+                    invalid={Boolean(hoursProblems.days[key])}
+                    describedBy={hoursProblems.days[key] ? `${key}-hours-problem` : undefined}
+                    align="right"
+                    onChange={(time) =>
+                      setWeeklySchedule((prev) => ({ ...prev, [key]: { ...prev[key], end_time: `${time}:00` } }))
                     }
-                    className={TIME_SELECT_CLASS}
-                  >
-                    {clinicTimeOptions({
-                      after: weeklySchedule[key].start_time,
-                      keep: weeklySchedule[key].end_time,
-                    }).map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               ) : (
                 <span className="text-sm text-slate-500">Closed</span>
@@ -1516,39 +1487,17 @@ export function SettingsForm({
           </div>
           {breakEnabled ? (
             <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
-              <label htmlFor="breakStart" className="sr-only">
-                Break start
-              </label>
-              <select
-                id="breakStart"
-                value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
-                className={TIME_SELECT_CLASS}
-              >
-                    {clinicTimeOptions({ keep: breakStart }).map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-              </select>
+              <ClinicTimePicker label="Break start" value={breakStart} onChange={setBreakStart} />
               <span aria-hidden>–</span>
-              <label htmlFor="breakEnd" className="sr-only">
-                Break end
-              </label>
-              <select
-                id="breakEnd"
-                aria-invalid={Boolean(hoursProblems.breakTime)}
-                aria-describedby={hoursProblems.breakTime ? "break-problem" : undefined}
+              <ClinicTimePicker
+                label="Break end"
                 value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
-                className={TIME_SELECT_CLASS}
-              >
-                    {clinicTimeOptions({ after: breakStart, keep: breakEnd }).map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-              </select>
+                after={breakStart}
+                invalid={Boolean(hoursProblems.breakTime)}
+                describedBy={hoursProblems.breakTime ? "break-problem" : undefined}
+                align="right"
+                onChange={setBreakEnd}
+              />
             </div>
           ) : (
             <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>

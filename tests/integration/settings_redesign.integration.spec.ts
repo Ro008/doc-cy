@@ -357,8 +357,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card).toHaveCount(1);
     await expect(page.getByTestId("settings-clinic-card").filter({ hasText: "My Limassol room" })).toHaveCount(0);
 
-    await card.getByRole("button", { name: "Edit hours" }).click();
-    await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request a change");
+    // A click before hydration does nothing: retry until the editor opens.
+    await expect(async () => {
+      await card.getByRole("button", { name: "Edit hours" }).click();
+      await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request a change", { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("#clinicName")).toHaveCount(0);
     await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
   });
@@ -405,47 +408,75 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await openSettings(page, seeded!, "clinics");
     const card = clinicCard(page, "Limassol Skin Clinic");
     const save = card.getByTestId("settings-clinic-hours-save");
-    const start = card.getByLabel("Monday start time");
-    const end = card.getByLabel("Monday end time");
+    const trigger = (label: string) => card.getByRole("button", { name: label, exact: true });
+    const picker = (label: string) => card.getByRole("dialog", { name: label });
+    const hour = (label: string, value: string) =>
+      picker(label).getByRole("radiogroup", { name: "Hour" }).getByRole("radio", { name: value, exact: true });
+    const minute = (label: string, value: string) =>
+      picker(label).getByRole("radiogroup", { name: "Minutes" }).getByRole("radio", { name: value, exact: true });
+    // Hour first, then the minutes, which closes the picker.
+    const pick = async (label: string, time: string) => {
+      const [h, m] = time.split(":");
+      await trigger(label).click();
+      await hour(label, h).click();
+      await minute(label, m).click();
+      await expect(picker(label)).toHaveCount(0);
+      await expect(trigger(label)).toHaveText(time);
+    };
+    const start = "Monday start time";
+    const end = "Monday end time";
     // A click before hydration does nothing: retry until the editor opens.
     await expect(async () => {
       await card.getByRole("button", { name: "Edit hours" }).click();
-      await expect(start).toBeVisible({ timeout: 2_000 });
+      await expect(trigger(start)).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
 
-    // Times are picked by quarter hours (user, 2026-10-10): no 17:02.
-    const values = (select: typeof start) =>
-      select.locator("option").evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
-    expect((await values(start)).slice(0, 5)).toEqual(["00:00", "00:15", "00:30", "00:45", "01:00"]);
-    expect(await values(start)).toHaveLength(96);
+    // Times are picked by hour and quarter (user, 2026-10-10): no 17:02, no long list.
+    await trigger(start).click();
+    await expect(picker(start).getByRole("radiogroup", { name: "Hour" }).getByRole("radio")).toHaveCount(24);
+    await expect(picker(start).getByRole("radiogroup", { name: "Minutes" }).getByRole("radio")).toHaveText([
+      ":00",
+      ":15",
+      ":30",
+      ":45",
+    ]);
+    await page.keyboard.press("Escape");
+    await expect(picker(start)).toHaveCount(0);
 
-    // The end offers only times after the start.
-    await start.selectOption("10:00");
-    await end.selectOption("12:00");
-    expect((await values(end))[0]).toBe("10:15");
+    await pick(start, "10:00");
+    await pick(end, "12:30");
     await expect(card.getByRole("alert")).toHaveCount(0);
     await expect(save).toBeEnabled();
 
+    // The end offers only times after the start.
+    await trigger(end).click();
+    await expect(hour(end, "09")).toBeDisabled();
+    await expect(hour(end, "10")).toBeEnabled();
+    await hour(end, "10").click();
+    await expect(minute(end, "00")).toBeDisabled();
+    await expect(trigger(end)).toHaveText("10:30");
+    await page.keyboard.press("Escape");
+
     // Moving the start past the end: the row says so and nothing can be saved.
-    await start.selectOption("13:00");
+    await pick(start, "13:00");
     await expect(card.getByRole("alert")).toHaveText("Monday must end after 13:00.");
-    await expect(end).toHaveAttribute("aria-invalid", "true");
+    await expect(trigger(end)).toHaveAttribute("aria-invalid", "true");
     await expect(save).toBeDisabled();
 
-    await start.selectOption("10:00");
-    await end.selectOption("16:00");
+    await pick(start, "10:00");
+    await pick(end, "16:00");
     await expect(card.getByRole("alert")).toHaveCount(0);
     await expect(save).toBeEnabled();
 
     // The break follows the same rules.
     const breakOn = card.getByLabel("Add a daily break");
     if (!(await breakOn.isChecked())) await breakOn.check();
-    await card.getByLabel("Break start").selectOption("13:00");
-    await card.getByLabel("Break end").selectOption("15:00");
-    await card.getByLabel("Break start").selectOption("15:30");
+    await pick("Break start", "13:00");
+    await pick("Break end", "15:00");
+    await pick("Break start", "15:30");
     await expect(card.getByRole("alert")).toHaveText("The break must end after 15:30.");
     await expect(save).toBeDisabled();
-    await card.getByLabel("Break start").selectOption("14:00");
+    await pick("Break start", "14:00");
     await expect(card.getByRole("alert")).toHaveCount(0);
 
     await save.click();

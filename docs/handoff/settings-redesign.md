@@ -67,7 +67,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   migration a change shows on every clinic and the card says so (section 3.7,
   `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
 - A clinic's **name, address and phone change only by request** ("Request a change").
-  Only hours are editable. Times are picked by quarter hours from a list, and an open day,
+  Only hours are editable. Times are picked by hour and quarter (`ClinicTimePicker`), and an open day,
   and the break, must end after they start
   (`lib/clinic-hours-check.ts`): the row says so, Save stays off, and the route refuses it too.
 - **The clinic's phone is on its card** (Livio, 2026-10-10), shown as "+357 25 123456",

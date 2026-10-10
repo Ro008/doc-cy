@@ -3,7 +3,7 @@ import { DAY_NAMES, type DayKey, type WeeklySchedule } from "@/lib/doctor-settin
 /**
  * A clinic's hours must make sense before they are saved (user, 2026-10-10): an open
  * day ends after it starts, and so does the break, and every time is on a quarter hour
- * (no 17:02). Checked in the settings form (times are picked from a list, the day's row
+ * (no 17:02). Checked in the settings form (times are picked by hour and quarter, the day's row
  * says what is wrong and Save stays off) and again in POST /api/doctor-settings.
  */
 
@@ -36,21 +36,32 @@ function hhmm(value: unknown): string | null {
 
 const onStep = (time: string) => Number(time.slice(3)) % CLINIC_TIME_STEP_MINUTES === 0;
 
-/**
- * The times a picker offers ("HH:MM"), every quarter hour of the day. `after` keeps
- * only later times (an end time after its start). `keep` is the saved value: it stays
- * in the list, in order, even when it is off the grid or no longer after the start.
- */
-export function clinicTimeOptions({ after, keep }: { after?: string | null; keep?: string | null } = {}): string[] {
+/** The minutes the time picker offers, with any hour of the day. */
+export const CLINIC_TIME_MINUTES = ["00", "15", "30", "45"] as const;
+
+/** Whether the picker offers this time: any time, or only those after `after` (an end after its start). */
+export function clinicTimeAllowed(time: string, after?: string | null): boolean {
   const from = hhmm(after);
-  const options: string[] = [];
-  for (let minutes = 0; minutes < 24 * 60; minutes += CLINIC_TIME_STEP_MINUTES) {
-    const time = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-    if (!from || time > from) options.push(time);
-  }
-  const kept = hhmm(keep);
-  if (kept && !options.includes(kept)) options.push(kept);
-  return options.sort();
+  const value = hhmm(time);
+  return Boolean(value) && (!from || value! > from);
+}
+
+/** Whether an hour ("09") still has a quarter on offer. */
+export function clinicHourAllowed(hour: string, after?: string | null): boolean {
+  return CLINIC_TIME_MINUTES.some((minute) => clinicTimeAllowed(`${hour}:${minute}`, after));
+}
+
+/** The time with another hour: the minutes stay when they are a quarter still on offer. */
+export function clinicTimeWithHour(time: string, hour: string, after?: string | null): string {
+  const minutes = (hhmm(time) ?? "09:00").slice(3);
+  const choices = CLINIC_TIME_MINUTES.filter((minute) => clinicTimeAllowed(`${hour}:${minute}`, after));
+  const minute = choices.find((choice) => choice === minutes) ?? choices[0] ?? "00";
+  return `${hour}:${minute}`;
+}
+
+/** The time with other minutes. */
+export function clinicTimeWithMinute(time: string, minute: string): string {
+  return `${(hhmm(time) ?? "09:00").slice(0, 2)}:${minute}`;
 }
 
 const dayLabel = (day: DayKey) => `${day[0].toUpperCase()}${day.slice(1)}`;

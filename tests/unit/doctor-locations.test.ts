@@ -116,7 +116,7 @@ describe("doctor locations", () => {
     assert.equal(settingsForm.includes("settings-clinic-district"), false);
     assert.equal(settingsForm.includes("District not detected"), false);
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
-    assert.equal(settingsForm.includes("TIME_SELECT_CLASS"), true);
+    assert.equal(settingsForm.includes("ClinicTimePicker"), true);
     assert.equal(settingsForm.includes("workplaceTabScrollYRef"), true);
     const picker = fs.readFileSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/DoctorProfileClinicPicker.tsx"),

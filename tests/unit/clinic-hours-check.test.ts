@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { clinicHoursProblem, clinicHoursProblems, clinicTimeOptions } from "../../lib/clinic-hours-check";
+import {
+  CLINIC_TIME_MINUTES,
+  clinicHourAllowed,
+  clinicHoursProblem,
+  clinicHoursProblems,
+  clinicTimeAllowed,
+  clinicTimeWithHour,
+  clinicTimeWithMinute,
+} from "../../lib/clinic-hours-check";
 import type { WeeklySchedule } from "../../lib/doctor-settings";
 
 /**
@@ -99,24 +107,39 @@ describe("clinicHoursProblems", () => {
   });
 });
 
-describe("clinicTimeOptions", () => {
-  it("offers every quarter hour of the day", () => {
-    const options = clinicTimeOptions();
-    assert.equal(options.length, 96);
-    assert.deepEqual(options.slice(0, 5), ["00:00", "00:15", "00:30", "00:45", "01:00"]);
-    assert.equal(options.at(-1), "23:45");
+describe("the time picker's choices", () => {
+  it("offers the four quarters of an hour", () => {
+    assert.deepEqual(CLINIC_TIME_MINUTES, ["00", "15", "30", "45"]);
   });
 
-  it("offers only the times after a start, for an end time", () => {
-    const options = clinicTimeOptions({ after: "09:00:00" });
-    assert.equal(options[0], "09:15");
-    assert.equal(options.at(-1), "23:45");
-    assert.deepEqual(clinicTimeOptions({ after: "23:45" }), []);
+  it("allows any time when nothing comes before it", () => {
+    assert.equal(clinicTimeAllowed("00:00"), true);
+    assert.equal(clinicHourAllowed("00"), true);
   });
 
-  it("keeps a saved time that is off the grid or no longer after the start, in order", () => {
-    assert.deepEqual(clinicTimeOptions({ after: "23:00", keep: "23:20" }), ["23:15", "23:20", "23:30", "23:45"]);
-    assert.deepEqual(clinicTimeOptions({ after: "23:15", keep: "08:00:00" }), ["08:00", "23:30", "23:45"]);
-    assert.equal(clinicTimeOptions({ keep: "17:00" }).length, 96);
+  it("allows an end time only after the start", () => {
+    assert.equal(clinicTimeAllowed("09:00", "09:00:00"), false);
+    assert.equal(clinicTimeAllowed("09:15", "09:00:00"), true);
+    assert.equal(clinicTimeAllowed("08:45", "09:00"), false);
+    // An hour is on offer while one of its quarters is still after the start.
+    assert.equal(clinicHourAllowed("08", "09:00"), false);
+    assert.equal(clinicHourAllowed("09", "09:00"), true);
+    assert.equal(clinicHourAllowed("09", "09:45"), false);
+    assert.equal(clinicHourAllowed("10", "09:45"), true);
+  });
+
+  it("changes the hour and keeps the minutes when they still fit", () => {
+    assert.equal(clinicTimeWithHour("17:30:00", "12"), "12:30");
+    assert.equal(clinicTimeWithHour("17:30", "09", "09:00"), "09:30");
+    // 09:00 is not after 09:00: the first quarter that is.
+    assert.equal(clinicTimeWithHour("17:00", "09", "09:00"), "09:15");
+    assert.equal(clinicTimeWithHour("17:00", "09", "09:30"), "09:45");
+    // Saved minutes off the grid (17:02) go to a quarter.
+    assert.equal(clinicTimeWithHour("17:02", "18"), "18:00");
+  });
+
+  it("changes the minutes and keeps the hour", () => {
+    assert.equal(clinicTimeWithMinute("17:00:00", "45"), "17:45");
+    assert.equal(clinicTimeWithMinute("", "15"), "09:15");
   });
 });
