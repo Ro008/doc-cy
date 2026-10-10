@@ -54,6 +54,15 @@ export function clinicTimeAllowed(time: string, after?: string | null, before?: 
   return Boolean(value) && (!from || value! > from) && (!until || value! < until);
 }
 
+/**
+ * Whether an hour ("09") is one a clinic usually works (07 to 19). The picker dims the
+ * others as a hint (user, 2026-10-10); they can still be picked.
+ */
+export function clinicHourIsUsual(hour: string): boolean {
+  const value = Number(hour);
+  return value >= 7 && value <= 19;
+}
+
 /** Whether an hour ("09") still has a quarter on offer. */
 export function clinicHourAllowed(hour: string, after?: string | null, before?: string | null): boolean {
   return CLINIC_TIME_MINUTES.some((minute) => clinicTimeAllowed(`${hour}:${minute}`, after, before));

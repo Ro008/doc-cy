@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   CLINIC_TIME_MINUTES,
   clinicHourAllowed,
+  clinicHourIsUsual,
   clinicHoursProblem,
   clinicHoursProblems,
   clinicTimeAllowed,
@@ -151,5 +152,14 @@ describe("the time picker's choices", () => {
   it("changes the minutes and keeps the hour", () => {
     assert.equal(clinicTimeWithMinute("17:00:00", "45"), "17:45");
     assert.equal(clinicTimeWithMinute("", "15"), "09:15");
+  });
+});
+
+describe("clinicHourIsUsual", () => {
+  it("is true from 07 to 19, the hours a clinic usually works", () => {
+    assert.deepEqual(
+      ["00", "06", "07", "12", "19", "20", "23"].map(clinicHourIsUsual),
+      [false, false, true, true, true, false, false],
+    );
   });
 });

@@ -5,6 +5,7 @@ import { Clock } from "lucide-react";
 import {
   CLINIC_TIME_MINUTES,
   clinicHourAllowed,
+  clinicHourIsUsual,
   clinicTimeAllowed,
   clinicTimeWithHour,
   clinicTimeWithMinute,
@@ -13,14 +14,17 @@ import {
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
 
 const CHOICE_CLASS =
-  "rounded-lg border text-sm tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 disabled:cursor-not-allowed disabled:border-transparent disabled:text-slate-600";
+  "rounded-lg border text-sm tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 disabled:cursor-not-allowed disabled:border-transparent disabled:text-slate-700";
 const CHOICE_ON = "border-clinical-400/60 bg-clinical-500/15 font-semibold text-clinical-50";
-const CHOICE_OFF = "border-transparent text-slate-300 hover:border-slate-600 hover:bg-white/5";
+const CHOICE_OFF = "border-transparent text-slate-200 hover:border-slate-600 hover:bg-white/5";
+/** An hour outside the usual working day: quieter, still on offer. */
+const CHOICE_UNUSUAL = "border-transparent text-slate-500 hover:border-slate-600 hover:bg-white/5 hover:text-slate-300";
 
 /**
  * A time of day in a clinic's hours (user, 2026-10-10): the hour from a small grid, the
  * minutes from the four quarters, so there is no 17:02 and no list of 96 times. Picking
- * the minutes closes it; Escape or a click outside too. `after` greys out what is not
+ * the minutes closes it; Escape or a click outside too. Hours a clinic rarely works are
+ * dimmed, not blocked. `after` greys out what is not
  * later than it (an end time after its start); `before`, what is not earlier (a break
  * before the day ends).
  */
@@ -127,7 +131,10 @@ export function ClinicTimePicker({
                 aria-checked={choice === hour}
                 disabled={!clinicHourAllowed(choice, after, before)}
                 onClick={() => onChange(clinicTimeWithHour(value, choice, after, before))}
-                className={`${CHOICE_CLASS} h-8 ${choice === hour ? CHOICE_ON : CHOICE_OFF}`}
+                title={clinicHourIsUsual(choice) ? undefined : "Outside the usual working hours"}
+                className={`${CHOICE_CLASS} h-8 ${
+                  choice === hour ? CHOICE_ON : clinicHourIsUsual(choice) ? CHOICE_OFF : CHOICE_UNUSUAL
+                }`}
               >
                 {choice}
               </button>
