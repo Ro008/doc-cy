@@ -1872,6 +1872,8 @@ export function SettingsForm({
         </div>
       </section>
       {specialtiesCard}
+      {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
+      {profileExtra}
       <section className={SECTION_CARD_CLASS}>
         <label htmlFor="settings-bio" className={SECTION_EYEBROW_CLASS}>
           How you help patients
@@ -1941,7 +1943,6 @@ export function SettingsForm({
           </p>
         ) : null}
       </section>
-      {profileExtra}
     </div>
   );
 

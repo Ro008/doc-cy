@@ -27,14 +27,14 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = (data?.message as string) || "Failed to update GESY setting.";
+        const message = (data?.message as string) || "Could not save your GeSY choice.";
         setError(message);
         toast.error(message);
         setAcceptsGesy(previous);
         return;
       }
       toast.success(
-        next ? "GESY badge enabled on your profile." : "GESY badge hidden from your profile.",
+        next ? "The GeSY badge now shows on your profile." : "The GeSY badge no longer shows on your profile.",
       );
     } catch (e) {
       console.error(e);
@@ -51,13 +51,13 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
     <div className={SETTINGS_CARD_CLASS}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-100">Accepts GESY patients</p>
+          <p className="text-sm font-semibold text-slate-100">I see GeSY patients</p>
           <p className="mt-0.5 text-xs text-slate-400">
-            Display a GESY badge on your profile to help patients find you faster.
+            Shows the GeSY badge on your profile, so patients know before they book.
           </p>
         </div>
         <SettingsSwitch
-          label="Accepts GESY patients"
+          label="I see GeSY patients"
           checked={acceptsGesy}
           busy={saving}
           onChange={(next) => void setAcceptsGesyRemote(next)}
