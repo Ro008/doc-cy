@@ -71,7 +71,6 @@ describe("isProfessionalApiPath", () => {
     for (const path of [
       "/api/appointments/manual",
       "/api/appointments/abc/confirm",
-      "/api/doctor-avatar",
       "/api/doctor-gesy",
       "/api/doctor-locations",
       "/api/doctor-online-bookings",
@@ -81,6 +80,9 @@ describe("isProfessionalApiPath", () => {
       "/api/professional-clinics/abc/dismiss-pause-notice",
       "/api/professional-mobile",
       "/api/professional-mobile/visibility",
+      "/api/name-change-requests",
+      "/api/photo-change-requests",
+      "/api/professional-photo",
     ]) {
       assert.equal(isProfessionalApiPath(path), true, path);
     }

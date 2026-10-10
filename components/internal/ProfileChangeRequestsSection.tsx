@@ -20,9 +20,10 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-
 const STATUS_WORD = { approved: "Approved", rejected: "Denied", withdrawn: "Withdrawn", pending: "Waiting" } as const;
 
 /**
- * Requests tab: professionals' changes that need a founder (user, 2026-10-10). For
- * now the name: old → new with her reason; a founder may correct the spelling before
- * approving, and a denial needs a reason, which she is emailed.
+ * Requests tab: professionals' changes that need a founder (user, 2026-10-10). A name:
+ * old → new with her reason; a founder may correct the spelling before approving. A
+ * photo: the live one beside the one she sent. A denial needs a reason, which she is
+ * emailed and sees in Settings.
  */
 export function ProfileChangeRequestsSection({ items, canMutate }: Props) {
   const pending = items.filter((item) => item.status === "pending");
@@ -78,6 +79,36 @@ export function ProfileChangeRequestsSection({ items, canMutate }: Props) {
   );
 }
 
+function ReviewPhoto({
+  label,
+  url,
+  alt,
+  highlight = false,
+}: {
+  label: string;
+  url: string | null;
+  alt: string;
+  highlight?: boolean;
+}) {
+  return (
+    <figure className="space-y-1">
+      <figcaption className="text-xs text-slate-400">{label}</figcaption>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a signed or public storage URL
+        <img
+          src={url}
+          alt={alt}
+          className={`h-40 w-40 rounded-2xl border object-cover ${highlight ? "border-emerald-400/50" : "border-slate-700"}`}
+        />
+      ) : (
+        <div className="flex h-40 w-40 items-center justify-center rounded-2xl border border-dashed border-slate-700 text-xs text-slate-500">
+          No photo
+        </div>
+      )}
+    </figure>
+  );
+}
+
 function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMutate: boolean }) {
   const router = useRouter();
   const [name, setName] = useState(item.requestedName ?? "");
@@ -94,7 +125,7 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
       const res = await fetch(`/api/internal/profile-changes/${item.id}/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "approve" ? { name } : { reason }),
+        body: JSON.stringify(action === "deny" ? { reason } : item.kind === "photo" ? {} : { name }),
       });
       const json = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) {
@@ -110,7 +141,8 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
     }
   }
 
-  const corrected = name.trim().replace(/\s+/g, " ") !== (item.requestedName ?? "");
+  const isPhoto = item.kind === "photo";
+  const corrected = !isPhoto && name.trim().replace(/\s+/g, " ") !== (item.requestedName ?? "");
 
   return (
     <article
@@ -119,7 +151,7 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="rounded-md bg-clinical-500/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-clinical-200">
-          Name change
+          {isPhoto ? "Photo change" : "Name change"}
         </span>
         <span className="font-semibold text-slate-100">{item.professional.name}</span>
         {item.professional.email ? <span className="text-xs text-slate-400">{item.professional.email}</span> : null}
@@ -136,20 +168,27 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
         ) : null}
       </div>
 
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs text-slate-400">Current name</dt>
-          <dd className="mt-0.5 font-medium text-slate-100">{item.currentName ?? "—"}</dd>
+      {isPhoto ? (
+        <div className="flex flex-wrap gap-6">
+          <ReviewPhoto label="Current photo" url={item.currentPhotoUrl} alt="Current photo" />
+          <ReviewPhoto label="Requested photo" url={item.requestedPhotoUrl} alt="Requested photo" highlight />
         </div>
-        <div>
-          <dt className="text-xs text-slate-400">Requested name</dt>
-          <dd className="mt-0.5 font-medium text-emerald-200">{item.requestedName ?? "—"}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-xs text-slate-400">Reason given</dt>
-          <dd className="mt-0.5 text-slate-200">{item.reason ?? "None given."}</dd>
-        </div>
-      </dl>
+      ) : (
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-slate-400">Current name</dt>
+            <dd className="mt-0.5 font-medium text-slate-100">{item.currentName ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-400">Requested name</dt>
+            <dd className="mt-0.5 font-medium text-emerald-200">{item.requestedName ?? "—"}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-slate-400">Reason given</dt>
+            <dd className="mt-0.5 text-slate-200">{item.reason ?? "None given."}</dd>
+          </div>
+        </dl>
+      )}
 
       {decision ? (
         <p className={decision === "approved" ? "font-semibold text-emerald-300" : "font-semibold text-red-300"}>
@@ -157,25 +196,33 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
         </p>
       ) : canMutate ? (
         <>
-          <label className={labelClass}>
-            Name to approve (correct a typo or capitals here)
-            <input
-              type="text"
-              value={name}
-              maxLength={80}
-              disabled={busy !== null}
-              onChange={(event) => setName(event.target.value)}
-              className={inputClass}
-            />
-            {corrected ? (
-              <span className="text-[11px] text-amber-200">
-                Differs from what was asked: the professional is told the spelling was adjusted.
-              </span>
-            ) : null}
-          </label>
-          <p className="text-xs text-slate-400">
-            Approving also moves the profile to the new name&apos;s web address; the old address forwards to it.
-          </p>
+          {isPhoto ? (
+            <p className="text-xs text-slate-400">
+              Approving puts the requested photo on the public profile right away.
+            </p>
+          ) : (
+            <>
+              <label className={labelClass}>
+                Name to approve (correct a typo or capitals here)
+                <input
+                  type="text"
+                  value={name}
+                  maxLength={80}
+                  disabled={busy !== null}
+                  onChange={(event) => setName(event.target.value)}
+                  className={inputClass}
+                />
+                {corrected ? (
+                  <span className="text-[11px] text-amber-200">
+                    Differs from what was asked: the professional is told the spelling was adjusted.
+                  </span>
+                ) : null}
+              </label>
+              <p className="text-xs text-slate-400">
+                Approving also moves the profile to the new name&apos;s web address; the old address forwards to it.
+              </p>
+            </>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

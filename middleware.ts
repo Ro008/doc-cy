@@ -216,7 +216,6 @@ export const config = {
   matcher: [
     "/((?!api|_next|_vercel|.*\\..*).*)",
     "/api/appointments/:path+",
-    "/api/doctor-avatar",
     "/api/doctor-gesy",
     "/api/doctor-locations",
     "/api/doctor-online-bookings",
@@ -224,5 +223,8 @@ export const config = {
     "/api/doctor-settings/:path*",
     "/api/professional-clinics/:path*",
     "/api/professional-mobile/:path*",
+    "/api/name-change-requests",
+    "/api/photo-change-requests",
+    "/api/professional-photo",
   ],
 };

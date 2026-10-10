@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { NAME_CHANGE_REQUEST_TYPE } from "@/lib/profile-change-requests";
-import { submitNameChangeRequest, withdrawProfileChangeRequest } from "@/lib/profile-change-requests-server";
+import { PHOTO_CHANGE_REQUEST_TYPE } from "@/lib/profile-change-requests";
+import { submitPhotoChangeRequest, withdrawProfileChangeRequest } from "@/lib/profile-change-requests-server";
 import { signedInProfessionalId } from "@/lib/professional-route-session";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
- * Settings → Profile (user, 2026-10-10): the name changes by request. Founders
- * approve or deny it; until then the live name stays.
- * - POST { name, reason } → 201 { request: { id, name, createdAt } } · 400 not a
- *   usable name · 409 a request is already waiting
+ * Settings → Profile (user, 2026-10-10): a new photo goes live only once a founder
+ * approves it. Until then it waits in the private bucket and the live photo stays.
+ * - POST multipart { photo } → 201 { request: { id, createdAt, photoUrl } } · 400 not
+ *   a usable image · 409 a request is already waiting
  * - DELETE withdraws her open request → 200 · 409 already decided
  * Both: 401 signed out · 403 not a professional.
  */
@@ -19,12 +19,11 @@ export async function POST(req: Request) {
   const service = createServiceRoleClient();
   if (!service) return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
 
-  const body = (await req.json().catch(() => null)) as { name?: unknown; reason?: unknown } | null;
-  const result = await submitNameChangeRequest(service, {
-    professionalId: pro.id,
-    name: body?.name,
-    reason: body?.reason,
-  });
+  const form = await req.formData().catch(() => null);
+  const file = form?.get("photo");
+  if (!(file instanceof File)) return NextResponse.json({ message: "No photo was sent." }, { status: 400 });
+
+  const result = await submitPhotoChangeRequest(service, { professionalId: pro.id, file });
   if (result.ok === false) return NextResponse.json({ message: result.message }, { status: result.status });
   return NextResponse.json({ request: result.request }, { status: 201 });
 }
@@ -37,7 +36,7 @@ export async function DELETE() {
 
   const result = await withdrawProfileChangeRequest(service, {
     professionalId: pro.id,
-    type: NAME_CHANGE_REQUEST_TYPE,
+    type: PHOTO_CHANGE_REQUEST_TYPE,
   });
   if (result.ok === false) return NextResponse.json({ message: result.message }, { status: result.status });
   return NextResponse.json({ status: "withdrawn" });

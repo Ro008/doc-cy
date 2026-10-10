@@ -122,6 +122,34 @@ export function nameChangeSlugCandidates(input: {
   return buildDoctorSlugCandidates({ name: input.name, district: input.district, authUserId: input.authUserId });
 }
 
+/** The private bucket's own limit (request-uploads): 1 MB, JPEG / PNG / WebP. */
+export const PHOTO_CHANGE_MAX_BYTES = 1024 * 1024;
+
+const PHOTO_EXTENSIONS: Record<string, "jpg" | "png" | "webp"> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** The new photo as it arrives from Settings (cropped there to a 900 px JPEG). */
+export function photoChangeUploadCheck(file: {
+  type: string;
+  size: number;
+}): { ok: true; extension: "jpg" | "png" | "webp" } | { ok: false; message: string } {
+  const extension = PHOTO_EXTENSIONS[file.type.toLowerCase()];
+  if (!extension) return { ok: false, message: "Use a JPEG, PNG or WebP image." };
+  if (file.size <= 0 || file.size > PHOTO_CHANGE_MAX_BYTES) {
+    return { ok: false, message: "The photo must be under 1 MB." };
+  }
+  return { ok: true, extension };
+}
+
+/** Where a requested photo waits for the founders, in the private request-uploads bucket. */
+export function photoChangeUploadPath(professionalId: string, stamp: string, extension: string): string {
+  return `${PHOTO_CHANGE_REQUEST_TYPE}/${professionalId}/${stamp}.${extension}`;
+}
+
 export type ReviewedNameChange =
   | { ok: true; name: string; corrected: { name: string; reason: string | null } | null }
   | { ok: false; message: string };

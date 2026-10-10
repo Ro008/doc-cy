@@ -1,3 +1,4 @@
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
@@ -875,6 +876,160 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       await expect(page.getByRole("heading", { level: 1 })).toContainText(approvedName, { timeout: 20_000 });
     } finally {
       await admin.from("professional_slug_redirects").delete().eq("professional_id", seeded!.professionalId);
+    }
+  });
+
+  test("Profile: a new photo waits for a founder; withdrawn, denied, approved; removing is immediate", async ({
+    page,
+    request,
+    browser,
+  }) => {
+    test.setTimeout(240_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    const fixture = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
+    const requests = (type = "professional_photo_change") =>
+      admin
+        .from("request_log")
+        .select("id, status, details, before_snapshot, outcome")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", type)
+        .order("created_at", { ascending: true });
+    const liveAvatar = async () =>
+      (await admin.from("professionals").select("avatar_url").eq("id", seeded!.professionalId).single()).data
+        ?.avatar_url as string | null;
+    const waiting = async () =>
+      ((await admin.storage.from("request-uploads").list(`professional_photo_change/${seeded!.professionalId}`)).data ?? [])
+        .map((file) => file.name);
+    const today = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Nicosia",
+    }).format(new Date());
+
+    await openSettings(page, seeded!, "profile");
+    const controls = page.getByTestId("settings-photo-controls");
+    const pending = page.getByTestId("settings-photo-change-pending");
+    const denied = page.getByTestId("settings-photo-change-denied");
+    const uploadButton = controls.getByRole("button", { name: "Upload new photo" });
+    const send = async () => {
+      await expect(uploadButton).toBeVisible({ timeout: 20_000 });
+      await expect(async () => {
+        await page.getByTestId("settings-avatar-file-input").setInputFiles(fixture);
+        await expect(page.getByRole("button", { name: /Confirm crop/i })).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: 20_000 });
+      await page.getByRole("button", { name: /Confirm crop/i }).click();
+      await expect(pending).toBeVisible({ timeout: 30_000 });
+    };
+
+    try {
+      // 1. Sent: it waits in the private bucket; the live profile has no photo yet.
+      await expect(controls.getByRole("button", { name: "Remove photo" })).toHaveCount(0);
+      await send();
+      await expect(pending).toContainText(`New photo sent on ${today}`);
+      await expect(pending).toContainText("waiting for DocCy’s approval");
+      await expect(pending.getByRole("img", { name: "The photo you sent" })).toBeVisible();
+      await expect(uploadButton).toHaveCount(0);
+      let rows = (await requests()).data ?? [];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: "pending", before_snapshot: { avatar_url: null } });
+      expect(String((rows[0]!.details as { photo_path: string }).photo_path)).toMatch(
+        new RegExp(`^professional_photo_change/${seeded!.professionalId}/.+\\.jpg$`),
+      );
+      expect(await liveAvatar()).toBeNull();
+      expect(await waiting()).toHaveLength(1);
+      await page.reload();
+      await expect(pending).toContainText(`New photo sent on ${today}`, { timeout: 20_000 });
+      await expect(pending.getByRole("img", { name: "The photo you sent" })).toBeVisible();
+
+      // 2. Withdrawn: the request closes and her photo is not kept.
+      await expect(async () => {
+        await pending.getByRole("button", { name: "Withdraw request" }).click();
+        await expect(pending).toHaveCount(0, { timeout: 5_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(uploadButton).toBeVisible();
+      expect(((await requests()).data ?? []).map((row) => row.status)).toEqual(["withdrawn"]);
+      expect(await waiting()).toHaveLength(0);
+
+      // 3. Denied by a founder: the reason shows until she dismisses it.
+      await send();
+      rows = (await requests()).data ?? [];
+      const deny = await request.post(`/api/internal/profile-changes/${rows[1]!.id}/deny`, {
+        headers,
+        data: { reason: "The photo shows a logo, not you." },
+      });
+      expect(deny.status(), await deny.text()).toBe(200);
+      await page.reload();
+      await expect(denied).toContainText("Your new photo was not approved", { timeout: 20_000 });
+      await expect(denied).toContainText("Reason: The photo shows a logo, not you.");
+      await denied.getByRole("button", { name: "Dismiss" }).click();
+      await expect(denied).toHaveCount(0);
+      expect(await liveAvatar()).toBeNull();
+
+      // 4. Approved by a founder, who sees the requested photo on the dashboard.
+      await send();
+      rows = (await requests()).data ?? [];
+      const approvedId = rows[2]!.id as string;
+      const founderContext = await browser.newContext();
+      try {
+        await founderContext.addCookies(
+          adminCookieHeader(founder)
+            .split("; ")
+            .map((pair) => {
+              const at = pair.indexOf("=");
+              return { name: pair.slice(0, at), value: pair.slice(at + 1), url: page.url() };
+            }),
+        );
+        const founderPage = await founderContext.newPage();
+        await founderPage.goto(new URL("/internal/directory?tab=requests", page.url()).toString());
+        const card = founderPage.locator(`[data-change-request-id="${approvedId}"]`);
+        await expect(card).toBeVisible({ timeout: 30_000 });
+        await expect(card).toContainText("Photo change");
+        await expect(card.getByRole("img", { name: "Requested photo" })).toBeVisible();
+        await expect(card.getByText("No photo")).toBeVisible();
+        await expect(async () => {
+          await card.getByRole("button", { name: "Approve", exact: true }).click();
+          await expect(founderPage.locator(`[data-decided-change-id="${approvedId}"]`)).toHaveCount(1, {
+            timeout: 10_000,
+          });
+        }).toPass({ timeout: 40_000 });
+      } finally {
+        await founderContext.close();
+      }
+      const approvedAvatar = await liveAvatar();
+      expect(approvedAvatar).toMatch(new RegExp(`^profiles/${seeded!.authUserId}/avatar-.+\\.jpg$`));
+      rows = (await requests()).data ?? [];
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn", "rejected", "approved"]);
+      expect(rows[2]!.outcome).toMatchObject({ avatar_url: approvedAvatar });
+
+      // 5. She removes it: no founder, gone at once, and recorded.
+      await page.reload();
+      await expect(pending).toHaveCount(0);
+      await expect(async () => {
+        await controls.getByRole("button", { name: "Remove photo" }).click();
+        await expect(page.getByRole("dialog", { name: "Remove your photo?" })).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: 20_000 });
+      await page.getByRole("dialog", { name: "Remove your photo?" }).getByRole("button", { name: "Remove photo" }).click();
+      await expect(page.getByText("Photo removed from your profile.")).toBeVisible({ timeout: 20_000 });
+      await expect(controls.getByRole("button", { name: "Remove photo" })).toHaveCount(0);
+      expect(await liveAvatar()).toBeNull();
+      const removals = (await requests("professional_photo_removal")).data ?? [];
+      expect(removals).toHaveLength(1);
+      expect(removals[0]).toMatchObject({ status: "recorded", before_snapshot: { avatar_url: approvedAvatar } });
+      const kept = (await admin.storage.from("avatars").list(`profiles/${seeded!.authUserId}`)).data ?? [];
+      expect(kept).toHaveLength(0);
+    } finally {
+      const left = await waiting();
+      if (left.length) {
+        await admin.storage
+          .from("request-uploads")
+          .remove(left.map((name) => `professional_photo_change/${seeded!.professionalId}/${name}`));
+      }
+      const avatars = (await admin.storage.from("avatars").list(`profiles/${seeded!.authUserId}`)).data ?? [];
+      if (avatars.length) {
+        await admin.storage.from("avatars").remove(avatars.map((file) => `profiles/${seeded!.authUserId}/${file.name}`));
+      }
     }
   });
 

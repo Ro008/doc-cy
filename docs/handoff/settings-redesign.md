@@ -305,6 +305,20 @@ it (tables, review flow, emails) is yours.
   The settings page loads her state with `loadProfileChangeStates` →
   `initial.nameChange { pending, denied }`. Code: `lib/profile-change-requests.ts` (no
   database; imported by the page), `-server.ts`, `lib/profile-change-emails.ts`.
+- **Photo change: built (Livio, 2026-10-10).** A new photo also needs a founder. The crop
+  dialog sends `POST /api/photo-change-requests` (multipart `photo`; JPEG / PNG / WebP,
+  1 MB: the private `request-uploads` bucket's limit) → 201
+  `{ "request": { "id", "createdAt", "photoUrl" } }`; the photo waits at
+  `professional_photo_change/<professional id>/…` and the live one stays. The card shows
+  the photo she sent with "New photo sent on dd/mm/yyyy · waiting for DocCy's approval"
+  and "Withdraw request" (`DELETE`, which also deletes the waiting file); "Upload new
+  photo" is hidden meanwhile. Founders see both photos side by side and approve (copied
+  to the public `avatars` bucket, `professionals.avatar_url`) or deny with a reason.
+  **"Remove photo" is immediate** (`DELETE /api/professional-photo`, recorded as
+  `professional_photo_removal`; the public file is deleted). Component:
+  `ProfilePhotoControls`; state from `initial.photoChange`. **`POST /api/doctor-avatar`
+  is gone** (it saved without approval). New professional routes go in
+  `PROFESSIONAL_API_ROUTES` and the middleware matcher.
 - `PUT /api/professional-profile` `{ "patientAges": "adults" | "children" | "all" }` → 2xx.
   `PatientAgesCard` takes `initialValue`.
 - `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`

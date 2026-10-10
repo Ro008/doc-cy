@@ -9,6 +9,8 @@ import {
 import {
   NAME_CHANGE_REQUEST_TYPE,
   PHOTO_CHANGE_REQUEST_TYPE,
+  photoChangeUploadCheck,
+  photoChangeUploadPath,
   pickNameChangeSlug,
   profileChangeDbErrorMessage,
   profileChangeRequestDate,
@@ -136,6 +138,33 @@ describe("pickNameChangeSlug", () => {
         taken: new Set(["maria-georgiou"]),
       }),
       "maria-georgiou-paphos",
+    );
+  });
+});
+
+describe("the new photo's file", () => {
+  it("takes the cropped JPEG, and PNG or WebP, up to 1 MB", () => {
+    assert.deepEqual(photoChangeUploadCheck({ type: "image/jpeg", size: 280 * 1024 }), { ok: true, extension: "jpg" });
+    assert.deepEqual(photoChangeUploadCheck({ type: "IMAGE/PNG", size: 1024 * 1024 }), { ok: true, extension: "png" });
+    assert.deepEqual(photoChangeUploadCheck({ type: "image/webp", size: 10 }), { ok: true, extension: "webp" });
+  });
+
+  it("refuses other files, empty files and files over 1 MB", () => {
+    assert.deepEqual(photoChangeUploadCheck({ type: "image/gif", size: 10 }), {
+      ok: false,
+      message: "Use a JPEG, PNG or WebP image.",
+    });
+    assert.deepEqual(photoChangeUploadCheck({ type: "image/jpeg", size: 0 }), {
+      ok: false,
+      message: "The photo must be under 1 MB.",
+    });
+    assert.equal(photoChangeUploadCheck({ type: "image/jpeg", size: 1024 * 1024 + 1 }).ok, false);
+  });
+
+  it("waits in her own folder of the private bucket", () => {
+    assert.equal(
+      photoChangeUploadPath("11111111-2222-3333-4444-555555555555", "1700000000000-abc", "jpg"),
+      "professional_photo_change/11111111-2222-3333-4444-555555555555/1700000000000-abc.jpg",
     );
   });
 });

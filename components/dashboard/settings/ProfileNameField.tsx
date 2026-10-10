@@ -9,6 +9,7 @@ import {
   SETTINGS_LINK_CLASS,
   SETTINGS_PRIMARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
+import { useDismissibleDenial } from "@/components/dashboard/settings/useDismissibleDenial";
 import {
   profileChangeRequestDate,
   type DeniedProfileChange,
@@ -17,17 +18,6 @@ import {
 import { validateNameChangeRequest } from "@/lib/settings-profile-details";
 
 export type PendingNameChange = Pick<PendingProfileChange, "name" | "createdAt">;
-
-/** Denials she dismissed, by request id: kept in this browser only. */
-const DISMISSED_KEY = "doccy:dismissed-name-denial";
-
-function dismissedDenialId(): string | null {
-  try {
-    return window.localStorage.getItem(DISMISSED_KEY);
-  } catch {
-    return null;
-  }
-}
 
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
@@ -56,21 +46,7 @@ export function ProfileNameField({
   const reasonId = React.useId();
   const errorId = React.useId();
   const [pending, setPending] = React.useState<PendingNameChange | null>(initialPending);
-  // Shown after mount, once this browser's dismissals are known.
-  const [denied, setDenied] = React.useState<DeniedProfileChange | null>(null);
-  React.useEffect(() => {
-    setDenied(initialDenied && dismissedDenialId() !== initialDenied.id ? initialDenied : null);
-  }, [initialDenied]);
-
-  const dismissDenied = () => {
-    if (!denied) return;
-    try {
-      window.localStorage.setItem(DISMISSED_KEY, denied.id);
-    } catch {
-      // Private window: it stays dismissed for this visit only.
-    }
-    setDenied(null);
-  };
+  const [denied, dismissDenied, clearDenied] = useDismissibleDenial("name", initialDenied);
   const [editing, setEditing] = React.useState(false);
   const [typed, setTyped] = React.useState("");
   const [reason, setReason] = React.useState("");
@@ -107,7 +83,7 @@ export function ProfileNameField({
         name: String(data?.request?.name ?? check.name),
         createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
       });
-      setDenied(null);
+      clearDenied();
       setEditing(false);
       toast.success("Request sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {

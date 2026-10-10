@@ -93,6 +93,7 @@ import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBooki
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
 import { PatientAgesCard } from "@/components/dashboard/settings/PatientAgesCard";
 import { ProfileNameField } from "@/components/dashboard/settings/ProfileNameField";
+import { ProfilePhotoControls, type PendingPhotoChange } from "@/components/dashboard/settings/ProfilePhotoControls";
 import type { ProfileChangeState } from "@/lib/profile-change-requests";
 import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
@@ -121,6 +122,8 @@ export type DoctorSettingsFormData = {
   doctorName: string;
   /** Her open name change request, or her latest denial (`loadProfileChangeStates`). */
   nameChange?: ProfileChangeState | null;
+  /** The same for her photo; `pendingPhotoUrl` shows the photo she sent. */
+  photoChange?: (ProfileChangeState & { pendingPhotoUrl: string | null }) | null;
   avatarUrl?: string | null;
   /** Shown in directory & public profile */
   specialty: string;
@@ -533,6 +536,12 @@ export function SettingsForm({
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
     initial.avatarUrl?.trim() ? initial.avatarUrl : null
   );
+  // A new photo waits for a founder: the live one stays until then.
+  const [photoPending, setPhotoPending] = React.useState<PendingPhotoChange | null>(
+    initial.photoChange?.pending
+      ? { createdAt: initial.photoChange.pending.createdAt, photoUrl: initial.photoChange.pendingPhotoUrl }
+      : null,
+  );
   const [avatarSourceUrl, setAvatarSourceUrl] = React.useState<string | null>(null);
   const [avatarCrop, setAvatarCrop] = React.useState({ x: 0, y: 0 });
   const [avatarZoom, setAvatarZoom] = React.useState(1);
@@ -824,23 +833,21 @@ export function SettingsForm({
     setAvatarUploading(true);
     try {
       const form = new FormData();
-      form.set("doctorId", initial.doctorId);
-      form.set(
-        "avatarFile",
-        new File([blob], "profile-photo.jpg", { type: "image/jpeg" })
-      );
-      const res = await fetch("/api/doctor-avatar", { method: "POST", body: form });
+      form.set("photo", new File([blob], "profile-photo.jpg", { type: "image/jpeg" }));
+      const res = await fetch("/api/photo-change-requests", { method: "POST", body: form });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((payload.message as string) || "Could not upload photo.");
+        toast.error((payload.message as string) || "Could not send the photo.");
         return;
       }
-      const nextUrl = String(payload.publicUrl ?? "").trim();
-      if (nextUrl) setAvatarPreviewUrl(nextUrl);
-      toast.success("Profile photo updated.");
+      setPhotoPending({
+        createdAt: String(payload?.request?.createdAt ?? new Date().toISOString()),
+        photoUrl: typeof payload?.request?.photoUrl === "string" ? payload.request.photoUrl : null,
+      });
+      toast.success("Photo sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not upload photo.");
+      toast.error("Could not send the photo.");
     } finally {
       setAvatarUploading(false);
       setAvatarCropOpen(false);
@@ -1869,17 +1876,15 @@ export function SettingsForm({
             onChange={onPickAvatarFile}
             disabled={avatarUploading}
           />
-          <button
-            type="button"
-            onClick={() => avatarFileInputRef.current?.click()}
-            disabled={avatarUploading}
-            aria-busy={avatarUploading}
-            className={SETTINGS_SECONDARY_BUTTON_CLASS}
-          >
-            <BusyLabel busy={avatarUploading} busyText="Uploading…">
-              Upload new photo
-            </BusyLabel>
-          </button>
+          <ProfilePhotoControls
+            hasPhoto={Boolean(avatarPreviewUrl)}
+            uploading={avatarUploading}
+            onPickFile={() => avatarFileInputRef.current?.click()}
+            pending={photoPending}
+            onPendingChange={setPhotoPending}
+            initialDenied={initial.photoChange?.denied ?? null}
+            onRemoved={() => setAvatarPreviewUrl(null)}
+          />
         </div>
       </section>
       {specialtiesCard}

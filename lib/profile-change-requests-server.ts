@@ -10,6 +10,8 @@ import {
   PHOTO_CHANGE_REQUEST_TYPE,
   PROFILE_CHANGE_REQUEST_TYPES,
   nameChangeSlugCandidates,
+  photoChangeUploadCheck,
+  photoChangeUploadPath,
   pickNameChangeSlug,
   profileChangeDbErrorMessage,
   profileChangeKind,
@@ -20,6 +22,8 @@ import {
   type ProfileChangeRow,
   type ProfileChangeState,
 } from "@/lib/profile-change-requests";
+import { REGISTRATION_UPLOADS_BUCKET } from "@/lib/professional-registration-request";
+import { approvedAvatarPath } from "@/lib/registration-approval";
 import { sendRegistrationDecisionEmail } from "@/lib/registration-decision-emails";
 import { registrationNotifyRecipients, type FounderRecipientRow } from "@/lib/registration-request-notify";
 import { sendResendEmail } from "@/lib/resend";
@@ -37,13 +41,34 @@ export type HttpResult<T> = ({ ok: true } & T) | { ok: false; status: number; me
 const REASON_MAX_LENGTH = 200;
 const RECENT_DECISIONS = 15;
 
+const PHOTO_URL_SECONDS = 60 * 60;
+
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || "there";
+
+const text = (value: unknown): string | null => (typeof value === "string" && value.trim() ? value.trim() : null);
+
+/** A requested photo waits in the private bucket: it is shown through a short-lived link. */
+async function signedPhotoUrl(service: SupabaseClient, path: string | null | undefined): Promise<string | null> {
+  if (!path) return null;
+  const { data } = await service.storage.from(REGISTRATION_UPLOADS_BUCKET).createSignedUrl(path, PHOTO_URL_SECONDS);
+  return data?.signedUrl ?? null;
+}
+
+const publicAvatarUrl = (service: SupabaseClient, path: string | null | undefined): string | null =>
+  path && path.trim() ? service.storage.from("avatars").getPublicUrl(path.trim()).data.publicUrl : null;
+
+export type ProfileChangeStates = {
+  name: ProfileChangeState;
+  photo: ProfileChangeState;
+  /** The photo she asked for, when a photo request is open. */
+  pendingPhotoUrl: string | null;
+};
 
 /** What Settings shows for each kind (her open request, or her latest denial). */
 export async function loadProfileChangeStates(
   service: SupabaseClient,
   professionalId: string,
-): Promise<{ name: ProfileChangeState; photo: ProfileChangeState }> {
+): Promise<ProfileChangeStates> {
   const { data, error } = await service
     .from("request_log")
     .select("id, request_type, status, details, created_at, decided_at, decision_note")
@@ -53,9 +78,11 @@ export async function loadProfileChangeStates(
     .limit(40);
   if (error) throw new Error(`profile change requests: ${error.message}`);
   const rows = (data ?? []) as ProfileChangeRow[];
+  const photo = profileChangeState(rows, PHOTO_CHANGE_REQUEST_TYPE);
   return {
     name: profileChangeState(rows, NAME_CHANGE_REQUEST_TYPE),
-    photo: profileChangeState(rows, PHOTO_CHANGE_REQUEST_TYPE),
+    photo,
+    pendingPhotoUrl: await signedPhotoUrl(service, photo.pending?.photoPath),
   };
 }
 
@@ -143,6 +170,105 @@ export async function submitNameChangeRequest(
   };
 }
 
+/**
+ * She asks for a new photo: it waits in the private bucket until a founder decides.
+ * One open request at a time; founders are told.
+ */
+export async function submitPhotoChangeRequest(
+  service: SupabaseClient,
+  input: { professionalId: string; file: File },
+): Promise<HttpResult<{ request: { id: string; createdAt: string; photoUrl: string | null } }>> {
+  const check = photoChangeUploadCheck({ type: input.file.type, size: input.file.size });
+  if (check.ok === false) return { ok: false, status: 400, message: check.message };
+
+  const { data: pro, error: proError } = await service
+    .from("professionals")
+    .select("id, name, registration_email, email")
+    .eq("id", input.professionalId)
+    .maybeSingle();
+  if (proError || !pro) return { ok: false, status: 404, message: "Your profile was not found." };
+
+  // Before storing anything: a second request would leave its file behind.
+  const { data: open } = await service
+    .from("request_log")
+    .select("id")
+    .eq("professional_id", input.professionalId)
+    .eq("request_type", PHOTO_CHANGE_REQUEST_TYPE)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (open) return { ok: false, ...profileChangeDbErrorMessage({ code: "23505" }, "submit") };
+
+  const path = photoChangeUploadPath(
+    input.professionalId,
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    check.extension,
+  );
+  const upload = await service.storage
+    .from(REGISTRATION_UPLOADS_BUCKET)
+    .upload(path, input.file, { contentType: input.file.type.toLowerCase(), upsert: false });
+  if (upload.error) {
+    console.error("[DocCy] photo change upload", upload.error);
+    return { ok: false, status: 500, message: "Could not store the photo. Please try again." };
+  }
+
+  const { data: requestId, error } = await service.rpc("request_submit", {
+    p_request_type: PHOTO_CHANGE_REQUEST_TYPE,
+    p_professional_id: input.professionalId,
+    p_details: { photo_path: path },
+  });
+  if (error || !requestId) {
+    await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([path]);
+    if (error?.code !== "23505") console.error("[DocCy] photo change request", error);
+    return { ok: false, ...profileChangeDbErrorMessage(error ?? {}, "submit") };
+  }
+
+  const { data: saved } = await service.from("request_log").select("created_at").eq("id", requestId).maybeSingle();
+  const content = buildProfileChangeNotifyContent({
+    kind: "photo",
+    professionalName: String(pro.name ?? ""),
+    siteUrl: getPublicBookingBaseUrl(),
+  });
+  await notifyFounders(service, {
+    requesterEmail: String(pro.registration_email ?? pro.email ?? ""),
+    subject: content.subject,
+    text: content.text,
+    requestId: String(requestId),
+    category: "founder-photo-change-request",
+  });
+  return {
+    ok: true,
+    request: {
+      id: String(requestId),
+      createdAt: String(saved?.created_at ?? new Date().toISOString()),
+      photoUrl: await signedPhotoUrl(service, path),
+    },
+  };
+}
+
+/**
+ * She removes her photo: no founder, recorded at once (professional_photo_remove).
+ * The file leaves the public bucket too.
+ */
+export async function removeProfessionalPhoto(
+  service: SupabaseClient,
+  professionalId: string,
+): Promise<HttpResult<{ removed: boolean }>> {
+  const { data: pro } = await service.from("professionals").select("avatar_url").eq("id", professionalId).maybeSingle();
+  const path = text(pro?.avatar_url);
+  const { data: requestId, error } = await service.rpc("professional_photo_remove", {
+    p_professional_id: professionalId,
+  });
+  if (error) {
+    console.error("[DocCy] photo remove", error);
+    return { ok: false, status: 500, message: "Could not remove the photo. Please try again." };
+  }
+  if (requestId && path) {
+    const removed = await service.storage.from("avatars").remove([path]);
+    if (removed.error) console.error("[DocCy] photo remove: file stays", removed.error);
+  }
+  return { ok: true, removed: Boolean(requestId) };
+}
+
 /** She withdraws her open request of one kind, before a founder decides it. */
 export async function withdrawProfileChangeRequest(
   service: SupabaseClient,
@@ -150,7 +276,7 @@ export async function withdrawProfileChangeRequest(
 ): Promise<HttpResult<{ requestId: string }>> {
   const { data: pending, error: lookupError } = await service
     .from("request_log")
-    .select("id")
+    .select("id, details")
     .eq("professional_id", input.professionalId)
     .eq("request_type", input.type)
     .eq("status", "pending")
@@ -170,6 +296,11 @@ export async function withdrawProfileChangeRequest(
     if (error.code !== "55000") console.error("[DocCy] profile change withdraw", error);
     return { ok: false, ...profileChangeDbErrorMessage(error, "withdraw") };
   }
+  // Her withdrawn photo is not kept.
+  const photoPath = text((pending.details as Record<string, unknown> | null)?.photo_path);
+  if (input.type === PHOTO_CHANGE_REQUEST_TYPE && photoPath) {
+    await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([photoPath]);
+  }
   return { ok: true, requestId: String(pending.id) };
 }
 
@@ -188,6 +319,9 @@ export type ProfileChangeReviewItem = {
   requestedName: string | null;
   approvedName: string | null;
   reason: string | null;
+  /** Photo requests: the live photo, and the one she asked for (short-lived link). */
+  currentPhotoUrl: string | null;
+  requestedPhotoUrl: string | null;
 };
 
 type ReviewRow = ProfileChangeRow & {
@@ -197,8 +331,6 @@ type ReviewRow = ProfileChangeRow & {
   requester_name: string | null;
   requester_email: string | null;
 };
-
-const text = (value: unknown): string | null => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 const REVIEW_COLUMNS =
   "id, request_type, status, details, before_snapshot, approved_details, professional_id, requester_name, requester_email, created_at, decided_at, decision_note";
@@ -228,18 +360,38 @@ export async function loadProfileChangesForReview(
   const rows = [...(pending.data ?? []), ...(decided.data ?? [])] as ReviewRow[];
 
   const ids = [...new Set(rows.map((row) => row.professional_id).filter((id): id is string => Boolean(id)))];
-  const slugs = new Map<string, { name: string; slug: string | null }>();
+  const slugs = new Map<string, { name: string; slug: string | null; avatar: string | null }>();
   if (ids.length > 0) {
-    const { data } = await service.from("professionals").select("id, name, slug").in("id", ids);
+    const { data } = await service.from("professionals").select("id, name, slug, avatar_url").in("id", ids);
     for (const pro of data ?? []) {
-      slugs.set(String(pro.id), { name: String(pro.name ?? ""), slug: text(pro.slug) });
+      slugs.set(String(pro.id), {
+        name: String(pro.name ?? ""),
+        slug: text(pro.slug),
+        avatar: text(pro.avatar_url),
+      });
     }
   }
+
+  // Only open photo requests need a link to the waiting photo.
+  const requestedPhotos = new Map<string, string | null>();
+  await Promise.all(
+    rows
+      .filter((row) => row.status === "pending" && row.request_type === PHOTO_CHANGE_REQUEST_TYPE)
+      .map(async (row) => {
+        const path = text((row.details as Record<string, unknown> | null)?.photo_path);
+        requestedPhotos.set(row.id, await signedPhotoUrl(service, path));
+      }),
+  );
 
   return rows.map((row) => {
     const live = row.professional_id ? slugs.get(row.professional_id) : undefined;
     const details = (row.details ?? {}) as Record<string, unknown>;
     return {
+      currentPhotoUrl:
+        row.status === "pending" && row.request_type === PHOTO_CHANGE_REQUEST_TYPE
+          ? publicAvatarUrl(service, live?.avatar)
+          : null,
+      requestedPhotoUrl: requestedPhotos.get(row.id) ?? null,
       id: row.id,
       kind: profileChangeKind(row.request_type),
       status: row.status as ProfileChangeReviewItem["status"],
@@ -410,6 +562,78 @@ export async function approveNameChangeRequest(
     }),
   );
   return { ok: true, name: reviewed.name, slug };
+}
+
+/**
+ * A founder approves a new photo: it is copied to the public bucket and goes live.
+ * She is emailed.
+ */
+export async function approvePhotoChangeRequest(
+  service: SupabaseClient,
+  input: { requestId: string; adminId: string; note?: unknown },
+): Promise<HttpResult<{ avatarPath: string }>> {
+  const loaded = await loadPendingProfileChange(service, input.requestId);
+  if (loaded.ok === false) return loaded;
+  const { request } = loaded;
+  if (request.type !== PHOTO_CHANGE_REQUEST_TYPE) {
+    return { ok: false, status: 400, message: "That request is not a photo change." };
+  }
+  const pro = request.professional;
+  const photoPath = text(request.details.photo_path);
+
+  let avatarPath: string;
+  try {
+    if (!photoPath) throw new Error("the request has no photo");
+    const download = await service.storage.from(REGISTRATION_UPLOADS_BUCKET).download(photoPath);
+    if (download.error || !download.data) throw new Error(`photo download: ${download.error?.message}`);
+    avatarPath = approvedAvatarPath(pro.authUserId ?? pro.id, `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const upload = await service.storage.from("avatars").upload(avatarPath, download.data, {
+      contentType: download.data.type || "image/jpeg",
+      upsert: false,
+    });
+    if (upload.error) throw new Error(`photo upload: ${upload.error.message}`);
+  } catch (error) {
+    console.error("[DocCy] photo change approve: copy failed", error);
+    return { ok: false, status: 500, message: "Could not publish the photo. Try again, or deny the request." };
+  }
+
+  const { error } = await service.rpc("request_approve", {
+    p_request_id: request.id,
+    p_admin_id: input.adminId,
+    p_corrected_details: null,
+    p_note: typeof input.note === "string" && input.note.trim() ? input.note.trim() : null,
+    p_options: { avatar_path: avatarPath },
+  });
+  if (error) {
+    await service.storage.from("avatars").remove([avatarPath]);
+    console.error("[DocCy] photo change approve failed", error);
+    return { ok: false, ...profileChangeDbErrorMessage(error, "decide") };
+  }
+
+  await sendRegistrationDecisionEmail(
+    pro.email,
+    buildProfileChangeApprovedEmail({
+      kind: "photo",
+      firstName: firstName(pro.name),
+      siteUrl: getPublicBookingBaseUrl(),
+      profilePath: `/en/${pro.slug ?? ""}`,
+    }),
+  );
+  return { ok: true, avatarPath };
+}
+
+/** Approves whichever kind the request is. */
+export async function approveProfileChangeRequest(
+  service: SupabaseClient,
+  input: { requestId: string; adminId: string; name?: unknown; note?: unknown },
+): Promise<HttpResult<{ kind: ProfileChangeKind }>> {
+  const { data: row } = await service.from("request_log").select("request_type").eq("id", input.requestId).maybeSingle();
+  if (row?.request_type === PHOTO_CHANGE_REQUEST_TYPE) {
+    const result = await approvePhotoChangeRequest(service, input);
+    return result.ok === false ? result : { ok: true, kind: "photo" };
+  }
+  const result = await approveNameChangeRequest(service, input);
+  return result.ok === false ? result : { ok: true, kind: "name" };
 }
 
 /** A founder denies a name or photo change with a reason; she is emailed it. */

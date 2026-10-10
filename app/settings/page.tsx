@@ -314,7 +314,7 @@ export default async function AgendaSettingsPage({
       ])
     : [[], []];
 
-  // Her open name request, or her latest denial (request_log is service role only).
+  // Her open name and photo requests, or her latest denials (request_log is service role only).
   const profileChanges = specialtyService
     ? await loadProfileChangeStates(specialtyService, doctor.id).catch((err) => {
         console.error("[settings] profile change requests load failed", err);
@@ -325,6 +325,9 @@ export default async function AgendaSettingsPage({
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
     nameChange: profileChanges?.name ?? null,
+    photoChange: profileChanges
+      ? { ...profileChanges.photo, pendingPhotoUrl: profileChanges.pendingPhotoUrl }
+      : null,
     doctorId: doctor.id,
     doctorName: doctor.name,
     avatarUrl:

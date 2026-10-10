@@ -55,7 +55,6 @@ export function amrFromAccessToken(accessToken: string | null | undefined): unkn
 
 /** Each one must also be in middleware.ts's matcher, or the middleware never runs there. */
 export const PROFESSIONAL_API_ROUTES = [
-  "/api/doctor-avatar",
   "/api/doctor-gesy",
   "/api/doctor-locations",
   "/api/doctor-online-bookings",
@@ -63,6 +62,9 @@ export const PROFESSIONAL_API_ROUTES = [
   "/api/doctor-settings",
   "/api/professional-clinics",
   "/api/professional-mobile",
+  "/api/name-change-requests",
+  "/api/photo-change-requests",
+  "/api/professional-photo",
 ];
 
 /**

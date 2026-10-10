@@ -36,7 +36,6 @@ import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
 import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
 import { ProfileChangeRequestsSection } from "@/components/internal/ProfileChangeRequestsSection";
-import { NAME_CHANGE_REQUEST_TYPE } from "@/lib/profile-change-requests";
 import { countPendingProfileChanges, loadProfileChangesForReview } from "@/lib/profile-change-requests-server";
 import {
   countReviewablePendingRequests,
@@ -309,7 +308,7 @@ export default async function FounderDashboardPage({
         console.error("[internal/directory] specialty catalogue load failed", err);
         return [] as string[];
       }),
-      loadProfileChangesForReview(supabase, [NAME_CHANGE_REQUEST_TYPE]).catch((err) => {
+      loadProfileChangesForReview(supabase).catch((err) => {
         console.error("[internal/directory] profile change requests load failed", err);
         return [];
       }),
