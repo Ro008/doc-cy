@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
+import { adminCookieHeader, sharedTestFounder } from "./helpers/test-admin";
 
 /**
  * Settings redesign (design B1): a sidebar of sections, one card per clinic, removal
@@ -679,31 +680,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await form.getByRole("button", { name: "Send request" }).click();
     await expect(form.getByRole("alert")).toHaveText("Leave out titles such as Dr or Prof.");
 
-    let sentName: unknown = null;
-    await page.route("**/api/name-change-requests", async (route) => {
-      if (route.request().method() === "POST") {
-        sentName = route.request().postDataJSON();
-        return route.fulfill({
-          status: 201,
-          contentType: "application/json",
-          body: JSON.stringify({ request: { createdAt: new Date().toISOString() } }),
-        });
-      }
-      return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-    });
-    await nameInput.fill("Maria  Ioannou-Test");
-    await form.getByLabel(/Why it changed/).fill("I married");
-    await form.getByRole("button", { name: "Send request" }).click();
-    const pending = page.getByTestId("settings-name-change-pending");
-    await expect(pending).toContainText("Name change in review", { timeout: 20_000 });
-    await expect(pending).toContainText("Maria Ioannou-Test");
-    expect(sentName).toEqual({ name: "Maria Ioannou-Test", reason: "I married" });
-    // One request at a time, and it can be cancelled.
-    await expect(nameBlock.getByRole("button", { name: "Request name change" })).toHaveCount(0);
-    await pending.getByRole("button", { name: "Cancel request" }).click();
-    await expect(pending).toHaveCount(0);
-    await expect(nameBlock.getByRole("button", { name: "Request name change" })).toBeVisible();
-    await page.unroute("**/api/name-change-requests");
+    await form.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(form).toHaveCount(0);
 
     // Who she sees: one of three, saved when picked. Until the backend exists the
     // choice stays for this visit and the page says it is not saved.
@@ -742,6 +720,162 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     await quals.getByRole("button", { name: "Remove MD, Medicine" }).click();
     await expect(quals.getByRole("listitem")).toHaveText([/Fellowship in Cardiology/], { timeout: 20_000 });
+  });
+
+  test("Profile: a name change is sent, withdrawn, denied with a reason, then approved by a founder", async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(240_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    // Letters only (a name has no digits), and unique: the profile's address follows it.
+    const letters = seeded!.nonce.replace(/\D/g, "").replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
+    const asked = `maria nameflow${letters}`;
+    const approvedName = `Maria Nameflow${letters}`;
+    const newSlug = `maria-nameflow${letters}`;
+    const oldSlug = `settings-b1-ui-${seeded!.nonce}`;
+    const requests = () =>
+      admin
+        .from("request_log")
+        .select("id, status, details, before_snapshot, approved_details, decision_note")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", "professional_name_change")
+        .order("created_at", { ascending: true });
+    const today = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Nicosia",
+    }).format(new Date());
+
+    await openSettings(page, seeded!, "profile");
+    const nameBlock = page.getByTestId("settings-profile-name");
+    const form = page.getByTestId("settings-name-change-form");
+    const pending = page.getByTestId("settings-name-change-pending");
+    const denied = page.getByTestId("settings-name-change-denied");
+    const send = async (name: string, reason: string) => {
+      await expect(async () => {
+        await nameBlock.getByRole("button", { name: "Request name change" }).click();
+        await expect(form).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await form.getByLabel(/Name as patients should see it/).fill(name);
+      await form.getByLabel(/Why it changed/).fill(reason);
+      await form.getByRole("button", { name: "Send request" }).click();
+      await expect(pending).toBeVisible({ timeout: 20_000 });
+    };
+
+    try {
+      // 1. Sent: the page says when, and that it waits for approval; nothing is live yet.
+      await send("Maria  Withdrawn", "testing");
+      await expect(pending).toContainText(`Request sent on ${today}`);
+      await expect(pending).toContainText("waiting for DocCy’s approval");
+      await expect(pending).toContainText("Maria Withdrawn");
+      await expect(nameBlock.getByRole("button", { name: "Request name change" })).toHaveCount(0);
+      let rows = (await requests()).data ?? [];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        status: "pending",
+        details: { name: "Maria Withdrawn", reason: "testing" },
+        before_snapshot: { slug: oldSlug },
+      });
+      // It is still there after a reload, and a second request is refused by the server.
+      await page.reload();
+      await expect(pending).toContainText(`Request sent on ${today}`, { timeout: 20_000 });
+      const second = await page.request.post("/api/name-change-requests", {
+        data: { name: "Maria Second", reason: null },
+      });
+      expect(second.status()).toBe(409);
+
+      // 2. Withdrawn by her: gone from the page, kept in the log.
+      await expect(async () => {
+        await pending.getByRole("button", { name: "Withdraw request" }).click();
+        await expect(pending).toHaveCount(0, { timeout: 5_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(nameBlock.getByRole("button", { name: "Request name change" })).toBeVisible();
+      rows = (await requests()).data ?? [];
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn"]);
+
+      // 3. Denied by a founder: the reason shows in Settings until she dismisses it.
+      await send("Maria Denied", "");
+      rows = (await requests()).data ?? [];
+      const deniedId = rows[1]!.id as string;
+      const noReason = await request.post(`/api/internal/profile-changes/${deniedId}/deny`, {
+        headers,
+        data: { reason: " " },
+      });
+      expect(noReason.status()).toBe(400);
+      const deny = await request.post(`/api/internal/profile-changes/${deniedId}/deny`, {
+        headers,
+        data: { reason: "This is not the name on your licence." },
+      });
+      expect(deny.status(), await deny.text()).toBe(200);
+      // She tries to withdraw it on the stale page: too late.
+      await pending.getByRole("button", { name: "Withdraw request" }).click();
+      await expect(page.getByText(/DocCy has already decided this request/)).toBeVisible({ timeout: 20_000 });
+      await page.reload();
+      await expect(denied).toContainText("Your name change to “Maria Denied” was not approved", { timeout: 20_000 });
+      await expect(denied).toContainText("Reason: This is not the name on your licence.");
+      await expect(pending).toHaveCount(0);
+      await denied.getByRole("button", { name: "Dismiss" }).click();
+      await expect(denied).toHaveCount(0);
+      await page.reload();
+      await expect(nameBlock).toBeVisible({ timeout: 20_000 });
+      await expect(denied).toHaveCount(0);
+
+      // 4. Approved by a founder on the dashboard, with the capitals corrected.
+      await send(asked, "I married");
+      rows = (await requests()).data ?? [];
+      const approvedId = rows[2]!.id as string;
+      await page.context().clearCookies();
+      await page.context().addCookies(
+        adminCookieHeader(founder)
+          .split("; ")
+          .map((pair) => {
+            const at = pair.indexOf("=");
+            return { name: pair.slice(0, at), value: pair.slice(at + 1), url: page.url() };
+          }),
+      );
+      await page.goto("/internal/directory?tab=requests");
+      const card = page.locator(`[data-change-request-id="${approvedId}"]`);
+      await expect(card).toBeVisible({ timeout: 30_000 });
+      await expect(card).toContainText(`Settings B1 ui ${seeded!.nonce}`);
+      await expect(card).toContainText(asked);
+      await expect(card).toContainText("I married");
+      const approveName = card.getByLabel(/Name to approve/);
+      await expect(approveName).toHaveValue(asked);
+      await expect(async () => {
+        await approveName.fill(approvedName);
+        await expect(card.getByText(/Differs from what was asked/)).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await card.getByRole("button", { name: "Approve", exact: true }).click();
+      await expect(page.locator(`[data-decided-change-id="${approvedId}"]`)).toHaveCount(1, { timeout: 30_000 });
+
+      const { data: pro } = await admin
+        .from("professionals")
+        .select("name, slug")
+        .eq("id", seeded!.professionalId)
+        .single();
+      expect(pro).toEqual({ name: approvedName, slug: newSlug });
+      rows = (await requests()).data ?? [];
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn", "rejected", "approved"]);
+      expect(rows[2]!.details).toMatchObject({ name: asked });
+      expect(rows[2]!.approved_details).toMatchObject({ name: approvedName, reason: "I married" });
+      const { data: forward } = await admin
+        .from("professional_slug_redirects")
+        .select("professional_id")
+        .eq("slug", oldSlug)
+        .maybeSingle();
+      expect(forward?.professional_id).toBe(seeded!.professionalId);
+
+      // The old public address forwards to the new one.
+      await page.context().clearCookies();
+      await page.goto(`/en/${oldSlug}`);
+      await expect(page).toHaveURL(new RegExp(`/en/${newSlug}$`), { timeout: 30_000 });
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(approvedName, { timeout: 20_000 });
+    } finally {
+      await admin.from("professional_slug_redirects").delete().eq("professional_id", seeded!.professionalId);
+    }
   });
 
   test("Profile and Services link to the public profile", async ({ page }) => {

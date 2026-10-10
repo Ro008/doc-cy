@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Lock } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { toast } from "sonner";
 import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import {
@@ -10,43 +10,67 @@ import {
   SETTINGS_PRIMARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import {
-  backendPendingPreviewMessage,
-  isBackendPending,
-  settingsActionErrorMessage,
-} from "@/lib/settings-backend-pending";
+  profileChangeRequestDate,
+  type DeniedProfileChange,
+  type PendingProfileChange,
+} from "@/lib/profile-change-requests";
 import { validateNameChangeRequest } from "@/lib/settings-profile-details";
 
-export type PendingNameChange = { name: string; createdAt: string };
+export type PendingNameChange = Pick<PendingProfileChange, "name" | "createdAt">;
+
+/** Denials she dismissed, by request id: kept in this browser only. */
+const DISMISSED_KEY = "doccy:dismissed-name-denial";
+
+function dismissedDenialId(): string | null {
+  try {
+    return window.localStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
 
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
 const INPUT_OK = "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30";
 const INPUT_BAD = "border-red-400/70 focus:border-red-400 focus:ring-red-400/25";
 
-function requestDate(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
 /**
  * Her name on the Profile tab (user, 2026-10-10): read-only, changed by request, since
  * founders checked it at registration (a marriage, or a name scraped wrongly). She types
- * the new name and, if she likes, why; DocCy reviews it. One request at a time, shown as
- * "in review" with a way to cancel it.
- * Contract (backend pending): POST /api/name-change-requests { name, reason } →
- * { request: { createdAt } }; DELETE /api/name-change-requests cancels the pending one.
+ * the new name and, if she likes, why; founders approve or deny it. One request at a
+ * time: while it is open the page says when it was sent and lets her withdraw it. If
+ * her latest request was denied, the reason shows until she dismisses it or asks again.
+ * POST /api/name-change-requests { name, reason } → { request: { name, createdAt } };
+ * DELETE /api/name-change-requests withdraws the open one.
  */
 export function ProfileNameField({
   name,
   initialPending = null,
+  initialDenied = null,
 }: {
   name: string;
   initialPending?: PendingNameChange | null;
+  initialDenied?: DeniedProfileChange | null;
 }) {
   const nameId = React.useId();
   const reasonId = React.useId();
   const errorId = React.useId();
   const [pending, setPending] = React.useState<PendingNameChange | null>(initialPending);
+  // Shown after mount, once this browser's dismissals are known.
+  const [denied, setDenied] = React.useState<DeniedProfileChange | null>(null);
+  React.useEffect(() => {
+    setDenied(initialDenied && dismissedDenialId() !== initialDenied.id ? initialDenied : null);
+  }, [initialDenied]);
+
+  const dismissDenied = () => {
+    if (!denied) return;
+    try {
+      window.localStorage.setItem(DISMISSED_KEY, denied.id);
+    } catch {
+      // Private window: it stays dismissed for this visit only.
+    }
+    setDenied(null);
+  };
   const [editing, setEditing] = React.useState(false);
   const [typed, setTyped] = React.useState("");
   const [reason, setReason] = React.useState("");
@@ -69,22 +93,23 @@ export function ProfileNameField({
     }
     setBusy(true);
     try {
-      // EXPECTED TO FAIL until the backend exists (lib/settings-backend-pending.ts): the
-      // request then shows for this visit only, and the toast says so.
       const res = await fetch("/api/name-change-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: check.name, reason: reason.trim() || null }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && !isBackendPending(res.status)) {
-        toast.error(settingsActionErrorMessage("requestNameChange", res.status, data, "Could not send the request."));
+      if (!res.ok) {
+        toast.error(typeof data?.message === "string" ? data.message : "Could not send the request.");
         return;
       }
-      setPending({ name: check.name, createdAt: String(data?.request?.createdAt ?? new Date().toISOString()) });
+      setPending({
+        name: String(data?.request?.name ?? check.name),
+        createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
+      });
+      setDenied(null);
       setEditing(false);
-      if (res.ok) toast.success("Request sent. We’ll email you once it’s reviewed.");
-      else toast.warning(backendPendingPreviewMessage("requestNameChange"));
+      toast.success("Request sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {
       console.error(err);
       toast.error("Could not send the request.");
@@ -98,15 +123,15 @@ export function ProfileNameField({
     try {
       const res = await fetch("/api/name-change-requests", { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && !isBackendPending(res.status)) {
-        toast.error(settingsActionErrorMessage("cancelNameChange", res.status, data, "Could not cancel the request."));
+      if (!res.ok) {
+        toast.error(typeof data?.message === "string" ? data.message : "Could not withdraw the request.");
         return;
       }
       setPending(null);
-      if (res.ok) toast.success("Request cancelled.");
+      toast.success("Request withdrawn. Your name stays as it is.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not cancel the request.");
+      toast.error("Could not withdraw the request.");
     } finally {
       setCancelling(false);
     }
@@ -132,9 +157,12 @@ export function ProfileNameField({
           data-testid="settings-name-change-pending"
           className="order-last flex basis-full flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-sm text-amber-100"
         >
-          <span className="font-semibold">Name change in review</span>
-          <span className="min-w-0 flex-1 text-amber-100/80">
-            Requested {requestDate(pending.createdAt)} · “{pending.name}”
+          <span className="min-w-0 flex-1">
+            <span className="font-semibold">Request sent on {profileChangeRequestDate(pending.createdAt)}</span>
+            <span className="text-amber-100/80">
+              {" "}
+              · waiting for DocCy’s approval · new name “{pending.name}”
+            </span>
           </span>
           <button
             type="button"
@@ -143,9 +171,32 @@ export function ProfileNameField({
             aria-busy={cancelling}
             className="text-sm font-semibold text-amber-200 underline-offset-4 transition hover:text-amber-50 hover:underline disabled:opacity-60 aria-busy:cursor-progress"
           >
-            <BusyLabel busy={cancelling} busyText="Cancelling…">
-              Cancel request
+            <BusyLabel busy={cancelling} busyText="Withdrawing…">
+              Withdraw request
             </BusyLabel>
+          </button>
+        </div>
+      ) : null}
+
+      {denied && !pending ? (
+        <div
+          data-testid="settings-name-change-denied"
+          className="order-last flex basis-full items-start gap-3 rounded-2xl border border-red-400/25 bg-red-500/[0.06] px-3.5 py-2.5 text-sm text-red-100"
+        >
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold">
+              Your name change{denied.name ? ` to “${denied.name}”` : ""} was not approved
+            </span>
+            <span className="text-red-100/80"> on {profileChangeRequestDate(denied.decidedAt)}.</span>
+            <span className="mt-0.5 block text-red-100/90">Reason: {denied.reason}</span>
+          </p>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={dismissDenied}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-200/80 transition hover:bg-white/5 hover:text-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60"
+          >
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
       ) : null}
@@ -205,7 +256,8 @@ export function ProfileNameField({
             />
           </div>
           <p className="text-xs text-slate-400">
-            DocCy checks the new name against your registration before it goes live, and emails you.
+            DocCy checks the new name against your registration before it goes live, and emails you the
+            decision. Your profile’s web address changes with the name; the old one keeps working.
           </p>
           <div className="flex flex-wrap gap-2">
             <button

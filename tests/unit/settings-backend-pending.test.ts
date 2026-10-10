@@ -19,14 +19,12 @@ describe("backendPendingMessage", () => {
     assert.deepEqual(Object.keys(BACKEND_PENDING).sort(), [
       "addClinic",
       "addQualification",
-      "cancelNameChange",
       "cancelSpecialtyRequest",
       "changeEmail",
       "clinicChangeRequest",
       "removeClinic",
       "removeQualification",
       "removeSpecialty",
-      "requestNameChange",
       "requestSpecialty",
       "savePatientAges",
     ]);

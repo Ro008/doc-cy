@@ -42,6 +42,7 @@ import {
 import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
+import { loadProfileChangeStates } from "@/lib/profile-change-requests-server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
   specialtyNames,
@@ -313,8 +314,17 @@ export default async function AgendaSettingsPage({
       ])
     : [[], []];
 
+  // Her open name request, or her latest denial (request_log is service role only).
+  const profileChanges = specialtyService
+    ? await loadProfileChangeStates(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] profile change requests load failed", err);
+        return null;
+      })
+    : null;
+
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
+    nameChange: profileChanges?.name ?? null,
     doctorId: doctor.id,
     doctorName: doctor.name,
     avatarUrl:

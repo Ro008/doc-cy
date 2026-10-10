@@ -93,6 +93,7 @@ import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBooki
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
 import { PatientAgesCard } from "@/components/dashboard/settings/PatientAgesCard";
 import { ProfileNameField } from "@/components/dashboard/settings/ProfileNameField";
+import type { ProfileChangeState } from "@/lib/profile-change-requests";
 import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
 import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
@@ -118,6 +119,8 @@ import {
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
+  /** Her open name change request, or her latest denial (`loadProfileChangeStates`). */
+  nameChange?: ProfileChangeState | null;
   avatarUrl?: string | null;
   /** Shown in directory & public profile */
   specialty: string;
@@ -1852,7 +1855,11 @@ export function SettingsForm({
               </div>
             )}
           </div>
-          <ProfileNameField name={initial.doctorName} />
+          <ProfileNameField
+            name={initial.doctorName}
+            initialPending={initial.nameChange?.pending ?? null}
+            initialDenied={initial.nameChange?.denied ?? null}
+          />
           <input
             ref={avatarFileInputRef}
             type="file"

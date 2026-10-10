@@ -116,16 +116,18 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   `tests/unit/legacy-specialty-claim-outreach-removed.test.ts` was updated to match.
 - The pending request shows as an "In review" chip with ✕ to cancel it (section 3.5).
   The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
-- **Name, who she sees, qualifications (Livio, 2026-10-10; UI only, backend pending,
-  section 3.9).** The name sits read-only beside the photo ("Name and photo") with
-  "Request name change": the new name (no title; `lib/settings-profile-details.ts`) and an
-  optional reason go to DocCy, then an "in review" line with "Cancel request"
-  (`ProfileNameField`). "Patients I see" is Adults / Children / Adults and children,
+- **Name, who she sees, qualifications (Livio, 2026-10-10; section 3.9).** The name sits
+  read-only beside the photo ("Name and photo") with "Request name change": the new name
+  (no title; `lib/settings-profile-details.ts`) and an optional reason go to the founders
+  (`ProfileNameField`). **The name's backend is built:** while the request is open the
+  card says "Request sent on dd/mm/yyyy · waiting for DocCy's approval" with "Withdraw
+  request"; if her latest request was denied, the reason shows until she dismisses it
+  (kept in this browser) or asks again. The other two are still UI only. "Patients I see" is Adults / Children / Adults and children,
   saved when picked (`PatientAgesCard`). "Qualifications" is a list of up to 6 lines
   (qualification, where, optional year), most recent first, each added or removed on its
-  own (`QualificationsCard`). **Until the routes exist these three keep the change on
+  own (`QualificationsCard`). **Until their routes exist these two keep the change on
   screen for the visit and say "Shown here only for now…"**, so the screens can be seen;
-  nothing is saved and a reload clears it. The page loads none of them yet.
+  nothing is saved and a reload clears it. The page loads neither yet.
   "I see GeSY patients" (was "Accepts GESY patients") moved up under Specialties.
 - "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
   "Opening…" and then a toast.
@@ -288,9 +290,21 @@ it (tables, review flow, emails) is yours.
 - Call site: `requestEmailChange` in `components/dashboard/settings/AccountSecurityCard.tsx`.
 
 ### 3.9 Profile: name change, who she sees, qualifications
-- `POST /api/name-change-requests` `{ "name", "reason": string | null }` → 2xx
-  `{ "request": { "createdAt" } }`; `DELETE /api/name-change-requests` cancels the pending
-  one. To show it after a reload: `ProfileNameField` takes `initialPending { name, createdAt }`.
+- **Name change: built (Livio, 2026-10-10).** `POST /api/name-change-requests`
+  `{ "name", "reason": string | null }` → 201 `{ "request": { "id", "name", "createdAt" } }`
+  (400 not a usable name, 409 one is already waiting); `DELETE /api/name-change-requests`
+  withdraws the open one (409 once a founder decided). It is a `request_log` row of type
+  `professional_name_change` (migration `20261010120000_professional_profile_change_requests`,
+  which also prepares `professional_photo_change` and the recorded
+  `professional_photo_removal`). Founders see it under "Change requests" on
+  `/internal/directory?tab=requests` (`ProfileChangeRequestsSection`), may correct the
+  spelling, and approve or deny with a reason
+  (`POST /api/internal/profile-changes/[id]/approve|deny`); she is emailed either way and
+  founders are emailed when a request arrives. **Approving also moves the profile's address
+  (slug) to the new name; the old one stays in `professional_slug_redirects` and forwards.**
+  The settings page loads her state with `loadProfileChangeStates` →
+  `initial.nameChange { pending, denied }`. Code: `lib/profile-change-requests.ts` (no
+  database; imported by the page), `-server.ts`, `lib/profile-change-emails.ts`.
 - `PUT /api/professional-profile` `{ "patientAges": "adults" | "children" | "all" }` → 2xx.
   `PatientAgesCard` takes `initialValue`.
 - `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`

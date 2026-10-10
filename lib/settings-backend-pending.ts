@@ -17,8 +17,6 @@ export const BACKEND_PENDING = {
   removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
   changeEmail: { what: "changing your email", endpoint: "POST /api/account/email" },
-  requestNameChange: { what: "asking for a name change", endpoint: "POST /api/name-change-requests" },
-  cancelNameChange: { what: "cancelling a name change", endpoint: "DELETE /api/name-change-requests" },
   savePatientAges: { what: "saving who you see", endpoint: "PUT /api/professional-profile" },
   addQualification: { what: "adding a qualification", endpoint: "POST /api/professional-qualifications" },
   removeQualification: {
