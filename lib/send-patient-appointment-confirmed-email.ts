@@ -24,6 +24,7 @@ import {
   EMAIL_HEADING,
 } from "@/lib/email-brand";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
+import { visitPurpose } from "@/lib/visit-purpose";
 
 const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
 const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
@@ -48,6 +49,8 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   appointmentDatetimeIso: string;
   durationMinutes: number;
   reason?: string | null;
+  /** The service the patient picked (appointments.service_name), if any. */
+  serviceName?: string | null;
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
   /** The professional's public profile: the clinic name links to it. */
@@ -80,6 +83,8 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   appointmentDatetimeIso: string;
   durationMinutes: number;
   reason?: string | null;
+  /** The service the patient picked (appointments.service_name), if any. */
+  serviceName?: string | null;
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
   /** The professional's public profile: the clinic name links to it. */
@@ -131,7 +136,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       clinic_address: clinic.address,
       maps_url: clinic.mapsUrl,
     },
-    { reason: reason ?? null, visitType: null, visitNotes: null },
+    { reason: reason ?? null, serviceName: opts.serviceName ?? null, visitType: null, visitNotes: null },
     { includeDirectClinicContact: true }
   );
 
@@ -148,9 +153,11 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     siteUrl
   ).toString();
 
+  const service = visitPurpose({ serviceName: opts.serviceName }).service;
   let text =
     `Hi ${patientName},\n\n` +
     `Your appointment with ${doctorName} is confirmed for ${whenLabel} (Cyprus time).\n\n` +
+    (service ? `Service: ${service}\n\n` : "") +
     `${patientClinicBlockText(clinicBlock)}` +
     `\nYou can add it to your calendar:\n\n` +
     `Google Calendar: ${patientGoogleUrl}\n` +
@@ -176,6 +183,11 @@ ${EMAIL_SHELL_OPEN}
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
+    ${
+      service
+        ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><strong>Service:</strong> ${escapeHtml(service)}</p>`
+        : ""
+    }
     ${patientClinicBlockHtml(clinicBlock)}
     ${
       isAfterReschedule

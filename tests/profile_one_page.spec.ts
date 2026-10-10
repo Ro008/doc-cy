@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fillVisitReason } from "./helpers/fillVisitReason";
 
 /**
  * Public profile redesign: one page with anchor tabs, light by default with a
@@ -113,13 +114,62 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await page.getByLabel("Full name", { exact: true }).fill("Profile Form Check");
     await page.getByRole("textbox", { name: /Phone/i }).pressSequentially("99123456");
     await page.getByLabel("This is my first visit").check();
-    await page.locator("#visitReason").fill("Checking the form only.");
+    await fillVisitReason(page, "Checking the form only.");
     await expect(page.getByRole("radio", { name: "Prefer not to say" })).toBeVisible();
     await page.getByRole("button", { name: /Send booking request/i }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Please choose a gender option." })).toBeVisible();
     await page.getByRole("radio", { name: "Female" }).check();
     await page.getByRole("button", { name: /Send booking request/i }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Please enter a valid date of birth." })).toBeVisible();
+  });
+
+  test("the patient picks one of her services (no prices) and may add their own words", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const dayCards = page.getByTestId("profile-next-availability-day");
+    await expect(page.getByTestId("profile-next-availability")).toBeVisible({ timeout: 15000 });
+    test.skip((await dayCards.count()) === 0, "Doctor has no online availability right now.");
+    await expect(async () => {
+      await dayCards.first().click();
+      await expect(page.getByTestId("booking-selected-day")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.locator("#book button[aria-pressed]").first().click();
+    await page.getByRole("button", { name: "Confirm" }).click();
+
+    const picker = page.locator("#professionalService");
+    await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
+    test.skip((await picker.count()) === 0, "This professional lists no services.");
+
+    const labels = await picker.locator("option").allTextContents();
+    expect(labels[0]).toBe("Choose a service");
+    expect(labels.at(-1)).toBe("Other");
+    expect(labels.join(" ")).not.toMatch(/€|EUR/);
+
+    // The text box is always there: optional with a service, required with Other.
+    const firstService = labels[1];
+    await picker.selectOption({ label: firstService });
+    await expect(page.locator("#visitReason")).toBeVisible();
+    await expect(page.getByText(/should know\? \(optional\)/)).toBeVisible();
+    await picker.selectOption({ label: "Other" });
+    await expect(page.getByText("Tell us briefly what you need")).toBeVisible();
+
+    // The request carries the chosen service's id (answered here, nothing is booked).
+    let sent: Record<string, unknown> | null = null;
+    await page.route("**/api/appointments", async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ status: 400, json: { message: "Stopped by the test." } });
+    });
+    await page.getByLabel("Full name", { exact: true }).fill("Service Picker Check");
+    await page.getByLabel("Email", { exact: true }).fill("service.picker@example.test");
+    await page.getByRole("textbox", { name: /Phone/i }).pressSequentially("99123456");
+    await page.getByLabel("This is my first visit").check();
+    await page.getByRole("radio", { name: "Prefer not to say" }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await picker.selectOption({ label: firstService });
+    await page.locator("#visitReason").fill("A spot on the side of my lip.");
+    await page.getByRole("button", { name: /Send booking request/i }).click();
+    await expect.poll(() => sent).not.toBeNull();
+    expect(sent!.professionalServiceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sent!.reason).toBe("A spot on the side of my lip.");
   });
 
   test("a soft fade marks that the page continues below, and goes away at the end", async ({ page }) => {
@@ -168,7 +218,8 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(bar).toHaveAttribute("data-visible", "false");
   });
 
-  test("Share copies the profile link where the system share sheet is missing", async ({ page, context }) => {
+  test("Share copies the profile link where the system share sheet is missing", async ({ page, context, browserName }) => {
+    test.skip(browserName !== "chromium", "Playwright can grant clipboard access only in Chromium.");
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "share", { value: undefined, configurable: true });

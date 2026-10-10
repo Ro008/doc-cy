@@ -113,6 +113,7 @@ function agendaRowFromSupabasePayload(
       raw.patient_birthdate == null || raw.patient_birthdate === "" ? null : String(raw.patient_birthdate),
     is_new_patient: typeof raw.is_new_patient === "boolean" ? raw.is_new_patient : null,
     reason: patientVisitReasonFromAppointmentRow(raw),
+    service_name: raw.service_name == null || raw.service_name === "" ? null : String(raw.service_name),
     appointment_datetime: String(raw.appointment_datetime ?? ""),
     status: raw.status == null || raw.status === "" ? null : String(raw.status),
     duration_minutes:

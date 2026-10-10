@@ -23,6 +23,7 @@ import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-statu
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
 import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
+import { visitPurpose } from "@/lib/visit-purpose";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,6 +37,26 @@ const PRIMARY_BTN_CLASS =
   "flex w-full items-center justify-center rounded-2xl bg-clinical-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400";
 const SECONDARY_BTN_CLASS =
   "flex w-full items-center justify-center rounded-2xl border border-clinical-400/35 bg-clinical-500/10 px-4 py-3 text-sm font-semibold text-clinical-100 transition hover:border-clinical-400/50 hover:bg-clinical-500/20";
+
+/** Service (when the patient picked one) and reason rows of the request's summary list. */
+function VisitPurposeRows({ service, reason }: { service: string | null; reason: string }) {
+  return (
+    <>
+      {service ? (
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Service</dt>
+          <dd className="mt-0.5 text-ink-100">{service}</dd>
+        </div>
+      ) : null}
+      {service && !reason ? null : (
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+        </div>
+      )}
+    </>
+  );
+}
 
 function DoctorAppointmentLinkShell({ children }: { children: React.ReactNode }) {
   return (
@@ -115,7 +136,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
+      "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, appointment_datetime, status, reason, service_name, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
     )
     .eq("id", appointmentId)
     .eq("professional_id", doctor.id)
@@ -154,7 +175,14 @@ export default async function DashboardAppointmentDetailPage({
   const greet = professionalFirstName(doctor.name);
   const status = String(appt.status);
   const justConfirmed = searchParams?.confirmed === "1";
-  const reason = String((appt as { reason?: string | null }).reason ?? "");
+  const storedReason = String((appt as { reason?: string | null }).reason ?? "");
+  // The service the patient picked (user, 2026-10-09) and their own words, without repeating it.
+  const purpose = visitPurpose({
+    serviceName: (appt as { service_name?: string | null }).service_name,
+    reason: storedReason,
+  });
+  const serviceName = purpose.service;
+  const reason = purpose.reason ?? "";
   const patientName = appt.patient_name as string;
   const patientPhone = String((appt as { patient_phone?: string | null }).patient_phone ?? "");
   const googleCalendarUrl = buildGoogleCalendarUrl({
@@ -167,7 +195,8 @@ export default async function DashboardAppointmentDetailPage({
         name: doctor.name,
       },
       {
-        reason,
+        reason: storedReason,
+        serviceName,
         visitType: null,
         visitNotes: null,
       },
@@ -244,10 +273,7 @@ export default async function DashboardAppointmentDetailPage({
               {dateStr} · {timeStr}
             </dd>
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
-          </div>
+          <VisitPurposeRows service={serviceName} reason={reason} />
         </dl>
 
         <PendingLink href={summary.agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
@@ -282,10 +308,7 @@ export default async function DashboardAppointmentDetailPage({
           <span className="text-ink-500">Cyprus time.</span>
         </p>
         <dl className="mt-6 space-y-3 text-sm">
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
-          </div>
+          <VisitPurposeRows service={serviceName} reason={reason} />
         </dl>
         {isStoredExpiredStatus(status) ? null : (
           <PendingLink href={agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
@@ -372,6 +395,7 @@ export default async function DashboardAppointmentDetailPage({
           }
           dayRows={(dayRows ?? []) as ReviewDayRow[]}
           reason={reason}
+          serviceName={serviceName}
           initialDurationMinutes={initialDurationMinutes}
           scheduleForReview={scheduleForReview}
           back={reviewBackTarget(searchParams?.from)}
@@ -450,10 +474,7 @@ export default async function DashboardAppointmentDetailPage({
             <dd className="mt-0.5 text-ink-100">{status}</dd>
           </div>
         )}
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
-        </div>
+        <VisitPurposeRows service={serviceName} reason={reason} />
       </dl>
 
       {status === "CONFIRMED" ? (

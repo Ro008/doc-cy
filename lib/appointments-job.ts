@@ -111,6 +111,7 @@ function reminderCalendarLinks(o: {
   startIso: string;
   durationMinutes: number;
   reason: string | null;
+  serviceName: string | null;
   professionalName: string;
   clinic: { name?: string | null; address?: string | null; phone?: string | null; mapsUrl?: string | null } | null;
 }): { googleUrl: string; icsUrl: string } {
@@ -124,7 +125,7 @@ function reminderCalendarLinks(o: {
       clinic_address: o.clinic?.address ?? null,
       maps_url: o.clinic?.mapsUrl ?? null,
     },
-    { reason: o.reason, visitType: null, visitNotes: null },
+    { reason: o.reason, serviceName: o.serviceName, visitType: null, visitNotes: null },
     { includeDirectClinicContact: true },
   );
   return {
@@ -301,7 +302,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
       .in("id", due)
       .eq("status", "CONFIRMED")
       .is("visit_reminder_sent_at", null)
-      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id, duration_minutes, reason");
+      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id, duration_minutes, reason, service_name");
     if (claimErr) throw claimErr;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
@@ -345,6 +346,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
             startIso,
             durationMinutes: Number(r.duration_minutes) || 30,
             reason: r.reason ? str(r.reason) : null,
+            serviceName: r.service_name ? str(r.service_name) : null,
             professionalName: pros.get(r.professional_id)?.name ?? "your professional",
             clinic,
           }),

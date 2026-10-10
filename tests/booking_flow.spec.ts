@@ -1,5 +1,6 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
+import { fillVisitReason } from "./helpers/fillVisitReason";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
@@ -100,7 +101,7 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
     await page.locator("#patientBirthdate").fill("1990-01-01");
 
-    await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
+    await fillVisitReason(page, "Routine check-up — E2E booking flow.");
 
     // 5. Submit booking
     const submitBtn = page.getByRole("button", {

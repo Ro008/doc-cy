@@ -47,6 +47,7 @@ import {
   selectMissedRequests,
 } from "@/lib/missed-requests";
 import { splitMonthDayItems } from "@/lib/agenda-calendar";
+import { visitPurpose } from "@/lib/visit-purpose";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   NO_NEW_TIME_DISMISSED_KEY,
@@ -801,7 +802,9 @@ function PendingRequestItem({
 
   const start = new Date(row.appointment_datetime);
   const ago = requestedAgoLabel(row.created_at, nowMs);
-  const details = [row.reason?.trim(), `${durationMinutes} min`].filter(Boolean).join(" · ");
+  // The service she offers comes first; the patient's own words only when they add to it.
+  const purpose = visitPurpose({ serviceName: row.service_name, reason: row.reason });
+  const details = [purpose.service, purpose.reason, `${durationMinutes} min`].filter(Boolean).join(" · ");
   const locked = busy !== null || exit !== null;
 
   async function accept() {

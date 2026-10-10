@@ -54,6 +54,8 @@ type Props = {
   dayHoursLabel: string;
   dayRows: ReviewDayRow[];
   reason: string;
+  /** The service the patient picked (user, 2026-10-09); `reason` is then only their extra words. */
+  serviceName?: string | null;
   initialDurationMinutes: number;
   scheduleForReview: ScheduleForReview | null;
   back: ReviewBackTarget;
@@ -102,6 +104,7 @@ export function AppointmentReviewClient({
   dayHoursLabel,
   dayRows,
   reason,
+  serviceName = null,
   initialDurationMinutes,
   scheduleForReview,
   back,
@@ -524,8 +527,24 @@ export function AppointmentReviewClient({
       </header>
 
       <div className="rounded-2xl border border-clinical-500/25 bg-clinical-500/10 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-clinical-200/90">Reason for visit</p>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{reason || "—"}</p>
+        {serviceName ? (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-wide text-clinical-200/90">Service</p>
+            <p data-testid="review-service" className="mt-2 text-sm font-semibold text-slate-100">
+              {serviceName}
+            </p>
+          </>
+        ) : null}
+        {serviceName && !reason ? null : (
+          <>
+            <p
+              className={`text-xs font-semibold uppercase tracking-wide text-clinical-200/90 ${serviceName ? "mt-3" : ""}`}
+            >
+              Reason for visit
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{reason || "—"}</p>
+          </>
+        )}
       </div>
 
       {/* 5. Length, with the resulting time range. */}

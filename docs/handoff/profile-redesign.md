@@ -70,14 +70,29 @@ The contract is in `lib/profile-customization.ts`:
    signed out. Today the call returns 404 and the screen shows
    "Expected to fail for now: … (PATCH /api/professional-profile-customization)".
 
-3. **Booking form: gender and date of birth** (user, 2026-10-02: every field is
-   required). `POST /api/appointments` now also receives `patientGender` (`male` |
-   `female` | `prefer_not_to_say`) and `patientDateOfBirth` (`YYYY-MM-DD`, not in the
-   future, ≤ 120 years). The API ignores unknown fields today, so bookings keep working but
-   these two values are **not stored**: add them (e.g. `appointments.patient_gender`,
-   `appointments.patient_date_of_birth`), validate with `PATIENT_GENDERS` /
-   `validateDateOfBirth` (`lib/booking-patient-details.ts`) and show them to the
-   professional with the patient's details.
+3. **Booking form: gender and date of birth.** Done on master (2026-10-04, Livio):
+   `patientGender` / `patientBirthdate` → `appointments.patient_gender` /
+   `patient_birthdate`. The profile form uses master's validation
+   (`lib/booking-form-validation.ts`) in the profile's colours; the earlier stub
+   (`lib/booking-patient-details.ts`) is gone.
+
+4. **Booking form: which service** (user, 2026-10-09). When the professional lists
+   services, the form asks "What is the visit for?" (a dropdown of her services by name,
+   no prices, plus Other). The free-text reason box is always there: optional with a service
+   ("Anything … should know? (optional)"), required with Other or when there are no services
+   (user, 2026-10-09, as Zocdoc/Doctolib: a visit type plus optional notes). `POST /api/appointments` gets `professionalServiceId` →
+   `appointments.professional_service_id` (+ `service_name`, copied by the database);
+   already built on master (`lib/requested-service.ts`). Because the database requires a
+   reason on every booking (`appointments_booking_fields_check`), a chosen service is also
+   sent as `reason` only when the patient leaves the optional text empty (its name) — see `lib/booking-service-choice.ts`. If that duplication
+   bothers anyone, relax the check when a service is set.
+   **Shown** (user, 2026-10-09) via `lib/visit-purpose.ts` (service first; the reason only
+   when it says more than the service name): dashboard request card and today's schedule,
+   agenda visit details, review page, the patient's confirm-link and confirmation emails, the
+   professional's new-request email, and both calendar invites (.ics, Google links, reminder).
+   The reads add `service_name` to `DASHBOARD_APPOINTMENT_SELECT`, `AGENDA_APPOINTMENT_SELECT`
+   and the selects of the confirm, choose, calendar, success-page and reminder paths; no writes
+   changed. Not shown: decline and reschedule-proposal emails (they show no reason either).
 
 ## Data notes
 

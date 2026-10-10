@@ -1051,6 +1051,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   holidayEndDate={holidayEndDate}
                   bookingHorizonDays={bookingHorizonDays}
                   minimumNoticeHours={minimumNoticeHours}
+                  services={services.map(({ id, name }) => ({ id, name }))}
                 />
               </div>
             )}

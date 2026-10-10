@@ -1,5 +1,6 @@
 import { isPatientGender, parsePatientBirthdate } from "@/lib/booking-patient-fields";
 import { isValidRegisterEmail } from "@/lib/register-email";
+import { BOOKING_SERVICE_OTHER } from "@/lib/booking-service-choice";
 
 /** Fields of the public booking form, in the order they appear on screen. */
 export const BOOKING_FORM_FIELDS = [
@@ -9,6 +10,7 @@ export const BOOKING_FORM_FIELDS = [
   "isNewPatient",
   "patientGender",
   "patientBirthdate",
+  "professionalService",
   "visitReason",
 ] as const;
 
@@ -24,6 +26,7 @@ export type BookingFormErrorKey =
   | "selectVisitHistory"
   | "genderRequired"
   | "birthdateRequired"
+  | "serviceRequired"
   | "reasonRequired";
 
 export type BookingFormValues = {
@@ -34,6 +37,11 @@ export type BookingFormValues = {
   isNewPatient: boolean | null;
   patientGender: string;
   patientBirthdate: string;
+  /**
+   * The service picker: null/undefined when the professional lists no services (no picker),
+   * "" while nothing is chosen, a service id, or "other" (then the reason is typed).
+   */
+  serviceChoice?: string | null;
   visitReason: string;
 };
 
@@ -59,6 +67,10 @@ export function firstBookingFormError(
   if (!parsePatientBirthdate(v.patientBirthdate, now)) {
     return { field: "patientBirthdate", messageKey: "birthdateRequired" };
   }
-  if (!v.visitReason.trim()) return { field: "visitReason", messageKey: "reasonRequired" };
+  const choice = v.serviceChoice ?? null;
+  if (choice === "") return { field: "professionalService", messageKey: "serviceRequired" };
+  // A chosen service is the reason; the free text is only for Other (or no picker).
+  const needsReason = choice === null || choice === BOOKING_SERVICE_OTHER;
+  if (needsReason && !v.visitReason.trim()) return { field: "visitReason", messageKey: "reasonRequired" };
   return null;
 }

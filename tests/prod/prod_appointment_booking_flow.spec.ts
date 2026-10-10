@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fillVisitReason } from "../helpers/fillVisitReason";
 import { fillBookingPatientDetails } from "../helpers/fillBookingPatientDetails";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
@@ -59,7 +60,7 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       await phoneInput.fill("99123456");
       await fillBookingPatientDetails(page);
       await page.getByRole("radio", { name: /This is my first visit/i }).check();
-      await page.locator("#visitReason").fill("Prod smoke — brief reason for visit.");
+      await fillVisitReason(page, "Prod smoke — brief reason for visit.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
       // Patient URLs use locale prefix (next-intl localePrefix: "always").

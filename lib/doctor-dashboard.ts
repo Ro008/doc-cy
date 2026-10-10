@@ -11,6 +11,7 @@ import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { coerceProposedSlotsArray } from "@/lib/appointment-overlap";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import type { DayKey } from "@/lib/doctor-settings";
+import { visitPurpose } from "@/lib/visit-purpose";
 
 /** Anchor of the "Needs your answer" section (agenda sidebar "Pending requests" links here). */
 export const DASHBOARD_NEEDS_ANSWER_ID = "needs-your-answer";
@@ -56,8 +57,13 @@ export function pausedClinicNotices(
     }));
 }
 
+function visitPurposeLabel(r: { service_name?: string | null; reason: string | null }): string | null {
+  const { service, reason } = visitPurpose({ serviceName: r.service_name, reason: r.reason });
+  return [service, reason].filter(Boolean).join(" · ") || null;
+}
+
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source";
+  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, service_name, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -71,6 +77,8 @@ export type DashboardAppointmentRow = {
   proposal_expires_at: string | null;
   proposed_slots: unknown;
   reason: string | null;
+  /** The service the patient picked when booking (user, 2026-10-09). */
+  service_name?: string | null;
   clinic_id: string | null;
   /** For "Missed requests": she can call the patient back. */
   patient_phone?: string | null;
@@ -87,6 +95,7 @@ export type DashboardAppointmentRow = {
 export type TodayScheduleItem = {
   id: string;
   patientName: string;
+  /** What the visit is for: the service she offers, then the patient's own words (visitPurpose). */
   reason: string | null;
   /** The appointment's clinic (`clinics.id`). */
   clinicId: string | null;
@@ -195,7 +204,7 @@ export function buildTodaySchedule(
     return {
       id: r.id,
       patientName: (r.patient_name ?? "").trim() || "Patient",
-      reason: r.reason?.trim() || null,
+      reason: visitPurposeLabel(r),
       clinicId: r.clinic_id,
       startIso: r.appointment_datetime,
       startMinute,

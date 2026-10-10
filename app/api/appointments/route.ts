@@ -97,10 +97,12 @@ export async function POST(req: NextRequest) {
 
   // Optional: one of her services (user, 2026-10-04).
   let professionalServiceId: string | null = null;
+  let professionalServiceName: string | null = null;
   try {
     const requested = await resolveRequestedService(supabase, professionalId, body.professionalServiceId);
     if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
     professionalServiceId = requested.service?.id ?? null;
+    professionalServiceName = requested.service?.name ?? null;
   } catch (err) {
     console.error("[DocCy] booking service check", err);
     return NextResponse.json({ message: "Error checking your request." }, { status: 500 });
@@ -181,6 +183,7 @@ export async function POST(req: NextRequest) {
         appointmentIso: slot.appointmentUtc.toISOString(),
         clinic: emailClinic,
         confirmUrl: appointmentLinkUrl(siteUrl, "confirm", token),
+        serviceName: professionalServiceName,
       }),
     );
   } catch (err) {

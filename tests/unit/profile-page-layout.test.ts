@@ -124,6 +124,18 @@ describe("public profile: one page with anchor tabs", () => {
     assert.equal(/\b(?:ink|clinical|amber)-\d/.test(booking), false);
   });
 
+  it("asks which of her services the visit is for, or Other with free text", () => {
+    const booking = read("components/doctor/BookingSection.tsx");
+    assert.match(booking, /<select\s+id="professionalService"/);
+    assert.match(booking, /bookingServiceOptions\(/);
+    assert.match(booking, /bookingServiceRequest\(/);
+    // The free text is always there: optional with a service, required with Other or no services.
+    assert.equal(booking.includes("showReasonField"), false);
+    assert.match(booking, /reasonOptional/);
+    // The page passes ids and names only: no prices in the picker.
+    assert.match(page, /services=\{services\.map\(\(\{ id, name \}\) => \(\{ id, name \}\)\)\}/);
+  });
+
   it("brings the Confirm button into view when a time is picked", () => {
     const booking = read("components/doctor/BookingSection.tsx");
     assert.match(booking, /confirmBarRef/);

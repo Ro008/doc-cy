@@ -65,7 +65,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, appointment_datetime, status, reason, clinic_id",
+      "id, professional_id, appointment_datetime, status, reason, service_name, clinic_id",
     )
     .eq("id", appointmentId)
     .single();
@@ -112,7 +112,7 @@ export default async function BookingSuccessPage({
   const dateLabel = format(startCy, "dd/MM/yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
-  const apptRow = appointment as { reason?: string | null };
+  const apptRow = appointment as { reason?: string | null; service_name?: string | null };
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
@@ -133,6 +133,7 @@ export default async function BookingSuccessPage({
     },
     {
       reason: apptRow.reason,
+      serviceName: apptRow.service_name,
     },
     { includeDirectClinicContact: confirmed }
   );

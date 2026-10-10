@@ -91,6 +91,7 @@ describe("firstBookingFormError", () => {
       "isNewPatient",
       "patientGender",
       "patientBirthdate",
+      "professionalService",
       "visitReason",
     ]);
     // Gender sits above the reason, so it is reported first.
@@ -102,5 +103,45 @@ describe("firstBookingFormError", () => {
       firstBookingFormError({ ...complete, patientPhone: "", patientGender: "" })?.field,
       "patientPhone",
     );
+  });
+
+  // The service picker (user, 2026-10-09): shown only when the professional lists services.
+  describe("service choice", () => {
+    const serviceId = "6a1f8a52-2b8f-4c1e-9d55-0f3c2a7b9e10";
+
+    it("asks for nothing when the professional lists no services (reason only, as before)", () => {
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: null }), null);
+      assert.equal(firstBookingFormError({ ...complete }), null);
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: null, visitReason: "" }), {
+        field: "visitReason",
+        messageKey: "reasonRequired",
+      });
+    });
+
+    it("requires a choice when there are services", () => {
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: "" }), {
+        field: "professionalService",
+        messageKey: "serviceRequired",
+      });
+    });
+
+    it("a chosen service makes the free text optional", () => {
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: serviceId, visitReason: "" }), null);
+    });
+
+    it("Other asks for the free text", () => {
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: "other", visitReason: " " }), {
+        field: "visitReason",
+        messageKey: "reasonRequired",
+      });
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: "other" }), null);
+    });
+
+    it("sits below the date of birth", () => {
+      assert.equal(
+        firstBookingFormError({ ...complete, serviceChoice: "", patientBirthdate: "" })?.field,
+        "patientBirthdate",
+      );
+    });
   });
 });

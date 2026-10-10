@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fillVisitReason } from "./helpers/fillVisitReason";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
 
@@ -74,7 +75,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
     await page.locator("#patientBirthdate").fill("1990-01-01");
@@ -208,7 +209,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
     await page.locator("#patientBirthdate").fill("1990-01-01");

@@ -17,8 +17,9 @@ import {
 /**
  * The requested service (user, 2026-10-04): a booking may name one of the professional's
  * own services (optional). The visit keeps the id and a copy of the name taken at booking,
- * so renaming or deleting the service later doesn't change what was asked. The picker UI
- * lives on another branch; these tests drive the API.
+ * so renaming or deleting the service later doesn't change what was asked. These tests drive
+ * the API; the public form's picker is covered in tests/profile_one_page.spec.ts.
+ * The professional sees the service on the request card and the review page (user, 2026-10-09).
  */
 
 const CY = "Europe/Nicosia";
@@ -147,6 +148,16 @@ test.describe("Integration: requested service", { tag: "@pr-e2e" }, () => {
       .eq("id", id)
       .single();
     expect(data).toEqual({ professional_service_id: serviceId, service_name: "Heart check-up" });
+
+    // She sees what was asked: on the dashboard's request card and on the review page,
+    // with the patient's own words too (they differ from the service name here).
+    await page.goto("/dashboard");
+    const card = page.getByTestId("dashboard-pending-request").filter({ hasText: `Service Draft ${nonce}` });
+    await expect(card).toContainText("Heart check-up", { timeout: 20_000 });
+    await expect(card).toContainText("Integration: requested service");
+    await page.goto(`/dashboard/appointments/${id}`);
+    await expect(page.getByTestId("review-service")).toHaveText("Heart check-up", { timeout: 20_000 });
+    await expect(page.getByText("Integration: requested service")).toBeVisible();
   });
 
   test("a manual booking can name a service too; deleting the service keeps the name", async () => {

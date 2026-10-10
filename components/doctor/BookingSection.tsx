@@ -30,6 +30,12 @@ import {
 } from "@/lib/booking-form-validation";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import { isValidRegisterEmail, suggestRegisterEmail } from "@/lib/register-email";
+import {
+  BOOKING_SERVICE_OTHER,
+  bookingServiceOptions,
+  bookingServiceRequest,
+  type BookingServiceItem,
+} from "@/lib/booking-service-choice";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -107,6 +113,8 @@ type BookingSectionProps = {
   locationId?: string | null;
   locationLabel?: string | null;
   locationScopedPause?: boolean;
+  /** Her services: when there are any, the patient picks one (or Other). No prices here. */
+  services?: BookingServiceItem[];
 };
 
 type SlotOption = {
@@ -137,6 +145,7 @@ export function BookingSection({
   locationId = null,
   locationLabel = null,
   locationScopedPause = false,
+  services = [],
 }: BookingSectionProps) {
   const onlineBookingsPaused = onlineBookingsPausedProp || onlineBookingsUnavailable;
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
@@ -173,6 +182,15 @@ export function BookingSection({
   const [showPhoneError, setShowPhoneError] = React.useState(false);
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
   const [visitReason, setVisitReason] = React.useState("");
+  const serviceOptions = bookingServiceOptions(services, t("serviceOther"));
+  /** null: no picker (she lists no services); "": nothing chosen yet; a service id or "other". */
+  const [serviceChoice, setServiceChoice] = React.useState<string | null>(
+    serviceOptions.length > 0 ? "" : null,
+  );
+  // The free text is optional once one of her services is picked; required with Other,
+  // with nothing picked yet, or when she lists no services.
+  const reasonOptional =
+    serviceChoice !== null && serviceChoice !== "" && serviceChoice !== BOOKING_SERVICE_OTHER;
   const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
   const [patientBirthdate, setPatientBirthdate] = React.useState("");
   /** Set once the request is saved: the patient confirms it from the email (user, 2026-10-02). */
@@ -436,6 +454,7 @@ export function BookingSection({
     isNewPatient: "visitHistory-first",
     patientGender: "patientGender-female",
     patientBirthdate: "patientBirthdate",
+    professionalService: "professionalService",
     visitReason: "visitReason",
   };
 
@@ -480,6 +499,7 @@ export function BookingSection({
         isNewPatient,
         patientGender,
         patientBirthdate,
+        serviceChoice,
         visitReason,
       });
       if (problem) {
@@ -501,7 +521,7 @@ export function BookingSection({
             patientEmail,
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
-            reason: reasonTrim,
+            ...bookingServiceRequest({ choice: serviceChoice, services, visitReason: reasonTrim }),
             isNewPatient,
             patientGender,
             patientBirthdate,
@@ -545,6 +565,7 @@ export function BookingSection({
         setPatientPhone("");
         setIsNewPatient(null);
         setVisitReason("");
+        setServiceChoice(serviceOptions.length > 0 ? "" : null);
         setPatientGender("");
         setPatientBirthdate("");
         setShowPhoneError(false);
@@ -569,6 +590,8 @@ export function BookingSection({
       visitReason,
       patientGender,
       patientBirthdate,
+      serviceChoice,
+      services,
       doctorId,
       doctorName,
       locationId,
@@ -946,17 +969,58 @@ export function BookingSection({
               {t("personalDetailsPrivacyNote", { doctorName })}
             </p>
           </div>
+          {serviceChoice !== null ? (
+            <div id="field-professionalService" className="scroll-mt-24 space-y-2">
+              <label htmlFor="professionalService" className={LABEL_CLASS}>
+                {t("serviceLabel")}
+                <RequiredMark />
+              </label>
+              <select
+                id="professionalService"
+                required
+                value={serviceChoice}
+                onChange={(e) => {
+                  setServiceChoice(e.target.value);
+                  fixed("professionalService");
+                  fixed("visitReason");
+                }}
+                aria-invalid={errorFor("professionalService") ? true : undefined}
+                aria-describedby={errorFor("professionalService") ? "professionalService-error" : undefined}
+                className={`${INPUT_CLASS(Boolean(errorFor("professionalService")))} [color-scheme:inherit] ${
+                  serviceChoice === "" ? "text-profile-muted" : ""
+                }`}
+              >
+                <option value="" disabled>
+                  {t("servicePlaceholder")}
+                </option>
+                {serviceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {errorFor("professionalService") ? (
+                <p id="professionalService-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("professionalService")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {/* Always there: the patient's own words. Optional once she picked one of the
+              professional's services; required with Other or when there are no services
+              (user, 2026-10-09). */}
           <div id="field-visitReason" className="scroll-mt-24 space-y-2">
-            <label
-              htmlFor="visitReason"
-              className={LABEL_CLASS}
-            >
-              {t("visitReasonLabel")}
-              <RequiredMark />
+            <label htmlFor="visitReason" className={LABEL_CLASS}>
+              {reasonOptional
+                ? t("visitNotesOptionalLabel", { doctorName })
+                : serviceChoice === BOOKING_SERVICE_OTHER
+                  ? t("serviceOtherReasonLabel")
+                  : t("visitReasonLabel")}
+              {reasonOptional ? null : <RequiredMark />}
             </label>
             <textarea
               id="visitReason"
-              required
+              required={!reasonOptional}
               rows={4}
               maxLength={APPOINTMENT_REASON_MAX_LENGTH}
               value={visitReason}
@@ -966,7 +1030,7 @@ export function BookingSection({
               }}
               aria-invalid={errorFor("visitReason") ? true : undefined}
               aria-describedby={errorFor("visitReason") ? "visitReason-error" : undefined}
-              placeholder={t("visitReasonPlaceholder")}
+              placeholder={reasonOptional ? t("visitNotesOptionalPlaceholder") : t("visitReasonPlaceholder")}
               className={`${INPUT_CLASS(Boolean(errorFor("visitReason")))} resize-y`}
             />
             {errorFor("visitReason") ? (
