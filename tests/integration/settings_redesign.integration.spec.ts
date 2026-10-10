@@ -200,6 +200,16 @@ function clinicCard(page: Page, name: string) {
   return page.getByTestId("settings-clinic-card").filter({ hasText: name });
 }
 
+/** With several clinics one card is open at a time: open this one (retried until hydrated). */
+async function openClinicCard(page: Page, name: string) {
+  const header = clinicCard(page, name).getByRole("button", { name, exact: true });
+  await expect(async () => {
+    if ((await header.getAttribute("aria-expanded")) !== "true") await header.click();
+    await expect(header).toHaveAttribute("aria-expanded", "true", { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  return clinicCard(page, name);
+}
+
 test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
   test.describe.configure({ mode: "serial" });
 
@@ -254,6 +264,37 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(paphos.getByRole("switch", { name: /Online booking/ })).toHaveAttribute("aria-checked", "false");
   });
 
+  test("with several clinics, one card is open at a time", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "clinics");
+
+    const limassol = clinicCard(page, "Limassol Skin Clinic");
+    const paphos = clinicCard(page, "Paphos Medical Centre");
+    const limassolHeader = limassol.getByRole("button", { name: "Limassol Skin Clinic", exact: true });
+    const paphosHeader = paphos.getByRole("button", { name: "Paphos Medical Centre", exact: true });
+
+    // The first clinic opens; the other is one line that still says and switches its booking.
+    await expect(limassolHeader).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
+    await expect(limassol.getByRole("button", { name: "Edit hours" })).toBeVisible();
+    await expect(paphosHeader).toHaveAttribute("aria-expanded", "false");
+    await expect(paphos.getByRole("button", { name: "Edit hours" })).toHaveCount(0);
+    await expect(paphos.getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
+    await expect(paphos).toContainText("Online booking paused");
+    await expect(paphos.getByRole("switch", { name: /Online booking/ })).toBeVisible();
+
+    // Opening one closes the other.
+    await openClinicCard(page, "Paphos Medical Centre");
+    await expect(paphos.getByRole("button", { name: "Edit hours" })).toBeVisible();
+    await expect(paphos).toContainText(`Settings Avenue`);
+    await expect(limassolHeader).toHaveAttribute("aria-expanded", "false");
+    await expect(limassol.getByRole("button", { name: "Edit hours" })).toHaveCount(0, { timeout: 5_000 });
+
+    // Its header closes it again: both are one line.
+    await paphosHeader.click();
+    await expect(paphosHeader).toHaveAttribute("aria-expanded", "false");
+    await expect(paphos.getByRole("button", { name: "Edit hours" })).toHaveCount(0, { timeout: 5_000 });
+  });
+
   test("a clinic can be removed until one is left", async ({ page }) => {
     test.setTimeout(120_000);
     let removed = "";
@@ -264,7 +305,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     await openSettings(page, seeded!, "clinics");
 
-    await clinicCard(page, "Paphos Medical Centre").getByRole("button", { name: "Remove clinic" }).click();
+    await (await openClinicCard(page, "Paphos Medical Centre")).getByRole("button", { name: "Remove clinic" }).click();
     const dialog = page.getByRole("dialog", { name: /Remove Paphos Medical Centre/ });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Remove clinic" }).click();
@@ -273,6 +314,9 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     const last = clinicCard(page, "Limassol Skin Clinic");
     await expect(last.getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
     await expect(last).toContainText("Your profile needs at least one clinic.");
+    // A single clinic has nothing to fold: it stays open, with no header button.
+    await expect(last.getByRole("button", { name: "Limassol Skin Clinic", exact: true })).toHaveCount(0);
+    await expect(last.getByRole("button", { name: "Edit hours" })).toBeVisible();
     expect(removed).toBe(seeded!.secondId);
     // Removing is not an unsaved edit.
     await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
@@ -562,9 +606,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(
       page.locator("[data-sonner-toast]").getByText("Booking limits saved for all your clinics."),
     ).toBeVisible();
-    await expect(paphos.getByLabel("Minimum notice")).toHaveValue("48");
     await expect(limassol.getByTestId("clinic-limits-scope")).toHaveText("All 2 of your clinics use these limits.");
     await expect(limassol.getByTestId("clinic-limits-pending")).toContainText("Livio");
+    // One card is open at a time: the other clinic shows the same value once opened.
+    await openClinicCard(page, "Paphos Medical Centre");
+    await expect(paphos.getByLabel("Minimum notice")).toHaveValue("48");
     // "Apply to all" is always there with more than one clinic, and says what it did.
     await paphos.getByTestId("clinic-limits-apply-all").click();
     await expect(

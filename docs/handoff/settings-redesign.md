@@ -66,6 +66,10 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   more than one. All clinics are equal; there is no primary in this. Until your
   migration a change shows on every clinic and the card says so (section 3.7,
   `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
+- **With several clinics, one card is open at a time** (user, 2026-10-10): the others
+  fold to their header (name, days and hours, status, the online-booking switch), so
+  every clinic's booking state stays in view. The first clinic opens; a single clinic
+  has nothing to fold (`ClinicCard` `collapsible` / `open`).
 - A clinic's **name, address and phone change only by request** ("Request name or address change" and "Request phone change" on the card).
   Only hours are editable. Times are picked by hour and quarter (`ClinicTimePicker`), and an open day,
   and the break, must end after they start

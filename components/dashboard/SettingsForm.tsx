@@ -465,6 +465,10 @@ export function SettingsForm({
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
   /** The clinic card whose hours editor is open (it is also the active workplace). */
   const [editingWorkplaceId, setEditingWorkplaceId] = React.useState<string | null>(null);
+  /** With several clinics, the one card that is open (null: all folded). */
+  const [openClinicId, setOpenClinicId] = React.useState<string | null>(
+    () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
+  );
   const [workplaceToRemove, setWorkplaceToRemove] = React.useState<string | null>(null);
   const [changeRequestFor, setChangeRequestFor] = React.useState<string | null>(null);
   const [addClinicOpen, setAddClinicOpen] = React.useState(false);
@@ -667,6 +671,7 @@ export function SettingsForm({
         workplaces: prev.workplaces.filter((row) => row.id !== id),
       }));
       if (editingWorkplaceId === id) setEditingWorkplaceId(null);
+      if (openClinicId === id) setOpenClinicId(remaining[0]?.id ?? null);
       if (activeWorkplaceId === id && remaining[0]) {
         applyWorkplaceToForm(remaining[0]);
       }
@@ -1448,6 +1453,9 @@ export function SettingsForm({
           <ClinicCard
             key={row.id}
             name={name}
+            collapsible={liveWorkplaces.length > 1}
+            open={openClinicId === row.id}
+            onToggleOpen={() => setOpenClinicId((current) => (current === row.id ? null : row.id))}
             swatchClass={agendaClinicEventColor(index).swatch}
             status={clinicBookingStatus({
               pauseOnlineBookings: row.pauseOnlineBookings,

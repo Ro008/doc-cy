@@ -290,7 +290,11 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
     const clinicCards = page.getByTestId("settings-clinic-card");
     await expect(clinicCards).toHaveCount(2, { timeout: 20_000 });
-    await expect(clinicCards.nth(1)).toContainText(/5 Review Street/);
+    // With two clinics the second card is folded: open it to read its address.
+    await expect(async () => {
+      await clinicCards.nth(1).locator("h2 button").click();
+      await expect(clinicCards.nth(1)).toContainText(/5 Review Street/, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
     // Deciding twice is refused.
     const again = await request.post(url, {
