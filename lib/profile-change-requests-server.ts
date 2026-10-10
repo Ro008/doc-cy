@@ -9,6 +9,7 @@ import {
   NAME_CHANGE_REQUEST_TYPE,
   PHOTO_CHANGE_REQUEST_TYPE,
   PROFILE_CHANGE_REQUEST_TYPES,
+  SPECIALTY_ADD_REQUEST_TYPE,
   nameChangeSlugCandidates,
   photoChangeUploadCheck,
   photoChangeUploadPath,
@@ -17,6 +18,7 @@ import {
   profileChangeKind,
   profileChangeState,
   reviewedNameChange,
+  reviewedSpecialtyAdd,
   type ProfileChangeKind,
   type ProfileChangeRequestType,
   type ProfileChangeRow,
@@ -27,6 +29,9 @@ import { approvedAvatarPath } from "@/lib/registration-approval";
 import { sendRegistrationDecisionEmail } from "@/lib/registration-decision-emails";
 import { registrationNotifyRecipients, type FounderRecipientRow } from "@/lib/registration-request-notify";
 import { sendResendEmail } from "@/lib/resend";
+import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
+import { validateAddSpecialtyRequest } from "@/lib/settings-specialty-request";
+import { loadSpecialtyCatalogueNames, loadSpecialtyEntries, specialtyNames } from "@/lib/specialty-catalogue";
 import { validateNameChangeRequest } from "@/lib/settings-profile-details";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
@@ -60,6 +65,7 @@ const publicAvatarUrl = (service: SupabaseClient, path: string | null | undefine
 export type ProfileChangeStates = {
   name: ProfileChangeState;
   photo: ProfileChangeState;
+  specialty: ProfileChangeState;
   /** The photo she asked for, when a photo request is open. */
   pendingPhotoUrl: string | null;
 };
@@ -82,6 +88,7 @@ export async function loadProfileChangeStates(
   return {
     name: profileChangeState(rows, NAME_CHANGE_REQUEST_TYPE),
     photo,
+    specialty: profileChangeState(rows, SPECIALTY_ADD_REQUEST_TYPE),
     pendingPhotoUrl: await signedPhotoUrl(service, photo.pending?.photoPath),
   };
 }
@@ -246,6 +253,145 @@ export async function submitPhotoChangeRequest(
 }
 
 /**
+ * She asks to add a specialty, from the catalogue or new, with its licence number.
+ * Founders approve it as at registration. One open request; at most 5 specialties.
+ */
+export async function submitSpecialtyAddRequest(
+  service: SupabaseClient,
+  input: { professionalId: string; specialty: unknown; fromCatalogue: unknown; licenseNumber: unknown },
+): Promise<HttpResult<{ request: { id: string; specialty: string; licenseNumber: string; createdAt: string } }>> {
+  const { data: pro, error: proError } = await service
+    .from("professionals")
+    .select("id, name, registration_email, email")
+    .eq("id", input.professionalId)
+    .maybeSingle();
+  if (proError || !pro) return { ok: false, status: 404, message: "Your profile was not found." };
+
+  let catalogue: string[];
+  let existing: string[];
+  try {
+    [catalogue, existing] = await Promise.all([
+      loadSpecialtyCatalogueNames(service),
+      loadSpecialtyEntries(service, input.professionalId).then(specialtyNames),
+    ]);
+  } catch (error) {
+    console.error("[DocCy] specialty request: load failed", error);
+    return { ok: false, status: 500, message: "Could not send the request. Please try again." };
+  }
+  if (existing.length >= MAX_DOCTOR_SPECIALTIES) {
+    return {
+      ok: false,
+      status: 400,
+      message: `You can have up to ${MAX_DOCTOR_SPECIALTIES} specialties. Remove one to add another.`,
+    };
+  }
+  const typed = typeof input.specialty === "string" ? input.specialty : "";
+  // The catalogue decides, whatever the page said.
+  const inCatalogue = catalogue.some((name) => name.trim().toLowerCase() === typed.trim().toLowerCase());
+  const checked = validateAddSpecialtyRequest(
+    {
+      specialty: typed,
+      fromMaster: inCatalogue || input.fromCatalogue === true,
+      license: typeof input.licenseNumber === "string" ? input.licenseNumber : "",
+    },
+    catalogue,
+    existing,
+  );
+  if (checked.ok === false) {
+    return {
+      ok: false,
+      status: 400,
+      message: checked.errors.specialty ?? checked.errors.license ?? "Check the specialty and its licence number.",
+    };
+  }
+  const { toSpecialty, licenseNumber } = checked.request;
+
+  const { data: requestId, error } = await service.rpc("request_submit", {
+    p_request_type: SPECIALTY_ADD_REQUEST_TYPE,
+    p_professional_id: input.professionalId,
+    p_details: { name: toSpecialty, from_catalogue: inCatalogue, license_number: licenseNumber },
+  });
+  if (error || !requestId) {
+    if (error?.code !== "23505") console.error("[DocCy] specialty request", error);
+    return { ok: false, ...profileChangeDbErrorMessage(error ?? {}, "submit") };
+  }
+
+  const { data: saved } = await service.from("request_log").select("created_at").eq("id", requestId).maybeSingle();
+  const content = buildProfileChangeNotifyContent({
+    kind: "specialty",
+    professionalName: String(pro.name ?? ""),
+    specialty: toSpecialty,
+    fromCatalogue: inCatalogue,
+    licenseNumber,
+    siteUrl: getPublicBookingBaseUrl(),
+  });
+  await notifyFounders(service, {
+    requesterEmail: String(pro.registration_email ?? pro.email ?? ""),
+    subject: content.subject,
+    text: content.text,
+    requestId: String(requestId),
+    category: "founder-specialty-request",
+  });
+  return {
+    ok: true,
+    request: {
+      id: String(requestId),
+      specialty: toSpecialty,
+      licenseNumber,
+      createdAt: String(saved?.created_at ?? new Date().toISOString()),
+    },
+  };
+}
+
+export const LAST_SPECIALTY_REFUSAL =
+  "Your profile needs at least one specialty. Add the new one first; once it is approved, remove this one.";
+
+/**
+ * She removes a specialty: no founder, recorded at once (professional_specialty_remove).
+ * Never her last one. Returns the specialties she has left.
+ */
+export async function removeProfessionalSpecialty(
+  service: SupabaseClient,
+  input: { professionalId: string; specialty: unknown },
+): Promise<HttpResult<{ specialties: string[] }>> {
+  const specialty = typeof input.specialty === "string" ? input.specialty.trim() : "";
+  if (!specialty) return { ok: false, status: 400, message: "Say which specialty to remove." };
+
+  const { error } = await service.rpc("professional_specialty_remove", {
+    p_professional_id: input.professionalId,
+    p_specialty: specialty,
+  });
+  if (error?.code === "23514") return { ok: false, status: 409, message: LAST_SPECIALTY_REFUSAL };
+  if (error?.code === "P0002") return { ok: false, status: 404, message: "That specialty is not on your profile." };
+  if (error) {
+    console.error("[DocCy] specialty remove", error);
+    return { ok: false, status: 500, message: "Could not remove the specialty. Please try again." };
+  }
+  try {
+    return { ok: true, specialties: specialtyNames(await loadSpecialtyEntries(service, input.professionalId)) };
+  } catch (loadError) {
+    console.error("[DocCy] specialty remove: reload failed", loadError);
+    return { ok: false, status: 500, message: "The specialty was removed. Reload the page to see your profile." };
+  }
+}
+
+/** "I see GeSY patients" on or off: no founder, recorded at once (professional_gesy_set). */
+export async function setProfessionalGesy(
+  service: SupabaseClient,
+  input: { professionalId: string; isGesy: boolean },
+): Promise<HttpResult<{ changed: boolean }>> {
+  const { data: requestId, error } = await service.rpc("professional_gesy_set", {
+    p_professional_id: input.professionalId,
+    p_is_gesy: input.isGesy,
+  });
+  if (error) {
+    console.error("[DocCy] GeSY change", error);
+    return { ok: false, status: 500, message: "Could not save. Please try again." };
+  }
+  return { ok: true, changed: Boolean(requestId) };
+}
+
+/**
  * She removes her photo: no founder, recorded at once (professional_photo_remove).
  * The file leaves the public bucket too.
  */
@@ -319,6 +465,11 @@ export type ProfileChangeReviewItem = {
   requestedName: string | null;
   approvedName: string | null;
   reason: string | null;
+  /** Specialty requests: what she asked to add, and what she has today. */
+  specialty: string | null;
+  specialtyFromCatalogue: boolean;
+  licenseNumber: string | null;
+  currentSpecialties: string[];
   /** Photo requests: the live photo, and the one she asked for (short-lived link). */
   currentPhotoUrl: string | null;
   requestedPhotoUrl: string | null;
@@ -392,6 +543,17 @@ export async function loadProfileChangesForReview(
           ? publicAvatarUrl(service, live?.avatar)
           : null,
       requestedPhotoUrl: requestedPhotos.get(row.id) ?? null,
+      specialty:
+        row.request_type === SPECIALTY_ADD_REQUEST_TYPE
+          ? (row.status === "approved" ? text(row.approved_details?.name) : null) ?? text(details.name)
+          : null,
+      specialtyFromCatalogue: details.from_catalogue === true,
+      licenseNumber: text(details.license_number),
+      currentSpecialties: Array.isArray(row.before_snapshot?.specialties)
+        ? (row.before_snapshot.specialties as Array<{ name?: unknown }>)
+            .map((entry) => text(entry?.name))
+            .filter((name): name is string => Boolean(name))
+        : [],
       id: row.id,
       kind: profileChangeKind(row.request_type),
       status: row.status as ProfileChangeReviewItem["status"],
@@ -622,12 +784,67 @@ export async function approvePhotoChangeRequest(
   return { ok: true, avatarPath };
 }
 
+/**
+ * A founder approves an added specialty, as she asked or with their correction of
+ * the specialty or its licence number. She is emailed.
+ */
+export async function approveSpecialtyAddRequest(
+  service: SupabaseClient,
+  input: { requestId: string; adminId: string; name?: unknown; licenseNumber?: unknown; note?: unknown },
+): Promise<HttpResult<{ specialty: string }>> {
+  const loaded = await loadPendingProfileChange(service, input.requestId);
+  if (loaded.ok === false) return loaded;
+  const { request } = loaded;
+  if (request.type !== SPECIALTY_ADD_REQUEST_TYPE) {
+    return { ok: false, status: 400, message: "That request is not a specialty request." };
+  }
+  const reviewed = reviewedSpecialtyAdd(
+    {
+      name: text(request.details.name) ?? "",
+      fromCatalogue: request.details.from_catalogue === true,
+      licenseNumber: text(request.details.license_number) ?? "",
+    },
+    { name: input.name, licenseNumber: input.licenseNumber },
+  );
+  if (reviewed.ok === false) return { ok: false, status: 400, message: reviewed.message };
+
+  const { error } = await service.rpc("request_approve", {
+    p_request_id: request.id,
+    p_admin_id: input.adminId,
+    p_corrected_details: reviewed.corrected,
+    p_note: typeof input.note === "string" && input.note.trim() ? input.note.trim() : null,
+    p_options: null,
+  });
+  if (error) {
+    console.error("[DocCy] specialty approve failed", error);
+    return { ok: false, ...profileChangeDbErrorMessage(error, "decide") };
+  }
+  const { data: approved } = await service.from("request_log").select("outcome").eq("id", request.id).maybeSingle();
+  const specialty = text((approved?.outcome as Record<string, unknown> | null)?.specialty) ?? reviewed.name;
+  const pro = request.professional;
+  await sendRegistrationDecisionEmail(
+    pro.email,
+    buildProfileChangeApprovedEmail({
+      kind: "specialty",
+      firstName: firstName(pro.name),
+      siteUrl: getPublicBookingBaseUrl(),
+      profilePath: `/en/${pro.slug ?? ""}`,
+      specialty,
+    }),
+  );
+  return { ok: true, specialty };
+}
+
 /** Approves whichever kind the request is. */
 export async function approveProfileChangeRequest(
   service: SupabaseClient,
-  input: { requestId: string; adminId: string; name?: unknown; note?: unknown },
+  input: { requestId: string; adminId: string; name?: unknown; licenseNumber?: unknown; note?: unknown },
 ): Promise<HttpResult<{ kind: ProfileChangeKind }>> {
   const { data: row } = await service.from("request_log").select("request_type").eq("id", input.requestId).maybeSingle();
+  if (row?.request_type === SPECIALTY_ADD_REQUEST_TYPE) {
+    const result = await approveSpecialtyAddRequest(service, input);
+    return result.ok === false ? result : { ok: true, kind: "specialty" };
+  }
   if (row?.request_type === PHOTO_CHANGE_REQUEST_TYPE) {
     const result = await approvePhotoChangeRequest(service, input);
     return result.ok === false ? result : { ok: true, kind: "photo" };
@@ -664,6 +881,7 @@ export async function denyProfileChangeRequest(
       firstName: firstName(request.professional.name),
       siteUrl: getPublicBookingBaseUrl(),
       reason,
+      specialty: kind === "specialty" ? text(request.details.name) : null,
     }),
   );
   return { ok: true, kind };

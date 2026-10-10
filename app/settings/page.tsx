@@ -325,6 +325,16 @@ export default async function AgendaSettingsPage({
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
     nameChange: profileChanges?.name ?? null,
+    pendingSpecialtyChange: profileChanges?.specialty.pending
+      ? {
+          requestKind: "add",
+          fromSpecialty: null,
+          toSpecialty: profileChanges.specialty.pending.name,
+          licenseNumber: profileChanges.specialty.pending.licenseNumber,
+          createdAt: profileChanges.specialty.pending.createdAt,
+        }
+      : null,
+    specialtyDenied: profileChanges?.specialty.denied ?? null,
     photoChange: profileChanges
       ? { ...profileChanges.photo, pendingPhotoUrl: profileChanges.pendingPhotoUrl }
       : null,

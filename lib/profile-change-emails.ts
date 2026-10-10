@@ -13,7 +13,11 @@ import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml } fro
  * told when one enters the queue; she is emailed every decision.
  */
 
-const KIND_SUBJECT: Record<ProfileChangeKind, string> = { name: "name change", photo: "new photo" };
+const KIND_SUBJECT: Record<ProfileChangeKind, string> = {
+  name: "name change",
+  photo: "new photo",
+  specialty: "specialty request",
+};
 
 /** The founders' notice that a request entered the queue. */
 export function buildProfileChangeNotifyContent(input: {
@@ -21,10 +25,26 @@ export function buildProfileChangeNotifyContent(input: {
   professionalName: string;
   requestedName?: string | null;
   reason?: string | null;
+  specialty?: string | null;
+  fromCatalogue?: boolean;
+  licenseNumber?: string | null;
   siteUrl: string;
 }): { subject: string; text: string } {
   const base = input.siteUrl.replace(/\/$/, "");
   const review = `Review: ${base}/internal/directory?tab=requests`;
+  if (input.kind === "specialty") {
+    return {
+      subject: `[SPECIALTY REQUEST] ${input.professionalName}: ${input.specialty ?? ""}`,
+      text: [
+        `${input.professionalName} asked to add a specialty to their profile.`,
+        "",
+        `Specialty: ${input.specialty ?? ""}${input.fromCatalogue ? "" : " (not in the catalogue)"}`,
+        `Licence number: ${input.licenseNumber ?? ""}`,
+        "",
+        review,
+      ].join("\n"),
+    };
+  }
   if (input.kind === "photo") {
     return {
       subject: `[PHOTO CHANGE] ${input.professionalName}`,
@@ -68,9 +88,23 @@ export function buildProfileChangeApprovedEmail(opts: {
   approvedName?: string;
   requestedName?: string;
   addressChanged?: boolean;
+  specialty?: string;
 }): DecisionEmail {
   const profileUrl = `${opts.siteUrl.replace(/\/$/, "")}${opts.profilePath}`;
   const greeting = `Hi ${opts.firstName},`;
+  if (opts.kind === "specialty") {
+    const specialty = opts.specialty ?? "Your specialty";
+    const heading = `${specialty} is now on your profile`;
+    const line = `We approved your request: patients can now find you under ${specialty}.`;
+    return {
+      subject: `[DocCy] ${heading}`,
+      text: [greeting, "", line, "", `Your public profile:\n${profileUrl}`, "", `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`].join("\n"),
+      html: decisionHtml(heading, [escapeHtml(greeting), escapeHtml(line)], {
+        href: profileUrl,
+        label: "See your profile",
+      }),
+    };
+  }
   if (opts.kind === "photo") {
     const line = "Your new photo is now on your profile.";
     return {
@@ -105,9 +139,11 @@ export function buildProfileChangeDeniedEmail(opts: {
   firstName: string;
   siteUrl: string;
   reason: string;
+  specialty?: string | null;
 }): DecisionEmail {
   const settingsUrl = `${opts.siteUrl.replace(/\/$/, "")}/settings?section=profile`;
-  const what = KIND_SUBJECT[opts.kind];
+  const what =
+    opts.kind === "specialty" && opts.specialty ? `request to add ${opts.specialty}` : KIND_SUBJECT[opts.kind];
   const heading = `Your ${what} was not approved`;
   const greeting = `Hi ${opts.firstName},`;
   const intro = `We reviewed your ${what} and could not approve it. Your profile is unchanged.`;

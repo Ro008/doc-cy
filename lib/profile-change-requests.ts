@@ -11,13 +11,18 @@ import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 
 export const NAME_CHANGE_REQUEST_TYPE = "professional_name_change";
 export const PHOTO_CHANGE_REQUEST_TYPE = "professional_photo_change";
-export const PROFILE_CHANGE_REQUEST_TYPES = [NAME_CHANGE_REQUEST_TYPE, PHOTO_CHANGE_REQUEST_TYPE] as const;
+export const SPECIALTY_ADD_REQUEST_TYPE = "professional_specialty_add";
+export const PROFILE_CHANGE_REQUEST_TYPES = [
+  NAME_CHANGE_REQUEST_TYPE,
+  PHOTO_CHANGE_REQUEST_TYPE,
+  SPECIALTY_ADD_REQUEST_TYPE,
+] as const;
 
 export type ProfileChangeRequestType = (typeof PROFILE_CHANGE_REQUEST_TYPES)[number];
-export type ProfileChangeKind = "name" | "photo";
+export type ProfileChangeKind = "name" | "photo" | "specialty";
 
 export const profileChangeKind = (type: string): ProfileChangeKind =>
-  type === PHOTO_CHANGE_REQUEST_TYPE ? "photo" : "name";
+  type === PHOTO_CHANGE_REQUEST_TYPE ? "photo" : type === SPECIALTY_ADD_REQUEST_TYPE ? "specialty" : "name";
 
 export const NAME_CHANGE_MAX_LENGTH = 80;
 
@@ -34,10 +39,12 @@ export type ProfileChangeRow = {
 export type PendingProfileChange = {
   id: string;
   createdAt: string;
-  /** Name requests: the name she asked for. */
+  /** Name requests: the name she asked for. Specialty requests: the specialty. */
   name: string | null;
   /** Photo requests: where the new photo waits (private bucket). */
   photoPath: string | null;
+  /** Specialty requests: the licence number she gave. */
+  licenseNumber: string | null;
 };
 
 export type DeniedProfileChange = { id: string; decidedAt: string; reason: string; name: string | null };
@@ -65,6 +72,7 @@ export function profileChangeState(rows: ProfileChangeRow[], type: ProfileChange
         createdAt: latest.created_at,
         name: detail(latest.details, "name"),
         photoPath: detail(latest.details, "photo_path"),
+        licenseNumber: detail(latest.details, "license_number"),
       },
       denied: null,
     };
@@ -172,6 +180,45 @@ export function reviewedNameChange(
   return { ok: true, name, corrected: { name, reason: details.reason } };
 }
 
+export const SPECIALTY_LICENSE_MAX_LENGTH = 80;
+
+export type ReviewedSpecialtyAdd =
+  | {
+      ok: true;
+      name: string;
+      licenseNumber: string;
+      corrected: { name: string; from_catalogue: boolean; license_number: string } | null;
+    }
+  | { ok: false; message: string };
+
+/**
+ * The specialty a founder approves: as she asked, or with their correction of the
+ * specialty or its licence number. `corrected` is what request_approve records.
+ */
+export function reviewedSpecialtyAdd(
+  asked: { name: string; fromCatalogue: boolean; licenseNumber: string },
+  founder: { name?: unknown; licenseNumber?: unknown },
+): ReviewedSpecialtyAdd {
+  const clean = (value: unknown) => String(value).trim().replace(/\s+/g, " ");
+  const name = founder.name === undefined || founder.name === null ? asked.name : clean(founder.name);
+  const licenseNumber =
+    founder.licenseNumber === undefined || founder.licenseNumber === null
+      ? asked.licenseNumber
+      : clean(founder.licenseNumber);
+  if (!name) return { ok: false, message: "Enter the specialty to approve." };
+  if (!licenseNumber) return { ok: false, message: "Enter the licence number to approve." };
+  if (licenseNumber.length > SPECIALTY_LICENSE_MAX_LENGTH) {
+    return { ok: false, message: `Keep the licence number under ${SPECIALTY_LICENSE_MAX_LENGTH} characters.` };
+  }
+  const unchanged = name === asked.name && licenseNumber === asked.licenseNumber;
+  return {
+    ok: true,
+    name,
+    licenseNumber,
+    corrected: unchanged ? null : { name, from_catalogue: asked.fromCatalogue, license_number: licenseNumber },
+  };
+}
+
 /** A database refusal in plain words, for her ("submit", "withdraw") or the founder ("decide"). */
 export function profileChangeDbErrorMessage(
   error: { code?: string | null; message?: string | null },
@@ -195,6 +242,12 @@ export function profileChangeDbErrorMessage(
   if (code === "42501") return { status: 403, message: "Only founders can decide requests." };
   if (code === "P0002") return { status: 404, message: "That request or its professional no longer exists." };
   if (code === "23505") return { status: 409, message: "That profile address was just taken. Try approving again." };
+  if (code === "55000" && /already has this specialty/.test(text)) {
+    return { status: 409, message: "This professional already has that specialty. Deny the request." };
+  }
+  if (code === "55000" && /already has 5 specialties/.test(text)) {
+    return { status: 409, message: "This professional already has 5 specialties. Deny the request." };
+  }
   if (code === "55000") {
     return /name changed since/.test(text)
       ? { status: 409, message: "The name changed since this request was made. Deny it and ask for a new request." }

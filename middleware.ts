@@ -226,5 +226,7 @@ export const config = {
     "/api/name-change-requests",
     "/api/photo-change-requests",
     "/api/professional-photo",
+    "/api/professional-specialties",
+    "/api/specialty-requests",
   ],
 };

@@ -83,6 +83,8 @@ describe("isProfessionalApiPath", () => {
       "/api/name-change-requests",
       "/api/photo-change-requests",
       "/api/professional-photo",
+      "/api/professional-specialties",
+      "/api/specialty-requests",
     ]) {
       assert.equal(isProfessionalApiPath(path), true, path);
     }

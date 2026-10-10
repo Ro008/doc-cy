@@ -1,12 +1,13 @@
 -- Database tests for what a signed-in professional may change on her own row
--- (migration *_professionals_update_columns).
+-- (migrations *_professionals_update_columns and *_professionals_gesy_not_writable).
 --
 -- Found 2026-10-09: "authenticated" had UPDATE on every column of professionals, so
 -- with the update policy (own row, emailed sign-in step) she could set her own
 -- pro_access_until, subscription_tier, is_registered, slug or mobile_number straight
 -- through /rest/v1, skipping every check and record. Now only the columns her
--- session-client routes write are open: bio, languages, is_gesy and the two
--- "sign out other sessions" columns. Everything else goes through the service role.
+-- session-client routes write are open: bio, languages and the two "sign out other
+-- sessions" columns. Everything else goes through the service role (is_gesy too, since
+-- 2026-10-10: professional_gesy_set records each change).
 --
 -- Run against TESTING only (Supabase SQL editor or the MCP execute_sql tool).
 -- Everything runs in one transaction that ALWAYS rolls back: the final error
@@ -22,14 +23,14 @@ declare
   v_checks int := 0;
 begin
   ---------------------------------------------------------------- privileges
-  foreach v_col in array array['bio', 'languages', 'is_gesy', 'auth_session_revoked_after', 'auth_keep_session_id'] loop
+  foreach v_col in array array['bio', 'languages', 'auth_session_revoked_after', 'auth_keep_session_id'] loop
     assert has_column_privilege('authenticated', 'public.professionals', v_col, 'update'),
       format('FAIL: a signed-in professional can still change %s', v_col);
     v_checks := v_checks + 1;
   end loop;
 
   foreach v_col in array array[
-    'mobile_number', 'pro_access_until', 'subscription_tier', 'is_registered', 'is_test_profile',
+    'is_gesy', 'mobile_number', 'pro_access_until', 'subscription_tier', 'is_registered', 'is_test_profile',
     'slug', 'name', 'email', 'registration_email', 'auth_user_id', 'avatar_url', 'ghs_code',
     'is_archived', 'trial_notice_seen_at', 'id', 'created_at'
   ] loop

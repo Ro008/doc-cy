@@ -94,7 +94,12 @@ import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
 import { PatientAgesCard } from "@/components/dashboard/settings/PatientAgesCard";
 import { ProfileNameField } from "@/components/dashboard/settings/ProfileNameField";
 import { ProfilePhotoControls, type PendingPhotoChange } from "@/components/dashboard/settings/ProfilePhotoControls";
-import type { ProfileChangeState } from "@/lib/profile-change-requests";
+import { useDismissibleDenial } from "@/components/dashboard/settings/useDismissibleDenial";
+import {
+  profileChangeRequestDate,
+  type DeniedProfileChange,
+  type ProfileChangeState,
+} from "@/lib/profile-change-requests";
 import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
 import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
@@ -131,7 +136,9 @@ export type DoctorSettingsFormData = {
   specialtyOptions: string[];
   /** Approved specialty labels (flat). */
   specialties?: string[];
-  /** Pending specialty change request (settings lock queue). */
+  /** Her latest specialty request, when founders denied it (`loadProfileChangeStates`). */
+  specialtyDenied?: DeniedProfileChange | null;
+  /** Her open request to add a specialty (`loadProfileChangeStates`). */
   pendingSpecialtyChange?: {
     requestKind: SpecialtyChangeRequestKind;
     fromSpecialty: string | null;
@@ -381,7 +388,7 @@ export function SettingsForm({
   const [specialtyToRemove, setSpecialtyToRemove] = React.useState<string | null>(null);
   const [specialtyRemoving, setSpecialtyRemoving] = React.useState(false);
 
-  /** Removing a specialty is instant (contract: DELETE /api/doctor-specialties). */
+  /** Removing a specialty is instant and recorded (DELETE /api/professional-specialties). */
   async function handleRemoveSpecialty(label: string): Promise<boolean> {
     const check = canRemoveSpecialty(lockedSpecialties, label);
     if (check.ok === false) {
@@ -390,16 +397,14 @@ export function SettingsForm({
     }
     setSpecialtyRemoving(true);
     try {
-      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialties (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
-      const res = await fetch("/api/doctor-specialties", {
+      const res = await fetch("/api/professional-specialties", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ specialty: check.specialty }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("removeSpecialty", res.status, data, "Could not remove the specialty."));
+        toast.error(typeof data?.message === "string" ? data.message : "Could not remove the specialty.");
         return false;
       }
       const next = Array.isArray(data?.specialties)
@@ -419,6 +424,11 @@ export function SettingsForm({
   const specialtyFromMaster = isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
     () => initial.pendingSpecialtyChange ?? null,
+  );
+  // Her latest specialty request, if founders denied it: shown until she dismisses it.
+  const [specialtyDenied, dismissSpecialtyDenied, clearSpecialtyDenied] = useDismissibleDenial(
+    "specialty",
+    initial.specialtyDenied ?? null,
   );
   // One request only: add a specialty (removing is instant with the chip's ✕).
   const [specialtyFormOpen, setSpecialtyFormOpen] = React.useState(false);
@@ -1096,8 +1106,6 @@ export function SettingsForm({
     const { request } = validated;
     setSpecialtyChangeBusy(true);
     try {
-      // EXPECTED TO FAIL until Livio builds POST /api/specialty-requests, the new specialty
-      // requests (master dropped the old ones, E3). The doctor sees a message saying so.
       const res = await fetch("/api/specialty-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1105,47 +1113,42 @@ export function SettingsForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(
-          settingsActionErrorMessage("requestSpecialty", res.status, data, "Could not submit specialty request."),
-        );
+        toast.error(typeof data?.message === "string" ? data.message : "Could not send the request.");
         return;
       }
       setPendingSpecialtyChange({
         requestKind: request.requestKind,
         fromSpecialty: null,
-        toSpecialty: request.toSpecialty,
+        toSpecialty: String(data?.request?.specialty ?? request.toSpecialty),
         licenseNumber: request.licenseNumber,
-        createdAt: new Date().toISOString(),
+        createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
       });
+      clearSpecialtyDenied();
       resetSpecialtyRequestForm();
-      toast.success("Request sent. We’ll review it and update your profile.");
+      toast.success("Request sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not submit specialty request.");
+      toast.error("Could not send the request.");
     } finally {
       setSpecialtyChangeBusy(false);
     }
   }
 
-  /** Withdraws the pending request (contract: DELETE /api/specialty-requests). */
+  /** Withdraws the pending request (DELETE /api/specialty-requests). */
   async function cancelSpecialtyRequest() {
     setSpecialtyCancelBusy(true);
     try {
-      // EXPECTED TO FAIL until Livio builds DELETE /api/specialty-requests
-      // (backend pending, see lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch("/api/specialty-requests", { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(
-          settingsActionErrorMessage("cancelSpecialtyRequest", res.status, data, "Could not cancel the request."),
-        );
+        toast.error(typeof data?.message === "string" ? data.message : "Could not withdraw the request.");
         return;
       }
       setPendingSpecialtyChange(null);
-      toast.success("Request cancelled.");
+      toast.success("Request withdrawn. Your specialties stay as they are.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not cancel the request.");
+      toast.error("Could not withdraw the request.");
     } finally {
       setSpecialtyCancelBusy(false);
     }
@@ -1718,7 +1721,7 @@ export function SettingsForm({
                 <span className="text-xs font-medium text-amber-200/80">{pendingChip.status}</span>
                 <button
                   type="button"
-                  aria-label={`Cancel the request for ${pendingChip.label}`}
+                  aria-label={`Withdraw the request for ${pendingChip.label}`}
                   disabled={specialtyCancelBusy}
                   aria-busy={specialtyCancelBusy}
                   onClick={() => void cancelSpecialtyRequest()}
@@ -1735,11 +1738,33 @@ export function SettingsForm({
       </div>
       <p className="mt-3 text-xs leading-relaxed text-slate-400">
         {pendingChip
-          ? "DocCy is checking your request. You can add another specialty once it’s reviewed."
+          ? `Request sent on ${profileChangeRequestDate(pendingSpecialtyChange?.createdAt ?? "")} · waiting for DocCy’s approval. Withdraw it with ✕. You can add another specialty once it’s decided.`
           : lockedSpecialties.length > 1
             ? "Remove a specialty with ✕. Adding one needs a quick check by DocCy."
             : `${LAST_SPECIALTY_MESSAGE} To switch it, add the new one; once it’s approved, remove the old one.`}
       </p>
+      {specialtyDenied && !pendingChip ? (
+        <div
+          data-testid="settings-specialty-change-denied"
+          className="mt-3 flex items-start gap-3 rounded-2xl border border-red-400/25 bg-red-500/[0.06] px-3.5 py-2.5 text-sm text-red-100"
+        >
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold">
+              Your request to add {specialtyDenied.name ?? "a specialty"} was not approved
+            </span>
+            <span className="text-red-100/80"> on {profileChangeRequestDate(specialtyDenied.decidedAt)}.</span>
+            <span className="mt-0.5 block text-red-100/90">Reason: {specialtyDenied.reason}</span>
+          </p>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={dismissSpecialtyDenied}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-200/80 transition hover:bg-white/5 hover:text-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       {pendingChip ? null : specialtyFormOpen ? (
         <fieldset
           disabled={specialtyChangeBusy}

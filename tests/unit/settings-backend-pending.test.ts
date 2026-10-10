@@ -19,13 +19,10 @@ describe("backendPendingMessage", () => {
     assert.deepEqual(Object.keys(BACKEND_PENDING).sort(), [
       "addClinic",
       "addQualification",
-      "cancelSpecialtyRequest",
       "changeEmail",
       "clinicChangeRequest",
       "removeClinic",
       "removeQualification",
-      "removeSpecialty",
-      "requestSpecialty",
       "savePatientAges",
     ]);
     for (const action of Object.keys(BACKEND_PENDING) as (keyof typeof BACKEND_PENDING)[]) {
@@ -37,24 +34,6 @@ describe("backendPendingMessage", () => {
   });
 });
 
-describe("asking for a new specialty", () => {
-  it("waits for Livio's new specialty requests (the old ones were dropped on master, E3)", () => {
-    assert.equal(
-      backendPendingMessage("requestSpecialty"),
-      "Expected to fail for now: asking for a new specialty works once Livio builds it in the backend (POST /api/specialty-requests).",
-    );
-  });
-});
-
-describe("cancelling a specialty request", () => {
-  it("waits for Livio's DELETE on the request endpoint", () => {
-    assert.equal(
-      backendPendingMessage("cancelSpecialtyRequest"),
-      "Expected to fail for now: cancelling a specialty request works once Livio builds it in the backend (DELETE /api/specialty-requests).",
-    );
-  });
-});
-
 describe("settingsActionErrorMessage", () => {
   it("says the endpoint is not built yet when the route does not exist", () => {
     assert.equal(
@@ -62,8 +41,8 @@ describe("settingsActionErrorMessage", () => {
       backendPendingMessage("removeClinic"),
     );
     assert.equal(
-      settingsActionErrorMessage("removeSpecialty", 405, {}, "Could not remove the specialty."),
-      backendPendingMessage("removeSpecialty"),
+      settingsActionErrorMessage("addClinic", 405, {}, "Could not add the clinic."),
+      backendPendingMessage("addClinic"),
     );
   });
 

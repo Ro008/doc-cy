@@ -9,6 +9,8 @@ import {
 import {
   NAME_CHANGE_REQUEST_TYPE,
   PHOTO_CHANGE_REQUEST_TYPE,
+  SPECIALTY_ADD_REQUEST_TYPE,
+  reviewedSpecialtyAdd,
   photoChangeUploadCheck,
   photoChangeUploadPath,
   pickNameChangeSlug,
@@ -43,7 +45,7 @@ describe("profileChangeState", () => {
 
   it("shows the open request with what she asked and when", () => {
     assert.deepEqual(profileChangeState([row({})], NAME_CHANGE_REQUEST_TYPE), {
-      pending: { id: "r1", createdAt: "2026-10-10T08:00:00Z", name: "Maria New", photoPath: null },
+      pending: { id: "r1", createdAt: "2026-10-10T08:00:00Z", name: "Maria New", photoPath: null, licenseNumber: null },
       denied: null,
     });
   });
@@ -81,7 +83,26 @@ describe("profileChangeState", () => {
       createdAt: "2026-10-10T08:00:00Z",
       name: null,
       photoPath: "a/b.jpg",
+      licenseNumber: null,
     });
+  });
+
+  it("shows the specialty she asked for, with its licence number", () => {
+    const rows = [
+      row({
+        id: "s1",
+        request_type: SPECIALTY_ADD_REQUEST_TYPE,
+        details: { name: "Dermatology", from_catalogue: true, license_number: "L-77" },
+      }),
+    ];
+    assert.deepEqual(profileChangeState(rows, SPECIALTY_ADD_REQUEST_TYPE).pending, {
+      id: "s1",
+      createdAt: "2026-10-10T08:00:00Z",
+      name: "Dermatology",
+      photoPath: null,
+      licenseNumber: "L-77",
+    });
+    assert.equal(profileChangeState(rows, NAME_CHANGE_REQUEST_TYPE).pending, null);
   });
 });
 
@@ -200,6 +221,37 @@ describe("reviewedNameChange", () => {
   });
 });
 
+describe("reviewedSpecialtyAdd", () => {
+  const asked = { name: "dermatology", fromCatalogue: false, licenseNumber: "l 77" };
+
+  it("is null when the founder changed nothing", () => {
+    assert.deepEqual(reviewedSpecialtyAdd(asked, {}), {
+      ok: true,
+      name: "dermatology",
+      licenseNumber: "l 77",
+      corrected: null,
+    });
+  });
+
+  it("records the founder's corrected specialty and licence number", () => {
+    assert.deepEqual(reviewedSpecialtyAdd(asked, { name: " Dermatology ", licenseNumber: "L-77" }), {
+      ok: true,
+      name: "Dermatology",
+      licenseNumber: "L-77",
+      corrected: { name: "Dermatology", from_catalogue: false, license_number: "L-77" },
+    });
+  });
+
+  it("refuses an empty specialty or licence number", () => {
+    assert.deepEqual(reviewedSpecialtyAdd(asked, { name: " " }), { ok: false, message: "Enter the specialty to approve." });
+    assert.deepEqual(reviewedSpecialtyAdd(asked, { licenseNumber: "" }), {
+      ok: false,
+      message: "Enter the licence number to approve.",
+    });
+    assert.equal(reviewedSpecialtyAdd(asked, { licenseNumber: "x".repeat(81) }).ok, false);
+  });
+});
+
 describe("profileChangeDbErrorMessage", () => {
   it("explains each refusal in plain words", () => {
     assert.deepEqual(profileChangeDbErrorMessage({ code: "23505", message: "x pending y" }, "submit"), {
@@ -222,6 +274,14 @@ describe("profileChangeDbErrorMessage", () => {
       status: 409,
       message: "That profile address was just taken. Try approving again.",
     });
+    assert.deepEqual(
+      profileChangeDbErrorMessage({ code: "55000", message: "she already has this specialty: deny the request" }, "decide"),
+      { status: 409, message: "This professional already has that specialty. Deny the request." },
+    );
+    assert.deepEqual(
+      profileChangeDbErrorMessage({ code: "55000", message: "she already has 5 specialties: deny the request" }, "decide"),
+      { status: 409, message: "This professional already has 5 specialties. Deny the request." },
+    );
     assert.deepEqual(profileChangeDbErrorMessage({ code: "42501", message: "x" }, "decide"), {
       status: 403,
       message: "Only founders can decide requests.",
@@ -293,6 +353,40 @@ describe("emails", () => {
     });
     assert.equal(email.subject, "[DocCy] Your new photo is approved");
     assert.match(email.text, /new photo is now on your profile/);
+  });
+
+  it("covers a specialty request: the founders' notice, the approval and the denial", () => {
+    const notice = buildProfileChangeNotifyContent({
+      kind: "specialty",
+      professionalName: "Maria Ioannou",
+      specialty: "Dermatology",
+      fromCatalogue: false,
+      licenseNumber: "L-77",
+      siteUrl: "https://www.mydoccy.com",
+    });
+    assert.equal(notice.subject, "[SPECIALTY REQUEST] Maria Ioannou: Dermatology");
+    assert.match(notice.text, /Licence number: L-77/);
+    assert.match(notice.text, /not in the catalogue/);
+
+    const approved = buildProfileChangeApprovedEmail({
+      kind: "specialty",
+      firstName: "Maria",
+      siteUrl: "https://www.mydoccy.com",
+      profilePath: "/en/maria-ioannou",
+      specialty: "Dermatology",
+    });
+    assert.equal(approved.subject, "[DocCy] Dermatology is now on your profile");
+    assert.match(approved.text, /patients can now find you under Dermatology/i);
+
+    const denied = buildProfileChangeDeniedEmail({
+      kind: "specialty",
+      firstName: "Maria",
+      siteUrl: "https://www.mydoccy.com",
+      reason: "We could not verify the licence.",
+      specialty: "Dermatology",
+    });
+    assert.equal(denied.subject, "[DocCy] Your request to add Dermatology was not approved");
+    assert.match(denied.text, /Reason: We could not verify the licence\./);
   });
 
   it("gives the reason for a denial and where to ask again; the html is escaped", () => {

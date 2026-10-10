@@ -55,7 +55,9 @@ export function ProfileChangeRequestsSection({ items, canMutate }: Props) {
                 <span className="text-slate-400">
                   {item.kind === "name"
                     ? `name: ${item.currentName ?? "?"} → ${item.approvedName ?? item.requestedName ?? "?"}`
-                    : "photo"}
+                    : item.kind === "specialty"
+                      ? `specialty: ${item.specialty ?? "?"}`
+                      : "photo"}
                 </span>{" "}
                 <span
                   className={
@@ -111,7 +113,10 @@ function ReviewPhoto({
 
 function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMutate: boolean }) {
   const router = useRouter();
-  const [name, setName] = useState(item.requestedName ?? "");
+  const isSpecialty = item.kind === "specialty";
+  const asked = (isSpecialty ? item.specialty : item.requestedName) ?? "";
+  const [name, setName] = useState(asked);
+  const [licenseNumber, setLicenseNumber] = useState(item.licenseNumber ?? "");
   const [denying, setDenying] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"approve" | "deny" | null>(null);
@@ -125,7 +130,15 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
       const res = await fetch(`/api/internal/profile-changes/${item.id}/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "deny" ? { reason } : item.kind === "photo" ? {} : { name }),
+        body: JSON.stringify(
+          action === "deny"
+            ? { reason }
+            : item.kind === "photo"
+              ? {}
+              : isSpecialty
+                ? { name, licenseNumber }
+                : { name },
+        ),
       });
       const json = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) {
@@ -142,7 +155,10 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
   }
 
   const isPhoto = item.kind === "photo";
-  const corrected = !isPhoto && name.trim().replace(/\s+/g, " ") !== (item.requestedName ?? "");
+  const corrected =
+    !isPhoto &&
+    (name.trim().replace(/\s+/g, " ") !== asked ||
+      (isSpecialty && licenseNumber.trim().replace(/\s+/g, " ") !== (item.licenseNumber ?? "")));
 
   return (
     <article
@@ -151,7 +167,7 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="rounded-md bg-clinical-500/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-clinical-200">
-          {isPhoto ? "Photo change" : "Name change"}
+          {isPhoto ? "Photo change" : isSpecialty ? "Specialty request" : "Name change"}
         </span>
         <span className="font-semibold text-slate-100">{item.professional.name}</span>
         {item.professional.email ? <span className="text-xs text-slate-400">{item.professional.email}</span> : null}
@@ -173,6 +189,30 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
           <ReviewPhoto label="Current photo" url={item.currentPhotoUrl} alt="Current photo" />
           <ReviewPhoto label="Requested photo" url={item.requestedPhotoUrl} alt="Requested photo" highlight />
         </div>
+      ) : isSpecialty ? (
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-slate-400">Specialty to add</dt>
+            <dd className="mt-0.5 flex flex-wrap items-center gap-2 font-medium text-emerald-200">
+              {item.specialty ?? "—"}
+              <span
+                className={`rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide ${
+                  item.specialtyFromCatalogue ? "bg-emerald-500/15 text-emerald-200" : "bg-amber-500/20 text-amber-200"
+                }`}
+              >
+                {item.specialtyFromCatalogue ? "In the catalogue" : "New: joins the catalogue if approved"}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-400">Licence number</dt>
+            <dd className="mt-0.5 font-medium text-slate-100">{item.licenseNumber ?? "—"}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-slate-400">Specialties today</dt>
+            <dd className="mt-0.5 text-slate-200">{item.currentSpecialties.join(", ") || "—"}</dd>
+          </div>
+        </dl>
       ) : (
         <dl className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -200,6 +240,36 @@ function ChangeCard({ item, canMutate }: { item: ProfileChangeReviewItem; canMut
             <p className="text-xs text-slate-400">
               Approving puts the requested photo on the public profile right away.
             </p>
+          ) : isSpecialty ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={labelClass}>
+                Specialty to approve (correct the spelling, or match a catalogue one)
+                <input
+                  type="text"
+                  value={name}
+                  maxLength={80}
+                  disabled={busy !== null}
+                  onChange={(event) => setName(event.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className={labelClass}>
+                Licence number to approve
+                <input
+                  type="text"
+                  value={licenseNumber}
+                  maxLength={80}
+                  disabled={busy !== null}
+                  onChange={(event) => setLicenseNumber(event.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              {corrected ? (
+                <span className="text-[11px] text-amber-200 sm:col-span-2">
+                  Differs from what was asked: your version is what goes on the profile.
+                </span>
+              ) : null}
+            </div>
           ) : (
             <>
               <label className={labelClass}>

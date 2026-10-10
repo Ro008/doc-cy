@@ -65,6 +65,8 @@ export const PROFESSIONAL_API_ROUTES = [
   "/api/name-change-requests",
   "/api/photo-change-requests",
   "/api/professional-photo",
+  "/api/professional-specialties",
+  "/api/specialty-requests",
 ];
 
 /**

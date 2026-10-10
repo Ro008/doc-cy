@@ -77,9 +77,8 @@ begin
     select 1 from public.request_types
     where name = 'professional_registration' and requires_approval and not is_edit and btrim(description) <> ''
   ), 'FAIL: professional_registration type is seeded (needs approval, not an edit)';
-  assert (select count(*) from public.request_types where name not like 'zz\_test\_%') = 1,
-    'FAIL: professional_registration is the only real type so far';
-  v_checks := v_checks + 2;
+  -- Other types have been added since (mobile, name, photo, specialties, GeSY).
+  v_checks := v_checks + 1;
 
   perform pg_temp.expect_error(
     $$insert into public.request_types (name, requires_approval, description) values ('Bad Name', true, 'x')$$,

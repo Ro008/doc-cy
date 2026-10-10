@@ -9,7 +9,7 @@ import { adminCookieHeader, sharedTestFounder } from "./helpers/test-admin";
  * Settings redesign (design B1): a sidebar of sections, one card per clinic, removal
  * down to one clinic and one specialty, and clinic details changed by request only.
  *
- * Removing a specialty or a clinic, asking for a clinic and requesting a clinic change
+ * Removing a clinic, asking for a clinic and requesting a clinic change
  * are new endpoints the backend builds after this frontend
  * (docs/handoff/settings-redesign.md); here they are stubbed with page.route and the
  * tests pin the request the page sends.
@@ -1115,28 +1115,79 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible();
   });
 
-  test("specialties can be removed until one is left", async ({ page }) => {
+  test("specialties: removing is immediate and recorded, but never the last one", async ({ page }) => {
     test.setTimeout(120_000);
-    let sent: unknown = null;
-    await page.route("**/api/doctor-specialties", async (route) => {
-      if (route.request().method() !== "DELETE") return route.fallback();
-      sent = route.request().postDataJSON();
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ specialties: ["Dermatology"] }),
-      });
-    });
     await openSettings(page, seeded!, "profile");
 
     const specialties = page.getByTestId("settings-specialties");
-    await specialties.getByRole("button", { name: "Remove Venereology" }).click();
+    await expect(async () => {
+      await specialties.getByRole("button", { name: "Remove Venereology" }).click();
+      await expect(page.getByRole("dialog", { name: /Remove Venereology/ })).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
     await page.getByRole("dialog", { name: /Remove Venereology/ }).getByRole("button", { name: "Remove" }).click();
 
+    await expect(page.getByText("Venereology removed from your profile.")).toBeVisible({ timeout: 20_000 });
     await expect(specialties).not.toContainText("Venereology");
+    // One left: no ✕ any more, and the page says why.
     await expect(specialties.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(specialties).toContainText("Your profile needs at least one specialty.");
-    expect(sent).toEqual({ specialty: "Venereology" });
+
+    const { data: left } = await admin
+      .from("professional_specialties")
+      .select("specialty")
+      .eq("professional_id", seeded!.professionalId);
+    expect((left ?? []).map((row) => row.specialty)).toEqual(["Dermatology"]);
+    const { data: log } = await admin
+      .from("request_log")
+      .select("status, before_snapshot")
+      .eq("professional_id", seeded!.professionalId)
+      .eq("request_type", "professional_specialty_removal");
+    expect(log).toHaveLength(1);
+    expect(log![0]).toMatchObject({ status: "recorded", before_snapshot: { name: "Venereology" } });
+
+    // The server refuses the last one too, and says what to do instead.
+    const last = await page.request.delete("/api/professional-specialties", { data: { specialty: "Dermatology" } });
+    expect(last.status()).toBe(409);
+    expect((await last.json()).message).toContain("Add the new one first");
+    const notHers = await page.request.delete("/api/professional-specialties", { data: { specialty: "Urology" } });
+    expect(notHers.status()).toBe(404);
+  });
+
+  test("GeSY: the switch saves at once and every change is recorded", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "profile");
+    const gesy = page.getByRole("switch", { name: "I see GeSY patients" });
+    await expect(gesy).toBeVisible({ timeout: 20_000 });
+    const before = (await gesy.getAttribute("aria-checked")) === "true";
+    const isGesy = async () =>
+      Boolean(
+        (await admin.from("professionals").select("is_gesy").eq("id", seeded!.professionalId).single()).data?.is_gesy,
+      );
+    const changes = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_gesy_change")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+
+    await expect(async () => {
+      if ((await gesy.getAttribute("aria-checked")) === String(before)) await gesy.click();
+      await expect(gesy).toHaveAttribute("aria-checked", String(!before), { timeout: 3_000 });
+      expect(await isGesy()).toBe(!before);
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      if ((await gesy.getAttribute("aria-checked")) === String(!before)) await gesy.click();
+      await expect(gesy).toHaveAttribute("aria-checked", String(before), { timeout: 3_000 });
+      expect(await isGesy()).toBe(before);
+    }).toPass({ timeout: 30_000 });
+
+    expect(await changes()).toEqual([
+      { status: "recorded", details: { is_gesy: !before }, before_snapshot: { is_gesy: before } },
+      { status: "recorded", details: { is_gesy: before }, before_snapshot: { is_gesy: !before } },
+    ]);
   });
 
   test("Account: one sign-in & security card with the signed-in email", async ({ page }) => {
@@ -1194,56 +1245,188 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
-  test("adding a specialty: errors by each field, then an in-review chip that can be cancelled", async ({
+  test("adding a specialty: sent with its licence number, withdrawn, denied, then approved by a founder", async ({
     page,
+    request,
+    browser,
   }) => {
-    test.setTimeout(120_000);
-    // The new specialty requests (POST to ask, DELETE to cancel) are endpoints the
-    // backend builds (docs/handoff/settings-redesign.md): stubbed here.
-    let asked: unknown = null;
-    let cancelMethod: string | null = null;
-    await page.route("**/api/specialty-requests", async (route) => {
-      const method = route.request().method();
-      if (method === "POST") asked = route.request().postDataJSON();
-      if (method === "DELETE") cancelMethod = method;
-      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-    });
+    test.setTimeout(240_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    const letters = seeded!.nonce.replace(/\D/g, "").replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
+    const custom = `Zztest ${letters}`;
+    const requests = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("id, status, details, before_snapshot, approved_details, outcome")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_specialty_add")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const hers = async () =>
+      (
+        (
+          await admin
+            .from("professional_specialties")
+            .select("specialty, license_number")
+            .eq("professional_id", seeded!.professionalId)
+            .order("specialty")
+        ).data ?? []
+      ).map((row) => `${row.specialty}:${row.license_number ?? ""}`);
+    const today = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Nicosia",
+    }).format(new Date());
+    const before = await hers();
+
     await openSettings(page, seeded!, "profile");
-
     const specialties = page.getByTestId("settings-specialties");
-    // One action only: no "what do you want to do?" choice.
-    await specialties.getByRole("button", { name: "+ Add a specialty" }).click();
     const form = page.getByTestId("settings-specialty-change-form");
-    await expect(form.locator("select")).toHaveCount(0);
-    await expect(form).toContainText("So DocCy can check you're registered for this specialty.");
-
-    // Both errors at once, next to their fields.
-    await page.getByTestId("settings-specialty-change-submit").click();
-    await expect(page.getByTestId("settings-specialty-error")).toHaveText("Choose the specialty you want to add.");
-    await expect(form).toContainText("Enter your license or certification number.");
-
-    await page.getByTestId("settings-specialty-change-trigger").click();
-    await form.getByRole("button", { name: "Gastroenterology", exact: true }).click();
-    await expect(page.getByTestId("settings-specialty-error")).toHaveCount(0);
-    await page.getByLabel("License / certification number").fill("CY-E2E-1");
-    await page.getByTestId("settings-specialty-change-submit").click();
-
-    // The page shows the request as a chip in review.
     const chip = page.getByTestId("settings-specialty-change-pending");
-    await expect(chip).toContainText("Gastroenterology");
-    await expect(chip).toContainText("In review");
-    await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toHaveCount(0);
-    expect(asked).toEqual({
-      requestKind: "add",
-      fromSpecialty: null,
-      toSpecialty: "Gastroenterology",
-      toSpecialtyFromMaster: true,
-      licenseNumber: "CY-E2E-1",
-    });
+    const denied = page.getByTestId("settings-specialty-change-denied");
+    const openForm = async () => {
+      await expect(async () => {
+        await specialties.getByRole("button", { name: "+ Add a specialty" }).click();
+        await expect(form).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+    };
+    const send = async (licence: string) => {
+      await openForm();
+      await page.getByTestId("settings-specialty-change-trigger").click();
+      await form.getByRole("button", { name: "Gastroenterology", exact: true }).click();
+      await page.getByLabel("License / certification number").fill(licence);
+      await page.getByTestId("settings-specialty-change-submit").click();
+      await expect(chip).toContainText("Gastroenterology", { timeout: 20_000 });
+    };
 
-    await chip.getByRole("button", { name: "Cancel the request for Gastroenterology" }).click();
-    await expect(chip).toHaveCount(0);
-    expect(cancelMethod).toBe("DELETE");
-    await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toBeVisible();
+    try {
+      // One action only (no "what do you want to do?" choice); both errors at once.
+      await openForm();
+      await expect(form.locator("select")).toHaveCount(0);
+      await expect(form).toContainText("So DocCy can check you're registered for this specialty.");
+      await page.getByTestId("settings-specialty-change-submit").click();
+      await expect(page.getByTestId("settings-specialty-error")).toHaveText("Choose the specialty you want to add.");
+      await expect(form).toContainText("Enter your license or certification number.");
+      await form.getByRole("button", { name: "Cancel", exact: true }).click();
+
+      // 1. Sent: a chip in review, the date, and nothing on her profile yet.
+      await send("CY-E2E-1");
+      await expect(chip).toContainText("In review");
+      await expect(specialties).toContainText(`Request sent on ${today} · waiting for DocCy’s approval`);
+      await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toHaveCount(0);
+      let rows = await requests();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        status: "pending",
+        details: { name: "Gastroenterology", from_catalogue: true, license_number: "CY-E2E-1" },
+      });
+      expect(await hers()).toEqual(before);
+      await page.reload();
+      await expect(chip).toContainText("Gastroenterology", { timeout: 20_000 });
+      const second = await page.request.post("/api/specialty-requests", {
+        data: { toSpecialty: "Urology", toSpecialtyFromMaster: true, licenseNumber: "X-1" },
+      });
+      expect(second.status()).toBe(409);
+
+      // 2. Withdrawn with the chip's ✕.
+      await expect(async () => {
+        await chip.getByRole("button", { name: "Withdraw the request for Gastroenterology" }).click();
+        await expect(chip).toHaveCount(0, { timeout: 5_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toBeVisible();
+      expect((await requests()).map((row) => row.status)).toEqual(["withdrawn"]);
+
+      // The server asks for the licence number too, and refuses one she already has.
+      const noLicence = await page.request.post("/api/specialty-requests", {
+        data: { toSpecialty: "Urology", toSpecialtyFromMaster: true, licenseNumber: " " },
+      });
+      expect(noLicence.status()).toBe(400);
+      const already = await page.request.post("/api/specialty-requests", {
+        data: { toSpecialty: "dermatology", toSpecialtyFromMaster: true, licenseNumber: "X-1" },
+      });
+      expect(already.status()).toBe(400);
+      expect((await requests()).length).toBe(1);
+
+      // 3. Denied by a founder: the reason shows until she dismisses it.
+      await send("CY-E2E-2");
+      rows = await requests();
+      const deny = await request.post(`/api/internal/profile-changes/${rows[1]!.id}/deny`, {
+        headers,
+        data: { reason: "We could not verify this licence number." },
+      });
+      expect(deny.status(), await deny.text()).toBe(200);
+      await page.reload();
+      await expect(denied).toContainText("Your request to add Gastroenterology was not approved", { timeout: 20_000 });
+      await expect(denied).toContainText("Reason: We could not verify this licence number.");
+      await expect(chip).toHaveCount(0);
+      await denied.getByRole("button", { name: "Dismiss" }).click();
+      await expect(denied).toHaveCount(0);
+      expect(await hers()).toEqual(before);
+
+      // 4. Approved by a founder on the dashboard, who corrects the licence number.
+      await send("cy e2e 3");
+      rows = await requests();
+      const approvedId = rows[2]!.id as string;
+      const founderContext = await browser.newContext();
+      try {
+        await founderContext.addCookies(
+          adminCookieHeader(founder)
+            .split("; ")
+            .map((pair) => {
+              const at = pair.indexOf("=");
+              return { name: pair.slice(0, at), value: pair.slice(at + 1), url: page.url() };
+            }),
+        );
+        const founderPage = await founderContext.newPage();
+        await founderPage.goto(new URL("/internal/directory?tab=requests", page.url()).toString());
+        const card = founderPage.locator(`[data-change-request-id="${approvedId}"]`);
+        await expect(card).toBeVisible({ timeout: 30_000 });
+        await expect(card).toContainText("Specialty request");
+        await expect(card).toContainText("Gastroenterology");
+        await expect(card).toContainText("In the catalogue");
+        await expect(card).toContainText("cy e2e 3");
+        await expect(card).toContainText("Dermatology, Venereology");
+        const licence = card.getByLabel("Licence number to approve");
+        await expect(async () => {
+          await licence.fill("CY-E2E-3");
+          await expect(card.getByText(/Differs from what was asked/)).toBeVisible({ timeout: 2_000 });
+        }).toPass({ timeout: 20_000 });
+        await card.getByRole("button", { name: "Approve", exact: true }).click();
+        await expect(founderPage.locator(`[data-decided-change-id="${approvedId}"]`)).toHaveCount(1, {
+          timeout: 30_000,
+        });
+      } finally {
+        await founderContext.close();
+      }
+      expect(await hers()).toEqual([...before, "Gastroenterology:CY-E2E-3"].sort());
+      rows = await requests();
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn", "rejected", "approved"]);
+      expect(rows[2]!.details).toMatchObject({ license_number: "cy e2e 3" });
+      expect(rows[2]!.approved_details).toMatchObject({ name: "Gastroenterology", license_number: "CY-E2E-3" });
+      await page.reload();
+      await expect(specialties.getByRole("button", { name: "Remove Gastroenterology" })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(chip).toHaveCount(0);
+
+      // 5. A specialty that is not in the catalogue joins it when approved.
+      const customRequest = await page.request.post("/api/specialty-requests", {
+        data: { toSpecialty: custom, toSpecialtyFromMaster: false, licenseNumber: "CY-NEW-1" },
+      });
+      expect(customRequest.status(), await customRequest.text()).toBe(201);
+      rows = await requests();
+      expect(rows[3]!.details).toMatchObject({ name: custom, from_catalogue: false, license_number: "CY-NEW-1" });
+      const approve = await request.post(`/api/internal/profile-changes/${rows[3]!.id}/approve`, { headers, data: {} });
+      expect(approve.status(), await approve.text()).toBe(200);
+      expect(await hers()).toContain(`${custom}:CY-NEW-1`);
+      const { data: inCatalogue } = await admin.from("specialties").select("name").eq("name", custom).maybeSingle();
+      expect(inCatalogue?.name).toBe(custom);
+    } finally {
+      await admin.from("professional_specialties").delete().eq("professional_id", seeded!.professionalId).eq("specialty", custom);
+      await admin.from("specialties").delete().eq("name", custom);
+    }
   });
 });

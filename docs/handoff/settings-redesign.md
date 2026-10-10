@@ -197,11 +197,14 @@ Each item: what the doctor does → what the page sends today → where it is ca
 outcome the UI assumes is noted so you know what the screen will show; how to achieve
 it (tables, review flow, emails) is yours.
 
-### 3.1 Remove a specialty
+### 3.1 Remove a specialty: built (Livio, 2026-10-10)
 - UI: ✕ on a specialty chip (not offered on the last one).
-- Sends `DELETE /api/doctor-specialties` with `{ "specialty": "<label>" }`.
-- UI expects on success `{ "specialties": string[] }` (the approved labels left); on a
-  refusal `{ "message" }`, shown as is.
+- `DELETE /api/professional-specialties` with `{ "specialty": "<label>" }` → 200
+  `{ "specialties": string[] }` (the ones left); 404 not hers; **409 her last one** ("Your
+  profile needs at least one specialty. Add the new one first; once it is approved, remove
+  this one."). No founder: recorded at once in `request_log`
+  (`professional_specialty_removal`, with the specialty and its licence number as the
+  "before"). The database refuses the last one too (`professional_specialty_remove`).
 - Call site: `handleRemoveSpecialty` in `components/dashboard/SettingsForm.tsx`.
 
 ### 3.2 Request a change to a clinic (name, address, phone, or move to a DocCy clinic)
@@ -236,21 +239,38 @@ it (tables, review flow, emails) is yours.
   or `{ "message" }` shown as is.
 - Call site: `handleRemoveWorkplace` in `components/dashboard/SettingsForm.tsx`.
 
-### 3.5 Cancel a pending specialty request
-- UI: ✕ on the "In review" specialty chip.
-- Sends `DELETE /api/specialty-requests` (no body: the UI assumes one pending request
-  per professional).
-- UI expects 2xx, then removes the chip; `{ "message" }` on refusal.
+### 3.5 Withdraw a pending specialty request: built (Livio, 2026-10-10)
+- UI: ✕ on the "In review" specialty chip ("Withdraw the request for …").
+- `DELETE /api/specialty-requests` (no body: one open request per professional) → 200;
+  409 once a founder decided.
 - Call site: `cancelSpecialtyRequest` in `components/dashboard/SettingsForm.tsx`.
 
-### 3.6 Ask for a new specialty
-- UI: "+ Add a specialty" → specialty + licence number.
-- Sends `POST /api/specialty-requests` with
-  `{ "requestKind": "add", "fromSpecialty": null, "toSpecialty", "toSpecialtyFromMaster", "licenseNumber" }`
-  (`lib/settings-specialty-request.ts`).
-- UI expects 2xx, then shows the "In review" chip; `{ "message" }` on refusal. To show a
-  pending request after a reload the page accepts `initial.pendingSpecialtyChange`.
+### 3.6 Ask for a new specialty: built (Livio, 2026-10-10)
+- UI: "+ Add a specialty" → specialty (catalogue or new) + licence number (required).
+- `POST /api/specialty-requests` with
+  `{ "toSpecialty", "toSpecialtyFromMaster", "licenseNumber" }` (the page also sends
+  `requestKind` and `fromSpecialty`, ignored) → 201
+  `{ "request": { "id", "specialty", "licenseNumber", "createdAt" } }`; 400 not usable
+  (no licence number, already hers, already 5); 409 one is already waiting.
+- It is a `request_log` row of type `professional_specialty_add` whose details keep
+  `name`, `from_catalogue` and `license_number`. Founders see it under "Change requests"
+  (specialty, catalogue or new, licence number, her specialties today), may correct the
+  specialty and the licence number, and approve or deny with a reason; a new specialty
+  joins the catalogue on approval. She is emailed either way.
+- The card says "Request sent on dd/mm/yyyy · waiting for DocCy's approval"; a denial's
+  reason shows until dismissed. After a reload the page gets
+  `initial.pendingSpecialtyChange` and `initial.specialtyDenied` from
+  `loadProfileChangeStates`.
+- Limits: one open request at a time; at most 5 specialties.
 - Call site: `submitSpecialtyChangeRequest` in `components/dashboard/SettingsForm.tsx`.
+- Migration `20261010130000_professional_specialty_and_gesy_requests`.
+
+### 3.6b GeSY switch: recorded (Livio, 2026-10-10)
+- "I see GeSY patients" still saves at once, on or off, with no founder
+  (`POST /api/doctor-gesy` `{ "isGesy" }`), but now through `professional_gesy_set`, which
+  records each change in `request_log` (`professional_gesy_change`).
+- `is_gesy` is no longer writable through the professional's own session (migration
+  `20261010140000_professionals_gesy_not_writable`: Production after the merge).
 
 ### 3.7 Booking limits per clinic (needs a migration)
 - Rocío, 2026-10-09: how far ahead, minimum notice and the online cancellation deadline
@@ -327,7 +347,7 @@ it (tables, review flow, emails) is yours.
 - Open decisions: whether founders check qualifications; where the public profile shows
   the three (Ro008, `feat/profile-redesign`).
 
-3.1–3.6 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+3.2–3.4 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
 
 ---
