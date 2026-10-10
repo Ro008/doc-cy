@@ -13,6 +13,7 @@ import {
 } from "@/components/dashboard/settings/styles";
 import {
   composeRegisterPhone,
+  formatRegisterNational,
   isValidRegisterMobile,
   registerMobileExample,
   registerPhoneDialCode,
@@ -40,7 +41,8 @@ export function PersonalMobileCard({
   const [saved, setSaved] = React.useState(initialMobile);
   const start = splitRegisterPhone(initialMobile);
   const [country, setCountry] = React.useState(start.country);
-  const [typed, setTyped] = React.useState(start.national);
+  // Shown grouped as the chosen country writes its mobiles ("99 787475").
+  const [typed, setTyped] = React.useState(formatRegisterNational(start.country, start.national));
   // Country names come from Intl, which differs between Node and browsers: render only
   // the chosen country on the server (see RegisterPhoneField).
   const [countries, setCountries] = React.useState<RegisterPhoneCountry[]>([]);
@@ -59,24 +61,30 @@ export function PersonalMobileCard({
   const dialCode = registerPhoneDialCode(country);
   const example = registerMobileExample(country);
 
-  const onNumberChange = (value: string) => {
+  const onNumberChange = (value: string, caretAtEnd: boolean) => {
     // A full international number (typed or pasted) picks its own country.
     if (value.trim().startsWith("+")) {
       const next = composeRegisterPhone(country, value);
       const nextDial = registerPhoneDialCode(next.country);
       if (nextDial && next.e164.startsWith(nextDial) && next.e164.length > nextDial.length) {
         setCountry(next.country);
-        setTyped(next.e164.slice(nextDial.length));
+        setTyped(formatRegisterNational(next.country, next.e164.slice(nextDial.length)));
         return;
       }
     }
-    setTyped(value);
+    // Regrouping moves the caret to the end: while she edits mid-number, wait for blur.
+    setTyped(caretAtEnd ? formatRegisterNational(country, value) : value);
+  };
+
+  const onCountryChange = (next: string) => {
+    setCountry(next);
+    setTyped((current) => formatRegisterNational(next, current));
   };
 
   const reset = () => {
     const back = splitRegisterPhone(saved);
     setCountry(back.country);
-    setTyped(back.national);
+    setTyped(formatRegisterNational(back.country, back.national));
   };
 
   async function saveMobile() {
@@ -137,7 +145,7 @@ export function PersonalMobileCard({
         one if you turn it on below.
       </p>
       <div className="mt-2 flex rounded-xl border border-slate-700 bg-slate-950/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30">
-        <CountryCodePicker countries={options} value={country} onChange={setCountry} disabled={saving} />
+        <CountryCodePicker countries={options} value={country} onChange={onCountryChange} disabled={saving} />
         <input
           id="settings-personal-mobile"
           type="tel"
@@ -145,7 +153,10 @@ export function PersonalMobileCard({
           autoComplete="tel-national"
           aria-label="Mobile number"
           value={typed}
-          onChange={(event) => onNumberChange(event.target.value)}
+          onChange={(event) =>
+            onNumberChange(event.target.value, event.target.selectionStart === event.target.value.length)
+          }
+          onBlur={() => setTyped((current) => formatRegisterNational(country, current))}
           readOnly={saving}
           aria-busy={saving}
           aria-invalid={dirty && !valid}

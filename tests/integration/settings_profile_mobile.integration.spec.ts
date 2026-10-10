@@ -25,6 +25,9 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
   const newMobile = `+35796${digits}`;
   const otherMobile = `+35797${digits}`;
 
+  // The field groups the digits the Cypriot way: "99 123456".
+  const shown = (e164: string) => `${e164.slice(4, 6)} ${e164.slice(6)}`;
+
   const card = () => page.getByTestId("settings-personal-mobile");
   const mobileOf = async (id: string) =>
     (await admin.from("professionals").select("mobile_number").eq("id", id).single()).data!.mobile_number;
@@ -67,7 +70,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
     test.setTimeout(120_000);
     await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     await expect(card()).toBeVisible({ timeout: 20_000 });
-    await expect(card().getByLabel("Mobile number")).toHaveValue(startMobile.slice(4), { timeout: 20_000 });
+    await expect(card().getByLabel("Mobile number")).toHaveValue(shown(startMobile), { timeout: 20_000 });
     await expect(card().getByRole("switch", { name: "Show on my profile" })).toHaveAttribute("aria-checked", "false");
 
     await page.goto("/settings?section=profile", { waitUntil: "domcontentloaded" });
@@ -84,12 +87,13 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
     test.setTimeout(120_000);
     await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     const input = card().getByLabel("Mobile number");
-    await expect(input).toHaveValue(startMobile.slice(4), { timeout: 20_000 });
+    await expect(input).toHaveValue(shown(startMobile), { timeout: 20_000 });
     // Typing before hydration is wiped: retry until the form reacts.
     await expect(async () => {
       await input.fill(newMobile.slice(4));
       await expect(card().getByRole("button", { name: "Save mobile" })).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
+    await expect(input).toHaveValue(shown(newMobile));
     await card().getByRole("button", { name: "Save mobile" }).click();
     await expect(page.getByText("Mobile saved.")).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => mobileOf(pro!.doctorId), { timeout: 10_000 }).toBe(newMobile);
@@ -107,7 +111,7 @@ test.describe("Integration: settings profile mobile", { tag: "@pr-e2e" }, () => 
   test("a landline is refused in the form and by the route", async () => {
     await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
     const input = card().getByLabel("Mobile number");
-    await expect(input).toHaveValue(newMobile.slice(4), { timeout: 20_000 });
+    await expect(input).toHaveValue(shown(newMobile), { timeout: 20_000 });
     await expect(async () => {
       await input.fill("22123456");
       await expect(card().getByRole("button", { name: "Save mobile" })).toBeDisabled({ timeout: 2_000 });

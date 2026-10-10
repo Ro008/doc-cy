@@ -1,4 +1,5 @@
 import {
+  AsYouType,
   getCountries,
   getCountryCallingCode,
   getExampleNumber,
@@ -82,7 +83,25 @@ export function splitRegisterPhone(e164: string | null | undefined): { country: 
   const text = String(e164 ?? "").trim();
   const parsed = text.startsWith("+") ? parsePhoneNumberFromString(text) : undefined;
   if (parsed?.country) return { country: parsed.country, national: String(parsed.nationalNumber) };
-  return { country: REGISTER_PHONE_DEFAULT_COUNTRY.toUpperCase(), national: text.replace(/D/g, "") };
+  return { country: REGISTER_PHONE_DEFAULT_COUNTRY.toUpperCase(), national: text.replace(/\D/g, "") };
+}
+
+/**
+ * The digits after the dial code, grouped as the country writes its mobiles:
+ * "99787475" → "99 787475" (CY), "6912345678" → "691 234 5678" (GR). Works part-way
+ * through typing; a national leading zero ("07400…" in the UK) is dropped.
+ */
+export function formatRegisterNational(country: string, typed: string): string {
+  const digits = typed.replace(/\D/g, "");
+  const code = toCountryCode(country);
+  if (!code || !digits) return digits;
+  const national = new AsYouType(code);
+  national.input(digits);
+  const number = national.getNumber();
+  if (!number) return digits;
+  const dialCode = `+${number.countryCallingCode}`;
+  const formatted = new AsYouType().input(`${dialCode}${number.nationalNumber}`);
+  return formatted.startsWith(dialCode) ? formatted.slice(dialCode.length).trim() : digits;
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   REGISTER_PHONE_PREFERRED_COUNTRIES,
   composeRegisterPhone,
   splitRegisterPhone,
+  formatRegisterNational,
   registerPhoneDialCode,
   isValidRegisterMobile,
   registerMobileExample,
@@ -81,5 +82,23 @@ describe("register mobile number validation", () => {
     assert.deepEqual(splitRegisterPhone(""), { country: "CY", national: "" });
     assert.deepEqual(splitRegisterPhone(null), { country: "CY", national: "" });
     assert.deepEqual(splitRegisterPhone("99123456"), { country: "CY", national: "99123456" });
+    assert.deepEqual(splitRegisterPhone("99 123-456"), { country: "CY", national: "99123456" });
+  });
+
+  it("groups the digits the way the chosen country writes its mobiles", () => {
+    assert.equal(formatRegisterNational("CY", "99787475"), "99 787475");
+    assert.equal(formatRegisterNational("gr", "6912345678"), "691 234 5678");
+    assert.equal(formatRegisterNational("GB", "7400123456"), "7400 123456");
+    assert.equal(formatRegisterNational("US", "2015550123"), "201 555 0123");
+    // Already grouped, or grouped differently: same result.
+    assert.equal(formatRegisterNational("CY", "99 78 74 75"), "99 787475");
+    // The national leading zero is not part of the number.
+    assert.equal(formatRegisterNational("GB", "07400123456"), "7400 123456");
+    // Part-way through typing.
+    assert.equal(formatRegisterNational("CY", "997"), "99 7");
+    assert.equal(formatRegisterNational("CY", "9"), "9");
+    assert.equal(formatRegisterNational("CY", ""), "");
+    // An unknown country leaves the digits alone.
+    assert.equal(formatRegisterNational("zz", "99 787475"), "99787475");
   });
 });
