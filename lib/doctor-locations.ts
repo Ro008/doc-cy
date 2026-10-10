@@ -3,6 +3,8 @@ import {
   DEFAULT_BOOKING_HORIZON_DAYS,
   DEFAULT_MIN_NOTICE_HOURS,
   buildWeeklyScheduleFromSettings,
+  dayBreakTimes,
+  dayHasOwnBreak,
   settingsToWeeklySlots,
   type DoctorSettingsRow,
   type WeeklySchedule,
@@ -373,18 +375,29 @@ export function locationScheduleColumns(input: DoctorLocationScheduleInput): {
 } {
   const startFallback = toTime(input.startTime, "09:00:00");
   const endFallback = toTime(input.endTime, "17:00:00");
+  // Breaks are per day (user, 2026-10-10) once any day sent carries break keys: every
+  // day then gets its own (null for none; never on a closed day) and the clinic's one
+  // break is cleared. A save without them (an old page) keeps the one clinic break.
+  const perDayBreaks = DAY_NAMES.some((day) => dayHasOwnBreak(input.weeklySchedule?.[day]));
   const weekly_schedule = DAY_NAMES.reduce((acc, day) => {
     const incoming = input.weeklySchedule?.[day];
     const legacyEnabled = Boolean(input[day]);
+    const enabled = typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled;
+    const dayBreak = perDayBreaks && enabled ? dayBreakTimes(incoming) : null;
     acc[day] = {
-      enabled:
-        typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled,
+      enabled,
       start_time: incoming?.start_time
         ? toTime(incoming.start_time, "09:00:00")
         : startFallback,
       end_time: incoming?.end_time
         ? toTime(incoming.end_time, "17:00:00")
         : endFallback,
+      ...(perDayBreaks
+        ? {
+            break_start: dayBreak ? `${dayBreak.start}:00` : null,
+            break_end: dayBreak ? `${dayBreak.end}:00` : null,
+          }
+        : {}),
     };
     return acc;
   }, {} as WeeklySchedule);
@@ -401,8 +414,8 @@ export function locationScheduleColumns(input: DoctorLocationScheduleInput): {
     start_time: startFallback,
     end_time: endFallback,
     weekly_schedule,
-    break_start: input.breakEnabled ? toTime(input.breakStart, "13:00:00") : null,
-    break_end: input.breakEnabled ? toTime(input.breakEnd, "14:00:00") : null,
+    break_start: !perDayBreaks && input.breakEnabled ? toTime(input.breakStart, "13:00:00") : null,
+    break_end: !perDayBreaks && input.breakEnabled ? toTime(input.breakEnd, "14:00:00") : null,
     slot_duration_minutes:
       Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30,
   };

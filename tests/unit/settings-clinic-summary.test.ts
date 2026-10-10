@@ -92,13 +92,22 @@ describe("summarizeClinicHours", () => {
   });
 });
 
+// Breaks are per day (user, 2026-10-10): more cases in tests/unit/day-breaks.test.ts.
 describe("summarizeClinicBreak", () => {
-  it("shows the break when there is one", () => {
-    assert.equal(summarizeClinicBreak({ breakEnabled: true, breakStart: "13:00", breakEnd: "14:00" }), "13:00 – 14:00");
+  const withBreak = (week: WeeklySchedule, day: DayKey, start: string | null, end: string | null) => ({
+    ...week,
+    [day]: { ...week[day], break_start: start, break_end: end },
+  });
+  const week = schedule({ monday: ["09:00", "17:00"], tuesday: ["09:00", "17:00"] });
+
+  it("shows the break the open days share", () => {
+    const both = withBreak(withBreak(week, "monday", "13:00:00", "14:00:00"), "tuesday", "13:00:00", "14:00:00");
+    assert.equal(summarizeClinicBreak(both), "13:00 – 14:00");
   });
 
-  it("says None without a break", () => {
-    assert.equal(summarizeClinicBreak({ breakEnabled: false, breakStart: "13:00", breakEnd: "14:00" }), "None");
+  it("says None without a break, and Varies by day when they differ", () => {
+    assert.equal(summarizeClinicBreak(week), "None");
+    assert.equal(summarizeClinicBreak(withBreak(week, "monday", "13:00:00", "14:00:00")), "Varies by day");
   });
 });
 

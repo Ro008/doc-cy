@@ -10,7 +10,7 @@ import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
-import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { dayBreakTimes, type WeeklySchedule } from "@/lib/doctor-settings";
 import { type AgendaClinic, type AgendaWorkingHours } from "@/lib/agenda-clinics";
 import {
   isManualBookingSlotTaken,
@@ -179,6 +179,8 @@ export function ManualBookingFlow({
       const day = addDays(nowCy, offset);
       const dayKey = format(day, "yyyy-MM-dd");
       const dayCfg = activeHours.weeklySchedule[dayKeyForDate(day)];
+      // That day's own break, or the clinic's one break for a day saved without its own.
+      const dayBreak = dayBreakTimes(dayCfg, activeHours.breakStart, activeHours.breakEnd);
       if (!dayCfg?.enabled) continue;
 
       const [startHour, startMinute] = String(dayCfg.start_time ?? "09:00")
@@ -202,12 +204,7 @@ export function ManualBookingFlow({
           continue;
         }
 
-        if (
-          activeHours.breakStart &&
-          activeHours.breakEnd &&
-          hhmm >= activeHours.breakStart &&
-          hhmm < activeHours.breakEnd
-        ) {
+        if (dayBreak && hhmm >= dayBreak.start && hhmm < dayBreak.end) {
           cursorMinutes += slotDuration;
           continue;
         }

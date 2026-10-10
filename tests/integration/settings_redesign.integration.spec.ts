@@ -403,7 +403,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
   });
 
   // User, 2026-10-10: an end time before the start time must not be possible.
-  test("a day, or the break, cannot end before it starts", async ({ page }) => {
+  test("a clinic's hours and each day's break are picked by quarter and must make sense", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "clinics");
     const card = clinicCard(page, "Limassol Skin Clinic");
@@ -468,26 +468,76 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card.getByRole("alert")).toHaveCount(0);
     await expect(save).toBeEnabled();
 
-    // The break follows the same rules.
-    const breakOn = card.getByLabel("Add a daily break");
-    if (!(await breakOn.isChecked())) await breakOn.check();
-    await pick("Break start", "13:00");
-    await pick("Break end", "15:00");
-    await pick("Break start", "15:30");
-    await expect(card.getByRole("alert")).toHaveText("The break must end after 15:30.");
-    await expect(save).toBeDisabled();
-    await pick("Break start", "14:00");
+    // Each open day has its own break (user, 2026-10-10), inside that day's hours.
+    await expect(card.getByLabel("Add a daily break")).toHaveCount(0);
+    await card.getByRole("button", { name: "Add a break on Monday" }).click();
+    await expect(trigger("Monday break start")).toHaveText("13:00");
+    await expect(trigger("Monday break end")).toHaveText("14:00");
     await expect(card.getByRole("alert")).toHaveCount(0);
+
+    // Shortening the day past the break: the row says so and nothing can be saved.
+    await pick(end, "13:30");
+    await expect(card.getByRole("alert")).toHaveText("Monday's break must be within its hours (10:00 – 13:30).");
+    await expect(trigger("Monday break end")).toHaveAttribute("aria-invalid", "true");
+    await expect(save).toBeDisabled();
+    await pick(end, "16:00");
+    await expect(card.getByRole("alert")).toHaveCount(0);
+
+    // The break's pickers offer only times inside the day, the end after the start.
+    await trigger("Monday break end").click();
+    await expect(hour("Monday break end", "12")).toBeDisabled();
+    await expect(hour("Monday break end", "13")).toBeEnabled();
+    await expect(hour("Monday break end", "15")).toBeEnabled();
+    await expect(hour("Monday break end", "16")).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await trigger("Monday break start").click();
+    await expect(hour("Monday break start", "09")).toBeDisabled();
+    await expect(hour("Monday break start", "10")).toBeEnabled();
+    await page.keyboard.press("Escape");
+    await pick("Monday break start", "12:30");
+    await pick("Monday break end", "13:15");
+
+    // One click copies a day's hours and break to the other open days.
+    await card.getByRole("button", { name: "Copy Monday's hours and break to the other open days" }).click();
+    for (const other of ["Tuesday", "Friday"]) {
+      await expect(trigger(`${other} start time`)).toHaveText("10:00");
+      await expect(trigger(`${other} end time`)).toHaveText("16:00");
+      await expect(trigger(`${other} break start`)).toHaveText("12:30");
+      await expect(trigger(`${other} break end`)).toHaveText("13:15");
+    }
+    // Closed days stay closed.
+    await expect(trigger("Saturday start time")).toHaveCount(0);
+
+    // A break is removed from its day only.
+    await card.getByRole("button", { name: "Remove Tuesday's break" }).click();
+    await expect(trigger("Tuesday break start")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Add a break on Tuesday" })).toBeVisible();
+    await expect(trigger("Monday break start")).toHaveText("12:30");
 
     await save.click();
     await expect(page.locator("[data-sonner-toast]").getByText(/Hours saved for Limassol Skin Clinic/)).toBeVisible();
+    // The card sums the breaks up.
+    await expect(card.getByTestId("settings-clinic-break-summary")).toHaveText("Varies by day");
     const row = await admin
       .from("professional_clinics")
       .select("weekly_schedule, break_start, break_end")
       .eq("id", seeded!.primaryId)
       .single();
-    expect(row.data?.weekly_schedule?.monday).toMatchObject({ start_time: "10:00:00", end_time: "16:00:00" });
-    expect(row.data).toMatchObject({ break_start: "14:00:00", break_end: "15:00:00" });
+    expect(row.data?.weekly_schedule?.monday).toMatchObject({
+      start_time: "10:00:00",
+      end_time: "16:00:00",
+      break_start: "12:30:00",
+      break_end: "13:15:00",
+    });
+    expect(row.data?.weekly_schedule?.tuesday).toMatchObject({
+      start_time: "10:00:00",
+      end_time: "16:00:00",
+      break_start: null,
+      break_end: null,
+    });
+    expect(row.data?.weekly_schedule?.saturday).toMatchObject({ enabled: false, break_start: null });
+    // The clinic's one break is no longer used.
+    expect(row.data).toMatchObject({ break_start: null, break_end: null });
   });
 
   test("booking limits are set on each clinic and save at once, leaving a half-edited bio alone", async ({

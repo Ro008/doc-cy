@@ -138,6 +138,16 @@ describe("the time picker's choices", () => {
     assert.equal(clinicTimeWithHour("17:02", "18"), "18:00");
   });
 
+  it("allows a break only inside the day", () => {
+    assert.equal(clinicTimeAllowed("09:00", "09:00", "13:00"), false);
+    assert.equal(clinicTimeAllowed("12:45", "09:00", "13:00"), true);
+    assert.equal(clinicTimeAllowed("13:00", "09:00", "13:00"), false);
+    assert.equal(clinicHourAllowed("13", "09:00", "13:00"), false);
+    assert.equal(clinicHourAllowed("12", "09:00", "13:00"), true);
+    // 13:30 is past the end of the day: the last quarter before it.
+    assert.equal(clinicTimeWithHour("12:30", "13", "09:00", "13:30"), "13:00");
+  });
+
   it("changes the minutes and keeps the hour", () => {
     assert.equal(clinicTimeWithMinute("17:00:00", "45"), "17:45");
     assert.equal(clinicTimeWithMinute("", "15"), "09:15");

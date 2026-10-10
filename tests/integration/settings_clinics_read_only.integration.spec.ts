@@ -225,9 +225,35 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     const pro = await admin.from("professionals").select("bio").eq("id", doctor!.doctorId).single();
     expect(pro.data?.bio ?? "").not.toBe("Must not be saved either");
 
+    // A day's own break sits inside that day's hours (user, 2026-10-10).
+    const withBreak = (start: string, end: string, break_start: string | null, break_end: string | null) => ({
+      ...day(true, start, end),
+      break_start,
+      break_end,
+    });
+    const breakOutside = await post({ weeklySchedule: { ...week, friday: withBreak("09:00", "13:00", "13:00", "14:00") } });
+    expect(breakOutside.status(), await breakOutside.text()).toBe(400);
+    expect((await breakOutside.json()).message).toBe("Friday's break must be within its hours (09:00 – 13:00).");
+    expect(await hours()).toEqual(before);
+
     // A closed day's times do not matter.
     const closedDay = await post({ weeklySchedule: { ...week, saturday: day(false, "17:00", "09:00") } });
     expect(closedDay.status(), await closedDay.text()).toBe(200);
+
+    // Each day keeps its own break; the clinic's one break is cleared.
+    const perDay = await post({
+      weeklySchedule: {
+        ...week,
+        monday: withBreak("09:00", "17:00", "13:00", "14:00"),
+        friday: withBreak("09:00", "13:00", null, null),
+      },
+    });
+    expect(perDay.status(), await perDay.text()).toBe(200);
+    const saved = await hours();
+    expect(saved?.weekly_schedule?.monday).toMatchObject({ break_start: "13:00:00", break_end: "14:00:00" });
+    expect(saved?.weekly_schedule?.friday).toMatchObject({ break_start: null, break_end: null });
+    expect(saved?.weekly_schedule?.tuesday).toMatchObject({ break_start: null, break_end: null });
+    expect(saved).toMatchObject({ break_start: null, break_end: null });
   });
 
   test("the old clinic route is gone", async ({ page }) => {

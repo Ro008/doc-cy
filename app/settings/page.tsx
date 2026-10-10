@@ -298,9 +298,6 @@ export default async function AgendaSettingsPage({
     clinicLongitude: row.longitude ?? null,
     clinicPlaceId: row.clinic_place_id ?? null,
     weeklySchedule: locationWeeklySchedule(row),
-    breakEnabled: Boolean(row.break_start) && Boolean(row.break_end),
-    breakStart: String(row.break_start ?? "13:00:00").slice(0, 5),
-    breakEnd: String(row.break_end ?? "14:00:00").slice(0, 5),
     slotDurationMinutes: Number(row.slot_duration_minutes) > 0 ? Number(row.slot_duration_minutes) : 30,
     pauseOnlineBookings: Boolean(row.pause_online_bookings),
   }));
@@ -368,9 +365,6 @@ export default async function AgendaSettingsPage({
         ...ACCOUNT_SETTINGS_FALLBACK,
       },
     ),
-    breakEnabled: Boolean(primaryHours?.break_start) && Boolean(primaryHours?.break_end),
-    breakStart: String(primaryHours?.break_start ?? "13:00:00").slice(0, 5),
-    breakEnd: String(primaryHours?.break_end ?? "14:00:00").slice(0, 5),
     slotDurationMinutes: primaryHours?.slot_duration_minutes ?? 30,
     bookingHorizonDays:
       (settings as { booking_horizon_days?: number } | null)

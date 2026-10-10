@@ -10,7 +10,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { coerceProposedSlotsArray } from "@/lib/appointment-overlap";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
-import type { DayKey } from "@/lib/doctor-settings";
+import { dayBreakTimes, type DayKey } from "@/lib/doctor-settings";
 
 /** Anchor of the "Needs your answer" section (agenda sidebar "Pending requests" links here). */
 export const DASHBOARD_NEEDS_ANSWER_ID = "needs-your-answer";
@@ -262,11 +262,13 @@ export function todayWorkingWindow(
   if (open.length === 0) return null;
 
   const single = open.length === 1 ? open[0].hours : null;
+  // Today's own break, or the clinic's one break for a day saved without its own.
+  const todayBreak = single ? dayBreakTimes(single.weeklySchedule[dayKey], single.breakStart, single.breakEnd) : null;
   return {
     startHour: Math.floor(Math.min(...open.map((w) => w.start)) / 60),
     endHour: Math.ceil(Math.max(...open.map((w) => w.end)) / 60),
-    breakStart: single ? parseAgendaClockMinutes(single.breakStart) : null,
-    breakEnd: single ? parseAgendaClockMinutes(single.breakEnd) : null,
+    breakStart: parseAgendaClockMinutes(todayBreak?.start),
+    breakEnd: parseAgendaClockMinutes(todayBreak?.end),
   };
 }
 

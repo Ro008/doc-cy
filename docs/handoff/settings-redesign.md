@@ -70,6 +70,13 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   Only hours are editable. Times are picked by hour and quarter (`ClinicTimePicker`), and an open day,
   and the break, must end after they start
   (`lib/clinic-hours-check.ts`): the row says so, Save stays off, and the route refuses it too.
+- **A break per day** (Livio, 2026-10-10; `ClinicHoursEditor`): each open day's row has its
+  hours and its own break ("Add break", remove, and a copy button that puts the day's hours
+  and break on the other open days). The break must sit inside that day's hours. It is saved
+  on the day in `weekly_schedule` (`break_start` / `break_end`, null for none) and the
+  clinic's one break (`professional_clinics.break_start` / `break_end`) is cleared; days
+  saved before this, without break keys, still follow the clinic's one break
+  (`dayBreakTimes` in `lib/doctor-settings.ts`). No migration. Slot length stays per clinic.
 - **The clinic's phone is on its card** (Livio, 2026-10-10), shown as "+357 25 123456",
   with its own "Request a change" next to it. That opens a phone field in the card (a
   Cyprus landline or mobile only, grouped as she types) and sends

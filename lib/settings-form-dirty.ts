@@ -32,9 +32,6 @@ export type SettingsDirtySnapshot = {
     clinicLongitude: number | null;
     clinicPlaceId: string | null;
     weeklySchedule: WeeklySchedule;
-    breakEnabled: boolean;
-    breakStart: string;
-    breakEnd: string;
     slotDurationMinutes: number;
   }>;
 };
@@ -78,9 +75,6 @@ function comparable(snapshot: SettingsDirtySnapshot) {
       id: row.id,
       label: row.label,
       weeklySchedule: row.weeklySchedule,
-      breakEnabled: row.breakEnabled,
-      breakStart: row.breakStart,
-      breakEnd: row.breakEnd,
       slotDurationMinutes: row.slotDurationMinutes,
     })),
   };

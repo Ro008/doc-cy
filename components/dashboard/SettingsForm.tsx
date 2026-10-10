@@ -10,10 +10,8 @@ import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect"
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DEFAULT_BOOKING_HORIZON_DAYS,
-  DAY_NAMES,
   DEFAULT_MIN_NOTICE_HOURS,
   MIN_NOTICE_OPTIONS_HOURS,
-  type DayKey,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
 import {
@@ -89,7 +87,7 @@ import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
 import { ClinicPhoneField } from "@/components/dashboard/settings/ClinicPhoneField";
-import { ClinicTimePicker } from "@/components/dashboard/settings/ClinicTimePicker";
+import { ClinicHoursEditor } from "@/components/dashboard/settings/ClinicHoursEditor";
 import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
@@ -156,9 +154,6 @@ export type DoctorSettingsFormData = {
   saturday: boolean;
   sunday: boolean;
   weeklySchedule: WeeklySchedule;
-  breakEnabled: boolean;
-  breakStart: string;
-  breakEnd: string;
   slotDurationMinutes: number;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
@@ -194,9 +189,6 @@ export type DoctorWorkplaceFormData = {
   clinicLongitude?: number | null;
   clinicPlaceId?: string | null;
   weeklySchedule: WeeklySchedule;
-  breakEnabled: boolean;
-  breakStart: string;
-  breakEnd: string;
   slotDurationMinutes: number;
   /**
    * This clinic's booking limits. EXPECTED missing until Livio stores them per clinic
@@ -290,24 +282,6 @@ async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
   return blob;
 }
 
-function timeToInputValue(t: string | null | undefined): string {
-  if (!t) return "09:00";
-  const parts = String(t).split(":");
-  const h = parts[0]?.padStart(2, "0") ?? "09";
-  const m = parts[1]?.padStart(2, "0") ?? "00";
-  return `${h}:${m}`;
-}
-
-const DAY_LABELS: Record<DayKey, string> = {
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-  sunday: "Sunday",
-};
-
 
 function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkplaceFormData[] {
   if (initial.locations && initial.locations.length > 0) {
@@ -325,9 +299,6 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
       clinicLongitude: initial.clinicLongitude,
       clinicPlaceId: initial.clinicPlaceId,
       weeklySchedule: initial.weeklySchedule,
-      breakEnabled: initial.breakEnabled,
-      breakStart: initial.breakStart,
-      breakEnd: initial.breakEnd,
       slotDurationMinutes: initial.slotDurationMinutes,
       pauseOnlineBookings: initial.pauseOnlineBookings,
     },
@@ -481,15 +452,6 @@ export function SettingsForm({
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     () => firstWorkplace?.weeklySchedule ?? initial.weeklySchedule,
   );
-  const [breakEnabled, setBreakEnabled] = React.useState(
-    () => firstWorkplace?.breakEnabled ?? initial.breakEnabled,
-  );
-  const [breakStart, setBreakStart] = React.useState(() =>
-    timeToInputValue(firstWorkplace?.breakStart ?? initial.breakStart),
-  );
-  const [breakEnd, setBreakEnd] = React.useState(() =>
-    timeToInputValue(firstWorkplace?.breakEnd ?? initial.breakEnd),
-  );
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
     () => firstWorkplace?.slotDurationMinutes ?? initial.slotDurationMinutes,
   );
@@ -582,17 +544,11 @@ export function SettingsForm({
       clinicLongitude: current?.clinicLongitude ?? null,
       clinicPlaceId: current?.clinicPlaceId ?? null,
       weeklySchedule,
-      breakEnabled,
-      breakStart,
-      breakEnd,
       slotDurationMinutes,
       pauseOnlineBookings: Boolean(current?.pauseOnlineBookings),
     };
   }, [
     activeWorkplaceId,
-    breakEnabled,
-    breakEnd,
-    breakStart,
     slotDurationMinutes,
     weeklySchedule,
     workplaces,
@@ -612,9 +568,6 @@ export function SettingsForm({
       }),
     );
     setWeeklySchedule(row.weeklySchedule);
-    setBreakEnabled(row.breakEnabled);
-    setBreakStart(timeToInputValue(row.breakStart));
-    setBreakEnd(timeToInputValue(row.breakEnd));
     setSlotDurationMinutes(row.slotDurationMinutes);
   }, []);
 
@@ -750,9 +703,6 @@ export function SettingsForm({
           clinicLongitude: row.clinicLongitude ?? null,
           clinicPlaceId: row.clinicPlaceId ?? null,
           weeklySchedule: row.weeklySchedule,
-          breakEnabled: row.breakEnabled,
-          breakStart: row.breakStart,
-          breakEnd: row.breakEnd,
           slotDurationMinutes: row.slotDurationMinutes,
         })),
       }),
@@ -793,9 +743,6 @@ export function SettingsForm({
         clinicLongitude: row.clinicLongitude ?? null,
         clinicPlaceId: row.clinicPlaceId ?? null,
         weeklySchedule: row.weeklySchedule,
-        breakEnabled: row.breakEnabled,
-        breakStart: row.breakStart,
-        breakEnd: row.breakEnd,
         slotDurationMinutes: row.slotDurationMinutes,
       })),
     });
@@ -1085,9 +1032,6 @@ export function SettingsForm({
     const reverted: DoctorWorkplaceFormData = {
       ...draft,
       weeklySchedule: saved.weeklySchedule,
-      breakEnabled: saved.breakEnabled,
-      breakStart: saved.breakStart,
-      breakEnd: saved.breakEnd,
       slotDurationMinutes: saved.slotDurationMinutes,
     };
     setWorkplaces((prev) => prev.map((row) => (row.id === id ? reverted : row)));
@@ -1189,14 +1133,9 @@ export function SettingsForm({
     }
   }
 
-  // The clinic being edited: an open day, and the break, must end after they start.
-  const hoursProblems = clinicHoursProblems({ weeklySchedule, breakEnabled, breakStart, breakEnd });
-  const hoursHaveProblems = Object.keys(hoursProblems.days).length > 0 || Boolean(hoursProblems.breakTime);
-  const days = DAY_NAMES.map((key) => ({
-    key,
-    label: DAY_LABELS[key],
-    value: weeklySchedule[key].enabled,
-  }));
+  // The clinic being edited: each open day's hours and break must make sense.
+  const hoursProblems = clinicHoursProblems({ weeklySchedule });
+  const hoursHaveProblems = Object.keys(hoursProblems.days).length > 0;
   const activeWorkplaceIndex = Math.max(
     0,
     workplaces.findIndex((row) => row.id === activeWorkplaceId),
@@ -1415,99 +1354,8 @@ export function SettingsForm({
         change them, use Request a change.
       </p>
 
-      <div>
-        <p className={SECTION_EYEBROW_CLASS}>Working hours</p>
-        <div className="mt-2 divide-y divide-slate-800">
-          {days.map(({ key, label, value }) => (
-            <div key={key} className="py-2.5">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <label className="flex w-36 cursor-pointer items-center gap-2.5">
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) =>
-                    setWeeklySchedule((prev) => ({
-                      ...prev,
-                      [key]: { ...prev[key], enabled: e.target.checked },
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-                />
-                <span className={`text-sm ${value ? "text-slate-100" : "text-slate-500"}`}>{label}</span>
-              </label>
-              {value ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <ClinicTimePicker
-                    label={`${label} start time`}
-                    value={timeToInputValue(weeklySchedule[key].start_time)}
-                    onChange={(time) =>
-                      setWeeklySchedule((prev) => ({ ...prev, [key]: { ...prev[key], start_time: `${time}:00` } }))
-                    }
-                  />
-                  <span aria-hidden>–</span>
-                  <ClinicTimePicker
-                    label={`${label} end time`}
-                    value={timeToInputValue(weeklySchedule[key].end_time)}
-                    after={weeklySchedule[key].start_time}
-                    invalid={Boolean(hoursProblems.days[key])}
-                    describedBy={hoursProblems.days[key] ? `${key}-hours-problem` : undefined}
-                    align="right"
-                    onChange={(time) =>
-                      setWeeklySchedule((prev) => ({ ...prev, [key]: { ...prev[key], end_time: `${time}:00` } }))
-                    }
-                  />
-                </div>
-              ) : (
-                <span className="text-sm text-slate-500">Closed</span>
-              )}
-            </div>
-              {value && hoursProblems.days[key] ? (
-                <p id={`${key}-hours-problem`} role="alert" className="mt-1.5 text-xs font-medium text-red-300">
-                  {hoursProblems.days[key]}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
+      <ClinicHoursEditor schedule={weeklySchedule} onChange={setWeeklySchedule} problems={hoursProblems} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <p className={SECTION_EYEBROW_CLASS}>Daily break</p>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-              <input
-                type="checkbox"
-                checked={breakEnabled}
-                onChange={(e) => setBreakEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-              />
-              <span>Add a daily break</span>
-            </label>
-          </div>
-          {breakEnabled ? (
-            <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
-              <ClinicTimePicker label="Break start" value={breakStart} onChange={setBreakStart} />
-              <span aria-hidden>–</span>
-              <ClinicTimePicker
-                label="Break end"
-                value={breakEnd}
-                after={breakStart}
-                invalid={Boolean(hoursProblems.breakTime)}
-                describedBy={hoursProblems.breakTime ? "break-problem" : undefined}
-                align="right"
-                onChange={setBreakEnd}
-              />
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>
-          )}
-          {hoursProblems.breakTime ? (
-            <p id="break-problem" role="alert" className="mt-1.5 text-xs font-medium text-red-300">
-              {hoursProblems.breakTime}
-            </p>
-          ) : null}
-        </div>
         <div>
           <p id="slotDurationLabel" className={SECTION_EYEBROW_CLASS}>
             Slot length
@@ -1534,7 +1382,6 @@ export function SettingsForm({
             })}
           </div>
         </div>
-      </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
         <button
           type="button"
@@ -1634,7 +1481,7 @@ export function SettingsForm({
             summary={{
               days: summarizeClinicDays(row.weeklySchedule),
               hours: summarizeClinicHours(row.weeklySchedule),
-              breakTime: summarizeClinicBreak(row),
+              breakTime: summarizeClinicBreak(row.weeklySchedule),
               slot: `${row.slotDurationMinutes} min`,
             }}
             editing={editing}

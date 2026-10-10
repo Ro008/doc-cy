@@ -88,8 +88,8 @@ export function findFirstAlternativeSlotStarts(opts: {
     onlyDateKey = null,
   } = opts;
 
-  const breakStart = settings.break_start?.slice(0, 5);
-  const breakEnd = settings.break_end?.slice(0, 5);
+  const clinicBreakStart = settings.break_start?.slice(0, 5);
+  const clinicBreakEnd = settings.break_end?.slice(0, 5);
 
   const horizonDays = BOOKING_HORIZON_OPTIONS_DAYS.includes(
     settings.booking_horizon_days as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
@@ -140,6 +140,9 @@ export function findFirstAlternativeSlotStarts(opts: {
 
     for (const s of daySlots) {
       if (found.length >= limit) break;
+      // The day's own break travels with its slots; slots without one use the clinic's.
+      const breakStart = s.break_start !== undefined ? s.break_start?.slice(0, 5) : clinicBreakStart;
+      const breakEnd = s.break_end !== undefined ? s.break_end?.slice(0, 5) : clinicBreakEnd;
       const [startHour, startMinute] = s.start_time.split(":").map(Number);
       const [endHour, endMinute] = s.end_time.split(":").map(Number);
       let cursorMinutes = (startHour ?? 0) * 60 + (startMinute ?? 0);

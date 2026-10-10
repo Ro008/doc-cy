@@ -37,9 +37,6 @@ function clinicHours(row: Workplace | undefined) {
   if (!row) return null;
   return {
     weeklySchedule: row.weeklySchedule,
-    breakEnabled: row.breakEnabled,
-    breakStart: row.breakStart,
-    breakEnd: row.breakEnd,
     slotDurationMinutes: row.slotDurationMinutes,
   };
 }
@@ -123,9 +120,6 @@ export function buildSettingsSavePayload(
     saturday: Boolean(schedule?.saturday.enabled),
     sunday: Boolean(schedule?.sunday.enabled),
     weeklySchedule: schedule,
-    breakEnabled: primary?.breakEnabled ?? false,
-    breakStart: primary?.breakStart ?? "",
-    breakEnd: primary?.breakEnd ?? "",
     slotDurationMinutes: primary?.slotDurationMinutes,
     bookingHorizonDays: snapshot.bookingHorizonDays,
     minimumNoticeHours: snapshot.minimumNoticeHours,
@@ -143,9 +137,6 @@ export function buildSettingsSavePayload(
       friday: row.weeklySchedule.friday.enabled,
       saturday: row.weeklySchedule.saturday.enabled,
       sunday: row.weeklySchedule.sunday.enabled,
-      breakEnabled: row.breakEnabled,
-      breakStart: row.breakStart,
-      breakEnd: row.breakEnd,
       slotDurationMinutes: row.slotDurationMinutes,
       ...(clinicLimits?.[row.id] ?? {}),
     })),

@@ -46,12 +46,16 @@ export function summarizeClinicHours(schedule: WeeklySchedule): string {
   return ranges.size === 1 ? [...ranges][0] : "Varies by day";
 }
 
-export function summarizeClinicBreak(input: {
-  breakEnabled: boolean;
-  breakStart: string;
-  breakEnd: string;
-}): string {
-  return input.breakEnabled ? `${hhmm(input.breakStart)} – ${hhmm(input.breakEnd)}` : "None";
+/** The open days' breaks in one cell: the break they share, "None", or "Varies by day". */
+export function summarizeClinicBreak(schedule: WeeklySchedule): string {
+  const open = DAY_NAMES.map((day) => schedule[day]).filter((entry) => entry?.enabled);
+  const breaks = new Set(
+    open.map((entry) =>
+      entry.break_start && entry.break_end ? `${hhmm(entry.break_start)} – ${hhmm(entry.break_end)}` : "None",
+    ),
+  );
+  if (breaks.size === 0) return "None";
+  return breaks.size === 1 ? [...breaks][0] : "Varies by day";
 }
 
 export type ClinicBookingStatus =

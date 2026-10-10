@@ -21,13 +21,15 @@ const CHOICE_OFF = "border-transparent text-slate-300 hover:border-slate-600 hov
  * A time of day in a clinic's hours (user, 2026-10-10): the hour from a small grid, the
  * minutes from the four quarters, so there is no 17:02 and no list of 96 times. Picking
  * the minutes closes it; Escape or a click outside too. `after` greys out what is not
- * later than it (an end time after its start).
+ * later than it (an end time after its start); `before`, what is not earlier (a break
+ * before the day ends).
  */
 export function ClinicTimePicker({
   label,
   value,
   onChange,
   after,
+  before,
   invalid = false,
   describedBy,
   align = "left",
@@ -39,6 +41,8 @@ export function ClinicTimePicker({
   onChange: (time: string) => void;
   /** Only times after this one are on offer. */
   after?: string | null;
+  /** Only times before this one are on offer (a break before the day ends). */
+  before?: string | null;
   invalid?: boolean;
   describedBy?: string;
   /** Which edge of the button the picker hangs from. */
@@ -110,8 +114,8 @@ export function ClinicTimePicker({
                 type="button"
                 role="radio"
                 aria-checked={choice === hour}
-                disabled={!clinicHourAllowed(choice, after)}
-                onClick={() => onChange(clinicTimeWithHour(value, choice, after))}
+                disabled={!clinicHourAllowed(choice, after, before)}
+                onClick={() => onChange(clinicTimeWithHour(value, choice, after, before))}
                 className={`${CHOICE_CLASS} h-8 ${choice === hour ? CHOICE_ON : CHOICE_OFF}`}
               >
                 {choice}
@@ -128,7 +132,7 @@ export function ClinicTimePicker({
                 role="radio"
                 aria-label={choice}
                 aria-checked={choice === minute}
-                disabled={!clinicTimeAllowed(`${hour}:${choice}`, after)}
+                disabled={!clinicTimeAllowed(`${hour}:${choice}`, after, before)}
                 onClick={() => {
                   onChange(clinicTimeWithMinute(value, choice));
                   close();

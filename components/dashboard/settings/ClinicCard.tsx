@@ -127,7 +127,12 @@ export function ClinicCard({
         {stats.map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-slate-800 bg-slate-950/40 px-3 py-2.5">
             <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
-            <dd className="mt-1 text-sm font-medium text-slate-100">{value}</dd>
+            <dd
+              data-testid={`settings-clinic-${label.toLowerCase()}-summary`}
+              className="mt-1 text-sm font-medium text-slate-100"
+            >
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
