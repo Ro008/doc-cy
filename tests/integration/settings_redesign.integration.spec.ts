@@ -660,6 +660,90 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByText(/coming soon/i)).toHaveCount(0);
   });
 
+  test("Profile: the name changes by request, with who she sees and her qualifications", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "profile");
+
+    // The name is read-only; a request needs a different full name without a title.
+    const nameBlock = page.getByTestId("settings-profile-name");
+    await expect(nameBlock).toBeVisible({ timeout: 20_000 });
+    const form = page.getByTestId("settings-name-change-form");
+    await expect(async () => {
+      await nameBlock.getByRole("button", { name: "Request name change" }).click();
+      await expect(form).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    const nameInput = form.getByLabel(/Name as patients should see it/);
+    await form.getByRole("button", { name: "Send request" }).click();
+    await expect(form.getByRole("alert")).toHaveText("That is already your name on DocCy.");
+    await nameInput.fill("Dr. Maria Ioannou");
+    await form.getByRole("button", { name: "Send request" }).click();
+    await expect(form.getByRole("alert")).toHaveText("Leave out titles such as Dr or Prof.");
+
+    let sentName: unknown = null;
+    await page.route("**/api/name-change-requests", async (route) => {
+      if (route.request().method() === "POST") {
+        sentName = route.request().postDataJSON();
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ request: { createdAt: new Date().toISOString() } }),
+        });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await nameInput.fill("Maria  Ioannou-Test");
+    await form.getByLabel(/Why it changed/).fill("I married");
+    await form.getByRole("button", { name: "Send request" }).click();
+    const pending = page.getByTestId("settings-name-change-pending");
+    await expect(pending).toContainText("Name change in review", { timeout: 20_000 });
+    await expect(pending).toContainText("Maria Ioannou-Test");
+    expect(sentName).toEqual({ name: "Maria Ioannou-Test", reason: "I married" });
+    // One request at a time, and it can be cancelled.
+    await expect(nameBlock.getByRole("button", { name: "Request name change" })).toHaveCount(0);
+    await pending.getByRole("button", { name: "Cancel request" }).click();
+    await expect(pending).toHaveCount(0);
+    await expect(nameBlock.getByRole("button", { name: "Request name change" })).toBeVisible();
+    await page.unroute("**/api/name-change-requests");
+
+    // Who she sees: one of three, saved when picked. Until the backend exists the
+    // choice stays for this visit and the page says it is not saved.
+    const ages = page.getByTestId("settings-patient-ages").getByRole("radiogroup", { name: "Patients I see" });
+    await expect(ages.getByRole("radio")).toHaveText(["Adults", "Children", "Adults and children"]);
+    await expect(ages.getByRole("radio", { checked: true })).toHaveCount(0);
+    await ages.getByRole("radio", { name: "Children", exact: true }).click();
+    await expect(page.getByText(/Shown here only for now: saving who you see/)).toBeVisible({ timeout: 20_000 });
+    await expect(ages.getByRole("radio", { name: "Children", exact: true })).toHaveAttribute("aria-checked", "true");
+
+    // Qualifications: each field says what is wrong; lines sort most recent first.
+    const quals = page.getByTestId("settings-qualifications");
+    await expect(quals).toContainText("None yet.");
+    await quals.getByRole("button", { name: "+ Add a qualification" }).click();
+    const qForm = page.getByTestId("settings-qualification-form");
+    await qForm.getByRole("button", { name: "Add qualification" }).click();
+    await expect(qForm).toContainText("Enter the qualification.");
+    await expect(qForm).toContainText("Enter where you obtained it.");
+    await qForm.getByLabel(/^Qualification/).fill("MD, Medicine");
+    await qForm.getByLabel(/^Year/).fill("1900");
+    await qForm.getByLabel(/Where you obtained it/).fill("University of Athens");
+    await qForm.getByRole("button", { name: "Add qualification" }).click();
+    await expect(qForm).toContainText(/Enter a year between 1950 and \d{4}\./);
+    await qForm.getByLabel(/^Year/).fill("2009");
+    await qForm.getByRole("button", { name: "Add qualification" }).click();
+    await expect(page.getByText(/Shown here only for now: adding a qualification/)).toBeVisible({ timeout: 20_000 });
+    await expect(quals.getByRole("listitem")).toHaveText([/MD, Medicine.*University of Athens · 2009/]);
+
+    await quals.getByRole("button", { name: "+ Add a qualification" }).click();
+    await qForm.getByLabel(/^Qualification/).fill("Fellowship in Cardiology");
+    await qForm.getByLabel(/^Year/).fill("2015");
+    await qForm.getByLabel(/Where you obtained it/).fill("King's College London");
+    await qForm.getByRole("button", { name: "Add qualification" }).click();
+    await expect(quals.getByRole("listitem")).toHaveText([/Fellowship in Cardiology/, /MD, Medicine/], {
+      timeout: 20_000,
+    });
+    await quals.getByRole("button", { name: "Remove MD, Medicine" }).click();
+    await expect(quals.getByRole("listitem")).toHaveText([/Fellowship in Cardiology/], { timeout: 20_000 });
+  });
+
   test("Profile and Services link to the public profile", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "profile");

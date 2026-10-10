@@ -91,6 +91,9 @@ import { ClinicHoursEditor } from "@/components/dashboard/settings/ClinicHoursEd
 import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
+import { PatientAgesCard } from "@/components/dashboard/settings/PatientAgesCard";
+import { ProfileNameField } from "@/components/dashboard/settings/ProfileNameField";
+import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
 import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
 import {
@@ -1838,9 +1841,9 @@ export function SettingsForm({
         previewProfileLink,
       )}
       <section className={SECTION_CARD_CLASS}>
-        <p className={SECTION_EYEBROW_CLASS}>Profile photo</p>
-        <div className="mt-3 flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
+        <p className={SECTION_EYEBROW_CLASS}>Name and photo</p>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
             {avatarPreviewUrl ? (
               <img src={avatarPreviewUrl} alt="Profile preview" className="h-full w-full object-cover" />
             ) : (
@@ -1849,6 +1852,7 @@ export function SettingsForm({
               </div>
             )}
           </div>
+          <ProfileNameField name={initial.doctorName} />
           <input
             ref={avatarFileInputRef}
             type="file"
@@ -1874,6 +1878,7 @@ export function SettingsForm({
       {specialtiesCard}
       {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
       {profileExtra}
+      <PatientAgesCard />
       <section className={SECTION_CARD_CLASS}>
         <label htmlFor="settings-bio" className={SECTION_EYEBROW_CLASS}>
           How you help patients
@@ -1943,6 +1948,7 @@ export function SettingsForm({
           </p>
         ) : null}
       </section>
+      <QualificationsCard />
     </div>
   );
 

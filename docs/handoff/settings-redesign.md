@@ -116,6 +116,17 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   `tests/unit/legacy-specialty-claim-outreach-removed.test.ts` was updated to match.
 - The pending request shows as an "In review" chip with ✕ to cancel it (section 3.5).
   The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
+- **Name, who she sees, qualifications (Livio, 2026-10-10; UI only, backend pending,
+  section 3.9).** The name sits read-only beside the photo ("Name and photo") with
+  "Request name change": the new name (no title; `lib/settings-profile-details.ts`) and an
+  optional reason go to DocCy, then an "in review" line with "Cancel request"
+  (`ProfileNameField`). "Patients I see" is Adults / Children / Adults and children,
+  saved when picked (`PatientAgesCard`). "Qualifications" is a list of up to 6 lines
+  (qualification, where, optional year), most recent first, each added or removed on its
+  own (`QualificationsCard`). **Until the routes exist these three keep the change on
+  screen for the visit and say "Shown here only for now…"**, so the screens can be seen;
+  nothing is saved and a reload clears it. The page loads none of them yet.
+  "I see GeSY patients" (was "Accepts GESY patients") moved up under Specialties.
 - "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
   "Opening…" and then a toast.
 
@@ -275,6 +286,18 @@ it (tables, review flow, emails) is yours.
   address on confirmation, and whether the page should load a pending change
   (the UI only keeps it until reload today).
 - Call site: `requestEmailChange` in `components/dashboard/settings/AccountSecurityCard.tsx`.
+
+### 3.9 Profile: name change, who she sees, qualifications
+- `POST /api/name-change-requests` `{ "name", "reason": string | null }` → 2xx
+  `{ "request": { "createdAt" } }`; `DELETE /api/name-change-requests` cancels the pending
+  one. To show it after a reload: `ProfileNameField` takes `initialPending { name, createdAt }`.
+- `PUT /api/professional-profile` `{ "patientAges": "adults" | "children" | "all" }` → 2xx.
+  `PatientAgesCard` takes `initialValue`.
+- `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`
+  → 2xx `{ "qualification": { "id" } }`; `DELETE /api/professional-qualifications?id=…` → 2xx.
+  `QualificationsCard` takes `initial`.
+- Open decisions: whether founders check qualifications; where the public profile shows
+  the three (Ro008, `feat/profile-redesign`).
 
 3.1–3.6 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."

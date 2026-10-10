@@ -17,6 +17,14 @@ export const BACKEND_PENDING = {
   removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
   changeEmail: { what: "changing your email", endpoint: "POST /api/account/email" },
+  requestNameChange: { what: "asking for a name change", endpoint: "POST /api/name-change-requests" },
+  cancelNameChange: { what: "cancelling a name change", endpoint: "DELETE /api/name-change-requests" },
+  savePatientAges: { what: "saving who you see", endpoint: "PUT /api/professional-profile" },
+  addQualification: { what: "adding a qualification", endpoint: "POST /api/professional-qualifications" },
+  removeQualification: {
+    what: "removing a qualification",
+    endpoint: "DELETE /api/professional-qualifications",
+  },
   cancelSpecialtyRequest: {
     what: "cancelling a specialty request",
     endpoint: "DELETE /api/specialty-requests",
@@ -28,6 +36,20 @@ export type BackendPendingAction = keyof typeof BACKEND_PENDING;
 export function backendPendingMessage(action: BackendPendingAction): string {
   const { what, endpoint } = BACKEND_PENDING[action];
   return `Expected to fail for now: ${what} works once Livio builds it in the backend (${endpoint}).`;
+}
+
+/** The route is not built yet (the UI came first). */
+export function isBackendPending(status: number): boolean {
+  return status === 404 || status === 405;
+}
+
+/**
+ * For the Profile additions the user wanted to see before the backend exists
+ * (2026-10-10): the change stays on screen for this visit, and this says it is not saved.
+ */
+export function backendPendingPreviewMessage(action: BackendPendingAction): string {
+  const { what, endpoint } = BACKEND_PENDING[action];
+  return `Shown here only for now: ${what} is saved once Livio builds it in the backend (${endpoint}).`;
 }
 
 export function settingsActionErrorMessage(
