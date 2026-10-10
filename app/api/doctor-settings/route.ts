@@ -3,6 +3,7 @@ import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
@@ -184,6 +185,12 @@ export async function POST(req: NextRequest) {
   }
   const languages = langsParsed.value;
   const locationsPayload = Array.isArray(b.locations) ? b.locations : [];
+  // An open day, and the break, end after they start (user, 2026-10-10). Checked before
+  // anything is written, so a refused save keeps nothing.
+  for (const clinicHours of locationsPayload.length > 0 ? locationsPayload : [b]) {
+    const wrongHours = clinicHoursProblem(clinicHours ?? {});
+    if (wrongHours) return NextResponse.json({ message: wrongHours }, { status: 400 });
+  }
 
   const bookingHorizon = Number(b.bookingHorizonDays);
   const booking_horizon_days = BOOKING_HORIZON_OPTIONS_DAYS.includes(

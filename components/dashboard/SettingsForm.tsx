@@ -38,6 +38,7 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
+import { clinicHoursProblems } from "@/lib/clinic-hours-check";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import {
@@ -1189,6 +1190,9 @@ export function SettingsForm({
     }
   }
 
+  // The clinic being edited: an open day, and the break, must end after they start.
+  const hoursProblems = clinicHoursProblems({ weeklySchedule, breakEnabled, breakStart, breakEnd });
+  const hoursHaveProblems = Object.keys(hoursProblems.days).length > 0 || Boolean(hoursProblems.breakTime);
   const days = DAY_NAMES.map((key) => ({
     key,
     label: DAY_LABELS[key],
@@ -1416,7 +1420,8 @@ export function SettingsForm({
         <p className={SECTION_EYEBROW_CLASS}>Working hours</p>
         <div className="mt-2 divide-y divide-slate-800">
           {days.map(({ key, label, value }) => (
-            <div key={key} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+            <div key={key} className="py-2.5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <label className="flex w-36 cursor-pointer items-center gap-2.5">
                 <input
                   type="checkbox"
@@ -1455,6 +1460,9 @@ export function SettingsForm({
                   <input
                     id={`${key}-end`}
                     type="time"
+                    min={timeToInputValue(weeklySchedule[key].start_time)}
+                    aria-invalid={Boolean(hoursProblems.days[key])}
+                    aria-describedby={hoursProblems.days[key] ? `${key}-hours-problem` : undefined}
                     value={timeToInputValue(weeklySchedule[key].end_time)}
                     onChange={(e) =>
                       setWeeklySchedule((prev) => ({
@@ -1468,6 +1476,12 @@ export function SettingsForm({
               ) : (
                 <span className="text-sm text-slate-500">Closed</span>
               )}
+            </div>
+              {value && hoursProblems.days[key] ? (
+                <p id={`${key}-hours-problem`} role="alert" className="mt-1.5 text-xs font-medium text-red-300">
+                  {hoursProblems.days[key]}
+                </p>
+              ) : null}
             </div>
           ))}
         </div>
@@ -1506,6 +1520,9 @@ export function SettingsForm({
               <input
                 id="breakEnd"
                 type="time"
+                min={breakStart}
+                aria-invalid={Boolean(hoursProblems.breakTime)}
+                aria-describedby={hoursProblems.breakTime ? "break-problem" : undefined}
                 value={breakEnd}
                 onChange={(e) => setBreakEnd(e.target.value)}
                 className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
@@ -1514,6 +1531,11 @@ export function SettingsForm({
           ) : (
             <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>
           )}
+          {hoursProblems.breakTime ? (
+            <p id="break-problem" role="alert" className="mt-1.5 text-xs font-medium text-red-300">
+              {hoursProblems.breakTime}
+            </p>
+          ) : null}
         </div>
         <div>
           <p id="slotDurationLabel" className={SECTION_EYEBROW_CLASS}>
@@ -1546,7 +1568,9 @@ export function SettingsForm({
         <button
           type="button"
           data-testid="settings-clinic-hours-save"
-          disabled={!groupDirty({ kind: "clinic", id: row.id }) || savingGroup === `clinic:${row.id}`}
+          disabled={
+            !groupDirty({ kind: "clinic", id: row.id }) || hoursHaveProblems || savingGroup === `clinic:${row.id}`
+          }
           aria-busy={savingGroup === `clinic:${row.id}`}
           onClick={async () => {
             const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);

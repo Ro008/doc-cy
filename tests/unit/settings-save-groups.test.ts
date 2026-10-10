@@ -147,6 +147,20 @@ describe("validateSettingsToSave", () => {
       null,
     );
   });
+
+  it("refuses a clinic whose open day ends before it starts", () => {
+    const wrong = { ...clinic("b", "10:00", 45), label: "Paphos room" };
+    wrong.weeklySchedule = { ...wrong.weeklySchedule, tuesday: day(true, "10:00", "09:00") };
+    assert.equal(
+      validateSettingsToSave(snapshot({ workplaces: [clinic("a", "09:00", 30), wrong] })),
+      "Tuesday must end after 10:00.",
+    );
+  });
+
+  it("refuses a clinic whose break ends before it starts", () => {
+    const wrong = { ...clinic("a", "09:00", 30), breakStart: "14:00", breakEnd: "13:00" };
+    assert.equal(validateSettingsToSave(snapshot({ workplaces: [wrong] })), "The break must end after 14:00.");
+  });
 });
 
 describe("buildSettingsSavePayload", () => {

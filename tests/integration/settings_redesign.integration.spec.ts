@@ -399,6 +399,56 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(slots[seeded!.secondId]).toBe(30);
   });
 
+  // User, 2026-10-10: an end time before the start time must not be possible.
+  test("a day, or the break, cannot end before it starts", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "clinics");
+    const card = clinicCard(page, "Limassol Skin Clinic");
+    const save = card.getByTestId("settings-clinic-hours-save");
+    const start = card.getByLabel("Monday start time");
+    const end = card.getByLabel("Monday end time");
+    // A click before hydration does nothing: retry until the editor opens.
+    await expect(async () => {
+      await card.getByRole("button", { name: "Edit hours" }).click();
+      await expect(start).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+
+    await start.fill("10:00");
+    await end.fill("09:30");
+    await expect(card.getByRole("alert")).toHaveText("Monday must end after 10:00.");
+    await expect(end).toHaveAttribute("aria-invalid", "true");
+    await expect(save).toBeDisabled();
+
+    // The same time is not enough either.
+    await end.fill("10:00");
+    await expect(card.getByRole("alert")).toHaveText("Monday must end after 10:00.");
+    await expect(save).toBeDisabled();
+
+    await end.fill("16:00");
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    await expect(save).toBeEnabled();
+
+    // The break follows the same rule.
+    const breakOn = card.getByLabel("Add a daily break");
+    if (!(await breakOn.isChecked())) await breakOn.check();
+    await card.getByLabel("Break start").fill("14:00");
+    await card.getByLabel("Break end").fill("13:00");
+    await expect(card.getByRole("alert")).toHaveText("The break must end after 14:00.");
+    await expect(save).toBeDisabled();
+    await card.getByLabel("Break end").fill("15:00");
+    await expect(card.getByRole("alert")).toHaveCount(0);
+
+    await save.click();
+    await expect(page.locator("[data-sonner-toast]").getByText(/Hours saved for Limassol Skin Clinic/)).toBeVisible();
+    const row = await admin
+      .from("professional_clinics")
+      .select("weekly_schedule, break_start, break_end")
+      .eq("id", seeded!.primaryId)
+      .single();
+    expect(row.data?.weekly_schedule?.monday).toMatchObject({ start_time: "10:00:00", end_time: "16:00:00" });
+    expect(row.data).toMatchObject({ break_start: "14:00:00", break_end: "15:00:00" });
+  });
+
   test("booking limits are set on each clinic and save at once, leaving a half-edited bio alone", async ({
     page,
   }) => {

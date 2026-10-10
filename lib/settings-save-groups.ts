@@ -1,3 +1,4 @@
+import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { parseDDMMYYYYToISO } from "@/lib/date-format";
 import type { SettingsDirtySnapshot } from "@/lib/settings-form-dirty";
 import type { ClinicLimitsById } from "@/lib/settings-clinic-limits";
@@ -91,6 +92,10 @@ export function validateSettingsToSave(snapshot: SettingsDirtySnapshot): string 
     const end = parseDDMMYYYYToISO(snapshot.holidayEndInput);
     if (!start || !end) return "Pick both holiday dates.";
     if (start > end) return "The holiday must end on or after the day it starts.";
+  }
+  for (const row of snapshot.workplaces) {
+    const wrongHours = clinicHoursProblem(row);
+    if (wrongHours) return wrongHours;
   }
   return null;
 }
