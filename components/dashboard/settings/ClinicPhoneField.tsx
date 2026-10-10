@@ -19,7 +19,7 @@ import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
 
 /**
  * The phone on a clinic card (Settings → Clinics, user 2026-10-10): the number patients
- * call, shown as "+357 25 123456", with its own "Request a change", as the address has.
+ * call, shown as "+357 25 123456", with its own "Request phone change", as the address has its own.
  * She types the new number (a Cyprus landline or mobile) and sends it to DocCy: founders
  * approve every clinic phone change, however many people work at the clinic. Same
  * contract as the other clinic changes (POST /api/clinic-change-requests,
@@ -94,8 +94,8 @@ export function ClinicPhoneField({
           {phone || "No phone yet"}
         </span>
         {canRequest ? (
-          <button type="button" onClick={open} aria-label="Request a phone change" className={SETTINGS_LINK_CLASS}>
-            {phone ? "Request a change" : "Request your phone"}
+          <button type="button" onClick={open} className={SETTINGS_LINK_CLASS}>
+            {phone ? "Request phone change" : "Request your phone"}
           </button>
         ) : null}
       </div>

@@ -145,7 +145,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     const card = page.getByTestId("settings-clinic-card").filter({ hasText: `Clinic Phone Practice ${nonce}` });
     await expect(card).toContainText(`+357 ${clinicPhone.slice(0, 2)} ${clinicPhone.slice(2)}`);
     await expect(card).not.toContainText(/contact us/i);
-    await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Request name or address change" })).toBeVisible();
     await expect(page.getByRole("switch", { name: /Show a Call button/i })).toHaveCount(0);
   });
 });

@@ -59,7 +59,7 @@ export function ClinicCard({
   status: ClinicBookingStatus;
   bookingSwitch: React.ReactNode;
   address: string;
-  /** The clinic's phone, with its own "Request a change" (ClinicPhoneField). */
+  /** The clinic's phone, with its own "Request phone change" (ClinicPhoneField). */
   phoneField: React.ReactNode;
   pendingChange: PendingClinicChange | null;
   /** null while the clinic is still being set up (its address is set in the editor). */
@@ -117,7 +117,7 @@ export function ClinicCard({
             onClick={onRequestChange}
             className={SETTINGS_LINK_CLASS}
           >
-            {address ? "Request a change" : "Request your address"}
+            {address ? "Request name or address change" : "Request your address"}
           </button>
         ) : null}
       </div>

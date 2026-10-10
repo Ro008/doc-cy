@@ -293,7 +293,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
 
     const card = clinicCard(page, "Limassol Skin Clinic");
     await expect(card.getByRole("textbox", { name: /address/i })).toHaveCount(0);
-    await card.getByRole("button", { name: "Request a change" }).click();
+    await card.getByRole("button", { name: "Request name or address change" }).click();
 
     // The same picker as /register: current clinic confirmed, name and phone below.
     const dialog = page.getByRole("dialog", { name: /Request a change/ });
@@ -360,10 +360,10 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     // A click before hydration does nothing: retry until the editor opens.
     await expect(async () => {
       await card.getByRole("button", { name: "Edit hours" }).click();
-      await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request a change", { timeout: 2_000 });
+      await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request name or address change", { timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
     await expect(page.locator("#clinicName")).toHaveCount(0);
-    await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Request name or address change" })).toBeVisible();
   });
 
   test("a clinic's hours save from its card, and Cancel puts them back", async ({ page }) => {

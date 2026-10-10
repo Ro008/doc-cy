@@ -66,7 +66,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   more than one. All clinics are equal; there is no primary in this. Until your
   migration a change shows on every clinic and the card says so (section 3.7,
   `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
-- A clinic's **name, address and phone change only by request** ("Request a change").
+- A clinic's **name, address and phone change only by request** ("Request name or address change" and "Request phone change" on the card).
   Only hours are editable. Times are picked by hour and quarter (`ClinicTimePicker`), and an open day,
   and the break, must end after they start
   (`lib/clinic-hours-check.ts`): the row says so, Save stays off, and the route refuses it too.
@@ -78,7 +78,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   saved before this, without break keys, still follow the clinic's one break
   (`dayBreakTimes` in `lib/doctor-settings.ts`). No migration. Slot length stays per clinic.
 - **The clinic's phone is on its card** (Livio, 2026-10-10), shown as "+357 25 123456",
-  with its own "Request a change" next to it. That opens a phone field in the card (a
+  with its own "Request phone change" next to it. That opens a phone field in the card (a
   Cyprus landline or mobile only, grouped as she types) and sends
   `POST /api/clinic-change-requests` with `{ locationId, changes: { phone } }`, the
   contract of section 3.2 (backend pending). **Founders approve every clinic phone
@@ -90,7 +90,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   falls back to `professional_clinics.label` when the clinic has no name. This is a
   shared read mapping, so settings, agenda, booking, profile, finder **and emails** all
   show the DocCy name now. Settings no longer sends `label`.
-- "Add clinic" and "Request a change" reuse the /register clinic picker (DocCy clinics
+- "Add clinic" and "Request name or address change" reuse the /register clinic picker (DocCy clinics
   first, then Google Maps or a pin) — `components/dashboard/settings/ClinicPicker.tsx`.
 - Any clinic can be removed, the primary too, while one is left
   (`lib/settings-removal-rules.ts`).
@@ -188,7 +188,7 @@ it (tables, review flow, emails) is yours.
 - Call site: `handleRemoveSpecialty` in `components/dashboard/SettingsForm.tsx`.
 
 ### 3.2 Request a change to a clinic (name, address, phone, or move to a DocCy clinic)
-- UI: "Request a change" on a clinic card.
+- UI: "Request name or address change" and "Request phone change" on a clinic card.
 - Sends `POST /api/clinic-change-requests` with
   `{ "locationId": "<professional_clinics.id>", "changes": ClinicChanges }` — only what
   changed (`ClinicChanges` in `lib/clinic-change-request.ts`; validation the UI already

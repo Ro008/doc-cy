@@ -1341,7 +1341,7 @@ export function SettingsForm({
   );
 
   // No name field: patients see DocCy's name for the clinic everywhere (user,
-  // 2026-10-01); a rename goes through "Request a change" so DocCy can check that a
+  // 2026-10-01); a rename goes through "Request name or address change" so DocCy can check that a
   // shared clinic is not renamed by one of its doctors.
   const workplaceEditor = (row: DoctorWorkplaceFormData) => (
     <fieldset
@@ -1351,7 +1351,7 @@ export function SettingsForm({
     >
       <p className="text-xs text-slate-400" data-testid="settings-clinic-name-note">
         The clinic name and address are DocCy&apos;s, the same for every doctor there. To
-        change them, use Request a change.
+        change them, use Request name or address change.
       </p>
 
       <ClinicHoursEditor schedule={weeklySchedule} onChange={setWeeklySchedule} problems={hoursProblems} />

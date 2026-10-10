@@ -64,12 +64,12 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
 
     // Settings redesign (B1): one card per clinic, the address read-only with
-    // "Request a change" (clinic changes go by request to DocCy).
+    // "Request name or address change" (clinic changes go by request to DocCy).
     const cards = page.getByTestId("settings-clinic-card");
     // One clinic link: one card.
     await expect(cards).toHaveCount(1, { timeout: 20_000 });
     await expect(cards.first()).toContainText(clinicAddress);
-    await expect(cards.first().getByRole("button", { name: "Request a change" })).toBeVisible();
+    await expect(cards.first().getByRole("button", { name: "Request name or address change" })).toBeVisible();
 
     // Hours only: the name is DocCy's too, changed by request (user, 2026-10-01).
     // A click before hydration does nothing: retry until the editor opens.

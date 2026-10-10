@@ -13,7 +13,7 @@ import {
 
 /**
  * Settings → Clinics, the clinic phone (user, 2026-10-10): each clinic card shows its
- * phone, well formatted, with its own "Request a change", as the address has. She types
+ * phone, well formatted, with its own "Request phone change", as the address has its own. She types
  * the new number (a Cyprus landline or mobile, grouped as she types) and sends it to
  * DocCy: founders approve every clinic phone change, however many people work there.
  * The request uses the clinic change contract (POST /api/clinic-change-requests, backend
@@ -37,7 +37,7 @@ test.describe("Integration: settings clinic phone", { tag: "@pr-e2e" }, () => {
   const grouped = (phone: string) => `${phone.slice(0, 2)} ${phone.slice(2)}`;
   const shown = (phone: string) => `+357 ${grouped(phone)}`;
   const card = () => page.getByTestId("settings-clinic-card").filter({ hasText: clinicName });
-  const requestLink = () => card().getByRole("button", { name: "Request a phone change" });
+  const requestLink = () => card().getByRole("button", { name: /^Request (phone change|your phone)$/ });
   const input = () => card().getByLabel("New clinic phone");
   const send = () => card().getByRole("button", { name: "Send request" });
   const phoneInDb = async () =>
@@ -72,13 +72,13 @@ test.describe("Integration: settings clinic phone", { tag: "@pr-e2e" }, () => {
     await deleteTestClinics(admin, clinicIds);
   });
 
-  test("the clinic card shows its phone with its own Request a change", async () => {
+  test("the clinic card shows its phone with its own Request phone change", async () => {
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
     await expect(card()).toContainText(shown(startPhone), { timeout: 20_000 });
     await expect(requestLink()).toBeVisible();
-    await expect(requestLink()).toHaveText("Request a change");
+    await expect(requestLink()).toHaveText("Request phone change");
     // The address keeps its own.
-    await expect(card().getByRole("button", { name: "Request a change", exact: true })).toBeVisible();
+    await expect(card().getByRole("button", { name: "Request name or address change" })).toBeVisible();
   });
 
   test("Contact & phone is gone; its old links land on Clinics", async () => {
