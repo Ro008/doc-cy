@@ -114,9 +114,15 @@ export function ClinicHoursEditor({
 
                     <div className="order-4 flex w-full items-center gap-2 text-sm text-slate-400 sm:order-3 sm:w-auto sm:min-w-0 sm:flex-1">
                       {hasBreak ? (
-                        <>
-                          <Coffee className="h-4 w-4 shrink-0 text-slate-500 sm:hidden" aria-label="Break" />
+                        // One warm capsule, not two boxes: a pause in the day, told apart from its hours.
+                        <div
+                          className={`inline-flex h-[2.375rem] items-center gap-0.5 rounded-full border pl-3 pr-1 ${
+                            breakProblem ? "border-red-400/70 bg-red-400/5" : "border-amber-300/20 bg-amber-300/[0.06]"
+                          }`}
+                        >
+                          <Coffee className="mr-1 h-4 w-4 shrink-0 text-amber-200/70" aria-hidden />
                           <ClinicTimePicker
+                            variant="inline"
                             label={`${label} break start`}
                             value={hhmm(entry.break_start, "13:00")}
                             after={start}
@@ -127,6 +133,7 @@ export function ClinicHoursEditor({
                           />
                           <span aria-hidden>–</span>
                           <ClinicTimePicker
+                            variant="inline"
                             label={`${label} break end`}
                             value={hhmm(entry.break_end, "14:00")}
                             after={hhmm(entry.break_start, start)}
@@ -141,11 +148,11 @@ export function ClinicHoursEditor({
                             aria-label={`Remove ${label}'s break`}
                             title="Remove the break"
                             onClick={() => setDay(day, { break_start: null, break_end: null })}
-                            className={ICON_BUTTON_CLASS}
+                            className={`${ICON_BUTTON_CLASS} !h-7 !w-7 !rounded-full`}
                           >
-                            <X className="h-4 w-4" aria-hidden />
+                            <X className="h-3.5 w-3.5" aria-hidden />
                           </button>
-                        </>
+                        </div>
                       ) : (
                         <button
                           type="button"
@@ -156,7 +163,7 @@ export function ClinicHoursEditor({
                             suggestion &&
                             setDay(day, { break_start: `${suggestion.start}:00`, break_end: `${suggestion.end}:00` })
                           }
-                          className="inline-flex h-[2.375rem] items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-slate-700 px-3 text-sm text-slate-400 transition hover:border-slate-500 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-[2.375rem] items-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-slate-700 px-3 text-sm text-slate-400 transition hover:border-slate-500 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                           Add break

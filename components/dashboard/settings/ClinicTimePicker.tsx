@@ -33,6 +33,7 @@ export function ClinicTimePicker({
   invalid = false,
   describedBy,
   align = "left",
+  variant = "field",
 }: {
   /** What the time is ("Monday end time"): the button's and the picker's name. */
   label: string;
@@ -47,6 +48,8 @@ export function ClinicTimePicker({
   describedBy?: string;
   /** Which edge of the button the picker hangs from. */
   align?: "left" | "right";
+  /** "field" is a box of its own; "inline" is bare text, for a time inside a group (a break). */
+  variant?: "field" | "inline";
 }) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -88,12 +91,20 @@ export function ClinicTimePicker({
         aria-invalid={invalid}
         aria-describedby={describedBy}
         onClick={() => setOpen((was) => !was)}
-        className={`flex w-28 items-center justify-between gap-2 rounded-xl border bg-slate-950/60 px-3 py-2 text-sm tabular-nums text-slate-100 transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
-          invalid ? "border-red-400/70" : open ? "border-clinical-400/60" : "border-slate-700"
-        }`}
+        className={
+          variant === "inline"
+            ? `rounded-lg px-2 py-1 text-sm tabular-nums transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
+                invalid ? "text-red-200" : open ? "bg-white/10 text-clinical-50" : "text-slate-100"
+              }`
+            : `flex w-28 items-center justify-between gap-2 rounded-xl border bg-slate-950/60 px-3 py-2 text-sm tabular-nums text-slate-100 transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
+                invalid ? "border-red-400/70" : open ? "border-clinical-400/60" : "border-slate-700"
+              }`
+        }
       >
         {value}
-        <Clock className={`h-3.5 w-3.5 ${open ? "text-clinical-300" : "text-slate-500"}`} aria-hidden />
+        {variant === "field" ? (
+          <Clock className={`h-3.5 w-3.5 ${open ? "text-clinical-300" : "text-slate-500"}`} aria-hidden />
+        ) : null}
       </button>
 
       {open ? (
