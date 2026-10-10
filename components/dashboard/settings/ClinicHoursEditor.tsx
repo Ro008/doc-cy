@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Coffee, Copy, Plus, X } from "lucide-react";
+import { Clock, Coffee, Copy, Plus, X } from "lucide-react";
 import { ClinicTimePicker } from "@/components/dashboard/settings/ClinicTimePicker";
 import { SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
 import { defaultDayBreak, type ClinicHoursProblems } from "@/lib/clinic-hours-check";
@@ -62,7 +62,7 @@ export function ClinicHoursEditor({
     <div>
       <div className="hidden items-center gap-x-4 sm:flex">
         <p className={`${SETTINGS_EYEBROW_CLASS} w-36`}>Working hours</p>
-        <p className={`${SETTINGS_EYEBROW_CLASS} w-[15.5rem]`}>Open</p>
+        <p className={`${SETTINGS_EYEBROW_CLASS} w-44`}>Open</p>
         <p className={SETTINGS_EYEBROW_CLASS}>Break</p>
       </div>
       <p className={`${SETTINGS_EYEBROW_CLASS} sm:hidden`}>Working hours</p>
@@ -94,22 +94,34 @@ export function ClinicHoursEditor({
 
                 {entry.enabled ? (
                   <>
-                    <div className="order-3 flex w-full items-center gap-2 text-sm text-slate-400 sm:order-2 sm:w-auto">
-                      <ClinicTimePicker
-                        label={`${label} start time`}
-                        value={start}
-                        onChange={(time) => setDay(day, { start_time: `${time}:00` })}
-                      />
-                      <span aria-hidden>–</span>
-                      <ClinicTimePicker
-                        label={`${label} end time`}
-                        value={end}
-                        after={start}
-                        invalid={Boolean(problem) && !breakProblem}
-                        describedBy={problem ? problemId : undefined}
-                        align="right"
-                        onChange={(time) => setDay(day, { end_time: `${time}:00` })}
-                      />
+                    <div className="order-3 w-full text-sm text-slate-400 sm:order-2 sm:w-44">
+                      {/* The same capsule as the break, in the page's own colour. */}
+                      <div
+                        className={`inline-flex h-[2.375rem] items-center gap-0.5 rounded-full border pl-3 pr-2 ${
+                          problem && !breakProblem
+                            ? "border-red-400/70 bg-red-400/5"
+                            : "border-clinical-400/25 bg-clinical-400/[0.07]"
+                        }`}
+                      >
+                        <Clock className="mr-1 h-4 w-4 shrink-0 text-clinical-300/80" aria-hidden />
+                        <ClinicTimePicker
+                          variant="inline"
+                          label={`${label} start time`}
+                          value={start}
+                          onChange={(time) => setDay(day, { start_time: `${time}:00` })}
+                        />
+                        <span aria-hidden>–</span>
+                        <ClinicTimePicker
+                          variant="inline"
+                          label={`${label} end time`}
+                          value={end}
+                          after={start}
+                          invalid={Boolean(problem) && !breakProblem}
+                          describedBy={problem ? problemId : undefined}
+                          align="right"
+                          onChange={(time) => setDay(day, { end_time: `${time}:00` })}
+                        />
+                      </div>
                     </div>
 
                     <div className="order-4 flex w-full items-center gap-2 text-sm text-slate-400 sm:order-3 sm:w-auto sm:min-w-0 sm:flex-1">
