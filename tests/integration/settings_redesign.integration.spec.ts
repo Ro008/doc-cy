@@ -413,29 +413,39 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       await expect(start).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
 
-    await start.fill("10:00");
-    await end.fill("09:30");
-    await expect(card.getByRole("alert")).toHaveText("Monday must end after 10:00.");
-    await expect(end).toHaveAttribute("aria-invalid", "true");
-    await expect(save).toBeDisabled();
+    // Times are picked by quarter hours (user, 2026-10-10): no 17:02.
+    const values = (select: typeof start) =>
+      select.locator("option").evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
+    expect((await values(start)).slice(0, 5)).toEqual(["00:00", "00:15", "00:30", "00:45", "01:00"]);
+    expect(await values(start)).toHaveLength(96);
 
-    // The same time is not enough either.
-    await end.fill("10:00");
-    await expect(card.getByRole("alert")).toHaveText("Monday must end after 10:00.");
-    await expect(save).toBeDisabled();
-
-    await end.fill("16:00");
+    // The end offers only times after the start.
+    await start.selectOption("10:00");
+    await end.selectOption("12:00");
+    expect((await values(end))[0]).toBe("10:15");
     await expect(card.getByRole("alert")).toHaveCount(0);
     await expect(save).toBeEnabled();
 
-    // The break follows the same rule.
+    // Moving the start past the end: the row says so and nothing can be saved.
+    await start.selectOption("13:00");
+    await expect(card.getByRole("alert")).toHaveText("Monday must end after 13:00.");
+    await expect(end).toHaveAttribute("aria-invalid", "true");
+    await expect(save).toBeDisabled();
+
+    await start.selectOption("10:00");
+    await end.selectOption("16:00");
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    await expect(save).toBeEnabled();
+
+    // The break follows the same rules.
     const breakOn = card.getByLabel("Add a daily break");
     if (!(await breakOn.isChecked())) await breakOn.check();
-    await card.getByLabel("Break start").fill("14:00");
-    await card.getByLabel("Break end").fill("13:00");
-    await expect(card.getByRole("alert")).toHaveText("The break must end after 14:00.");
+    await card.getByLabel("Break start").selectOption("13:00");
+    await card.getByLabel("Break end").selectOption("15:00");
+    await card.getByLabel("Break start").selectOption("15:30");
+    await expect(card.getByRole("alert")).toHaveText("The break must end after 15:30.");
     await expect(save).toBeDisabled();
-    await card.getByLabel("Break end").fill("15:00");
+    await card.getByLabel("Break start").selectOption("14:00");
     await expect(card.getByRole("alert")).toHaveCount(0);
 
     await save.click();

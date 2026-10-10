@@ -38,7 +38,7 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
-import { clinicHoursProblems } from "@/lib/clinic-hours-check";
+import { clinicHoursProblems, clinicTimeOptions } from "@/lib/clinic-hours-check";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import {
@@ -307,8 +307,9 @@ const DAY_LABELS: Record<DayKey, string> = {
   sunday: "Sunday",
 };
 
-const TIME_INPUT_CLASS =
-  "mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-125";
+// Times are picked by quarter hours (user, 2026-10-10), from a list: no 17:02.
+const TIME_SELECT_CLASS =
+  "w-28 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm tabular-nums text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 aria-[invalid=true]:border-red-400/70";
 
 function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkplaceFormData[] {
   if (initial.locations && initial.locations.length > 0) {
@@ -1441,9 +1442,8 @@ export function SettingsForm({
                   <label htmlFor={`${key}-start`} className="sr-only">
                     {label} start time
                   </label>
-                  <input
+                  <select
                     id={`${key}-start`}
-                    type="time"
                     value={timeToInputValue(weeklySchedule[key].start_time)}
                     onChange={(e) =>
                       setWeeklySchedule((prev) => ({
@@ -1451,16 +1451,20 @@ export function SettingsForm({
                         [key]: { ...prev[key], start_time: `${e.target.value}:00` },
                       }))
                     }
-                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-                  />
+                    className={TIME_SELECT_CLASS}
+                  >
+                    {clinicTimeOptions({ keep: weeklySchedule[key].start_time }).map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
                   <span aria-hidden>–</span>
                   <label htmlFor={`${key}-end`} className="sr-only">
                     {label} end time
                   </label>
-                  <input
+                  <select
                     id={`${key}-end`}
-                    type="time"
-                    min={timeToInputValue(weeklySchedule[key].start_time)}
                     aria-invalid={Boolean(hoursProblems.days[key])}
                     aria-describedby={hoursProblems.days[key] ? `${key}-hours-problem` : undefined}
                     value={timeToInputValue(weeklySchedule[key].end_time)}
@@ -1470,8 +1474,17 @@ export function SettingsForm({
                         [key]: { ...prev[key], end_time: `${e.target.value}:00` },
                       }))
                     }
-                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-                  />
+                    className={TIME_SELECT_CLASS}
+                  >
+                    {clinicTimeOptions({
+                      after: weeklySchedule[key].start_time,
+                      keep: weeklySchedule[key].end_time,
+                    }).map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : (
                 <span className="text-sm text-slate-500">Closed</span>
@@ -1506,27 +1519,36 @@ export function SettingsForm({
               <label htmlFor="breakStart" className="sr-only">
                 Break start
               </label>
-              <input
+              <select
                 id="breakStart"
-                type="time"
                 value={breakStart}
                 onChange={(e) => setBreakStart(e.target.value)}
-                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-              />
+                className={TIME_SELECT_CLASS}
+              >
+                    {clinicTimeOptions({ keep: breakStart }).map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+              </select>
               <span aria-hidden>–</span>
               <label htmlFor="breakEnd" className="sr-only">
                 Break end
               </label>
-              <input
+              <select
                 id="breakEnd"
-                type="time"
-                min={breakStart}
                 aria-invalid={Boolean(hoursProblems.breakTime)}
                 aria-describedby={hoursProblems.breakTime ? "break-problem" : undefined}
                 value={breakEnd}
                 onChange={(e) => setBreakEnd(e.target.value)}
-                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-              />
+                className={TIME_SELECT_CLASS}
+              >
+                    {clinicTimeOptions({ after: breakStart, keep: breakEnd }).map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+              </select>
             </div>
           ) : (
             <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>

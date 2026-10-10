@@ -214,6 +214,13 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     expect(wrongBreak.status(), await wrongBreak.text()).toBe(400);
     expect((await wrongBreak.json()).message).toBe("The break must end after 14:00.");
 
+    // Times go by quarter hours (user, 2026-10-10).
+    const oddMinutes = await post({ weeklySchedule: { ...week, monday: day(true, "09:00", "17:02") } });
+    expect(oddMinutes.status(), await oddMinutes.text()).toBe(400);
+    expect((await oddMinutes.json()).message).toBe(
+      "Monday must start and end on a quarter hour (:00, :15, :30 or :45).",
+    );
+
     expect(await hours()).toEqual(before);
     const pro = await admin.from("professionals").select("bio").eq("id", doctor!.doctorId).single();
     expect(pro.data?.bio ?? "").not.toBe("Must not be saved either");

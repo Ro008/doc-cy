@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { clinicHoursProblem, clinicHoursProblems } from "../../lib/clinic-hours-check";
+import { clinicHoursProblem, clinicHoursProblems, clinicTimeOptions } from "../../lib/clinic-hours-check";
 import type { WeeklySchedule } from "../../lib/doctor-settings";
 
 /**
@@ -75,5 +75,48 @@ describe("clinicHoursProblems", () => {
 
   it("has nothing to say when no hours are sent", () => {
     assert.equal(clinicHoursProblem({}), null);
+  });
+
+  // User, 2026-10-10: 17:02 or 16:23 make no sense; times go by quarter hours.
+  it("refuses a time that is not on a quarter hour", () => {
+    const quarters = "on a quarter hour (:00, :15, :30 or :45).";
+    assert.equal(
+      clinicHoursProblem({ weeklySchedule: week({ monday: day(true, "09:00", "17:02") }) }),
+      `Monday must start and end ${quarters}`,
+    );
+    assert.equal(
+      clinicHoursProblem({ weeklySchedule: week({ wednesday: day(true, "09:10:00", "17:00:00") }) }),
+      `Wednesday must start and end ${quarters}`,
+    );
+    assert.equal(
+      clinicHoursProblem({ weeklySchedule: week(), breakEnabled: true, breakStart: "13:00", breakEnd: "13:50" }),
+      `The break must start and end ${quarters}`,
+    );
+    assert.equal(clinicHoursProblem({ weeklySchedule: week({ monday: day(true, "08:15", "16:45") }) }), null);
+    // Closed days and a switched-off break are left alone.
+    assert.equal(clinicHoursProblem({ weeklySchedule: week({ sunday: day(false, "09:07", "17:02") }) }), null);
+    assert.equal(clinicHoursProblem({ weeklySchedule: week(), breakStart: "13:07", breakEnd: "13:50" }), null);
+  });
+});
+
+describe("clinicTimeOptions", () => {
+  it("offers every quarter hour of the day", () => {
+    const options = clinicTimeOptions();
+    assert.equal(options.length, 96);
+    assert.deepEqual(options.slice(0, 5), ["00:00", "00:15", "00:30", "00:45", "01:00"]);
+    assert.equal(options.at(-1), "23:45");
+  });
+
+  it("offers only the times after a start, for an end time", () => {
+    const options = clinicTimeOptions({ after: "09:00:00" });
+    assert.equal(options[0], "09:15");
+    assert.equal(options.at(-1), "23:45");
+    assert.deepEqual(clinicTimeOptions({ after: "23:45" }), []);
+  });
+
+  it("keeps a saved time that is off the grid or no longer after the start, in order", () => {
+    assert.deepEqual(clinicTimeOptions({ after: "23:00", keep: "23:20" }), ["23:15", "23:20", "23:30", "23:45"]);
+    assert.deepEqual(clinicTimeOptions({ after: "23:15", keep: "08:00:00" }), ["08:00", "23:30", "23:45"]);
+    assert.equal(clinicTimeOptions({ keep: "17:00" }).length, 96);
   });
 });
