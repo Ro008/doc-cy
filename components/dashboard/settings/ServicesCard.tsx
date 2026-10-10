@@ -3,7 +3,12 @@
 import * as React from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { BusyLabel, BusySpinner } from "@/components/dashboard/settings/BusyLabel";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
+import {
+  SettingsDialog,
+  dialogDangerButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/components/dashboard/settings/SettingsDialog";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
@@ -43,7 +48,7 @@ function typedFrom(service: SavedService): Typed {
 /**
  * Services & prices (user, 2026-10-10): her price list as patients read it, the name on
  * the left and the price in euros on the right, exact or "From". She adds, edits and
- * removes lines one at a time; no founder, each change is recorded.
+ * removes lines one at a time (removing asks first); no founder, each change is recorded.
  * POST /api/professional-services { name, price, priceFrom } → { service };
  * PUT { id, name, price, priceFrom } → { service }; DELETE ?id=…
  */
@@ -55,7 +60,9 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
   const [typed, setTyped] = React.useState<Typed>(EMPTY);
   const [errors, setErrors] = React.useState<ServiceErrors>({});
   const [busy, setBusy] = React.useState(false);
-  const [removingId, setRemovingId] = React.useState<string | null>(null);
+  /** The service she asked to remove, until she confirms or keeps it. */
+  const [toRemove, setToRemove] = React.useState<SavedService | null>(null);
+  const [removing, setRemoving] = React.useState(false);
   const full = items.length >= MAX_SERVICES;
 
   const set = <K extends keyof Typed>(field: K, value: Typed[K]) => {
@@ -129,8 +136,9 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
     }
   }
 
-  async function remove(service: SavedService) {
-    setRemovingId(service.id);
+  /** True when the service is off the list, so the dialog can close. */
+  async function remove(service: SavedService): Promise<boolean> {
+    setRemoving(true);
     try {
       const res = await fetch(`/api/professional-services?id=${encodeURIComponent(service.id)}`, {
         method: "DELETE",
@@ -141,17 +149,19 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
         toast.error(typeof data?.message === "string" ? data.message : "Could not remove the service.", {
           id: "services",
         });
-        return;
+        return false;
       }
       const next = items.filter((row) => row.id !== service.id);
       setItems(next);
       if (next.length === 0) startAdding();
       toast.success("Service removed.", { id: "services" });
+      return true;
     } catch (err) {
       console.error(err);
       toast.error("Could not remove the service.", { id: "services" });
+      return false;
     } finally {
-      setRemovingId(null);
+      setRemoving(false);
     }
   }
 
@@ -301,7 +311,7 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
                   <button
                     type="button"
                     aria-label={`Edit ${service.name}`}
-                    disabled={busy || removingId !== null}
+                    disabled={busy}
                     onClick={() => startEditing(service)}
                     className={`${ICON_BUTTON_CLASS} hover:bg-white/5 hover:text-slate-200`}
                   >
@@ -310,12 +320,11 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
                   <button
                     type="button"
                     aria-label={`Remove ${service.name}`}
-                    disabled={busy || removingId !== null}
-                    aria-busy={removingId === service.id}
-                    onClick={() => void remove(service)}
+                    disabled={busy}
+                    onClick={() => setToRemove(service)}
                     className={`${ICON_BUTTON_CLASS} hover:bg-rose-500/10 hover:text-rose-300`}
                   >
-                    {removingId === service.id ? <BusySpinner /> : <Trash2 className="h-4 w-4" aria-hidden />}
+                    <Trash2 className="h-4 w-4" aria-hidden />
                   </button>
                 </div>
               </li>
@@ -339,6 +348,35 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
           </button>
         )}
       </div>
+
+      {toRemove ? (
+        <SettingsDialog
+          title={`Remove ${toRemove.name}?`}
+          description="It comes off your price list and your public profile right away. To list it again, you add it again."
+          onClose={() => setToRemove(null)}
+          busy={removing}
+          footer={(closeDialog) => (
+            <>
+              <button type="button" onClick={closeDialog} disabled={removing} className={dialogSecondaryButtonClass}>
+                Keep it
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (await remove(toRemove)) closeDialog();
+                }}
+                disabled={removing}
+                aria-busy={removing}
+                className={dialogDangerButtonClass}
+              >
+                <BusyLabel busy={removing} busyText="Removing…">
+                  Remove
+                </BusyLabel>
+              </button>
+            </>
+          )}
+        />
+      ) : null}
     </section>
   );
 }

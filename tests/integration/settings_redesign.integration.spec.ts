@@ -1223,11 +1223,19 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(toastText("Service saved.")).toBeVisible({ timeout: 20_000 });
     await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
 
-    // Removing is immediate, with nothing to undo (user, 2026-10-10).
+    // Removing asks first (user, 2026-10-10): "Keep it" changes nothing.
     await card.getByRole("button", { name: "Remove Facial laser" }).click();
+    const confirm = page.getByRole("dialog", { name: "Remove Facial laser?" });
+    await expect(confirm).toContainText("It comes off your price list and your public profile right away.");
+    await confirm.getByRole("button", { name: "Keep it" }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
+
+    await card.getByRole("button", { name: "Remove Facial laser" }).click();
+    await confirm.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(toastText("Service removed.")).toBeVisible({ timeout: 20_000 });
+    await expect(confirm).toHaveCount(0);
     await expect(rows).toHaveText([/First consultation.*€70/]);
-    await expect(page.locator("[data-sonner-toast]").getByRole("button", { name: "Undo" })).toHaveCount(0);
 
     // Saved, and each step recorded: two added, one changed, one removed.
     await expect.poll(saved, { timeout: 20_000 }).toEqual([{ name: "First consultation", price: "70" }]);

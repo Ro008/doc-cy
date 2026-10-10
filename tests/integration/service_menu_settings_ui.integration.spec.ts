@@ -99,6 +99,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       }).toPass({ timeout: 60_000 });
 
       await page.getByRole("button", { name: `Remove ${uniqueService}` }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "Remove", exact: true }).click();
       await expect(row).toHaveCount(0, { timeout: 15000 });
     } finally {
       if (doctorId) {
