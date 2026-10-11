@@ -5,6 +5,9 @@
 -- sent to it), so confirming moves both: the server changes the sign-in address in
 -- Supabase Auth, and professional_email_change_confirm moves
 -- professionals.registration_email and records the change in request_log (no founder).
+-- Confirming also signs her out on every device (professional_sessions_end): she signs
+-- in again with the new address, which proves it receives mail and ends any session
+-- that should not be there.
 --
 -- professional_email_changes holds the change that is waiting: the new address and the
 -- SHA-256 of the link's token (the token itself only travels in the email). One waits
@@ -252,6 +255,29 @@ as $$
   );
 $$;
 
+-- 4b. Sign her out on every device: ends her Supabase Auth sessions (their refresh
+--     tokens go with them) and revokes the access tokens already issued, keeping no
+--     device (the middleware reads the two columns). Security definer: the service
+--     role cannot delete from auth.sessions by itself.
+create or replace function public.professional_sessions_end(p_professional_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_auth uuid;
+begin
+  update public.professionals
+  set auth_session_revoked_after = now(), auth_keep_session_id = null
+  where id = p_professional_id
+  returning auth_user_id into v_auth;
+  if v_auth is not null then
+    delete from auth.sessions where user_id = v_auth;
+  end if;
+end
+$$;
+
 -- 5. Ask for a new address. p_token_hash is the SHA-256 (hex) of the token in the
 --    emailed link. Replaces a change that was waiting. Returns the change's id.
 --    23505: another account uses the address. 22023: not usable. P0002: unknown.
@@ -325,7 +351,7 @@ begin
 end
 $$;
 
--- 7. The link was opened: move the address and record it. The server changes the
+-- 7. The link was opened: move the address, record it, and sign her out everywhere. The server changes the
 --    sign-in address in Supabase Auth just before calling this (and puts it back if
 --    this fails). P0002: unknown, used, cancelled or expired link. 23505: another
 --    account took the address meanwhile.
@@ -366,6 +392,7 @@ begin
   set registration_email = v_change.new_email, updated_at = now()
   where id = v_change.professional_id;
   update public.professional_email_changes set confirmed_at = now() where id = v_change.id;
+  perform public.professional_sessions_end(v_change.professional_id);
 
   return jsonb_build_object(
     'request_id', v_request,
@@ -379,19 +406,23 @@ $$;
 
 -- 8. Service role only.
 revoke all on function public.professional_email_in_use(text, uuid) from public, anon, authenticated;
+revoke all on function public.professional_sessions_end(uuid) from public, anon, authenticated;
 revoke all on function public.professional_email_change_start(uuid, text, text, integer) from public, anon, authenticated;
 revoke all on function public.professional_email_change_cancel(uuid) from public, anon, authenticated;
 revoke all on function public.professional_email_change_confirm(text) from public, anon, authenticated;
 grant execute on function public.professional_email_in_use(text, uuid) to service_role;
+grant execute on function public.professional_sessions_end(uuid) to service_role;
 grant execute on function public.professional_email_change_start(uuid, text, text, integer) to service_role;
 grant execute on function public.professional_email_change_cancel(uuid) to service_role;
 grant execute on function public.professional_email_change_confirm(text) to service_role;
 
 comment on function public.professional_email_in_use(text, uuid) is
   'True when another professional''s sign-up email or another Supabase Auth user has this address. Service role only.';
+comment on function public.professional_sessions_end(uuid) is
+  'Sign a professional out on every device: ends her Supabase Auth sessions and revokes issued tokens, keeping none. Service role only.';
 comment on function public.professional_email_change_start(uuid, text, text, integer) is
   'Settings: ask for a new sign-in email; keeps the address and the link''s hash until confirmed. Replaces a waiting change. Service role only.';
 comment on function public.professional_email_change_cancel(uuid) is
   'Settings: cancel the email change that is waiting. True when there was one. Service role only.';
 comment on function public.professional_email_change_confirm(text) is
-  'Settings: the confirmation link was opened; moves registration_email and records it (request_log, recorded). Service role only.';
+  'Settings: the confirmation link was opened; moves registration_email, records it (request_log, recorded) and signs her out on every device. Service role only.';

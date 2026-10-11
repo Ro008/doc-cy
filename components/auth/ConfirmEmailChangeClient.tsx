@@ -39,7 +39,7 @@ export function ConfirmEmailChangeClient({ token, newEmail }: { token: string; n
             href="/login"
             className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-clinical-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/25 transition hover:bg-clinical-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300"
           >
-            Go to DocCy
+            Sign in
           </a>
         ) : null}
       </BookingLinkCard>
@@ -61,7 +61,8 @@ export function ConfirmEmailChangeClient({ token, newEmail }: { token: string; n
         {outcome.kind === "sending" ? "Confirming…" : "Confirm new email"}
       </button>
       <BookingLinkText>
-        You will sign in with it, and booking requests will be sent to it. Nothing changes until you confirm.
+        Booking requests will be sent to it. You will be signed out on all devices and sign in again with this
+        address. Nothing changes until you confirm.
       </BookingLinkText>
     </BookingLinkCard>
   );

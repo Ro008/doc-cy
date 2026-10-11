@@ -1462,6 +1462,9 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     }).toPass({ timeout: 30_000 });
     const input = row.getByLabel("New email");
 
+    await expect(row).toContainText(
+      "We send a link to the new address. Nothing changes until you confirm it; then you are signed out on all devices and sign in with the new email.",
+    );
     await input.fill(seeded!.email.toUpperCase());
     await row.getByRole("button", { name: "Send confirmation link" }).click();
     await expect(result).toHaveText("That's already your email.");
@@ -1519,7 +1522,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     expect(started.error).toBeNull();
 
-    // She opens the link on a device where she is not signed in.
+    // She is signed in on this device, and opens the link on another where she is not.
+    await openSettings(page, seeded!, "account");
     const context = await browser.newContext();
     const link = await context.newPage();
     try {
@@ -1535,7 +1539,13 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         if (await card.isVisible()) await card.getByRole("button", { name: "Confirm new email" }).click({ timeout: 2_000 });
         await expect(link.getByTestId("confirm-email-done")).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 40_000 });
-      await expect(link.getByTestId("confirm-email-done")).toContainText(`You now sign in to DocCy with ${newEmail}`);
+      await expect(link.getByTestId("confirm-email-done")).toContainText(
+        `Your DocCy account now uses ${newEmail}, and booking requests are sent there. You have been signed out on every device`,
+      );
+      await expect(link.getByTestId("confirm-email-done").getByRole("link", { name: "Sign in" })).toHaveAttribute(
+        "href",
+        "/login",
+      );
 
       const after = await admin.auth.admin.getUserById(seeded!.authUserId);
       expect(after.data.user?.email).toBe(newEmail);
@@ -1567,7 +1577,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       await context.close();
     }
 
-    // Settings shows the new address, with nothing left waiting.
+    // The device that was signed in is signed out: she signs in again with the new address.
+    await page.goto("/settings?section=account");
+    await expect(page).toHaveURL(/\/login/, { timeout: 30_000 });
+
+    // Settings then shows the new address, with nothing left waiting.
     await openSettings(page, { ...seeded!, email: newEmail }, "account");
     await expect(page.getByTestId("settings-account-email")).toHaveText(newEmail);
     await expect(page.getByTestId("settings-account-email-pending")).toHaveCount(0);

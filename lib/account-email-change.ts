@@ -2,7 +2,8 @@
  * Account → "Change email" (user, 2026-10-11). The address does two jobs: she signs in
  * with it and booking requests are sent to it, so a change moves both together. A link
  * goes to the new address; nothing changes until she opens it and confirms. One change
- * waits at a time (`professional_email_changes`); the old address is told afterwards.
+ * waits at a time (`professional_email_changes`); the old address is told afterwards,
+ * and she is signed out on every device, so she signs in again with the new address.
  * No imports: the page, the routes and the tests share this.
  */
 
@@ -55,7 +56,7 @@ export function confirmEmailChangeOutcome(
     return {
       ok: true,
       title: "Your email is changed",
-      message: `You now sign in to DocCy with ${email}, and booking requests are sent there.`,
+      message: `Your DocCy account now uses ${email}, and booking requests are sent there. You have been signed out on every device: sign in with your new email.`,
     };
   }
   if (status === 410 || status === 400 || status === 404) {

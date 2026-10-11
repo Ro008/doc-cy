@@ -74,7 +74,8 @@ describe("confirmEmailChangeOutcome", () => {
     assert.deepEqual(confirmEmailChangeOutcome(200, { email: "new@example.com" }), {
       ok: true,
       title: "Your email is changed",
-      message: "You now sign in to DocCy with new@example.com, and booking requests are sent there.",
+      message:
+        "Your DocCy account now uses new@example.com, and booking requests are sent there. You have been signed out on every device: sign in with your new email.",
     });
   });
 
@@ -110,6 +111,19 @@ describe("the emails", () => {
     assert.match(mail.text, /now uses new@example\.com/);
     assert.match(mail.text, /If this was not you/);
     assert.ok(mail.html.includes("new@example.com"));
+  });
+
+  it("colours its links for the navy card, and uses the logo made for dark backgrounds", () => {
+    const changed = buildEmailChangedNoticeEmail({ newEmail: "new@example.com", siteUrl: "https://www.mydoccy.com" });
+    const password = buildPasswordChangedNoticeEmail({ siteUrl: "https://www.mydoccy.com" });
+    // Mail apps link a bare address or URL in their own blue, unreadable on navy.
+    assert.ok(changed.html.includes('<a href="mailto:new@example.com" style="color:#7DD9DF;'));
+    assert.ok(changed.html.includes('<a href="https://www.mydoccy.com" style="color:#7DD9DF;'));
+    assert.ok(password.html.includes('<a href="https://www.mydoccy.com/forgot-password" style="color:#7DD9DF;'));
+    for (const mail of [changed, password]) {
+      assert.ok(mail.html.includes("https://www.mydoccy.com/brand/doccy-logo-on-dark.png"));
+      assert.equal((mail.html.match(/<a /g) ?? []).length, (mail.html.match(/<a [^>]*style="/g) ?? []).length);
+    }
   });
 
   it("escapes the address in the HTML", () => {

@@ -9,7 +9,9 @@
 -- - an address another account uses is refused, when asking and again when confirming;
 -- - confirming moves professionals.registration_email (where booking requests are
 --   sent) and records it in request_log, with no founder; the server changes the
---   sign-in address in Supabase Auth in the same step.
+--   sign-in address in Supabase Auth in the same step;
+-- - confirming signs her out on every device, so she signs in again with the new
+--   address (which also proves it receives mail).
 --
 -- Run against TESTING only. One transaction that ALWAYS rolls back: the final error
 -- message is the result. "ALL professional_email_change TESTS PASSED (…)" means
@@ -69,6 +71,7 @@ declare
   v_row public.request_log%rowtype;
   v_fn text;
   v_priv text;
+  v_other_login uuid;
 begin
   ---------------------------------------------------------------- fixtures
   v_old := 'em-pro-' || v_tag || '@integration.test';
@@ -78,9 +81,16 @@ begin
   insert into public.professionals (name, slug, is_registered, auth_user_id, registration_email)
   values ('Em Pro', 'em-pro-' || v_tag, true, v_pro_login, v_old)
   returning id into v_pro;
+  v_other_login := pg_temp.new_login(v_taken);
   insert into public.professionals (name, slug, is_registered, auth_user_id, registration_email)
-  values ('Em Other', 'em-other-' || v_tag, true, pg_temp.new_login(v_taken), v_taken)
+  values ('Em Other', 'em-other-' || v_tag, true, v_other_login, v_taken)
   returning id into v_other;
+  -- Both are signed in, she on two devices.
+  insert into auth.sessions (id, user_id, created_at, updated_at)
+  values (gen_random_uuid(), v_pro_login, now(), now()),
+         (gen_random_uuid(), v_pro_login, now(), now()),
+         (gen_random_uuid(), v_other_login, now(), now());
+  update public.professionals set auth_keep_session_id = gen_random_uuid() where id = v_pro;
   insert into public.professionals (name, slug, is_registered)
   values ('Em Listing', 'em-listing-' || v_tag, false)
   returning id into v_listing;
@@ -179,8 +189,10 @@ begin
     'confirming checks again that no other account uses the address');
   assert (select confirmed_at is null from public.professional_email_changes where id = v_id),
     'FAIL: a refused confirmation leaves the change waiting';
+  assert (select count(*) from auth.sessions where user_id = v_pro_login) = 2,
+    'FAIL: a refused confirmation signs nobody out';
   update public.professionals set registration_email = v_taken where id = v_other;
-  v_checks := v_checks + 2;
+  v_checks := v_checks + 3;
 
   -- The server has already moved her sign-in address in Supabase Auth.
   update auth.users set email = v_new where id = v_pro_login;
@@ -199,20 +211,30 @@ begin
     and v_row.before_snapshot = jsonb_build_object('registration_email', v_old)
     and v_row.requester_email = v_old,
     'FAIL: the change is recorded at once with the new address and the one before';
+  -- She is signed out on every device, and signs in again with the new address.
+  assert not exists (select 1 from auth.sessions where user_id = v_pro_login),
+    'FAIL: confirming ends every session she had';
+  assert (select auth_session_revoked_after > now() - interval '1 minute' and auth_keep_session_id is null
+          from public.professionals where id = v_pro),
+    'FAIL: confirming revokes the tokens already issued, keeping no device';
+  assert (select count(*) from auth.sessions where user_id = v_other_login) = 1
+    and (select auth_session_revoked_after is null from public.professionals where id = v_other),
+    'FAIL: nobody else is signed out';
   perform pg_temp.expect_error(
     format('select public.professional_email_change_confirm(%L)', v_h4), 'P0002',
     'a link works once');
   assert (select count(*) from public.request_log
           where professional_id = v_pro and request_type = 'professional_email_change') = 1,
     'FAIL: one change, one record';
-  v_checks := v_checks + 6;
+  v_checks := v_checks + 9;
 
   ---------------------------------------------------------------- access
   foreach v_fn in array array[
     'public.professional_email_change_start(uuid, text, text, integer)',
     'public.professional_email_change_cancel(uuid)',
     'public.professional_email_change_confirm(text)',
-    'public.professional_email_in_use(text, uuid)'
+    'public.professional_email_in_use(text, uuid)',
+    'public.professional_sessions_end(uuid)'
   ] loop
     assert not has_function_privilege('anon', v_fn, 'execute')
       and not has_function_privilege('authenticated', v_fn, 'execute')

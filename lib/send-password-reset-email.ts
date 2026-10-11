@@ -6,6 +6,7 @@ import {
 } from "@/lib/resend";
 import {
   EMAIL_HEADING,
+  EMAIL_LOGO_URL,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
@@ -13,9 +14,6 @@ import {
   EMAIL_TEXT_MUTED,
   emailFallbackLink,
 } from "@/lib/email-brand";
-
-/** Hosted logo so Gmail can load it even when the reset was requested on localhost. */
-const DOCCY_EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo.png";
 
 export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
   subject: string;
@@ -33,7 +31,7 @@ export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
 
   const html = `
 ${EMAIL_SHELL_OPEN}
-    <img src="${DOCCY_EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
+    <img src="${EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Reset your DocCy password</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We received a request to choose a new password for your DocCy practitioner account.

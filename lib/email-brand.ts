@@ -38,6 +38,16 @@ export const EMAIL_CANCEL_BTN =
 export const EMAIL_LINK_ACCENT =
   "color:#7DD9DF;font-weight:600;text-decoration:none;";
 
+/** A link inside a sentence: the light accent, underlined so it reads as a link. */
+export const EMAIL_TEXT_LINK = "color:#7DD9DF;font-weight:600;text-decoration:underline;";
+
+/**
+ * The logo for the navy card (light "my", user 2026-10-11): the standard logo's dark
+ * letters disappear on it. Hosted, so Gmail loads it even when the email was sent
+ * from localhost.
+ */
+export const EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo-on-dark.png";
+
 export const EMAIL_SECTION_LABEL =
   "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#8A9BB0;";
 

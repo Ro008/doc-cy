@@ -199,7 +199,8 @@ export function AccountSecurityCard({
                 </div>
               </div>
               <p id="settings-new-email-help" className="mt-1.5 text-xs text-slate-400">
-                We send a link to the new address. Nothing changes until you open it.
+                We send a link to the new address. Nothing changes until you confirm it; then you are signed out
+                on all devices and sign in with the new email.
               </p>
             </div>
           ) : null}

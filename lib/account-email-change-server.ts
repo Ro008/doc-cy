@@ -102,7 +102,7 @@ export async function findWaitingEmailChange(service: SupabaseClient, token: str
 /**
  * The link was opened and confirmed: move the sign-in address (Supabase Auth) and the
  * address booking requests go to (`professional_email_change_confirm`, which records
- * it), then tell the old address. If the database refuses, the sign-in address is put
+ * it and signs her out on every device), then tell the old address. If the database refuses, the sign-in address is put
  * back, so the two never differ.
  */
 export async function confirmEmailChange(

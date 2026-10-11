@@ -358,13 +358,17 @@ it (tables, review flow, emails) is yours.
   410 the link no longer works). No session needed: she may open it on another device.
 - "Waiting for you to confirm …" is loaded with the page (`initialPendingEmail`), so it
   survives a reload, with "Cancel" next to it. Asking again replaces the waiting change.
+- **Confirming signs her out on every device** (Livio, 2026-10-11): she signs in again
+  with the new address, which proves it receives mail and ends any session that should
+  not be there (`professional_sessions_end`: ends her Supabase Auth sessions and revokes
+  issued tokens). The field's help text and the confirm page say so.
 - Afterwards the **old** address gets "Your DocCy email was changed". No founder; the
   change is a `request_log` row `professional_email_change` (recorded, old address in
   `before_snapshot`).
 - Migration `20261011120000_professional_email_change` (table
   `professional_email_changes`: new address + SHA-256 of the token; functions
   `professional_email_change_start` / `_cancel` / `_confirm`, service role only). DB test
-  `supabase/tests/professional_email_change.test.sql` (40 checks).
+  `supabase/tests/professional_email_change.test.sql` (45 checks).
 - Code: `lib/account-email-change.ts`, `lib/account-email-change-server.ts`,
   `lib/account-security-emails.ts`, `components/auth/ConfirmEmailChangeClient.tsx`.
 - Security emails about her own account (confirm new email, email changed, password
