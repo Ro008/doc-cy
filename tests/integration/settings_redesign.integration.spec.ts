@@ -10,10 +10,9 @@ import { adminCookieHeader, sharedTestFounder } from "./helpers/test-admin";
  * Settings redesign (design B1): a sidebar of sections, one card per clinic, removal
  * down to one clinic and one specialty, and clinic details changed by request only.
  *
- * Joining a DocCy clinic and leaving one are immediate and run against the real
- * backend. Asking for a new clinic and requesting a clinic change are endpoints the
- * backend builds after this frontend (docs/handoff/settings-redesign.md); here they are
- * stubbed with page.route and the tests pin the request the page sends.
+ * Joining a DocCy clinic and leaving one are immediate; asking for a new clinic and
+ * for a change to a clinic's details wait for a founder. All run against the real
+ * backend (the details request has its own spec: settings_clinic_details).
  */
 
 type Seeded = {
@@ -280,7 +279,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(limassol.getByRole("button", { name: "Edit hours" })).toBeVisible();
     await expect(paphosHeader).toHaveAttribute("aria-expanded", "false");
     await expect(paphos.getByRole("button", { name: "Edit hours" })).toHaveCount(0);
-    await expect(paphos.getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
+    await expect(paphos.getByRole("button", { name: "Leave clinic" })).toHaveCount(0);
     await expect(paphos).toContainText("Online booking paused");
     await expect(paphos.getByRole("switch", { name: /Online booking/ })).toBeVisible();
 
@@ -409,9 +408,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         .first()
         .click();
       await expect(dialog).toContainText("From DocCy");
-      await expect(dialog.getByTestId("settings-add-clinic-joining")).toContainText(
-        "Joining a DocCy clinic: it is added to your profile at once.",
-      );
+      const joining = dialog.getByTestId("settings-add-clinic-joining");
+      await expect(joining).toContainText("Joining a DocCy clinic");
+      await expect(joining).toContainText("It is added to your profile at once.");
+      // Her own clinics are not offered in the search.
+      await expect(dialog.getByTestId("settings-add-clinic-new")).toHaveCount(0);
       await dialog.getByRole("button", { name: "Join clinic" }).click();
       await expect(dialog).toBeHidden({ timeout: 20_000 });
 
@@ -473,38 +474,236 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     ).toBe(401);
   });
 
-  test("clinic details change by request; the address is not editable", async ({ page }) => {
+  test("clinic details change by request only: the dialog is about name, address and phone", async ({ page }) => {
     test.setTimeout(120_000);
-    let sent: unknown = null;
-    await page.route("**/api/clinic-change-requests", async (route) => {
-      sent = route.request().postDataJSON();
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({ request: { createdAt: new Date().toISOString() } }),
-      });
-    });
     await openSettings(page, seeded!, "clinics");
 
     const card = clinicCard(page, "Limassol Skin Clinic");
     await expect(card.getByRole("textbox", { name: /address/i })).toHaveCount(0);
-    await card.getByRole("button", { name: "Request name or address change" }).click();
+    // One link for all three details (user, 2026-10-11).
+    await expect(card.getByRole("button", { name: /Request (name or address|phone) change/ })).toHaveCount(0);
+    await expect(async () => {
+      await card.getByRole("button", { name: "Request a change to clinic details" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
-    // The same picker as /register: current clinic confirmed, name and phone below.
-    const dialog = page.getByRole("dialog", { name: /Request a change/ });
+    const dialog = page.getByRole("dialog", { name: "Request a change to Limassol Skin Clinic’s details" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Clinic name")).toHaveValue("Limassol Skin Clinic");
     await expect(dialog.getByTestId("settings-clinic-picker")).toContainText("Settings Street");
-    await dialog.getByRole("button", { name: "Send request" }).click();
-    await expect(dialog.getByRole("alert")).toHaveText("Change at least one detail.");
+    // The address as it is: no heading or source chip from /register, and no DocCy search.
+    await expect(dialog).not.toContainText("Patients will see");
+    await expect(dialog).not.toContainText(/Pin \+ typed address/i);
+    await expect(dialog.getByRole("button", { name: "Change address" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Change clinic" })).toHaveCount(0);
+    // Nothing differs yet: nothing to send.
+    await expect(dialog.getByTestId("settings-clinic-change-summary")).toContainText("Nothing yet");
+    await expect(dialog.getByRole("button", { name: "Send request" })).toBeDisabled();
+    // Nobody else works at this test clinic.
+    await expect(dialog.getByTestId("settings-clinic-change-shared")).toHaveCount(0);
 
     await dialog.getByLabel("Clinic name").fill("Limassol Skin Care");
-    await dialog.getByRole("button", { name: "Send request" }).click();
-
+    await expect(dialog.getByTestId("settings-clinic-change-summary")).toContainText("Name:");
+    await expect(dialog.getByTestId("settings-clinic-change-summary")).toContainText("→ Limassol Skin Care");
+    await expect(dialog.getByRole("button", { name: "Send request" })).toBeEnabled();
+    await dialog.getByLabel("Clinic name").fill("");
+    await expect(dialog.getByRole("alert")).toHaveText("Enter the clinic name.");
+    await expect(dialog.getByRole("button", { name: "Send request" })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(dialog).toBeHidden();
-    await expect(card).toContainText("Change in review");
-    expect(sent).toEqual({
-      locationId: seeded!.primaryId,
-      changes: { name: "Limassol Skin Care" },
+    await expect(card.getByTestId("settings-clinic-change-pending")).toHaveCount(0);
+  });
+
+  test("a new clinic waits for a founder: withdrawn, denied with a reason, approved, or joined to one DocCy has", async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(240_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    const n = seeded!.nonce;
+    const clinic = (name: string) => ({
+      clinicId: null,
+      name,
+      phone: "25 123456",
+      location: {
+        address: `New Road ${n}, Limassol, Cyprus`,
+        latitude: 34.7,
+        longitude: 33.08,
+        placeId: null,
+        district: "Limassol",
+        town: "Limassol",
+      },
     });
+    const requests = () =>
+      admin
+        .from("request_log")
+        .select("id, status, details, approved_details, outcome, decision_note")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", "professional_clinic_add")
+        .order("created_at", { ascending: true });
+    const today = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Nicosia",
+    }).format(new Date());
+    const pendingCard = page.getByTestId("settings-clinic-pending");
+    const pending = page.getByTestId("settings-clinic-add-pending");
+    const denied = page.getByTestId("settings-clinic-add-denied");
+    const createdClinicNames = [`Asked Clinic ${n}`, `asked clinic two ${n}`, `Asked Clinic Two ${n}`];
+
+    try {
+      await openSettings(page, seeded!, "clinics");
+      // What cannot be asked.
+      const bad = await page.request.post("/api/clinic-requests", {
+        data: { clinic: { ...clinic("Bad Phone"), phone: "80001234" } },
+      });
+      expect(bad.status()).toBe(400);
+      expect((await bad.json()).message).toContain("Cyprus landline or mobile");
+      expect((await page.request.post("/api/clinic-requests", { data: { clinic: clinic("") } })).status()).toBe(400);
+
+      // 1. Sent: a waiting card with the date; a second one is refused; nothing is created.
+      const sent = await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`Withdrawn Clinic ${n}`) } });
+      expect(sent.status(), await sent.text()).toBe(201);
+      await page.reload();
+      await expect(pendingCard).toContainText(`Withdrawn Clinic ${n}`, { timeout: 30_000 });
+      await expect(pendingCard).toContainText("New clinic · waiting for DocCy");
+      await expect(pending).toContainText(`Request sent on ${today}`);
+      await expect(pending).toContainText("waiting for DocCy’s approval");
+      await expect(page.getByTestId("settings-clinic-card")).toHaveCount(2);
+      const second = await page.request.post("/api/clinic-requests", { data: { clinic: clinic("Second") } });
+      expect(second.status()).toBe(409);
+      // The Add dialog says so too, but still lets her join a clinic DocCy has.
+      let rows = (await requests()).data ?? [];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        status: "pending",
+        details: { name: `Withdrawn Clinic ${n}`, phone: "25123456", district: "Limassol", latitude: 34.7 },
+      });
+
+      // 2. Withdrawn by her.
+      await expect(async () => {
+        await pending.getByRole("button", { name: "Withdraw request" }).click();
+        await expect(pendingCard).toHaveCount(0, { timeout: 5_000 });
+      }).toPass({ timeout: 20_000 });
+      rows = (await requests()).data ?? [];
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn"]);
+
+      // 3. Denied by a founder: the reason shows until she dismisses it.
+      await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`Denied Clinic ${n}`) } });
+      rows = (await requests()).data ?? [];
+      const deniedId = rows[1]!.id as string;
+      expect((await request.post(`/api/internal/clinic-requests/${deniedId}/deny`, { headers, data: { reason: " " } })).status()).toBe(400);
+      expect((await request.post(`/api/internal/clinic-requests/${deniedId}/deny`, { data: { reason: "x" } })).status()).not.toBe(200);
+      const deny = await request.post(`/api/internal/clinic-requests/${deniedId}/deny`, {
+        headers,
+        data: { reason: "We could not find this clinic." },
+      });
+      expect(deny.status(), await deny.text()).toBe(200);
+      await page.reload();
+      await expect(denied).toContainText(`Your request to add Denied Clinic ${n} was not approved`, { timeout: 30_000 });
+      await expect(denied).toContainText("Reason: We could not find this clinic.");
+      await denied.getByRole("button", { name: "Dismiss" }).click();
+      await expect(denied).toHaveCount(0);
+
+      // 4. Approved by a founder on the dashboard, with the capitals corrected.
+      await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`asked clinic two ${n}`) } });
+      rows = (await requests()).data ?? [];
+      const approvedId = rows[2]!.id as string;
+      const proCookies = await page.context().cookies();
+      await page.context().clearCookies();
+      await page.context().addCookies(
+        adminCookieHeader(founder)
+          .split("; ")
+          .map((pair) => {
+            const at = pair.indexOf("=");
+            return { name: pair.slice(0, at), value: pair.slice(at + 1), url: page.url() };
+          }),
+      );
+      await page.goto("/internal/directory?tab=requests");
+      const reviewCard = page.locator(`[data-clinic-request-id="${approvedId}"]`);
+      await expect(reviewCard).toBeVisible({ timeout: 30_000 });
+      await expect(reviewCard).toContainText("New clinic");
+      await expect(reviewCard).toContainText(`asked clinic two ${n}`);
+      await expect(reviewCard).toContainText(`New Road ${n}, Limassol, Cyprus`);
+      await expect(reviewCard).toContainText("+357 25 123456");
+      const approveName = reviewCard.getByLabel(/Name to approve/);
+      await expect(async () => {
+        await approveName.fill(`Asked Clinic Two ${n}`);
+        await expect(reviewCard.getByText(/Differs from what was asked/)).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await reviewCard.getByRole("button", { name: "Approve", exact: true }).click();
+      await expect(page.locator(`[data-decided-clinic-request-id="${approvedId}"]`)).toHaveCount(1, { timeout: 30_000 });
+
+      const { data: created } = await admin
+        .from("clinics")
+        .select("id, name, phone, district, address")
+        .eq("name", `Asked Clinic Two ${n}`)
+        .single();
+      expect(created).toMatchObject({ phone: "25123456", district: "Limassol", address: `New Road ${n}, Limassol, Cyprus` });
+      const { data: link } = await admin
+        .from("professional_clinics")
+        .select("pause_online_bookings, sort_order")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("clinic_id", created!.id)
+        .single();
+      expect(link).toEqual({ pause_online_bookings: true, sort_order: 2 });
+      rows = (await requests()).data ?? [];
+      expect(rows.map((row) => row.status)).toEqual(["withdrawn", "rejected", "approved"]);
+      expect(rows[2]!.approved_details).toMatchObject({ name: `Asked Clinic Two ${n}` });
+      expect(rows[2]!.outcome).toMatchObject({ clinic_id: created!.id, created: true });
+
+      // She sees the new clinic on her Clinics tab, booking off.
+      await page.context().clearCookies();
+      await page.context().addCookies(proCookies);
+      await page.goto("/settings?section=clinics");
+      await expect(page.getByTestId("settings-clinic-card")).toHaveCount(3, { timeout: 30_000 });
+      await expect(clinicCard(page, `Asked Clinic Two ${n}`)).toContainText("Online booking paused");
+      await expect(pendingCard).toHaveCount(0);
+
+      // 5. A request for a clinic DocCy already has: the founder joins her to it, nothing is created.
+      const existing = await admin
+        .from("clinics")
+        .insert({
+          name: `Already Here ${n}`,
+          slug: `already-here-${n}`,
+          district: "Larnaca",
+          address: `Old Road ${n}, Larnaca`,
+          phone: "24123456",
+        })
+        .select("id")
+        .single();
+      expect(existing.error).toBeNull();
+      await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`Asked Clinic ${n}`) } });
+      rows = (await requests()).data ?? [];
+      const joinedId = rows[3]!.id as string;
+      const joined = await request.post(`/api/internal/clinic-requests/${joinedId}/approve`, {
+        headers,
+        data: { existingClinicId: existing.data!.id },
+      });
+      expect(joined.status(), await joined.text()).toBe(200);
+      const { count: copies } = await admin
+        .from("clinics")
+        .select("id", { count: "exact", head: true })
+        .eq("name", `Asked Clinic ${n}`);
+      expect(copies).toBe(0);
+      const { count: hers } = await admin
+        .from("professional_clinics")
+        .select("id", { count: "exact", head: true })
+        .eq("professional_id", seeded!.professionalId)
+        .eq("clinic_id", existing.data!.id);
+      expect(hers).toBe(1);
+      rows = (await requests()).data ?? [];
+      expect(rows[3]!.outcome).toMatchObject({ clinic_id: existing.data!.id, created: false });
+    } finally {
+      const { data: leftovers } = await admin.from("clinics").select("id").in("name", [...createdClinicNames, `Already Here ${n}`]);
+      const ids = (leftovers ?? []).map((row) => String(row.id));
+      if (ids.length) {
+        await admin.from("professional_clinics").delete().in("clinic_id", ids);
+        await admin.from("clinics").delete().in("id", ids);
+      }
+    }
   });
 
   test("the clinic name is DocCy's, and only a request can change it", async ({ page }) => {
@@ -518,10 +717,10 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     // A click before hydration does nothing: retry until the editor opens.
     await expect(async () => {
       await card.getByRole("button", { name: "Edit hours" }).click();
-      await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request name or address change", { timeout: 2_000 });
+      await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request a change to clinic details", { timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
     await expect(page.locator("#clinicName")).toHaveCount(0);
-    await expect(card.getByRole("button", { name: "Request name or address change" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Request a change to clinic details" })).toBeVisible();
   });
 
   test("a clinic's hours save from its card, and Cancel puts them back", async ({ page }) => {

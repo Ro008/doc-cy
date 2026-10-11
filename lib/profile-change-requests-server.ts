@@ -93,7 +93,7 @@ export async function loadProfileChangeStates(
   };
 }
 
-async function notifyFounders(
+export async function notifyFounders(
   service: SupabaseClient,
   input: { requesterEmail: string; subject: string; text: string; requestId: string; category: string },
 ): Promise<void> {

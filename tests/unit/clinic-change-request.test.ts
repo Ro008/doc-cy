@@ -80,17 +80,30 @@ describe("validateClinicChangeRequest", () => {
     });
   });
 
-  it("moves to a DocCy clinic as-is (its name, address and phone)", () => {
-    assert.deepEqual(
-      validateClinicChangeRequest({
-        current,
-        requested: pick({ clinicId: "clinic-9", name: "Paphos Medical Centre", phone: "", location: paphosPin }),
-      }),
-      {
-        ok: true,
-        changes: { clinicId: "clinic-9", name: "Paphos Medical Centre", address: paphosPin.address },
+  it("is only about the name, address and phone: a DocCy clinic is joined from Add clinic", () => {
+    const result = validateClinicChangeRequest({
+      current,
+      requested: pick({ clinicId: "clinic-9", name: "Paphos Medical Centre", location: paphosPin }),
+    });
+    assert.equal(result.ok && "clinicId" in result.changes, false);
+    assert.deepEqual(result.ok && Object.keys(result.changes).sort(), ["address", "location", "name"]);
+  });
+
+  it("sends the address again when only its pin was moved", () => {
+    const here = { ...current, latitude: limassolPin.latitude, longitude: limassolPin.longitude };
+    assert.deepEqual(validateClinicChangeRequest({ current: here, requested: pick() }), {
+      ok: false,
+      field: null,
+      message: "Change at least one detail.",
+    });
+    const moved = { ...limassolPin, latitude: 34.6912, placeId: null };
+    assert.deepEqual(validateClinicChangeRequest({ current: here, requested: pick({ location: moved }) }), {
+      ok: true,
+      changes: {
+        address: limassolPin.address,
+        location: { latitude: 34.6912, longitude: 33.05, placeId: null, district: "Limassol", town: "Limassol" },
       },
-    );
+    });
   });
 
   it("normalises the phone and ignores formatting-only differences", () => {

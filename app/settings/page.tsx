@@ -35,6 +35,7 @@ import {
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { settingsWorkplaceFromLocation } from "@/lib/settings-workplace";
+import { loadClinicRequestStates } from "@/lib/clinic-requests-server";
 import { loadProAccessEnded } from "@/lib/load-access-ended";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
@@ -316,6 +317,20 @@ export default async function AgendaSettingsPage({
       })
     : null;
 
+  // Her waiting new clinic and open clinic-details requests, or her latest denials.
+  const clinicRequests = specialtyService
+    ? await loadClinicRequestStates(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] clinic requests load failed", err);
+        return null;
+      })
+    : null;
+  // The form keys a clinic by her link to it; requests name the clinic itself.
+  const clinicChangeRequests = Object.fromEntries(
+    locationRows
+      .filter((row) => row.clinic_id && clinicRequests?.details[row.clinic_id])
+      .map((row) => [row.id, clinicRequests!.details[row.clinic_id as string]!]),
+  );
+
   // "Patients I see" and qualifications: empty when the database has no such columns yet.
   const profileDetails = specialtyService
     ? await loadProfileDetails(specialtyService, doctor.id).catch((err) => {
@@ -358,6 +373,8 @@ export default async function AgendaSettingsPage({
     ),
     // On each clinic card: patients see these.
     clinicPhones: await loadSettingsClinicPhones(doctor.id),
+    clinicAddRequest: clinicRequests?.add ?? null,
+    clinicChangeRequests,
     // The primary clinic, not the copies on professionals (Point E).
     district: (primaryClinic?.district ?? "").trim(),
     clinicAddress: (primaryClinic?.clinic_address ?? "").trim(),

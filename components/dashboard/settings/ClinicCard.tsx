@@ -3,8 +3,8 @@
 import * as React from "react";
 import { ChevronDown, Lock } from "lucide-react";
 import type { ClinicBookingStatus } from "@/lib/settings-clinic-summary";
-import type { PendingClinicChange } from "@/components/dashboard/settings/ClinicChangeRequestDialog";
-import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
+import { clinicChangeLines, type DeniedClinicRequest, type PendingClinicDetailsRequest } from "@/lib/clinic-requests";
+import { ClinicRequestNotice } from "@/components/dashboard/settings/ClinicRequestNotice";
 import { Collapse } from "@/components/dashboard/settings/Collapse";
 import {
   SETTINGS_DANGER_BUTTON_CLASS,
@@ -19,19 +19,11 @@ const STATUS_PILL: Record<ClinicBookingStatus["kind"], string> = {
   holiday: "bg-amber-500/15 text-amber-200",
 };
 
-function formatRequestDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-function pendingSummary(pending: PendingClinicChange): string {
-  const parts: string[] = [];
-  if (pending.changes.clinicId) parts.push("move to a DocCy clinic");
-  if (pending.changes.name) parts.push(`name “${pending.changes.name}”`);
-  if (pending.changes.address) parts.push(`address “${pending.changes.address}”`);
-  if (pending.changes.phone) parts.push(`phone ${formatCyprusPhoneDisplay(pending.changes.phone)}`);
-  return parts.join(", ");
+/** "name “X”, phone +357 …": what her waiting request asks to change. */
+function pendingSummary(pending: PendingClinicDetailsRequest): string {
+  return clinicChangeLines({ name: "", address: "", phone: "" }, pending.changes)
+    .map((line) => `${line.label.toLowerCase()} “${line.to}”`)
+    .join(", ");
 }
 
 /**
@@ -49,8 +41,11 @@ export function ClinicCard({
   status,
   bookingSwitch,
   address,
-  phoneField,
+  phone,
+  requestKey,
   pendingChange,
+  deniedChange,
+  onWithdrawChange,
   notice,
   onRequestChange,
   summary,
@@ -72,12 +67,17 @@ export function ClinicCard({
   status: ClinicBookingStatus;
   bookingSwitch: React.ReactNode;
   address: string;
-  /** The clinic's phone, with its own "Request phone change" (ClinicPhoneField). */
-  phoneField: React.ReactNode;
-  pendingChange: PendingClinicChange | null;
+  /** The phone patients call, as shown (+357 XX XXXXXX); "" when the clinic has none yet. */
+  phone: string;
+  /** Her link to the clinic: where this browser remembers a dismissed denial. */
+  requestKey: string;
+  /** Her open request to change this clinic's details, or her latest denial. */
+  pendingChange: PendingClinicDetailsRequest | null;
+  deniedChange: DeniedClinicRequest | null;
+  onWithdrawChange: () => Promise<void>;
   /** A line at the top of the card, e.g. what to do at a clinic she just joined. */
   notice?: string | null;
-  /** null while the clinic is still being set up (its address is set in the editor). */
+  /** Opens "Request a change to clinic details"; null while the clinic is still being set up. */
   onRequestChange: (() => void) | null;
   summary: { days: string; hours: string; breakTime: string; slot: string };
   editing: boolean;
@@ -162,31 +162,40 @@ export function ClinicCard({
               {notice}
             </p>
           ) : null}
-          {pendingChange ? (
-            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-sm text-amber-100">
-              <span className="font-semibold">Change in review</span>
-              <span className="text-amber-100/80">
-                Requested {formatRequestDate(pendingChange.createdAt)} · {pendingSummary(pendingChange)}
-              </span>
+          {pendingChange || deniedChange ? (
+            <div className="mt-4">
+              <ClinicRequestNotice
+                storageKind={`clinic-${requestKey}`}
+                testId="settings-clinic-change"
+                pending={
+                  pendingChange ? { createdAt: pendingChange.createdAt, summary: pendingSummary(pendingChange) } : null
+                }
+                denied={deniedChange}
+                deniedWhat="request to change this clinic’s details"
+                onWithdraw={onWithdrawChange}
+              />
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-300">
-            <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
-            <span className={`min-w-[12rem] flex-1 ${address ? "" : "text-amber-200"}`}>
-              {address || "No address yet"}
-            </span>
+          <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-2">
+            <div className="min-w-[12rem] flex-1 space-y-2 text-sm text-slate-300">
+              <p className="flex items-start gap-2">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                <span className={address ? "" : "text-amber-200"}>{address || "No address yet"}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                <span className={`tabular-nums ${phone ? "" : "text-amber-200"}`} data-testid="settings-clinic-phone">
+                  {phone || "No phone yet"}
+                </span>
+              </p>
+            </div>
             {onRequestChange && !pendingChange ? (
-              <button
-                type="button"
-                onClick={onRequestChange}
-                className={SETTINGS_LINK_CLASS}
-              >
-                {address ? "Request name or address change" : "Request your address"}
+              <button type="button" onClick={onRequestChange} className={SETTINGS_LINK_CLASS}>
+                Request a change to clinic details
               </button>
             ) : null}
           </div>
-          {phoneField}
 
           <dl className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {stats.map(([label, value]) => (

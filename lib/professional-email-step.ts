@@ -70,6 +70,8 @@ export const PROFESSIONAL_API_ROUTES = [
   "/api/professional-profile",
   "/api/professional-qualifications",
   "/api/specialty-requests",
+  "/api/clinic-requests",
+  "/api/clinic-change-requests",
 ];
 
 /**

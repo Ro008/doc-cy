@@ -64,12 +64,12 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
 
     // Settings redesign (B1): one card per clinic, the address read-only with
-    // "Request name or address change" (clinic changes go by request to DocCy).
+    // "Request a change to clinic details" (clinic changes go by request to DocCy).
     const cards = page.getByTestId("settings-clinic-card");
     // One clinic link: one card.
     await expect(cards).toHaveCount(1, { timeout: 20_000 });
     await expect(cards.first()).toContainText(clinicAddress);
-    await expect(cards.first().getByRole("button", { name: "Request name or address change" })).toBeVisible();
+    await expect(cards.first().getByRole("button", { name: "Request a change to clinic details" })).toBeVisible();
 
     // Hours only: the name is DocCy's too, changed by request (user, 2026-10-01).
     // A click before hydration does nothing: retry until the editor opens.
@@ -79,8 +79,8 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     }).toPass({ timeout: 20_000 });
     await expect(page.locator("#clinicName")).toHaveCount(0);
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
-    // The last clinic cannot be removed.
-    await expect(cards.first().getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
+    // She cannot leave her last clinic.
+    await expect(cards.first().getByRole("button", { name: "Leave clinic" })).toHaveCount(0);
   });
 
   test("saving settings keeps the address and saves the hours", async ({ page }) => {

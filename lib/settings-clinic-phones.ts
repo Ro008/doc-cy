@@ -10,6 +10,8 @@ export type SettingsClinicPhone = {
   name: string;
   /** Display format (+357 XX XXXXXX); "" when the clinic has no phone yet. */
   phone: string;
+  /** How many other professionals work at the clinic (a change to it touches them too). */
+  otherProfessionals: number;
 };
 
 type JoinRow = {
@@ -54,7 +56,22 @@ export async function loadSettingsClinicPhones(
       locationId: String(row.id ?? "").trim(),
       name: String(clinic.name ?? "").trim(),
       phone: phone ? formatCyprusPhoneDisplay(phone) : "",
+      otherProfessionals: 0,
     });
+  }
+  if (out.length > 0) {
+    const { data: links } = await supabase
+      .from("professional_clinics")
+      .select("clinic_id, professional_id")
+      .in(
+        "clinic_id",
+        out.map((entry) => entry.clinicId),
+      )
+      .neq("professional_id", professionalId);
+    for (const link of (links ?? []) as { clinic_id: string }[]) {
+      const entry = out.find((candidate) => candidate.clinicId === String(link.clinic_id));
+      if (entry) entry.otherProfessionals += 1;
+    }
   }
   return out;
 }

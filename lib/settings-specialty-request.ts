@@ -7,9 +7,7 @@ import type { SpecialtyCatalogueNames } from "@/lib/specialty-options";
  * instant with the chip's ✕, so changing one is "add the new one, remove the old one
  * once it is approved"; the one-specialty minimum still holds that way. Older pending
  * "replace" / "remove" requests are still shown until DocCy reviews them.
- * API: POST /api/specialty-requests (requestKind "add"), the NEW specialty requests:
- * master dropped the old ones (Point E3, 2026-10-01) "until the new specialty
- * requests", so the call waits for Livio's endpoint (lib/settings-backend-pending.ts).
+ * API: POST /api/specialty-requests (requestKind "add").
  */
 
 /** Kept for the chip of a pending request (older ones could replace or remove). */

@@ -77,7 +77,11 @@ import {
   clinicsAfterRemoval,
 } from "@/lib/settings-removal-rules";
 import { AddClinicDialog, type NewClinic } from "@/components/dashboard/settings/AddClinicDialog";
-import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
+import {
+  type DeniedClinicRequest,
+  type PendingClinicAddRequest,
+  type PendingClinicDetailsRequest,
+} from "@/lib/clinic-requests";
 import { LEAVE_CLINIC_LOSES, leaveClinicNotes, type ClinicUpcomingCounts } from "@/lib/settings-leave-clinic";
 import {
   clinicBookingStatus,
@@ -88,7 +92,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
-import { ClinicPhoneField } from "@/components/dashboard/settings/ClinicPhoneField";
+import { ClinicRequestNotice } from "@/components/dashboard/settings/ClinicRequestNotice";
 import { ClinicHoursEditor } from "@/components/dashboard/settings/ClinicHoursEditor";
 import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
@@ -119,7 +123,6 @@ import {
 } from "@/lib/settings-clinic-limits";
 import {
   ClinicChangeRequestDialog,
-  type PendingClinicChange,
 } from "@/components/dashboard/settings/ClinicChangeRequestDialog";
 import {
   SettingsDialog,
@@ -191,16 +194,14 @@ export type DoctorSettingsFormData = {
   accessEnded?: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
-  /**
-   * Clinic change requests waiting for DocCy, by location id. Loaded by the backend
-   * once GET support exists (docs/handoff/settings-redesign.md); empty until then.
-   */
-  pendingClinicChanges?: Record<string, PendingClinicChange>;
-  /** Clinics asked for and not yet approved by DocCy (same contract; empty until loaded). */
-  pendingClinicAdds?: PendingClinicAdd[];
+  /** Her new-clinic request: the one waiting for DocCy, or her latest denial. */
+  clinicAddRequest?: { pending: PendingClinicAddRequest | null; denied: DeniedClinicRequest | null } | null;
+  /** By location id: her open request to change that clinic's details, or her latest denial. */
+  clinicChangeRequests?: Record<
+    string,
+    { pending: PendingClinicDetailsRequest | null; denied: DeniedClinicRequest | null }
+  >;
 };
-
-export type PendingClinicAdd = { clinic: NewClinic; createdAt: string };
 
 export type DoctorWorkplaceFormData = {
   id: string;
@@ -519,12 +520,18 @@ export function SettingsForm({
   const [joinedClinicPhones, setJoinedClinicPhones] = React.useState<SettingsClinicPhone[]>([]);
   const [changeRequestFor, setChangeRequestFor] = React.useState<string | null>(null);
   const [addClinicOpen, setAddClinicOpen] = React.useState(false);
-  const [pendingClinicAdds, setPendingClinicAdds] = React.useState<PendingClinicAdd[]>(
-    () => initial.pendingClinicAdds ?? [],
+  const [pendingClinicAdd, setPendingClinicAdd] = React.useState<PendingClinicAddRequest | null>(
+    () => initial.clinicAddRequest?.pending ?? null,
   );
   const [pendingClinicChanges, setPendingClinicChanges] = React.useState<
-    Record<string, PendingClinicChange>
-  >(() => initial.pendingClinicChanges ?? {});
+    Record<string, PendingClinicDetailsRequest>
+  >(() =>
+    Object.fromEntries(
+      Object.entries(initial.clinicChangeRequests ?? {}).flatMap(([id, state]) =>
+        state.pending ? [[id, state.pending]] : [],
+      ),
+    ),
+  );
 
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
@@ -643,7 +650,7 @@ export function SettingsForm({
   }, [activeWorkplaceId]);
 
   function openAddClinic() {
-    if (workplaces.length + pendingClinicAdds.length >= MAX_DOCTOR_LOCATIONS) {
+    if (workplaces.length >= MAX_DOCTOR_LOCATIONS) {
       toast.error(`You can have up to ${MAX_DOCTOR_LOCATIONS} clinics.`);
       return;
     }
@@ -696,35 +703,66 @@ export function SettingsForm({
   }
 
   /**
-   * A clinic DocCy does not have yet is a request (contract: POST /api/clinic-requests,
-   * docs/handoff/settings-redesign.md): `{ name, phone, location }`. It shows as a
-   * pending card until DocCy approves it.
+   * A clinic DocCy does not have yet is a request (user, 2026-10-11): founders check
+   * it first. It shows as a waiting card she can withdraw; one waits at a time.
    */
   async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
     if (clinic.clinicId) return joinClinic(clinic.clinicId);
     try {
-      // EXPECTED TO FAIL until Livio builds POST /api/clinic-requests (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch("/api/clinic-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "add", clinic }),
+        body: JSON.stringify({ clinic }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("addClinic", res.status, data, "Could not send the request."));
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not send the request.");
         return false;
       }
-      setPendingClinicAdds((prev) => [
-        ...prev,
-        { clinic, createdAt: String(data?.request?.createdAt ?? new Date().toISOString()) },
-      ]);
-      toast.success("Request sent. We’ll email you once the clinic is added.");
+      setPendingClinicAdd({
+        id: String(data?.request?.id ?? ""),
+        createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
+        name: String(data?.request?.name ?? clinic.name),
+        address: String(data?.request?.address ?? clinic.location.address),
+      });
+      toast.success("Request sent. We’ll email you once DocCy has checked the clinic.");
       return true;
     } catch (err) {
       console.error(err);
       toast.error("Could not send the request.");
       return false;
+    }
+  }
+
+  /** Withdraws her waiting new-clinic request, or her open details request for one clinic. */
+  async function withdrawClinicRequest(locationId: string | null): Promise<void> {
+    try {
+      const res = await fetch(
+        locationId
+          ? `/api/clinic-change-requests?locationId=${encodeURIComponent(locationId)}`
+          : "/api/clinic-requests",
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          typeof data?.message === "string" && data.message ? data.message : "Could not withdraw the request.",
+        );
+        return;
+      }
+      if (locationId) {
+        setPendingClinicChanges((prev) => {
+          const next = { ...prev };
+          delete next[locationId];
+          return next;
+        });
+      } else {
+        setPendingClinicAdd(null);
+      }
+      toast.success("Request withdrawn.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not withdraw the request.");
     }
   }
 
@@ -758,6 +796,11 @@ export function SettingsForm({
         ...prev,
         workplaces: prev.workplaces.filter((row) => row.id !== id),
       }));
+      setPendingClinicChanges((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       if (editingWorkplaceId === id) setEditingWorkplaceId(null);
       if (openClinicId === id) setOpenClinicId(remaining[0]?.id ?? null);
       if (activeWorkplaceId === id && remaining[0]) {
@@ -1164,8 +1207,9 @@ export function SettingsForm({
     clinicDisplayName(row.label, index, liveWorkplaces.length);
   const savedAddressOf = (id: string) =>
     savedSnapshot.workplaces.find((row) => row.id === id)?.clinicAddress ?? "";
-  const phoneOf = (id: string) =>
-    [...(initial.clinicPhones ?? []), ...joinedClinicPhones].find((clinic) => clinic.locationId === id)?.phone ?? "";
+  const clinicPhoneOf = (id: string) =>
+    [...(initial.clinicPhones ?? []), ...joinedClinicPhones].find((clinic) => clinic.locationId === id);
+  const phoneOf = (id: string) => clinicPhoneOf(id)?.phone ?? "";
   const setWorkplacePaused = (id: string, paused: boolean) =>
     setWorkplaces((prev) =>
       prev.map((row) => (row.id === id ? { ...row, pauseOnlineBookings: paused } : row)),
@@ -1349,7 +1393,7 @@ export function SettingsForm({
   );
 
   // No name field: patients see DocCy's name for the clinic everywhere (user,
-  // 2026-10-01); a rename goes through "Request name or address change" so DocCy can check that a
+  // 2026-10-01); a rename goes through "Request a change to clinic details" so DocCy can check that a
   // shared clinic is not renamed by one of its doctors.
   const workplaceEditor = (row: DoctorWorkplaceFormData) => (
     <fieldset
@@ -1359,7 +1403,7 @@ export function SettingsForm({
     >
       <p className="text-xs text-slate-400" data-testid="settings-clinic-name-note">
         The clinic name and address are DocCy&apos;s, the same for every doctor there. To
-        change them, use Request name or address change.
+        change them, use Request a change to clinic details.
       </p>
 
       <ClinicHoursEditor schedule={weeklySchedule} onChange={setWeeklySchedule} problems={hoursProblems} />
@@ -1475,19 +1519,12 @@ export function SettingsForm({
               />
             }
             address={row.clinicAddress.trim() || savedAddress}
-            phoneField={
-              <ClinicPhoneField
-                clinicName={name}
-                locationId={row.id}
-                phone={phoneOf(row.id)}
-                // Not while the clinic is still being set up, nor with a change in review.
-                canRequest={row.id !== "primary" && !pendingClinicChanges[row.id]}
-                onSent={(pending) =>
-                  setPendingClinicChanges((prev) => ({ ...prev, [row.id]: pending }))
-                }
-              />
-            }
+            phone={phoneOf(row.id)}
+            requestKey={row.id}
             pendingChange={pendingClinicChanges[row.id] ?? null}
+            // A new request replaces the denial of the one before.
+            deniedChange={pendingClinicChanges[row.id] ? null : initial.clinicChangeRequests?.[row.id]?.denied ?? null}
+            onWithdrawChange={() => withdrawClinicRequest(row.id)}
             notice={
               joinedClinicId === row.id && row.pauseOnlineBookings
                 ? "Set your hours to take online bookings: check the week below, save it, then switch online booking on."
@@ -1548,28 +1585,46 @@ export function SettingsForm({
           />
         );
       })}
-      {pendingClinicAdds.map((pending, index) => (
+      {pendingClinicAdd || initial.clinicAddRequest?.denied ? (
         <section
-          key={`pending-${index}`}
           data-testid="settings-clinic-pending"
-          className="rounded-3xl border border-dashed border-amber-400/50 bg-amber-500/[0.04] p-5 sm:p-6"
+          className={`rounded-3xl p-5 sm:p-6 ${
+            pendingClinicAdd
+              ? "border border-dashed border-amber-400/50 bg-amber-500/[0.04]"
+              : "border border-slate-800 bg-slate-900/40"
+          }`}
         >
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-50">
-              {pending.clinic.name || pending.clinic.location.address}
-            </h2>
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-              Request in review
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-slate-300">{pending.clinic.location.address}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            Requested{" "}
-            {new Date(pending.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-            . You can set its hours once DocCy adds it.
-          </p>
+          {pendingClinicAdd ? (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-50">
+                  {pendingClinicAdd.name || pendingClinicAdd.address}
+                </h2>
+                <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                  New clinic · waiting for DocCy
+                </span>
+              </div>
+              <p className="mb-3 mt-2 text-sm text-slate-300">{pendingClinicAdd.address}</p>
+            </>
+          ) : null}
+          <ClinicRequestNotice
+            storageKind="clinic-add"
+            testId="settings-clinic-add"
+            pending={
+              pendingClinicAdd
+                ? { createdAt: pendingClinicAdd.createdAt, summary: "you set its hours once it is added" }
+                : null
+            }
+            denied={initial.clinicAddRequest?.denied ?? null}
+            deniedWhat={
+              initial.clinicAddRequest?.denied?.name
+                ? `request to add ${initial.clinicAddRequest.denied.name}`
+                : "request to add a clinic"
+            }
+            onWithdraw={() => withdrawClinicRequest(null)}
+          />
         </section>
-      ))}
+      ) : null}
     </div>
   );
 
@@ -2076,13 +2131,13 @@ export function SettingsForm({
           clinicName={workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow))}
           locationId={changeRequestRow.id}
           current={{
-            clinicId: null,
             name:
               String(changeRequestRow.label ?? "").trim() ||
               workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow)),
             phone: phoneOf(changeRequestRow.id),
             location: savedLocationOf(changeRequestRow.id),
           }}
+          otherProfessionals={clinicPhoneOf(changeRequestRow.id)?.otherProfessionals ?? 0}
           onClose={() => setChangeRequestFor(null)}
           onSent={(pending) =>
             setPendingClinicChanges((prev) => ({ ...prev, [changeRequestRow.id]: pending }))
@@ -2091,7 +2146,12 @@ export function SettingsForm({
       ) : null}
 
       {addClinicOpen ? (
-        <AddClinicDialog onClose={() => setAddClinicOpen(false)} onAdd={handleAddWorkplace} />
+        <AddClinicDialog
+          onClose={() => setAddClinicOpen(false)}
+          onAdd={handleAddWorkplace}
+          takenClinicIds={[...(initial.clinicPhones ?? []), ...joinedClinicPhones].map((clinic) => clinic.clinicId)}
+          newClinicWaiting={Boolean(pendingClinicAdd)}
+        />
       ) : null}
 
       {specialtyToRemove ? (

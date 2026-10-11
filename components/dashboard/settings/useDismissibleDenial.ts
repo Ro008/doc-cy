@@ -4,7 +4,7 @@ import * as React from "react";
 import type { DeniedProfileChange } from "@/lib/profile-change-requests";
 
 /** Denials she dismissed, by request id: kept in this browser only. */
-const storageKey = (kind: "name" | "photo" | "specialty") => `doccy:dismissed-${kind}-denial`;
+const storageKey = (kind: string) => `doccy:dismissed-${kind}-denial`;
 
 /**
  * Her latest denied request of one kind, until she dismisses it (user, 2026-10-10).
@@ -12,7 +12,8 @@ const storageKey = (kind: "name" | "photo" | "specialty") => `doccy:dismissed-${
  * show, a dismiss action, and a way to clear it when she sends a new request.
  */
 export function useDismissibleDenial(
-  kind: "name" | "photo" | "specialty",
+  /** "name", "photo", "specialty", or one per clinic request ("clinic-add", "clinic-<link id>"). */
+  kind: string,
   initialDenied: DeniedProfileChange | null,
 ): [DeniedProfileChange | null, () => void, () => void] {
   const [denied, setDenied] = React.useState<DeniedProfileChange | null>(null);

@@ -231,5 +231,7 @@ export const config = {
     "/api/professional-profile",
     "/api/professional-qualifications",
     "/api/specialty-requests",
+    "/api/clinic-requests",
+    "/api/clinic-change-requests",
   ],
 };

@@ -52,7 +52,7 @@ describe("public phone comes from the clinic", () => {
     assert.equal(page.includes("doctor.mobile_number ?? doctor.phone"), false);
     // The settings save never carries a clinic phone: it goes to DocCy as a change request.
     assert.equal(
-      read("components/dashboard/settings/ClinicPhoneField.tsx").includes("/api/clinic-change-requests"),
+      read("components/dashboard/settings/ClinicChangeRequestDialog.tsx").includes("/api/clinic-change-requests"),
       true,
     );
   });
