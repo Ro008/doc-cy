@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   BOOKING_FORM_FIELDS,
+  allBookingFormErrors,
   firstBookingFormError,
   type BookingFormValues,
 } from "../../lib/booking-form-validation";
@@ -168,5 +169,57 @@ describe("firstBookingFormError", () => {
         "patientBirthdate",
       );
     });
+  });
+});
+
+// Every problem at once (2026-10-11): marking one field per press made a patient press Send up to
+// nine times to learn what was missing.
+describe("allBookingFormErrors", () => {
+  const empty: BookingFormValues = {
+    patientFirstName: "",
+    patientLastName: "",
+    patientEmail: "",
+    patientPhone: "+357",
+    phoneValid: false,
+    isNewPatient: null,
+    patientGender: "",
+    patientBirthdate: "",
+    serviceChoice: "",
+    visitReason: "",
+  };
+
+  it("lists every missing field once, in the order they appear on screen", () => {
+    assert.deepEqual(
+      allBookingFormErrors(empty).map((e) => [e.field, e.messageKey]),
+      [
+        ["patientFirstName", "firstNameRequired"],
+        ["patientLastName", "lastNameRequired"],
+        ["patientEmail", "emailRequired"],
+        ["patientPhone", "phoneRequired"],
+        ["isNewPatient", "selectVisitHistory"],
+        ["patientGender", "genderRequired"],
+        ["patientBirthdate", "birthdateRequired"],
+        ["professionalService", "serviceRequired"],
+      ],
+    );
+  });
+
+  it("without a service picker, the reason is the last field asked", () => {
+    const errors = allBookingFormErrors({ ...empty, serviceChoice: null });
+    assert.equal(errors.at(-1)?.field, "visitReason");
+    assert.equal(errors.some((e) => e.field === "professionalService"), false);
+  });
+
+  it("reports only the fields that are wrong", () => {
+    assert.deepEqual(allBookingFormErrors({ ...complete, patientEmail: "maria@", patientGender: "" }).map((e) => e.field), [
+      "patientEmail",
+      "patientGender",
+    ]);
+    assert.deepEqual(allBookingFormErrors(complete), []);
+  });
+
+  it("is what firstBookingFormError takes its answer from", () => {
+    assert.deepEqual(firstBookingFormError(empty), allBookingFormErrors(empty)[0]);
+    assert.equal(firstBookingFormError(complete), null);
   });
 });

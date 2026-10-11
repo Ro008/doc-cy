@@ -13,6 +13,8 @@ import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import { TurnstileWidget } from "@/components/booking/TurnstileWidget";
+import { waitForTurnstileToken } from "@/lib/turnstile";
 import { CY_TZ } from "@/lib/appointments";
 import {
   bookingSlotDateFromKey,
@@ -24,8 +26,8 @@ import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { type PatientGender } from "@/lib/booking-patient-fields";
 import { BOOKING_SLOT_REFRESH_MS, bookingRefusal, hideRefusedSlot } from "@/lib/booking-refusal";
 import {
-  firstBookingFormError,
-  type BookingFormError,
+  allBookingFormErrors,
+  type BookingFormErrorKey,
   type BookingFormField,
 } from "@/lib/booking-form-validation";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
@@ -43,6 +45,11 @@ import {
   PROFILE_SELECT_DAY_EVENT,
   parseProfileDaySelectDetail,
 } from "@/lib/public/profile-day-select";
+import {
+  PROFILE_SELECT_SERVICE_EVENT,
+  parseProfileServiceSelectDetail,
+} from "@/lib/public/profile-booking-events";
+import { useIsomorphicLayoutEffect, useProfileBookingStep } from "@/components/doctor/profile/ProfileBookingStep";
 
 // Public profile theme tokens (light/dark + the doctor's accent, see lib/profile-theme.ts).
 const CARD_CLASS =
@@ -192,6 +199,7 @@ export function BookingSection({
   );
   // The free text is optional once one of her services is picked; required with Other,
   // with nothing picked yet, or when she lists no services.
+  const bookingServiceName = services.find((service) => service.id === serviceChoice)?.name ?? null;
   const reasonOptional =
     serviceChoice !== null && serviceChoice !== "" && serviceChoice !== BOOKING_SERVICE_OTHER;
   const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
@@ -201,9 +209,19 @@ export function BookingSection({
   /** Set once the request is saved: the patient confirms it from the email (user, 2026-10-02). */
   const [checkEmailAddress, setCheckEmailAddress] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  // Cloudflare Turnstile (lib/turnstile.ts): only where the site key is set (Production).
+  // A person, not a script, sends the request; each token works once, so reset after a send.
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+  // A ref, not state: Send may wait for the token (~2s), and the wait reads the latest one.
+  const turnstileTokenRef = React.useRef("");
+  const setTurnstileToken = React.useCallback((token: string) => {
+    turnstileTokenRef.current = token;
+  }, []);
+  const [turnstileReset, setTurnstileReset] = React.useState(0);
+  const [turnstileTheme, setTurnstileTheme] = React.useState<"light" | "dark">("light");
   const [error, setError] = React.useState<string | null>(null);
-  /** The first field the patient still has to fix; its message shows under that field. */
-  const [fieldError, setFieldError] = React.useState<BookingFormError | null>(null);
+  /** Every field the patient still has to fix; each message shows under its field. */
+  const [fieldErrors, setFieldErrors] = React.useState<Partial<Record<BookingFormField, BookingFormErrorKey>>>({});
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
     null
@@ -389,14 +407,37 @@ export function BookingSection({
     t,
   ]);
 
-  // Confirm opens the details form: bring its top ("Your details") into view.
+  // The clinic picker above steps aside while the details are filled in. Set in a layout effect:
+  // it hides in the same task the form appears, before the scroll below measures anything.
+  const { setStep: setBookingStep } = useProfileBookingStep();
+  useIsomorphicLayoutEffect(() => {
+    setBookingStep(showContactForm ? "details" : "time");
+  }, [showContactForm, setBookingStep]);
+
+  // Continue opens the details form: bring its top ("Your details") into view.
   const contactFormRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!showContactForm) return;
     const card = contactFormRef.current;
     if (!card) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => {
+        card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
+  }, [showContactForm]);
+
+  // Turnstile's box (when it has to show) follows the profile's Light/Dark switch.
+  React.useEffect(() => {
+    if (!showContactForm) return;
+    const scheme = document.querySelector(".doccy-profile")?.getAttribute("data-scheme");
+    setTurnstileTheme(scheme === "dark" ? "dark" : "light");
   }, [showContactForm]);
 
   // Picking a time brings the Confirm bar into view (above the bottom fade), unless it
@@ -428,6 +469,18 @@ export function BookingSection({
     return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
   }, []);
 
+  // A service's own "Book" button in "Services & prices" picks that service in the details form.
+  React.useEffect(() => {
+    const onSelectService = (event: Event) => {
+      const serviceId = parseProfileServiceSelectDetail((event as CustomEvent).detail);
+      if (!serviceId || !services.some((service) => service.id === serviceId)) return;
+      setServiceChoice(serviceId);
+      setFieldErrors(({ professionalService: _gone, ...rest }) => rest);
+    };
+    window.addEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
+    return () => window.removeEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
+  }, [services]);
+
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
     const dateSet = new Set<string>();
@@ -441,6 +494,15 @@ export function BookingSection({
       return new Date(y, m - 1, day);
     });
   }, [upcomingSlots, takenSet]);
+
+  // The calendar opens on the first day with times, so the times are already on screen (no empty
+  // half-card to explain); a picked day can't be un-picked (`required` on the DayPicker). Not with
+  // a deep-linked slot, which picks its own day, nor while the form or success card is showing.
+  React.useEffect(() => {
+    if (selectedDate || bookingSuccess || showContactForm || availableDates.length === 0) return;
+    if (parseBookingSlotParam(initialSlotKey)) return;
+    setSelectedDate(availableDates[0]);
+  }, [selectedDate, bookingSuccess, showContactForm, availableDates, initialSlotKey]);
 
   // Slots for the currently selected date (only available ones)
   const slotsForSelectedDay = React.useMemo(() => {
@@ -482,11 +544,17 @@ export function BookingSection({
 
   /** Clears the field's message as soon as the patient changes that field. */
   function fixed(field: BookingFormField) {
-    setFieldError((current) => (current?.field === field ? null : current));
+    setFieldErrors((current) => {
+      if (!(field in current)) return current;
+      const { [field]: _gone, ...rest } = current;
+      return rest;
+    });
   }
 
-  const errorFor = (field: BookingFormField) =>
-    fieldError?.field === field ? t(`errors.${fieldError.messageKey}`) : null;
+  const errorFor = (field: BookingFormField) => {
+    const key = fieldErrors[field];
+    return key ? t(`errors.${key}`) : null;
+  };
 
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
@@ -496,8 +564,8 @@ export function BookingSection({
         setError(t("errors.selectTimeSlot"));
         return;
       }
-      // Say exactly what is missing, under that field, and take the patient there.
-      const problem = firstBookingFormError({
+      // Say what is missing, under every field at once, and take the patient to the first.
+      const problems = allBookingFormErrors({
         patientFirstName,
         patientLastName,
         patientEmail,
@@ -509,16 +577,24 @@ export function BookingSection({
         serviceChoice,
         visitReason,
       });
-      if (problem) {
-        setFieldError(problem);
-        focusField(problem.field);
+      if (problems.length > 0) {
+        setFieldErrors(Object.fromEntries(problems.map((p) => [p.field, p.messageKey])));
+        focusField(problems[0].field);
         return;
       }
-      setFieldError(null);
+      setFieldErrors({});
       const reasonTrim = visitReason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
+        // Send pressed before Cloudflare handed over its token (~2s): wait, showing "Sending…".
+        const turnstileToken = turnstileSiteKey
+          ? await waitForTurnstileToken(() => turnstileTokenRef.current)
+          : "";
+        if (turnstileSiteKey && !turnstileToken) {
+          setError(t("errors.botCheckPending"));
+          return;
+        }
         const res = await fetch("/api/appointments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -533,10 +609,13 @@ export function BookingSection({
             patientGender,
             patientBirthdate,
             ...(locationId ? { locationId } : {}),
+            ...(turnstileSiteKey ? { turnstileToken } : {}),
           }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
+          // The token was spent on this send: get a fresh one for the next try.
+          if (turnstileSiteKey) setTurnstileReset((n) => n + 1);
           // Plain words instead of the server's technical message; a time that is no longer
           // offered sends the patient back to the calendar (details stay filled in).
           const refusal = bookingRefusal(res.status, data?.code);
@@ -579,6 +658,7 @@ export function BookingSection({
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
+        if (turnstileSiteKey) setTurnstileReset((n) => n + 1);
         setError(t("errors.somethingWentWrong"));
       } finally {
         // If we already navigated to the request-sent page, keep the button in the
@@ -590,6 +670,7 @@ export function BookingSection({
     },
     [
       selectedSlot,
+      turnstileSiteKey,
       patientFirstName,
       patientLastName,
       patientEmail,
@@ -725,6 +806,11 @@ export function BookingSection({
       <div ref={contactFormRef} className={`${CARD_CLASS} scroll-mt-20`}>
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
+            {locationLabel ? (
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
+                {t("detailsStep")}
+              </p>
+            ) : null}
             <h2 className="text-xl font-extrabold text-profile-text">
               {t("yourDetails")}
             </h2>
@@ -823,7 +909,7 @@ export function BookingSection({
                 setEmailSuggestion(suggestRegisterEmail(value));
                 // A malformed address is flagged on leaving the field, not only on send.
                 if (value.trim() && !isValidRegisterEmail(value)) {
-                  setFieldError({ field: "patientEmail", messageKey: "validEmail" });
+                  setFieldErrors((prev) => ({ ...prev, patientEmail: "validEmail" }));
                 }
               }}
               autoComplete="email"
@@ -1138,6 +1224,14 @@ export function BookingSection({
               {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
           </div>
+          {turnstileSiteKey ? (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              onToken={setTurnstileToken}
+              resetKey={turnstileReset}
+              theme={turnstileTheme}
+            />
+          ) : null}
           {error && (
             <div
               data-testid="booking-error-message"
@@ -1193,6 +1287,11 @@ export function BookingSection({
             <p className="mt-1 text-sm text-profile-muted">
               {t("allTimesInCyprusHint")}
             </p>
+            {bookingServiceName ? (
+              <p data-testid="booking-for-service" className="mt-1 text-sm font-semibold text-profile-text">
+                {t("bookingForService", { service: bookingServiceName })}
+              </p>
+            ) : null}
           </div>
           <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-profile-text">
             {t("requestBadge")}
@@ -1215,6 +1314,7 @@ export function BookingSection({
           </p>
           <DayPicker
             mode="single"
+            required
             selected={selectedDate ?? undefined}
             onSelect={(d) => {
               setSelectedDate(d ?? null);
@@ -1327,7 +1427,7 @@ export function BookingSection({
             onClick={() => setShowContactForm(true)}
             className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
-            Confirm
+            {t("continueButton")}
           </button>
         </div>
       ) : null}

@@ -1,10 +1,11 @@
 import { getTranslations } from "next-intl/server";
 
-/** The three steps of a booking request, next to the calendar. */
+/** The steps of a booking request, next to the calendar: step 2 is the patient's email link. */
 const steps = [
   { lead: "whatToExpectStep1Lead", body: "whatToExpectStep1Body" },
   { lead: "whatToExpectStep2Lead", body: "whatToExpectStep2Body" },
   { lead: "whatToExpectStep3Lead", body: "whatToExpectStep3Body" },
+  { lead: "whatToExpectStep4Lead", body: "whatToExpectStep4Body" },
 ] as const;
 
 export async function WhatToExpectCard() {

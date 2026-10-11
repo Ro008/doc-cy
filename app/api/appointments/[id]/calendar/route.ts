@@ -5,6 +5,7 @@ import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
+import { escapeIcsText } from "@/lib/ics-text";
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { linkIdForClinic, clinicSlotMinutes } from "@/lib/professional-account-settings";
@@ -19,14 +20,6 @@ function formatIcsUtc(dt: Date) {
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d{3}Z$/, "Z");
-}
-
-function escapeIcsText(text: string) {
-  return text
-    .replace(/\\/g, "\\\\")
-    .replace(/\n/g, "\\n")
-    .replace(/,/g, "\\,")
-    .replace(/;/g, "\\;");
 }
 
 export async function GET(req: NextRequest, { params }: RouteContext) {

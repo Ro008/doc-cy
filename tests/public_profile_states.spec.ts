@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { isBookingCalendarVisible } from "./helpers/bookingCalendar";
 import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Public profile states", () => {
@@ -31,7 +32,7 @@ test.describe("Public profile states", () => {
       await page.goto(`/${slug}`);
 
       // If the doctor has no published availability, BookingSection hides the calendar.
-      if (await page.getByText("Select a date on the calendar").isVisible()) {
+      if (await isBookingCalendarVisible(page)) {
         chosenSlug = slug;
         break;
       }

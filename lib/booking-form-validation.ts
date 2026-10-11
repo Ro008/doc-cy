@@ -55,35 +55,43 @@ export type BookingFormValues = {
 export type BookingFormError = { field: BookingFormField; messageKey: BookingFormErrorKey };
 
 /**
- * The first problem in the form, top to bottom, so the page can say exactly what is missing
- * and take the patient to that field (instead of one generic "complete all details").
+ * Every problem in the form, one per field, in the order the fields appear on screen (2026-10-11):
+ * the page marks them all at once and takes the patient to the first, instead of one field per
+ * press of Send.
  */
+export function allBookingFormErrors(v: BookingFormValues, now: Date = new Date()): BookingFormError[] {
+  const errors: BookingFormError[] = [];
+  const add = (field: BookingFormField, messageKey: BookingFormErrorKey) => errors.push({ field, messageKey });
+
+  if (!v.patientFirstName.trim()) add("patientFirstName", "firstNameRequired");
+  if (!v.patientLastName.trim()) add("patientLastName", "lastNameRequired");
+  if (!v.patientEmail.trim()) add("patientEmail", "emailRequired");
+  // Same check as the server (lib/booking-patient-fields.ts).
+  else if (!isValidRegisterEmail(v.patientEmail)) add("patientEmail", "validEmail");
+  // The phone box keeps the country code (e.g. "+357") after the number is erased: that is empty too.
+  if (v.patientPhone.replace(/\D/g, "").length <= 3) add("patientPhone", "phoneRequired");
+  else if (!v.phoneValid) add("patientPhone", "validPhone");
+  // A real mobile for its country, the same rule as the server (2026-10-10).
+  else if (onlineBookingPhoneProblem(v.patientPhone)) {
+    const cyprus = v.patientPhone.replace(/[^\d+]/g, "").startsWith("+357");
+    add("patientPhone", cyprus ? "validMobileCy" : "validMobile");
+  }
+  if (v.isNewPatient === null) add("isNewPatient", "selectVisitHistory");
+  if (!isPatientGender(v.patientGender)) add("patientGender", "genderRequired");
+  if (!parsePatientBirthdate(v.patientBirthdate, now)) add("patientBirthdate", "birthdateRequired");
+  const choice = v.serviceChoice ?? null;
+  if (choice === "") add("professionalService", "serviceRequired");
+  // A chosen service is the reason; the free text is only for Other (or no picker).
+  else if ((choice === null || choice === BOOKING_SERVICE_OTHER) && !v.visitReason.trim()) {
+    add("visitReason", "reasonRequired");
+  }
+  return errors;
+}
+
+/** The first problem, for callers that only need where to take the patient. */
 export function firstBookingFormError(
   v: BookingFormValues,
   now: Date = new Date(),
 ): BookingFormError | null {
-  if (!v.patientFirstName.trim()) return { field: "patientFirstName", messageKey: "firstNameRequired" };
-  if (!v.patientLastName.trim()) return { field: "patientLastName", messageKey: "lastNameRequired" };
-  if (!v.patientEmail.trim()) return { field: "patientEmail", messageKey: "emailRequired" };
-  // Same check as the server (lib/booking-patient-fields.ts).
-  if (!isValidRegisterEmail(v.patientEmail)) return { field: "patientEmail", messageKey: "validEmail" };
-  // The phone box keeps the country code (e.g. "+357") after the number is erased: that is empty too.
-  if (v.patientPhone.replace(/\D/g, "").length <= 3) return { field: "patientPhone", messageKey: "phoneRequired" };
-  if (!v.phoneValid) return { field: "patientPhone", messageKey: "validPhone" };
-  // A real mobile for its country, the same rule as the server (2026-10-10).
-  if (onlineBookingPhoneProblem(v.patientPhone)) {
-    const cyprus = v.patientPhone.replace(/[^\d+]/g, "").startsWith("+357");
-    return { field: "patientPhone", messageKey: cyprus ? "validMobileCy" : "validMobile" };
-  }
-  if (v.isNewPatient === null) return { field: "isNewPatient", messageKey: "selectVisitHistory" };
-  if (!isPatientGender(v.patientGender)) return { field: "patientGender", messageKey: "genderRequired" };
-  if (!parsePatientBirthdate(v.patientBirthdate, now)) {
-    return { field: "patientBirthdate", messageKey: "birthdateRequired" };
-  }
-  const choice = v.serviceChoice ?? null;
-  if (choice === "") return { field: "professionalService", messageKey: "serviceRequired" };
-  // A chosen service is the reason; the free text is only for Other (or no picker).
-  const needsReason = choice === null || choice === BOOKING_SERVICE_OTHER;
-  if (needsReason && !v.visitReason.trim()) return { field: "visitReason", messageKey: "reasonRequired" };
-  return null;
+  return allBookingFormErrors(v, now)[0] ?? null;
 }

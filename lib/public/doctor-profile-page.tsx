@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { stringifyJsonLd } from "@/lib/json-ld";
+import { HideInstallBanner } from "@/components/pwa/HideInstallBanner";
+import { ProfileBookingStepProvider } from "@/components/doctor/profile/ProfileBookingStep";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
@@ -858,12 +861,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           }}
         />
       ) : null}
+      {/* The install banner covered the availability and the form on a first visit (2026-10-11). */}
+      <HideInstallBanner />
       {/* One script per object (Physician, BreadcrumbList), the form every reader expects. */}
       {structuredData.map((item) => (
         <script
           key={String(item["@type"])}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+          dangerouslySetInnerHTML={{ __html: stringifyJsonLd(item) }}
         />
       ))}
 
@@ -1007,6 +1012,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           className="grid scroll-mt-20 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6"
         >
           <div className="min-w-0">
+            <ProfileBookingStepProvider>
             {practiceLocations.length > 1 ? (
               <DoctorProfileClinicPicker
                 slug={params.slug}
@@ -1055,6 +1061,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 />
               </div>
             )}
+            </ProfileBookingStepProvider>
           </div>
           <WhatToExpectCard />
         </section>

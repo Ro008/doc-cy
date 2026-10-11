@@ -4,6 +4,13 @@ Branch `feat/profile-redesign`. The frontend is done; this note says what the pu
 profile now does and the one thing it waits for from the API and the database.
 Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda 3").
 
+## Before / right after merging this branch
+
+- [ ] Vercel → Project → Settings → Environment Variables, **Production only**: add
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (Cloudflare → Turnstile →
+  "DocCy public forms"), then **redeploy**. Until both are set, the booking form runs without
+  the bot check and the booking route logs `[DocCy] Turnstile is OFF in production`.
+
 ## What changed in the UI
 
 - **One page.** Hero, then sticky tabs **Book · About · Services & prices · Clinics &
@@ -101,6 +108,31 @@ The contract is in `lib/profile-customization.ts`:
    `POST /api/appointments` now refuses a phone that isn't a real mobile for its country
    (`onlineBookingPhoneProblem` in `lib/phone-number.ts`, the same libphonenumber rule as
    manual booking; a number without a country code is read as Cypriot). Stored as sent.
+
+7. **UX pass over the profile and its booking form (user, 2026-10-11)**, all frontend:
+   "What to expect" now has the email step (4 steps); every missing field is marked at once
+   (`allBookingFormErrors`); the calendar opens on the first day with times (a picked day can't be
+   un-picked); the button after picking a time is "Continue" (was "Confirm"); steps read 1/2/3 of 3
+   with several clinics; the clinic picker hides while "Your details" is filled in (shared
+   context `ProfileBookingStep`, set in a layout effect so the scroll to the form lands right);
+   each service has a "Book" button that preselects it in the form (`doccy:profile-select-service`);
+   the "Add to Home Screen" banner is hidden on the profile (`HideInstallBanner`, an attribute on
+   `<html>`). E2E helpers: `tests/helpers/bookingCalendar.ts` (the calendar replaces the old
+   "Select a date on the calendar" placeholder as the sign the booking box is there; `Continue`
+   also matches the older "Confirm").
+
+6. **Security review (user, 2026-10-11).**
+   - Profile JSON-LD now goes through `stringifyJsonLd` (`lib/json-ld.ts`, escapes `<`): a
+     professional's own text could close the `<script>` and run code (was on master too).
+   - `.ics` text escapes every line break (`lib/ics-text.ts`), so a patient's words can't add
+     properties to the professional's calendar event.
+   - **Cloudflare Turnstile** on the online booking form (`lib/turnstile.ts`,
+     `components/booking/TurnstileWidget.tsx`): `POST /api/appointments` refuses
+     (`400 bot_check_failed`) unless Cloudflare confirms a person sent the form, before any
+     draft or email. Widget "DocCy public forms" (Managed, `interaction-only`: normally
+     invisible). Active only when **both** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and
+     `TURNSTILE_SECRET_KEY` are set — put them in Vercel → Production only (local, CI and
+     previews stay off). No DB change.
 
 ## Decision needed: where the professional's personal mobile shows (Livio, 2026-10-09)
 

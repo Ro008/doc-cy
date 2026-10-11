@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { continueButton } from "./helpers/bookingCalendar";
 import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
 import { fillVisitReason } from "./helpers/fillVisitReason";
 
@@ -100,10 +101,10 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
 
     // Picking a time brings the Confirm button into view, on any screen size.
     await page.locator("#book button[aria-pressed]").first().click();
-    await expect(page.getByRole("button", { name: "Confirm" })).toBeInViewport();
+    await expect(continueButton(page)).toBeInViewport();
 
-    // Confirm opens the details form at its top.
-    await page.getByRole("button", { name: "Confirm" }).click();
+    // Continue opens the details form at its top.
+    await continueButton(page).click();
     await expect(page.getByRole("heading", { name: "Your details" })).toBeInViewport();
 
     // A typo in a common email domain gets a "Did you mean …?" fix, as on /register.
@@ -157,7 +158,7 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
       await expect(page.getByTestId("booking-selected-day")).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
     await page.locator("#book button[aria-pressed]").first().click();
-    await page.getByRole("button", { name: "Confirm" }).click();
+    await continueButton(page).click();
 
     const picker = page.locator("#professionalService");
     await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
@@ -194,6 +195,78 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect.poll(() => sent).not.toBeNull();
     expect(sent!.professionalServiceId).toMatch(/^[0-9a-f-]{36}$/);
     expect(sent!.reason).toBe("A spot on the side of my lip.");
+  });
+
+  // UX pass (2026-10-11).
+  test("the calendar opens on a day with times, and a picked day stays picked", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const selectedDay = page.getByTestId("booking-selected-day");
+    test.skip((await page.getByTestId("profile-next-availability-day").count()) === 0, "No online availability.");
+    await expect(selectedDay).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("#book button[aria-pressed]").first()).toBeVisible();
+    // Pressing the picked day again must not empty the times.
+    const date = await selectedDay.getAttribute("data-date");
+    await page.locator("#book .rdp-day_selected").first().click();
+    await expect(selectedDay).toHaveAttribute("data-date", date!);
+    await expect(page.locator("#book button[aria-pressed]").first()).toBeVisible();
+  });
+
+  async function openDetailsForm(page: import("@playwright/test").Page) {
+    await expect(page.getByTestId("booking-selected-day")).toBeVisible({ timeout: 15000 });
+    await page.locator("#book button[aria-pressed]").first().click();
+    await continueButton(page).click();
+    await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
+  }
+
+  test("Send marks every missing field at once and takes the patient to the first", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    test.skip((await page.getByTestId("profile-next-availability-day").count()) === 0, "No online availability.");
+    await openDetailsForm(page);
+    await page.getByRole("button", { name: /Send booking request/i }).click();
+    // First and last name, email, mobile, first visit, gender, birth date, service or reason.
+    await expect.poll(() => page.getByRole("alert").count()).toBeGreaterThanOrEqual(7);
+    await expect(page.locator("#firstName")).toBeFocused();
+    // Fixing one field clears only its own message.
+    const before = await page.getByRole("alert").count();
+    await page.locator("#firstName").fill("Alexander");
+    await expect.poll(() => page.getByRole("alert").count()).toBe(before - 1);
+  });
+
+  test("a service's own Book button picks that service in the form", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const button = page.getByTestId("profile-service-book").first();
+    test.skip((await button.count()) === 0, "This professional lists no services.");
+    test.skip((await page.getByTestId("profile-next-availability-day").count()) === 0, "No online availability.");
+    const name = (await button.getAttribute("data-service-name"))!;
+    // Server-rendered: before hydration the button is a plain #book link; retry until wired.
+    await expect(async () => {
+      await button.click();
+      await expect(page.getByTestId("booking-for-service")).toContainText(name, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL(/#book$/);
+    await openDetailsForm(page);
+    await expect(page.locator("#professionalService option:checked")).toHaveText(name);
+  });
+
+  test("the clinic picker steps aside while the details are filled in, and returns with Change time", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const picker = page.getByTestId("profile-clinic-picker");
+    test.skip((await picker.count()) === 0, "This professional has a single clinic.");
+    test.skip((await page.getByTestId("profile-next-availability-day").count()) === 0, "No online availability.");
+    await expect(picker).toBeVisible();
+    await openDetailsForm(page);
+    await expect(picker).toBeHidden();
+    await page.getByRole("button", { name: "Change time" }).click();
+    await expect(picker).toBeVisible();
+  });
+
+  test("tells about the email step, and keeps the install banner off the page", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const steps = page.getByRole("list", { name: "What to expect" }).getByRole("listitem");
+    await expect(steps).toHaveCount(4, { timeout: 15000 });
+    await expect(steps.nth(1)).toContainText("Confirm by email");
+    await expect(steps.nth(1)).toContainText("30 minutes");
+    await expect(page.locator("html")).toHaveAttribute("data-doccy-hide-install-banner", "", { timeout: 15000 });
   });
 
   test("a soft fade marks that the page continues below, and goes away at the end", async ({ page }) => {

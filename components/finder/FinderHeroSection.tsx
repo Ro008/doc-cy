@@ -46,7 +46,10 @@ export function FinderHeroSection({
             fill
             priority
             sizes="(max-width: 640px) 0px, 860px"
-            className="object-contain object-right object-top"
+            className={`object-contain object-right object-top ${
+              // The picture's heart-and-stethoscope sits under the copy from sm to lg: hidden there.
+              heroImageSrc === FINDER_PROFESSIONALS_HERO_SRC ? "finder-hero-no-heart" : ""
+            }`}
             aria-hidden
           />
         </div>

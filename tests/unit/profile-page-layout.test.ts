@@ -132,7 +132,7 @@ describe("public profile: one page with anchor tabs", () => {
   it("booking form: every field required and marked, in the profile's colours", () => {
     const booking = read("components/doctor/BookingSection.tsx");
     // Gender and date of birth come from master (stored since 2026-10-04).
-    assert.match(booking, /firstBookingFormError\(/);
+    assert.match(booking, /allBookingFormErrors\(/);
     // 2026-10-10: first and last name, birth date as Day / Month / Year, mobile with a fixed
     // dial code and an example number.
     assert.match(booking, /id="firstName"/);

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { continueButton, expectBookingCalendar, isBookingCalendarVisible } from "./helpers/bookingCalendar";
 import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
 import { fillVisitReason } from "./helpers/fillVisitReason";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
@@ -26,7 +27,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       await page.goto(`/${d.slug}`);
       // If the doctor has no published availability yet, BookingSection hides the calendar.
       if (
-        await page.getByText("Select a date on the calendar").isVisible()
+        await isBookingCalendarVisible(page)
       ) {
         chosenDoctorSlug = d.slug;
         break;
@@ -39,9 +40,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     await expect(
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expectBookingCalendar(page);
 
     const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
@@ -53,7 +52,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     const selectSlotBtn = page.getByRole("button", { name: /Select/i });
     await expect(selectSlotBtn.first()).toBeVisible({ timeout: 5000 });
     await selectSlotBtn.first().click();
-    await page.getByRole("button", { name: /Confirm/i }).first().click();
+    await continueButton(page).click();
 
     // Contact form
     await expect(page.locator("#firstName, #name").first()).toBeVisible();
@@ -155,7 +154,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     for (const d of doctors) {
       if (!d?.slug) continue;
       await page.goto(`/${d.slug}`);
-      if (await page.getByText("Select a date on the calendar").isVisible()) {
+      if (await isBookingCalendarVisible(page)) {
         chosenDoctorSlug = d.slug;
         break;
       }
@@ -169,9 +168,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     await expect(
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expectBookingCalendar(page);
 
     const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
@@ -183,7 +180,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     const selectSlotBtn = page.getByRole("button", { name: /Select/i });
     await expect(selectSlotBtn.first()).toBeVisible({ timeout: 5000 });
     await selectSlotBtn.first().click();
-    await page.getByRole("button", { name: /Confirm/i }).first().click();
+    await continueButton(page).click();
 
     // Contact form
     await expect(page.locator("#firstName, #name").first()).toBeVisible();

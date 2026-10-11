@@ -9,7 +9,8 @@ export type BookingRefusalKey =
   | "slotTooSoon"
   | "slotNoLongerAvailable"
   | "timeSlotJustBooked"
-  | "openRequestExists";
+  | "openRequestExists"
+  | "botCheckFailed";
 
 export type BookingRefusal = { messageKey: BookingRefusalKey; backToCalendar: boolean };
 
@@ -22,6 +23,8 @@ const NO_LONGER_OFFERED = new Set(["outside_hours", "not_aligned", "beyond_horiz
  */
 export function bookingRefusal(status: number, code: string | null | undefined): BookingRefusal | null {
   if (code === "open_request_exists") return { messageKey: "openRequestExists", backToCalendar: false };
+  // Cloudflare Turnstile said no (lib/turnstile.ts): the form stays, with a fresh check.
+  if (code === "bot_check_failed") return { messageKey: "botCheckFailed", backToCalendar: false };
   if (status === 409 || code === "slot_taken") return { messageKey: "timeSlotJustBooked", backToCalendar: true };
   if (code === "minimum_notice") return { messageKey: "slotTooSoon", backToCalendar: true };
   if (code && NO_LONGER_OFFERED.has(code)) return { messageKey: "slotNoLongerAvailable", backToCalendar: true };

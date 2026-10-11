@@ -1,5 +1,6 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
+import { continueButton, isBookingCalendarVisible } from "./helpers/bookingCalendar";
 import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
 import { fillVisitReason } from "./helpers/fillVisitReason";
 import { createClient } from "@supabase/supabase-js";
@@ -32,7 +33,7 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     for (const d of doctors) {
       if (!d?.slug) continue;
       await page.goto(`/en/${d.slug}`);
-      if (!(await page.getByText("Select a date on the calendar").isVisible())) {
+      if (!(await isBookingCalendarVisible(page))) {
         continue;
       }
       try {
@@ -73,7 +74,7 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
       (await selectSlotBtn.count()) - 1
     );
     await selectSlotBtn.nth(slotIndex).click();
-    await page.getByRole("button", { name: /Confirm/i }).first().click();
+    await continueButton(page).click();
 
     // 4. Contact form
     await expect(page.locator("#firstName, #name").first()).toBeVisible();

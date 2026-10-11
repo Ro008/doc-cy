@@ -1,5 +1,6 @@
 // tests/doctor_break_slots.spec.ts
 import { test, expect } from "@playwright/test";
+import { expectBookingCalendar } from "./helpers/bookingCalendar";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
@@ -76,9 +77,7 @@ test.describe("Doctor lunch/break time", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // Select first available date in the calendar
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expectBookingCalendar(page);
 
     await pickFirstAvailableBookingDay(page, { doctorHint: slug ?? undefined });
 

@@ -1,6 +1,7 @@
 import { Check, MapPin } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { HideWhileBookingDetails } from "@/components/doctor/profile/HideWhileBookingDetails";
 import {
   clinicAddressFirstLine,
   clinicTitleOrFallback,
@@ -28,7 +29,7 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
   const locale = await getLocale();
 
   return (
-    <div
+    <HideWhileBookingDetails
       className="mb-4 rounded-3xl border border-profile-border bg-profile-surface p-4 text-profile-body sm:p-5"
       data-testid="profile-clinic-picker"
     >
@@ -127,6 +128,6 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
           );
         })}
       </div>
-    </div>
+    </HideWhileBookingDetails>
   );
 }

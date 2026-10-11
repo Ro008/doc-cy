@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { isBookingCalendarVisible } from "./helpers/bookingCalendar";
 import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("LanguageSwitcher", () => {
@@ -18,7 +19,7 @@ test.describe("LanguageSwitcher", () => {
     for (const d of doctors) {
       if (!d?.slug) continue;
       await page.goto(`/en/${d.slug}`);
-      if (await page.getByText("Select a date on the calendar").isVisible()) {
+      if (await isBookingCalendarVisible(page)) {
         chosenSlug = d.slug;
         break;
       }
@@ -37,9 +38,7 @@ test.describe("LanguageSwitcher", () => {
     await expect(
       page.getByText("Book an appointment", { exact: false })
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Select a date", { exact: true })).toBeVisible({ timeout: 10000 });
 
     // Switch to Greek.
     await page.getByRole("link", { name: "GR" }).click();
@@ -47,9 +46,7 @@ test.describe("LanguageSwitcher", () => {
       timeout: 10000,
     });
 
-    await expect(
-      page.getByText("Επιλέξτε ημερομηνία από το ημερολόγιο")
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Επιλέξτε ημερομηνία", { exact: true })).toBeVisible({ timeout: 10000 });
 
     // Switch back to English.
     await page.getByRole("link", { name: "EN" }).click();
@@ -57,9 +54,7 @@ test.describe("LanguageSwitcher", () => {
       timeout: 10000,
     });
 
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Select a date", { exact: true })).toBeVisible({ timeout: 10000 });
   });
 });
 

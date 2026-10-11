@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { ProfileServiceBookButton } from "@/components/doctor/profile/ProfileServiceBookButton";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 import { formatServicePrice } from "@/lib/public/service-price";
 
@@ -29,16 +30,20 @@ export async function ProfileServicesSection({ services }: { services: readonly 
             key={service.id}
             className="flex items-center justify-between gap-4 rounded-2xl border border-profile-border bg-profile-surface px-5 py-4"
           >
-            <span className="font-semibold text-profile-text">{service.name}</span>
-            {price ? (
-              <span className="shrink-0 text-lg font-extrabold tabular-nums text-profile-text">
-                {price}
-              </span>
-            ) : (
-              <span className="shrink-0 text-sm font-medium text-profile-muted">
-                {t("servicePriceMissing")}
-              </span>
-            )}
+            <span className="min-w-0 font-semibold text-profile-text">{service.name}</span>
+            <span className="flex shrink-0 items-center gap-3">
+              {price ? (
+                <span className="text-lg font-extrabold tabular-nums text-profile-text">{price}</span>
+              ) : (
+                <span className="text-sm font-medium text-profile-muted">{t("servicePriceMissing")}</span>
+              )}
+              <ProfileServiceBookButton
+                serviceId={service.id}
+                serviceName={service.name}
+                label={t("serviceBook")}
+                ariaLabel={t("serviceBookFor", { name: service.name })}
+              />
+            </span>
           </li>
           );
         })}
