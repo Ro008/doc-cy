@@ -76,7 +76,7 @@ describe("password reset email copy", () => {
     assert.match(content.text, /DocCy practitioner account/);
     assert.match(content.html, /Reset your DocCy password/);
     assert.match(content.html, /Choose a new password/);
-    assert.match(content.html, /www\.mydoccy\.com\/brand\/doccy-logo\.png/);
+    assert.match(content.html, /www\.mydoccy\.com\/brand\/doccy-logo-on-dark\.png/);
     assert.equal(/supabase/i.test(content.subject), false);
     assert.equal(/supabase/i.test(content.text), false);
     assert.equal(/supabase/i.test(content.html), false);
