@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { promoteBookingNotice } from "@/lib/promote-booking-notice";
 import { createPortal } from "react-dom";
 import { Clock, ExternalLink, Lock, Save, X } from "lucide-react";
 import { toast } from "sonner";
@@ -1867,9 +1868,37 @@ export function SettingsForm({
     </div>
   );
 
+  // A sign or link is only worth sharing while patients who follow it can book.
+  const promoteNotice = promoteBookingNotice({
+    accessEnded: Boolean(initial.accessEnded),
+    holidayActive,
+    holidayEnd: holidayEndInput,
+    clinics: liveWorkplaces.map((row) => ({ paused: row.pauseOnlineBookings })),
+  });
+
   const promoteSection = (
     <div className="space-y-5">
       {sectionTitle("Promote", "Bring patients to your booking page: your QR, a printable sign and ready-made scripts.")}
+      {promoteNotice ? (
+        <div
+          role="status"
+          data-testid="promote-booking-notice"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+        >
+          {promoteNotice.text}{" "}
+          <a
+            href={settingsSectionHref(promoteNotice.section)}
+            data-settings-section={promoteNotice.section}
+            onClick={(event) => {
+              event.preventDefault();
+              selectSection(promoteNotice.section);
+            }}
+            className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
+          >
+            {promoteNotice.linkLabel}
+          </a>
+        </div>
+      ) : null}
       {promote}
     </div>
   );

@@ -31,7 +31,7 @@ describe("buildBookingSignHtml", () => {
     assert.match(html, /Book online · 24\/7/);
     assert.match(html, /<h1>Book your next visit online<\/h1>/);
     assert.match(html, /<img class="qr" src="data:image\/png;base64,QR"/);
-    for (const step of ["Scan the code", "Pick a time", "Get a confirmation"]) {
+    for (const step of ["Scan the code", "Choose a time", "We confirm by email"]) {
       assert.ok(html.includes(step), step);
     }
     assert.match(html, /mydoccy\.com\/harrison-ford/);

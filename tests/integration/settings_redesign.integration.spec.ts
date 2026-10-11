@@ -1479,6 +1479,70 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
+  test("Promote: language of the sign and scripts, sharing, and a notice when patients cannot book", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openSettings(page, seeded!, "promote");
+
+    // One clinic takes online bookings, so nothing warns her.
+    await expect(page.getByTestId("promote-booking-notice")).toHaveCount(0);
+
+    // The voicemail names her and the site; the reception script is spoken by her team.
+    const voicemail = page.getByTestId("promote-voicemail-script");
+    const reception = page.getByTestId("promote-reception-script");
+    await expect(async () => {
+      if (!(await voicemail.locator("textarea").isVisible())) {
+        await voicemail.getByText("Voicemail message").click({ timeout: 2_000 });
+      }
+      await expect(voicemail.locator("textarea")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(voicemail.locator("textarea")).toHaveValue(/search for Settings B1 ui [\d-]+ on [^/\s]+\. Thank you\.$/);
+    await reception.getByText("Reception script").click();
+    await expect(reception.locator("textarea")).toHaveValue(/you can see Settings B1 ui [\d-]+'s available times/);
+
+    // She picks Greek for her patients: the scripts follow, the tab stays as it is.
+    const language = page.getByTestId("promote-language");
+    await expect(language.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
+    await language.getByRole("button", { name: "Ελληνικά" }).click();
+    await expect(language.getByRole("button", { name: "Ελληνικά" })).toHaveAttribute("aria-pressed", "true");
+    await expect(voicemail.locator("textarea")).toHaveValue(/αναζητήστε «Settings B1 ui [\d-]+»/);
+    await expect(page.getByRole("button", { name: "Print booking sign" })).toBeVisible();
+
+    // Sharing opens WhatsApp or Viber with her name and link, in the chosen language.
+    const share = page.getByTestId("promote-share");
+    const whatsapp = await share.getByRole("link", { name: "WhatsApp" }).getAttribute("href");
+    expect(whatsapp).toMatch(/^https:\/\/wa\.me\/\?text=/);
+    expect(decodeURIComponent(String(whatsapp))).toMatch(/Κλείστε ραντεβού online με Settings B1 ui [\d-]+: http.*\/settings-b1-ui-/);
+    expect(await share.getByRole("link", { name: "Viber" }).getAttribute("href")).toMatch(/^viber:\/\/forward\?text=/);
+
+    // The choice is remembered in this browser.
+    await page.reload();
+    await expect(language.getByRole("button", { name: "Ελληνικά" })).toHaveAttribute("aria-pressed", "true", {
+      timeout: 30_000,
+    });
+
+    // DocCy no longer offers to add the button to her website.
+    await page.getByTestId("promote-website-script").getByText("Website booking button").click();
+    await expect(page.getByTestId("promote-website-script")).toContainText("Κράτηση online");
+    await expect(page.getByRole("button", { name: "Contact Support" })).toHaveCount(0);
+    await expect(page.getByText("Want us to add it for you?")).toHaveCount(0);
+
+    // Every clinic paused: patients who scan the sign cannot book, and the tab says so.
+    const paused = await admin
+      .from("professional_clinics")
+      .update({ pause_online_bookings: true })
+      .eq("professional_id", seeded!.professionalId);
+    expect(paused.error).toBeNull();
+    await page.reload();
+    const notice = page.getByTestId("promote-booking-notice");
+    await expect(notice).toContainText("Online booking is paused at every clinic", { timeout: 30_000 });
+    await expect(async () => {
+      await notice.getByRole("link", { name: "Open Clinics" }).click({ timeout: 2_000 });
+      await expect(page).toHaveURL(/section=clinics/, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+  });
+
   test("adding a specialty: sent with its licence number, withdrawn, denied, then approved by a founder", async ({
     page,
     request,

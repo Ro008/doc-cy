@@ -166,6 +166,22 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - QR, booking link (`mydoccy.com/<slug>`, Copy link), scripts that fold.
 - "Print booking sign" prints design A on A5 (`lib/booking-sign.ts`): DocCy logo, the
   name **as on the profile (no "Dr" added)** and the approved primary specialty.
+- **Livio, 2026-10-11 (frontend only, nothing saved on the server):**
+  - "Language of the sign and scripts": English / Ελληνικά, for her patients. It sets
+    the printed sign, the three scripts and the share message; the tab itself stays in
+    the app's language. Remembered in the browser only (`doccy:promote-language`).
+  - The sign's steps are "Scan the code · Choose a time · We confirm by email": a
+    request is not a booking until she accepts it.
+  - A notice at the top when patients who follow the link cannot book: access ended
+    (→ Plan & billing), holiday mode on today, or online booking paused at every clinic
+    (→ Clinics). `lib/promote-booking-notice.ts`.
+  - Voicemail script: "search for <name> on mydoccy.com" (a long address is hard to
+    catch on a recording). Reception script names her instead of "my".
+  - "Share" under the link: WhatsApp and Viber, message with her name and link.
+  - Removed: the offer that DocCy adds the button to her website ("Contact Support"),
+    and with it the feedback topic "Help with website booking button".
+  - The QR link still carries its tracking tags; nothing reads them yet (scan counts
+    are planned for later).
 
 ### Plan & billing (frontend only)
 - Reads `professionals.pro_access_until` and `subscription_tier`
