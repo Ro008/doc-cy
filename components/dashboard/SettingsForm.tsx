@@ -551,9 +551,8 @@ export function SettingsForm({
   const [initialLimits] = React.useState(() =>
     initialClinicLimits(initialWorkplacesFromForm(initial), accountLimits),
   );
-  const perClinicLimitsSaved = initialLimits.perClinicSaved;
-  const [clinicLimits, setClinicLimits] = React.useState<ClinicLimitsById>(initialLimits.byClinic);
-  const [savedClinicLimits, setSavedClinicLimits] = React.useState<ClinicLimitsById>(initialLimits.byClinic);
+  const [clinicLimits, setClinicLimits] = React.useState<ClinicLimitsById>(initialLimits);
+  const [savedClinicLimits, setSavedClinicLimits] = React.useState<ClinicLimitsById>(initialLimits);
   const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
     initial.holidayModeEnabled
   );
@@ -1049,7 +1048,9 @@ export function SettingsForm({
     }
   }
 
-  const clinicLimitsOf = (id: string): ClinicLimits => clinicLimits[id] ?? accountLimits;
+  // A clinic joined just now is not in the state yet: it comes with its own limits.
+  const clinicLimitsOf = (id: string): ClinicLimits =>
+    clinicLimits[id] ?? liveWorkplaces.find((row) => row.id === id)?.bookingLimits ?? accountLimits;
 
   /** Saves new booking limits per clinic, `changedId` being the clinic the doctor touched. */
   async function saveClinicLimits(next: ClinicLimitsById, changedId: string, successText: string) {
@@ -1554,11 +1555,9 @@ export function SettingsForm({
                 limits={clinicLimitsOf(row.id)}
                 onChange={(patch) =>
                   void saveClinicLimits(
-                    setClinicLimit(clinicLimits, row.id, patch, perClinicLimitsSaved),
+                    setClinicLimit(clinicLimits, row.id, patch),
                     row.id,
-                    perClinicLimitsSaved || liveWorkplaces.length === 1
-                      ? `Booking limits saved for ${name}.`
-                      : "Booking limits saved for all your clinics.",
+                    `Booking limits saved for ${name}.`,
                   )
                 }
                 clinicCount={liveWorkplaces.length}
@@ -1575,7 +1574,6 @@ export function SettingsForm({
                     `${name}'s booking limits now apply to all ${liveWorkplaces.length} of your clinics.`,
                   )
                 }
-                perClinicSaved={perClinicLimitsSaved}
                 busy={savingGroup === "limits"}
               />
             }

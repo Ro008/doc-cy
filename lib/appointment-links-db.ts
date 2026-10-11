@@ -8,7 +8,8 @@ import {
   newAppointmentLinkToken,
 } from "@/lib/appointment-link-token";
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import { parsePatientCancelNoticeHours, patientCancelDeadline } from "@/lib/patient-cancel-window";
+import { patientCancelDeadline } from "@/lib/patient-cancel-window";
+import { loadVisitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 
 /**
  * `appointment_links`: the links emailed to patients about an existing appointment
@@ -115,7 +116,8 @@ export function patientCancelDeadlineLabel(visitIso: string, noticeHours: number
 /**
  * The cancel link for a confirmed visit's email. It stays valid until the visit starts,
  * so after the notice deadline the page can still show the clinic phone; the deadline
- * itself is checked when the patient uses it, with the professional's current setting.
+ * itself is checked when the patient uses it, and is the one the visit was confirmed
+ * with (lib/visit-cancel-notice).
  */
 export async function issuePatientCancelLink(
   service: SupabaseClient,
@@ -123,14 +125,7 @@ export async function issuePatientCancelLink(
   siteUrl: string,
   options: { keepOlder?: boolean } = {},
 ): Promise<{ url: string; deadlineLabel: string }> {
-  const { data: settings } = await service
-    .from("professional_settings")
-    .select("patient_cancel_notice_hours")
-    .eq("professional_id", appointment.professional_id)
-    .maybeSingle();
-  const noticeHours = parsePatientCancelNoticeHours(
-    (settings as { patient_cancel_notice_hours?: number } | null)?.patient_cancel_notice_hours,
-  );
+  const noticeHours = await loadVisitCancelNoticeHours(service, appointment.id);
   const token = await issueAppointmentLink(service, {
     appointmentId: appointment.id,
     purpose: "cancel",

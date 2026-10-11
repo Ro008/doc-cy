@@ -760,6 +760,74 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     const slots = Object.fromEntries((rows.data ?? []).map((row) => [row.id, row.slot_duration_minutes]));
     expect(slots[seeded!.primaryId]).toBe(45);
     expect(slots[seeded!.secondId]).toBe(30);
+
+    // Recorded (user, 2026-10-11): the week and slot before and after, for that clinic only.
+    const hoursChanges = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_clinic_hours_change")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const recordedHours = await hoursChanges();
+    expect(recordedHours).toHaveLength(1);
+    expect(recordedHours[0].status).toBe("recorded");
+    expect(recordedHours[0].details).toMatchObject({
+      link_id: seeded!.primaryId,
+      clinic_name: "Limassol Skin Clinic",
+      slot_duration_minutes: 45,
+    });
+    expect(recordedHours[0].before_snapshot).toMatchObject({ slot_duration_minutes: 30 });
+
+    // Back to 30 minutes: a second record. The other clinic was sent too, unchanged: none for it.
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    await card.getByRole("radio", { name: "30 min" }).click();
+    await save.click();
+    await expect(card).toContainText("30 min", { timeout: 20_000 });
+    await expect.poll(async () => (await hoursChanges()).length, { timeout: 20_000 }).toBe(2);
+    expect((await hoursChanges()).every((row) => row.details.link_id === seeded!.primaryId)).toBe(true);
+  });
+
+  test("the online-booking switch of a clinic is saved and recorded", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "clinics");
+    const card = clinicCard(page, "Limassol Skin Clinic");
+    const toggle = card.getByRole("switch", { name: /Online booking/ });
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    const switches = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_clinic_online_booking_change")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const before = (await switches()).length;
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false", { timeout: 20_000 });
+    await expect.poll(async () => (await switches()).length, { timeout: 20_000 }).toBe(before + 1);
+    const off = (await switches())[before];
+    expect(off.status).toBe("recorded");
+    expect(off.details).toMatchObject({
+      link_id: seeded!.primaryId,
+      clinic_name: "Limassol Skin Clinic",
+      online_booking: false,
+    });
+    expect(off.before_snapshot).toEqual({ online_booking: true });
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true", { timeout: 20_000 });
+    await expect.poll(async () => (await switches()).length, { timeout: 20_000 }).toBe(before + 2);
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("pause_online_bookings")
+      .eq("id", seeded!.primaryId)
+      .single();
+    expect(link?.pause_online_bookings).toBe(false);
   });
 
   // User, 2026-10-10: an end time before the start time must not be possible.
@@ -916,38 +984,78 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await page.getByTestId("settings-sidebar").getByRole("link", { name: /Clinics/ }).click();
     const limassol = clinicCard(page, "Limassol Skin Clinic").getByTestId("clinic-booking-limits");
     const paphos = clinicCard(page, "Paphos Medical Centre").getByTestId("clinic-booking-limits");
+    const limitsOf = async () => {
+      const { data } = await admin
+        .from("professional_clinics")
+        .select("id, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours")
+        .in("id", [seeded!.primaryId, seeded!.secondId]);
+      return Object.fromEntries((data ?? []).map((row) => [row.id, row]));
+    };
+    const limitChanges = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_clinic_limits_change")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+
+    // Each clinic has its own limits (user, 2026-10-11): a change stays on that clinic.
     await limassol.getByLabel("Minimum notice").selectOption("48");
-    // EXPECTED until Livio stores limits per clinic: one value per professional, so it
-    // shows on every clinic and the card says so.
     await expect(
-      page.locator("[data-sonner-toast]").getByText("Booking limits saved for all your clinics."),
-    ).toBeVisible();
-    await expect(limassol.getByTestId("clinic-limits-scope")).toHaveText("All 2 of your clinics use these limits.");
-    await expect(limassol.getByTestId("clinic-limits-pending")).toContainText("Livio");
-    // One card is open at a time: the other clinic shows the same value once opened.
+      page.locator("[data-sonner-toast]").getByText("Booking limits saved for Limassol Skin Clinic."),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(limassol.getByTestId("clinic-limits-scope")).toHaveText(
+      "Only for this clinic. Your other clinics keep their own limits.",
+    );
+    // The note about limits shared by every clinic is gone.
+    await expect(page.getByTestId("clinic-limits-pending")).toHaveCount(0);
+    await expect(page.getByText(/Expected for now/)).toHaveCount(0);
+    await expect.poll(async () => (await limitsOf())[seeded!.primaryId]?.minimum_notice_hours).toBe(48);
+    expect((await limitsOf())[seeded!.secondId]?.minimum_notice_hours).toBe(2);
+    // The save carries each clinic's own limits.
+    expect(sentLocations).toHaveLength(2);
+    expect(sentLocations.map((row) => row.minimumNoticeHours).sort()).toEqual([2, 48]);
+
+    // Recorded once, for that clinic, with the limits before.
+    const first = await limitChanges();
+    expect(first).toHaveLength(1);
+    expect(first[0].status).toBe("recorded");
+    expect(first[0].details).toMatchObject({
+      link_id: seeded!.primaryId,
+      clinic_name: "Limassol Skin Clinic",
+      minimum_notice_hours: 48,
+    });
+    expect(first[0].before_snapshot).toMatchObject({ minimum_notice_hours: 2 });
+
+    // The cancellation deadline is a limit of the clinic too.
+    await limassol.getByLabel("Online cancellation").selectOption("24");
+    await expect.poll(async () => (await limitsOf())[seeded!.primaryId]?.patient_cancel_notice_hours).toBe(24);
+    expect((await limitsOf())[seeded!.secondId]?.patient_cancel_notice_hours).toBe(12);
+
+    // One card is open at a time: the other clinic still shows its own value.
     await openClinicCard(page, "Paphos Medical Centre");
-    await expect(paphos.getByLabel("Minimum notice")).toHaveValue("48");
+    await expect(paphos.getByLabel("Minimum notice")).toHaveValue("2");
     // "Apply to all" is always there with more than one clinic, and says what it did.
     await paphos.getByTestId("clinic-limits-apply-all").click();
     await expect(
       page
         .locator("[data-sonner-toast]")
         .getByText("Paphos Medical Centre's booking limits now apply to all 2 of your clinics."),
-    ).toBeVisible();
-    // The save already carries each clinic's limits for the backend to store.
-    expect(sentLocations).toHaveLength(2);
-    expect(sentLocations.every((row) => row.minimumNoticeHours === 48)).toBe(true);
-
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(paphos.getByTestId("clinic-limits-scope")).toHaveText("All 2 of your clinics use these limits.");
     await expect
       .poll(async () => {
-        const { data } = await admin
-          .from("professional_settings")
-          .select("minimum_notice_hours")
-          .eq("professional_id", seeded!.professionalId)
-          .maybeSingle();
-        return data?.minimum_notice_hours ?? null;
+        const limits = await limitsOf();
+        return [limits[seeded!.primaryId]?.minimum_notice_hours, limits[seeded!.primaryId]?.patient_cancel_notice_hours];
       })
-      .toBe(48);
+      .toEqual([2, 12]);
+    // Only the clinic that changed got a record: three in all, none for Paphos.
+    const all = await limitChanges();
+    expect(all).toHaveLength(3);
+    expect(all.every((row) => row.details.link_id === seeded!.primaryId)).toBe(true);
+
     const { data: pro } = await admin.from("professionals").select("bio").eq("id", seeded!.professionalId).single();
     expect(pro?.bio ?? "").not.toBe("A bio I have not saved");
   });

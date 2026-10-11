@@ -1,24 +1,19 @@
 // app/api/doctor-settings/route.ts
-import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
-import {
-  BOOKING_HORIZON_OPTIONS_DAYS,
-  DEFAULT_BOOKING_HORIZON_DAYS,
-  DEFAULT_MIN_NOTICE_HOURS,
-  MIN_NOTICE_OPTIONS_HOURS,
-  type WeeklySchedule,
-} from "@/lib/doctor-settings";
+import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
+  clinicHoursUnchanged,
   settingsSaveTargets,
   writeClinicSettings,
   type SettingsClinicInput,
 } from "@/lib/professional-clinic-settings-writes";
+import { saveClinicHours, saveClinicLimits } from "@/lib/professional-clinics-server";
 import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
@@ -78,9 +73,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert professional_settings (account settings: horizon, notice, holiday) +
- * update the mobile, bio, languages (owner only). Each clinic's schedule is written on
- * the professional's join row (Point E6: professional_settings no longer copies it).
+/** POST - upsert professional_settings (the holiday) + update the bio and languages
+ * (owner only). Each clinic's hours and booking limits are saved on the professional's
+ * join row and recorded (user, 2026-10-11): the limits belong to each clinic, sent with
+ * its entry in `locations`; a clinic sent without limits keeps them.
  * Clinics are read-only here (user, 2026-09-29 phones; 2026-09-30 D4 addresses): they are
  * curated by DocCy, so a save writes each clinic's hours and name on the professional's
  * join row and never an address. Address fields an old page still sends are ignored.
@@ -193,30 +189,11 @@ export async function POST(req: NextRequest) {
     if (wrongHours) return NextResponse.json({ message: wrongHours }, { status: 400 });
   }
 
-  const bookingHorizon = Number(b.bookingHorizonDays);
-  const booking_horizon_days = BOOKING_HORIZON_OPTIONS_DAYS.includes(
-    bookingHorizon as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
-  )
-    ? bookingHorizon
-    : DEFAULT_BOOKING_HORIZON_DAYS;
-  const minimumNotice = Number(b.minimumNoticeHours);
-  const minimum_notice_hours = MIN_NOTICE_OPTIONS_HOURS.includes(
-    minimumNotice as (typeof MIN_NOTICE_OPTIONS_HOURS)[number]
-  )
-    ? minimumNotice
-    : DEFAULT_MIN_NOTICE_HOURS;
-
   const { data, error: settingsError } = await supabase
     .from("professional_settings")
     .upsert(
       {
         professional_id: doctorId,
-        booking_horizon_days,
-        minimum_notice_hours,
-        // Until when patients can cancel online (12 / 24 / 48 h; user, 2026-10-08).
-        ...(b.patientCancelNoticeHours !== undefined
-          ? { patient_cancel_notice_hours: parsePatientCancelNoticeHours(b.patientCancelNoticeHours) }
-          : {}),
         holiday_mode_enabled: Boolean(b.holidayModeEnabled),
         holiday_start_date: Boolean(b.holidayModeEnabled)
           ? (b.holidayStartDate ?? null)
@@ -278,14 +255,30 @@ export async function POST(req: NextRequest) {
           },
         ];
 
-  for (const { locationId, settings } of settingsSaveTargets(clinicInputs, ownedClinics)) {
-    const saved = await writeClinicSettings(doctorId, locationId, settings);
-    if (!saved.ok) {
-      console.error("[DocCy] Failed to save clinic settings", saved.error);
-      return NextResponse.json(
-        { message: "Error saving clinic settings." },
-        { status: 500 },
-      );
+  for (const { locationId, settings, limits } of settingsSaveTargets(clinicInputs, ownedClinics)) {
+    // Hours and limits are saved and recorded by their database functions; saving
+    // what is already there records nothing.
+    const { label, ...hours } = settings;
+    // A save sends every clinic: only the ones whose hours really differ are written.
+    const current = ownedClinics.find((row) => row.id === locationId);
+    if (!current || !clinicHoursUnchanged(hours, current)) {
+      const hoursSaved = await saveClinicHours(profileService, { professionalId: doctorId, linkId: locationId, hours });
+      if (hoursSaved.ok === false) {
+        return NextResponse.json({ message: hoursSaved.message }, { status: hoursSaved.status });
+      }
+    }
+    if (limits) {
+      const limitsSaved = await saveClinicLimits(profileService, { professionalId: doctorId, linkId: locationId, limits });
+      if (limitsSaved.ok === false) {
+        return NextResponse.json({ message: limitsSaved.message }, { status: limitsSaved.status });
+      }
+    }
+    if (label !== undefined) {
+      const saved = await writeClinicSettings(doctorId, locationId, { label });
+      if (!saved.ok) {
+        console.error("[DocCy] Failed to save clinic settings", saved.error);
+        return NextResponse.json({ message: "Error saving clinic settings." }, { status: 500 });
+      }
     }
   }
 

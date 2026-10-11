@@ -129,9 +129,10 @@ describe("nothing reads or writes the professional_settings schedule copies (Poi
   });
 
   it("the account settings select is the professional-level columns only", () => {
+    // The booking limits moved to each clinic link (user, 2026-10-11).
     assert.equal(
       PROFESSIONAL_ACCOUNT_SETTINGS_SELECT,
-      "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours",
+      "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date",
     );
   });
 

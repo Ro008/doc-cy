@@ -10,7 +10,7 @@ import {
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { SETTINGS_LINK_CLASS } from "@/components/dashboard/settings/styles";
 import { SavingNote } from "@/components/dashboard/settings/BusyLabel";
-import { PER_CLINIC_LIMITS_PENDING, type ClinicLimits } from "@/lib/settings-clinic-limits";
+import type { ClinicLimits } from "@/lib/settings-clinic-limits";
 
 const SELECT_CLASS =
   "mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 disabled:opacity-60";
@@ -38,7 +38,6 @@ export function ClinicBookingLimits({
   clinicCount,
   sharedByAll,
   onApplyToAll,
-  perClinicSaved,
   busy,
 }: {
   clinicId: string;
@@ -48,8 +47,6 @@ export function ClinicBookingLimits({
   /** Every clinic already has these limits. */
   sharedByAll: boolean;
   onApplyToAll: () => void;
-  /** false until the backend stores limits per clinic (lib/settings-clinic-limits). */
-  perClinicSaved: boolean;
   busy: boolean;
 }) {
   const id = (field: string) => `${field}-${clinicId}`;
@@ -154,11 +151,6 @@ export function ClinicBookingLimits({
             Apply to all my clinics
           </button>
         </div>
-      ) : null}
-      {!perClinicSaved && clinicCount > 1 ? (
-        <p className="mt-4 text-xs leading-relaxed text-amber-200/80" data-testid="clinic-limits-pending">
-          {PER_CLINIC_LIMITS_PENDING}
-        </p>
       ) : null}
     </div>
   );

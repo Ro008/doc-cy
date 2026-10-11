@@ -97,6 +97,10 @@ describe("professional clinic locations", () => {
       break_start: "13:00:00",
       break_end: "14:00:00",
       slot_duration_minutes: 45,
+      // The table's defaults for a row read without its limits.
+      booking_horizon_days: 90,
+      minimum_notice_hours: 2,
+      patient_cancel_notice_hours: 12,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-02T10:00:00Z",
     });

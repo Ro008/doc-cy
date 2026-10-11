@@ -11,7 +11,6 @@ import {
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
 import { parseAgendaHighlight } from "@/lib/agenda-highlight";
-import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { loadProAccessEnded } from "@/lib/load-access-ended";
@@ -121,19 +120,12 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  const [locationRows, accessEnded, { data: cancelSettings }] = await Promise.all([
+  const [locationRows, accessEnded] = await Promise.all([
     loadDoctorLocations(doctor.id),
     loadProAccessEnded(supabase, doctor.id),
-    supabase
-      .from("professional_settings")
-      .select("patient_cancel_notice_hours")
-      .eq("professional_id", doctor.id)
-      .maybeSingle(),
   ]);
+  // Each clinic carries its own cancellation deadline (user, 2026-10-11).
   const clinics = locationsToAgendaClinics(locationRows);
-  const patientCancelNoticeHours = parsePatientCancelNoticeHours(
-    (cancelSettings as { patient_cancel_notice_hours?: number } | null)?.patient_cancel_notice_hours,
-  );
   // The primary clinic's hours frame the calendar (Point E6: schedules live on the
   // clinic links, each clinic's own hours come with `clinics`).
   const primaryClinic = primaryDoctorLocation(locationRows);
@@ -164,7 +156,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           initialView={searchParams?.view ?? null}
           openManualBooking={searchParams?.manual === "1"}
           highlightAppointmentId={parseAgendaHighlight(searchParams?.highlight)}
-          patientCancelNoticeHours={patientCancelNoticeHours}
           accessEnded={accessEnded}
         />
       </div>

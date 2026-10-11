@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { appointmentLinkState, findAppointmentLink, type AppointmentLinkRow } from "@/lib/appointment-links-db";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
 import { clinicMapsUrl } from "@/lib/clinic-info";
-import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
+import { patientCanCancel } from "@/lib/patient-cancel-window";
+import { loadVisitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 
 /**
  * Everything the patient's cancel page and POST /api/booking/cancel need from the
@@ -59,20 +60,14 @@ export async function loadPatientCancelContext(
     clinic_id: string | null;
   };
 
-  const [{ data: pro }, { data: clinic }, { data: settings }] = await Promise.all([
+  const [{ data: pro }, { data: clinic }, noticeHours] = await Promise.all([
     service.from("professionals").select("name, slug, email, registration_email").eq("id", a.professional_id).maybeSingle(),
     a.clinic_id
       ? service.from("clinics").select("name, address, phone, address_maps_link, latitude, longitude").eq("id", a.clinic_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    service
-      .from("professional_settings")
-      .select("patient_cancel_notice_hours")
-      .eq("professional_id", a.professional_id)
-      .maybeSingle(),
+    // The deadline this visit was confirmed with, else her clinic's (user, 2026-10-11).
+    loadVisitCancelNoticeHours(service, a.id),
   ]);
-  const noticeHours = parsePatientCancelNoticeHours(
-    (settings as { patient_cancel_notice_hours?: number } | null)?.patient_cancel_notice_hours,
-  );
   const confirmed = String(a.status).toUpperCase() === "CONFIRMED";
   const linkUsable = state === "usable";
   const beforeDeadline = patientCanCancel(a.appointment_datetime, noticeHours, now);

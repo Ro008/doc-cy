@@ -95,7 +95,7 @@ import {
   agendaToolbarDividerClass,
   agendaWeekGridColsClass,
 } from "@/components/agenda/agenda-surface";
-import { DEFAULT_PATIENT_CANCEL_NOTICE_HOURS } from "@/lib/patient-cancel-window";
+import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 
 
 function agendaRowFromSupabasePayload(
@@ -309,7 +309,6 @@ export function AgendaRealtime({
   initialView,
   openManualBooking,
   highlightAppointmentId,
-  patientCancelNoticeHours = DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
   accessEnded = false,
 }: {
   doctorId: string | null;
@@ -322,8 +321,6 @@ export function AgendaRealtime({
   openManualBooking?: boolean;
   /** Visit to point out after arriving from a link (e.g. the dashboard's Today). */
   highlightAppointmentId?: string | null;
-  /** Her patients can cancel online until this many hours before; inside it, warn her. */
-  patientCancelNoticeHours?: number;
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
 }) {
@@ -1289,7 +1286,7 @@ export function AgendaRealtime({
           previousVisitClinicName={(clinicId) =>
             isMultiClinic ? clinics.find((c) => c.clinicId === clinicId)?.name ?? null : null
           }
-          patientCancelNoticeHours={patientCancelNoticeHours}
+          patientCancelNoticeHours={visitCancelNoticeHours(selected, clinics)}
           onClose={() => setSelected(null)}
           onUpdated={(id, patch) =>
             setAppointments((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)))

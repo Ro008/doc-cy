@@ -8,6 +8,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { CY_TZ } from "@/lib/appointments";
+import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 import {
   clinicIdForAppointment,
   type AgendaClinic,
@@ -66,8 +67,6 @@ type Props = {
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
-  /** Patients' cancel window, for the short-notice warning when she cancels a visit. */
-  patientCancelNoticeHours: number;
 };
 
 type ExitKind = "accepted" | "declined";
@@ -104,7 +103,6 @@ export function DoctorDashboard({
   todayWindow,
   pausedNotices,
   accessEnded = false,
-  patientCancelNoticeHours,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -375,7 +373,7 @@ export function DoctorDashboard({
           clinicName={clinicTag(openVisitRow.clinic_id)?.name ?? null}
           clinicSwatchClass={clinicTag(openVisitRow.clinic_id)?.swatchClass ?? null}
           previousVisitClinicName={(clinicId) => clinicTag(clinicId ?? null)?.name ?? null}
-          patientCancelNoticeHours={patientCancelNoticeHours}
+          patientCancelNoticeHours={visitCancelNoticeHours(openVisitRow, clinics)}
           agendaHref={agendaHighlightHref(
             formatInTimeZone(new Date(openVisitRow.appointment_datetime), CY_TZ, "yyyy-MM-dd"),
             openVisitRow.id,

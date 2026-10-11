@@ -9,21 +9,17 @@ import type { DoctorSettingsRow } from "@/lib/doctor-settings";
 
 /**
  * `professional_settings` holds professional-level settings only (Point E6, user
- * 2026-10-01): holiday, booking horizon, minimum notice. The schedule (days, hours, break,
- * slot length, pause) lives on each clinic link (`professional_clinics`), so a schedule is
- * always "this professional at this clinic": `settingsAtClinic`.
+ * 2026-10-01): the holiday. The schedule (days, hours, break, slot length, pause) and,
+ * since 2026-10-11, the booking limits (how far ahead, minimum notice, cancellation
+ * deadline) live on each clinic link (`professional_clinics`), so a schedule is always
+ * "this professional at this clinic": `settingsAtClinic`.
  */
 export const PROFESSIONAL_ACCOUNT_SETTINGS_SELECT =
-  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours";
+  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date";
 
 export type ProfessionalAccountSettings = Pick<
   DoctorSettingsRow,
-  | "professional_id"
-  | "holiday_mode_enabled"
-  | "holiday_start_date"
-  | "holiday_end_date"
-  | "booking_horizon_days"
-  | "minimum_notice_hours"
+  "professional_id" | "holiday_mode_enabled" | "holiday_start_date" | "holiday_end_date"
 >;
 
 const DEFAULT_SLOT_MINUTES = 30;

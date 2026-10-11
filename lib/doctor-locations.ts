@@ -1,8 +1,6 @@
 import { compareClinicOrder } from "@/lib/clinic-order";
 import {
   DAY_NAMES,
-  DEFAULT_BOOKING_HORIZON_DAYS,
-  DEFAULT_MIN_NOTICE_HOURS,
   buildWeeklyScheduleFromSettings,
   dayBreakTimes,
   dayHasOwnBreak,
@@ -57,6 +55,13 @@ export type DoctorLocationRow = {
   break_start: string | null;
   break_end: string | null;
   slot_duration_minutes: number;
+  /**
+   * Booking limits of this clinic (user, 2026-10-11): how far ahead, the shortest
+   * notice, and until when patients cancel online. Absent only on rows built by hand.
+   */
+  booking_horizon_days?: number;
+  minimum_notice_hours?: number;
+  patient_cancel_notice_hours?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -258,16 +263,14 @@ export function locationToClinicLocation(location: DoctorLocationRow): ClinicLoc
   });
 }
 
+/**
+ * One bookable schedule: the clinic's hours, break, slot length, pause and booking
+ * limits, with the professional's holiday. The limits are the clinic's (user,
+ * 2026-10-11); `global` only supplies them for a row that carries none.
+ */
 export function locationToSettingsRow(
   location: DoctorLocationRow,
-  global: Pick<
-    DoctorSettingsRow,
-    | "holiday_mode_enabled"
-    | "holiday_start_date"
-    | "holiday_end_date"
-    | "booking_horizon_days"
-    | "minimum_notice_hours"
-  > &
+  global: Pick<DoctorSettingsRow, "holiday_mode_enabled" | "holiday_start_date" | "holiday_end_date"> &
     Partial<DoctorSettingsRow>,
 ): DoctorSettingsRow {
   return {
@@ -288,8 +291,8 @@ export function locationToSettingsRow(
     holiday_mode_enabled: Boolean(global.holiday_mode_enabled),
     holiday_start_date: global.holiday_start_date ?? null,
     holiday_end_date: global.holiday_end_date ?? null,
-    booking_horizon_days: Number(global.booking_horizon_days ?? 90),
-    minimum_notice_hours: Number(global.minimum_notice_hours ?? 2),
+    booking_horizon_days: Number(location.booking_horizon_days ?? global.booking_horizon_days ?? 90),
+    minimum_notice_hours: Number(location.minimum_notice_hours ?? global.minimum_notice_hours ?? 2),
     slot_duration_minutes:
       Number(location.slot_duration_minutes) > 0
         ? Number(location.slot_duration_minutes)
@@ -306,8 +309,6 @@ export const ACCOUNT_SETTINGS_FALLBACK = {
   holiday_mode_enabled: false,
   holiday_start_date: null,
   holiday_end_date: null,
-  booking_horizon_days: DEFAULT_BOOKING_HORIZON_DAYS,
-  minimum_notice_hours: DEFAULT_MIN_NOTICE_HOURS,
 } as const;
 
 export function locationWeeklySlots(location: DoctorLocationRow): WeeklySlotFromSettings[] {

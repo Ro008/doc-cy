@@ -6,51 +6,37 @@ import {
   applyLimitsToAllClinics,
   clinicsShareLimits,
   initialClinicLimits,
-  PER_CLINIC_LIMITS_PENDING,
   setClinicLimit,
 } from "../../lib/settings-clinic-limits";
 import { buildSettingsSavePayload } from "../../lib/settings-save-groups";
 import type { SettingsDirtySnapshot } from "../../lib/settings-form-dirty";
 
 /**
- * Booking limits per clinic (user, 2026-10-09): how far ahead, minimum notice and the
- * online cancellation deadline are set on each clinic, with one "Apply to all my
- * clinics". Until Livio stores them per clinic, the backend keeps one value per
- * professional: a change then shows on every clinic and the UI says so.
+ * Booking limits per clinic (user, 2026-10-09; stored per clinic since 2026-10-11): how
+ * far ahead, minimum notice and the online cancellation deadline are set on each
+ * clinic, with one "Apply to all my clinics".
  */
 
 const account = { bookingHorizonDays: 30, minimumNoticeHours: 2, patientCancelNoticeHours: 12 };
 
 describe("initialClinicLimits", () => {
-  it("falls back to the account limits while the backend has none per clinic", () => {
-    const state = initialClinicLimits([{ id: "a" }, { id: "b" }], account);
-    assert.equal(state.perClinicSaved, false);
-    assert.deepEqual(state.byClinic.a, account);
-    assert.deepEqual(state.byClinic.b, account);
+  it("uses each clinic's own limits", () => {
+    const own = { bookingHorizonDays: 90, minimumNoticeHours: 24, patientCancelNoticeHours: 48 };
+    const byClinic = initialClinicLimits([{ id: "a", bookingLimits: own }, { id: "b", bookingLimits: account }], account);
+    assert.deepEqual(byClinic.a, own);
+    assert.deepEqual(byClinic.b, account);
   });
 
-  it("uses each clinic's own limits once the backend sends them", () => {
-    const own = { bookingHorizonDays: 90, minimumNoticeHours: 24, patientCancelNoticeHours: 48 };
-    const state = initialClinicLimits([{ id: "a", bookingLimits: own }, { id: "b" }], account);
-    assert.equal(state.perClinicSaved, true);
-    assert.deepEqual(state.byClinic.a, own);
-    assert.deepEqual(state.byClinic.b, account);
+  it("fills a clinic that arrived without limits", () => {
+    assert.deepEqual(initialClinicLimits([{ id: "a" }], account).a, account);
   });
 });
 
 describe("setClinicLimit", () => {
-  const byClinic = { a: account, b: account };
-
-  it("changes only that clinic once limits are saved per clinic", () => {
-    const next = setClinicLimit(byClinic, "a", { minimumNoticeHours: 24 }, true);
+  it("changes only that clinic", () => {
+    const next = setClinicLimit({ a: account, b: account }, "a", { minimumNoticeHours: 24 });
     assert.equal(next.a.minimumNoticeHours, 24);
     assert.equal(next.b.minimumNoticeHours, 2);
-  });
-
-  it("changes every clinic while the backend keeps one value per professional", () => {
-    const next = setClinicLimit(byClinic, "a", { minimumNoticeHours: 24 }, false);
-    assert.equal(next.a.minimumNoticeHours, 24);
-    assert.equal(next.b.minimumNoticeHours, 24);
   });
 });
 
@@ -78,13 +64,6 @@ describe("accountLimitsFor", () => {
     const own = { bookingHorizonDays: 90, minimumNoticeHours: 24, patientCancelNoticeHours: 48 };
     assert.deepEqual(accountLimitsFor({ a: account, b: own }, "b", account), own);
     assert.deepEqual(accountLimitsFor({}, "missing", account), account);
-  });
-});
-
-describe("PER_CLINIC_LIMITS_PENDING", () => {
-  it("names what Livio has to build", () => {
-    assert.match(PER_CLINIC_LIMITS_PENDING, /Livio/);
-    assert.match(PER_CLINIC_LIMITS_PENDING, /professional_clinics/);
   });
 });
 

@@ -406,19 +406,17 @@ export default async function AgendaSettingsPage({
         break_end: null,
         pause_online_bookings: false,
         slot_duration_minutes: 30,
+        booking_horizon_days: DEFAULT_BOOKING_HORIZON_DAYS,
+        minimum_notice_hours: DEFAULT_MIN_NOTICE_HOURS,
         ...ACCOUNT_SETTINGS_FALLBACK,
       },
     ),
     slotDurationMinutes: primaryHours?.slot_duration_minutes ?? 30,
-    bookingHorizonDays:
-      (settings as { booking_horizon_days?: number } | null)
-        ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
-    minimumNoticeHours:
-      (settings as { minimum_notice_hours?: number } | null)
-        ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
-    patientCancelNoticeHours: parsePatientCancelNoticeHours(
-      (settings as { patient_cancel_notice_hours?: number | null } | null)?.patient_cancel_notice_hours,
-    ),
+    // The limits are each clinic's own (locations[i].bookingLimits); these only fill
+    // a clinic that carries none.
+    bookingHorizonDays: primaryClinic?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
+    minimumNoticeHours: primaryClinic?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
+    patientCancelNoticeHours: parsePatientCancelNoticeHours(primaryClinic?.patient_cancel_notice_hours),
     holidayModeEnabled: Boolean(
       (settings as { holiday_mode_enabled?: boolean | null } | null)
         ?.holiday_mode_enabled

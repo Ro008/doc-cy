@@ -5,7 +5,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { DIRECTORY_CANARIES } from "../../lib/directory-canaries";
 import { MAX_DOCTOR_LOCATIONS, sortDoctorLocations } from "../../lib/doctor-locations";
-import { joinProfessionalClinic, leaveProfessionalClinic } from "../../lib/professional-clinics-server";
+import {
+  joinProfessionalClinic,
+  leaveProfessionalClinic,
+  saveClinicHours,
+  saveClinicLimits,
+  setClinicOnlineBooking,
+} from "../../lib/professional-clinics-server";
 import { LEAVE_CLINIC_LOSES, leaveClinicNotes } from "../../lib/settings-leave-clinic";
 
 /**
@@ -165,5 +171,104 @@ describe("the order of her clinics", () => {
       sortDoctorLocations(flagged).map((row) => row.id),
       ["b", "a"],
     );
+  });
+});
+
+describe("her hours, limits and online-booking switch at a clinic (stage 3)", () => {
+  const HOURS = {
+    monday: true,
+    start_time: "09:00:00",
+    end_time: "17:00:00",
+    weekly_schedule: { monday: { enabled: true, start_time: "09:00:00", end_time: "17:00:00" } },
+    slot_duration_minutes: 30,
+    // Never part of the hours: the switch and the name have their own ways.
+    pause_online_bookings: false,
+    label: "Mine",
+  };
+
+  it("saves the hours through the database function, which records the change", async () => {
+    const { service, calls } = fakeService({ data: "request-id" });
+    const result = await saveClinicHours(service, { professionalId: PRO, linkId: LINK, hours: HOURS });
+    assert.deepEqual(result, { ok: true, changed: true });
+    const { pause_online_bookings: _pause, label: _label, ...sent } = HOURS;
+    assert.deepEqual(calls, [
+      { fn: "professional_clinic_hours_set", args: { p_professional_id: PRO, p_link_id: LINK, p_hours: sent } },
+    ]);
+  });
+
+  it("says nothing changed when the function recorded nothing", async () => {
+    const { service } = fakeService({ data: null });
+    assert.deepEqual(await saveClinicHours(service, { professionalId: PRO, linkId: LINK, hours: HOURS }), {
+      ok: true,
+      changed: false,
+    });
+  });
+
+  it("refuses hours the database cannot read, and a clinic that is not hers", async () => {
+    const bad = await saveClinicHours(fakeService({ error: { code: "22023" } }).service, {
+      professionalId: PRO,
+      linkId: LINK,
+      hours: HOURS,
+    });
+    assert.equal(bad.ok === false && bad.status, 400);
+    const notHers = await saveClinicHours(fakeService({ error: { code: "P0002" } }).service, {
+      professionalId: PRO,
+      linkId: LINK,
+      hours: HOURS,
+    });
+    assert.equal(notHers.ok === false && notHers.status, 404);
+  });
+
+  it("saves the limits of one clinic; a limit left out is kept", async () => {
+    const { service, calls } = fakeService({ data: "request-id" });
+    const result = await saveClinicLimits(service, {
+      professionalId: PRO,
+      linkId: LINK,
+      limits: { bookingHorizonDays: 30, patientCancelNoticeHours: 48 },
+    });
+    assert.deepEqual(result, { ok: true, changed: true });
+    assert.deepEqual(calls, [
+      {
+        fn: "professional_clinic_limits_set",
+        args: {
+          p_professional_id: PRO,
+          p_link_id: LINK,
+          p_booking_horizon_days: 30,
+          p_minimum_notice_hours: null,
+          p_patient_cancel_notice_hours: 48,
+        },
+      },
+    ]);
+  });
+
+  it("refuses a limit that is not on the list", async () => {
+    const { service } = fakeService({ error: { code: "22023" } });
+    const result = await saveClinicLimits(service, {
+      professionalId: PRO,
+      linkId: LINK,
+      limits: { bookingHorizonDays: 45 },
+    });
+    assert.equal(result.ok === false && result.status, 400);
+    assert.equal(result.ok === false && result.message, "Choose one of the listed booking limits.");
+  });
+
+  it("switches online booking on or off through the function", async () => {
+    const { service, calls } = fakeService({ data: "request-id" });
+    assert.deepEqual(await setClinicOnlineBooking(service, { professionalId: PRO, linkId: LINK, online: false }), {
+      ok: true,
+      changed: true,
+    });
+    assert.deepEqual(calls, [
+      {
+        fn: "professional_clinic_online_booking_set",
+        args: { p_professional_id: PRO, p_link_id: LINK, p_online_booking: false },
+      },
+    ]);
+    const notHers = await setClinicOnlineBooking(fakeService({ error: { code: "P0002" } }).service, {
+      professionalId: PRO,
+      linkId: LINK,
+      online: true,
+    });
+    assert.equal(notHers.ok === false && notHers.status, 404);
   });
 });

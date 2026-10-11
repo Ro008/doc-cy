@@ -7,7 +7,8 @@ import { LAST_CLINIC_MESSAGE } from "@/lib/settings-removal-rules";
 
 /**
  * Settings → Clinics (user, 2026-10-11): she joins a clinic DocCy already has, and
- * leaves one, at once. No founder; each database function makes the change and its
+ * leaves one, at once; her hours, booking limits and online-booking switch at a clinic
+ * save at once too. No founder; each database function makes the change and its
  * request_log row together, and keeps the rules (at most 5 clinics, never the last).
  */
 
@@ -69,6 +70,89 @@ export async function leaveProfessionalClinic(
     return { ok: false, status: 500, message: "Could not leave the clinic. Please try again." };
   }
   return { ok: true };
+}
+
+const HOURS_COLUMNS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "start_time",
+  "end_time",
+  "weekly_schedule",
+  "break_start",
+  "break_end",
+  "slot_duration_minutes",
+] as const;
+
+export type ClinicLimitsInput = {
+  bookingHorizonDays?: number;
+  minimumNoticeHours?: number;
+  patientCancelNoticeHours?: number;
+};
+
+type Saved = HttpResult<{ changed: boolean }>;
+
+function clinicSaveError(error: { code?: string }, what: string, refused: string): Saved {
+  if (error.code === "P0002" || error.code === "22P02") return { ok: false, status: 404, message: NOT_HERS };
+  if (error.code === "22023" || error.code === "23514") return { ok: false, status: 400, message: refused };
+  console.error(`[DocCy] clinic ${what}`, error);
+  return { ok: false, status: 500, message: "Could not save. Please try again." };
+}
+
+/**
+ * Her hours at one clinic: open days, hours, breaks and slot length
+ * (professional_clinic_hours_set). Saved and recorded together; `changed` is false
+ * when she saved what was already there, which records nothing.
+ */
+export async function saveClinicHours(
+  service: SupabaseClient,
+  input: { professionalId: string; linkId: string; hours: Record<string, unknown> },
+): Promise<Saved> {
+  const hours: Record<string, unknown> = {};
+  for (const column of HOURS_COLUMNS) {
+    if (input.hours[column] !== undefined) hours[column] = input.hours[column];
+  }
+  const { data, error } = await service.rpc("professional_clinic_hours_set", {
+    p_professional_id: input.professionalId,
+    p_link_id: input.linkId,
+    p_hours: hours,
+  });
+  if (error) return clinicSaveError(error, "hours", "Those hours could not be saved. Check them and try again.");
+  return { ok: true, changed: Boolean(data) };
+}
+
+/** The booking limits of one clinic (professional_clinic_limits_set); a limit left out is kept. */
+export async function saveClinicLimits(
+  service: SupabaseClient,
+  input: { professionalId: string; linkId: string; limits: ClinicLimitsInput },
+): Promise<Saved> {
+  const { data, error } = await service.rpc("professional_clinic_limits_set", {
+    p_professional_id: input.professionalId,
+    p_link_id: input.linkId,
+    p_booking_horizon_days: input.limits.bookingHorizonDays ?? null,
+    p_minimum_notice_hours: input.limits.minimumNoticeHours ?? null,
+    p_patient_cancel_notice_hours: input.limits.patientCancelNoticeHours ?? null,
+  });
+  if (error) return clinicSaveError(error, "limits", "Choose one of the listed booking limits.");
+  return { ok: true, changed: Boolean(data) };
+}
+
+/** The online-booking switch of one clinic (professional_clinic_online_booking_set). */
+export async function setClinicOnlineBooking(
+  service: SupabaseClient,
+  input: { professionalId: string; linkId: string; online: boolean },
+): Promise<Saved> {
+  const { data, error } = await service.rpc("professional_clinic_online_booking_set", {
+    p_professional_id: input.professionalId,
+    p_link_id: input.linkId,
+    p_online_booking: input.online,
+  });
+  if (error) return clinicSaveError(error, "online booking", "Could not save. Please try again.");
+  return { ok: true, changed: Boolean(data) };
 }
 
 /**

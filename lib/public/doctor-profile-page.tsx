@@ -626,7 +626,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
-  // Account settings (holiday, horizon, notice); the schedule is the clinic link's (Point E6).
+  // Account settings (holiday); the schedule and the booking limits are the clinic link's.
   const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
     supabase,
     profile.id,
@@ -681,7 +681,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const nowUtc = new Date();
   const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const horizonRaw = normalizedSettings?.booking_horizon_days ?? 90;
+  // How far ahead is the selected clinic's own limit (user, 2026-10-11).
+  const horizonRaw = locationSettings?.booking_horizon_days ?? 90;
   const maxHorizonDays = [14, 30, 90, 180].includes(horizonRaw)
     ? horizonRaw
     : 90;
@@ -934,20 +935,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                       } | null
                     )?.holiday_end_date ?? null
                   }
-                  bookingHorizonDays={
-                    (
-                      normalizedSettings as {
-                        booking_horizon_days?: number | null;
-                      } | null
-                    )?.booking_horizon_days ?? 90
-                  }
-                  minimumNoticeHours={
-                    (
-                      normalizedSettings as {
-                        minimum_notice_hours?: number | null;
-                      } | null
-                    )?.minimum_notice_hours ?? 2
-                  }
+                  bookingHorizonDays={locationSettings?.booking_horizon_days ?? 90}
+                  minimumNoticeHours={locationSettings?.minimum_notice_hours ?? 2}
                 />
               </div>
             )}

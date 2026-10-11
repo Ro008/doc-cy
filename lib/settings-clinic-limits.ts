@@ -1,12 +1,9 @@
 /**
- * Booking limits per clinic (user, 2026-10-09): how far ahead, minimum notice and the
- * online cancellation deadline belong to each clinic, with one "Apply to all my
- * clinics" so a doctor with several clinics does not set them three times.
- *
- * EXPECTED TO FAIL until Livio stores them per clinic (professional_clinics columns,
- * loaded into each location's `bookingLimits` and read from each `locations[i]` of
- * POST /api/doctor-settings). Until then the backend keeps one value per professional
- * (professional_settings): a change shows on every clinic and the UI says so.
+ * Booking limits per clinic (user, 2026-10-09; stored per clinic since 2026-10-11): how
+ * far ahead, minimum notice and the online cancellation deadline belong to each clinic
+ * (professional_clinics), with one "Apply to all my clinics" so a doctor with several
+ * clinics does not set them three times. Each clinic arrives with its own
+ * `bookingLimits` and goes back in its `locations[i]` of POST /api/doctor-settings.
  */
 
 export type ClinicLimits = {
@@ -17,32 +14,21 @@ export type ClinicLimits = {
 
 export type ClinicLimitsById = Record<string, ClinicLimits>;
 
-export const PER_CLINIC_LIMITS_PENDING =
-  "Expected for now: these limits apply to all your clinics until Livio stores them per clinic in the backend (professional_clinics).";
-
+/** Each clinic's own limits; `fallback` only fills a clinic that arrived without any. */
 export function initialClinicLimits(
   workplaces: Array<{ id: string; bookingLimits?: ClinicLimits | null }>,
-  account: ClinicLimits,
-): { byClinic: ClinicLimitsById; perClinicSaved: boolean } {
+  fallback: ClinicLimits,
+): ClinicLimitsById {
   const byClinic: ClinicLimitsById = {};
-  let perClinicSaved = false;
-  for (const row of workplaces) {
-    if (row.bookingLimits) perClinicSaved = true;
-    byClinic[row.id] = { ...(row.bookingLimits ?? account) };
-  }
-  return { byClinic, perClinicSaved };
+  for (const row of workplaces) byClinic[row.id] = { ...(row.bookingLimits ?? fallback) };
+  return byClinic;
 }
 
-/** One clinic's limit changed; with one value per professional it changes them all. */
-export function setClinicLimit(
-  byClinic: ClinicLimitsById,
-  id: string,
-  patch: Partial<ClinicLimits>,
-  perClinicSaved: boolean,
-): ClinicLimitsById {
+/** One clinic's limit changed: only that clinic's. */
+export function setClinicLimit(byClinic: ClinicLimitsById, id: string, patch: Partial<ClinicLimits>): ClinicLimitsById {
   const next: ClinicLimitsById = {};
   for (const [key, limits] of Object.entries(byClinic)) {
-    next[key] = !perClinicSaved || key === id ? { ...limits, ...patch } : limits;
+    next[key] = key === id ? { ...limits, ...patch } : limits;
   }
   return next;
 }
@@ -59,9 +45,8 @@ export function clinicsShareLimits(byClinic: ClinicLimitsById): boolean {
 }
 
 /**
- * The one value per professional the API still reads (professional_settings): the
- * limits of the clinic the doctor just changed. No clinic ranks above another; this
- * goes away once Livio stores limits per clinic.
+ * The limits of the clinic the doctor just changed, for the form's own snapshot (the
+ * API reads each clinic's limits from its entry). No clinic ranks above another.
  */
 export function accountLimitsFor(
   byClinic: ClinicLimitsById,

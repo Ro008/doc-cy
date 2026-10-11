@@ -43,15 +43,13 @@ const allWeek = {
   slot_duration_minutes: 30,
 };
 
-// professional_settings holds the account settings only (Point E6).
+// professional_settings holds the holiday only (Point E6; limits per clinic since 2026-10-11).
 function settingsRow(professionalId: string): ProfessionalAccountSettings {
   return {
     professional_id: professionalId,
     holiday_mode_enabled: false,
     holiday_start_date: null,
     holiday_end_date: null,
-    booking_horizon_days: 30,
-    minimum_notice_hours: 1,
   };
 }
 
@@ -68,6 +66,9 @@ function location(id: string, paused = false, doctorId = A): DoctorLocationRow {
     longitude: null,
     clinic_place_id: null,
     pause_online_bookings: paused,
+    // The booking limits are the clinic's (user, 2026-10-11).
+    booking_horizon_days: 30,
+    minimum_notice_hours: 1,
     ...allWeek,
   };
 }
