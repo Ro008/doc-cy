@@ -6,7 +6,6 @@ import {
 } from "@/lib/resend";
 import {
   EMAIL_HEADING,
-  EMAIL_LOGO_URL,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
@@ -35,7 +34,6 @@ export function buildSignInLinkEmailContent(opts: { signInUrl: string; code: str
 
   const html = `
 ${EMAIL_SHELL_OPEN}
-    <img src="${EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Sign in to DocCy</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       Open this link to finish signing in.

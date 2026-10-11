@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { automatedEmailFooterHtml, escapeHtml, sendResendEmail } from "@/lib/resend";
+import { buildNewSignInAlertEmail } from "@/lib/account-security-emails";
+import { resolvePasswordResetOrigin } from "@/lib/password-reset";
+import { sendResendEmail } from "@/lib/resend";
 
 const DEVICE_COOKIE = "doccy-device-id";
 const DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -46,43 +48,19 @@ export async function POST(req: Request) {
   });
 
   if (isNewDevice && user.email && SEND_NEW_SIGNIN_ALERTS) {
-    const when = new Date().toISOString();
-    const text = [
-      "We detected a new sign-in to your DocCy account.",
-      `Date (UTC): ${when}`,
-      `Approximate IP: ${ip ?? "unavailable"}`,
-      `Browser/device: ${userAgent || "unavailable"}`,
-      "",
-      "If this was not you, sign out from other sessions in Settings and rotate your password.",
-    ].join("\n");
-
-    const safeUa = escapeHtml(userAgent || "unavailable");
-    const safeIp = escapeHtml(ip ?? "unavailable");
-    const safeWhen = escapeHtml(when);
-    const html = `
-      <div style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
-        <h2 style="margin:0 0 12px;font-size:18px;">New sign-in detected</h2>
-        <p style="margin:0 0 12px;font-size:14px;line-height:1.5;">
-          We detected a new sign-in to your DocCy account.
-        </p>
-        <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.6;">
-          <li><strong>Date (UTC):</strong> ${safeWhen}</li>
-          <li><strong>Approximate IP:</strong> ${safeIp}</li>
-          <li><strong>Browser/device:</strong> ${safeUa}</li>
-        </ul>
-        <p style="margin:0;font-size:13px;line-height:1.5;">
-          If this was not you, use <strong>Settings → Sign out on other devices</strong> and rotate your password.
-        </p>
-        ${automatedEmailFooterHtml()}
-      </div>
-    `;
+    const content = buildNewSignInAlertEmail({
+      when: new Date().toISOString(),
+      ip,
+      userAgent,
+      siteUrl: resolvePasswordResetOrigin(req) ?? "https://www.mydoccy.com",
+    });
 
     try {
       await sendResendEmail({
         to: user.email,
-        subject: "[DocCy] New sign-in detected",
-        text,
-        html,
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
       });
       console.info("[DocCy][auth] new_device_alert_sent", { userId: user.id, email: user.email });
     } catch (err) {

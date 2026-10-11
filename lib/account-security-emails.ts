@@ -6,7 +6,6 @@ import {
 } from "@/lib/resend";
 import {
   EMAIL_HEADING,
-  EMAIL_LOGO_URL,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
@@ -19,7 +18,7 @@ import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 /**
  * Security emails about her own account (user, 2026-10-11): confirm a new email, the
- * email was changed, the password was changed. They are allowed next to the three
+ * email was changed, the password was changed, a sign-in from a new device. They are allowed next to the three
  * automatic emails professionals get about bookings.
  */
 
@@ -28,7 +27,6 @@ type EmailContent = { subject: string; text: string; html: string };
 function shell(heading: string, bodyHtml: string): string {
   return `
 ${EMAIL_SHELL_OPEN}
-    <img src="${EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">${escapeHtml(heading)}</h2>
     ${bodyHtml}
     ${automatedEmailFooterHtml()}
@@ -101,6 +99,41 @@ export function buildPasswordChangedNoticeEmail(opts: { siteUrl: string }): Emai
     paragraph("Your password was just changed, and you were signed out of DocCy on your other devices.") +
       paragraph(
         `If this was not you, <a href="${escapeHtml(resetUrl)}" style="${EMAIL_TEXT_LINK}">set a new password now</a>.`,
+        true,
+      ),
+  );
+  return { subject, text, html };
+}
+
+/** After a sign-in from a browser we have not seen before (off unless switched on). */
+export function buildNewSignInAlertEmail(opts: {
+  when: string;
+  ip: string | null;
+  userAgent: string;
+  siteUrl: string;
+}): EmailContent {
+  const resetUrl = `${opts.siteUrl.replace(/\/+$/, "")}/forgot-password`;
+  const ip = opts.ip?.trim() || "unavailable";
+  const userAgent = opts.userAgent.trim() || "unavailable";
+  const subject = "[DocCy] New sign-in detected";
+  const text =
+    `New sign-in to your DocCy account\n\n` +
+    `We detected a sign-in to your DocCy account from a new device.\n\n` +
+    `Date (UTC): ${opts.when}\n` +
+    `Approximate IP: ${ip}\n` +
+    `Browser/device: ${userAgent}\n\n` +
+    `If this was not you, set a new password now. It signs you out on your other devices:\n${resetUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = shell(
+    "New sign-in to your DocCy account",
+    paragraph("We detected a sign-in to your DocCy account from a new device.") +
+      paragraph(
+        `<strong>Date (UTC):</strong> ${escapeHtml(opts.when)}<br />` +
+          `<strong>Approximate IP:</strong> ${escapeHtml(ip)}<br />` +
+          `<strong>Browser/device:</strong> ${escapeHtml(userAgent)}`,
+      ) +
+      paragraph(
+        `If this was not you, <a href="${escapeHtml(resetUrl)}" style="${EMAIL_TEXT_LINK}">set a new password now</a>. It signs you out on your other devices.`,
         true,
       ),
   );
