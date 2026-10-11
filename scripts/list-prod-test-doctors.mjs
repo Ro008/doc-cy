@@ -57,7 +57,8 @@ async function main() {
       .from("professional_clinics")
       .select("pause_online_bookings")
       .eq("professional_id", d.id)
-      .eq("is_primary", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
     const flags = [

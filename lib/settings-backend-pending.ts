@@ -8,8 +8,7 @@
  */
 
 export const BACKEND_PENDING = {
-  addClinic: { what: "adding a clinic", endpoint: "POST /api/clinic-requests" },
-  removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
+  addClinic: { what: "asking for a new clinic", endpoint: "POST /api/clinic-requests" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
 } as const;
 

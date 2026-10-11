@@ -40,7 +40,7 @@ test.describe("Integration: dashboard paused notice", { tag: "@pr-e2e" }, () => 
     pausedLinkId = paused.linkId;
     await admin
       .from("professional_clinics")
-      .update({ is_primary: false, sort_order: 1, pause_online_bookings: true })
+      .update({ sort_order: 1, pause_online_bookings: true })
       .eq("id", pausedLinkId);
     const { data } = await admin.from("clinics").select("name").eq("id", paused.clinicId).single();
     pausedClinicName = String(data!.name);

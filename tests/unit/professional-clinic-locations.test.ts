@@ -18,7 +18,6 @@ function joinRow(partial: Partial<ProfessionalClinicJoinRow> = {}): Professional
   return {
     id: "join-1",
     professional_id: "pro-1",
-    is_primary: true,
     sort_order: 0,
     label: "Evenings",
     pause_online_bookings: false,
@@ -72,7 +71,6 @@ describe("professional clinic locations", () => {
       // (never the join-row label; user 2026-10-03).
       clinic_id: "clinic-1",
       clinic_name: "Evangelismos",
-      is_primary: true,
       sort_order: 0,
       // One name everywhere: DocCy's, never the professional's own label (user, 2026-10-01).
       label: "Evangelismos",
@@ -132,7 +130,6 @@ describe("professional clinic locations", () => {
         break_start: null,
         break_end: null,
         slot_duration_minutes: null,
-        is_primary: null,
         sort_order: null,
       }),
     );
@@ -140,7 +137,7 @@ describe("professional clinic locations", () => {
     assert.equal(location.end_time, "17:00:00");
     assert.equal(location.slot_duration_minutes, 30);
     assert.equal(location.pause_online_bookings, true, "never open bookings by accident");
-    assert.equal(location.is_primary, false);
+    assert.equal("is_primary" in location, false);
     assert.equal(location.sort_order, 0);
     assert.equal(location.monday, false);
     assert.equal(location.label, "Evangelismos");

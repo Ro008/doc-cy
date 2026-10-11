@@ -1,3 +1,4 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import {
   DAY_NAMES,
   DEFAULT_BOOKING_HORIZON_DAYS,
@@ -20,7 +21,7 @@ import { isCyprusDistrict } from "@/lib/cyprus-districts";
 export const MAX_DOCTOR_LOCATIONS = 5;
 
 export const DOCTOR_LOCATION_SELECT =
-  "id, doctor_id, is_primary, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
+  "id, doctor_id, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
 
 export type DoctorLocationRow = {
   /** The professional_clinics (join row) id. */
@@ -30,7 +31,6 @@ export type DoctorLocationRow = {
   clinic_id?: string | null;
   /** `clinics.name`: what every screen shows (never the join-row label). */
   clinic_name?: string | null;
-  is_primary: boolean;
   sort_order: number;
   label: string | null;
   district: string | null;
@@ -61,17 +61,11 @@ export type DoctorLocationRow = {
   updated_at?: string;
 };
 
-export function sortDoctorLocations<T extends { is_primary?: boolean; sort_order?: number; created_at?: string }>(
+/** Her clinics in order: sort_order, then the date she joined (no "primary clinic"). */
+export function sortDoctorLocations<T extends { sort_order?: number; created_at?: string }>(
   rows: readonly T[],
 ): T[] {
-  return [...rows].sort((a, b) => {
-    if (Boolean(a.is_primary) !== Boolean(b.is_primary)) {
-      return a.is_primary ? -1 : 1;
-    }
-    const order = (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    if (order !== 0) return order;
-    return String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""));
-  });
+  return [...rows].sort(compareClinicOrder);
 }
 
 export const MAX_CLINIC_NAME_LENGTH = 40;

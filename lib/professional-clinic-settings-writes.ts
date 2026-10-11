@@ -1,3 +1,4 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -68,16 +69,11 @@ export type SettingsClinicInput = {
   [ignored: string]: unknown;
 };
 
-type OwnedClinic = { id: string; is_primary?: boolean | null; sort_order?: number | null };
+type OwnedClinic = { id: string; sort_order?: number | null; created_at?: string | null };
 
+/** Her first clinic (there is no "primary clinic": sort_order, then the date she joined). */
 function primaryOf(owned: readonly OwnedClinic[]): OwnedClinic | null {
-  return (
-    [...owned].sort(
-      (a, b) =>
-        Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
-        (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
-    )[0] ?? null
-  );
+  return [...owned].sort(compareClinicOrder)[0] ?? null;
 }
 
 /**

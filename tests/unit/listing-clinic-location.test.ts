@@ -41,10 +41,10 @@ const larnaca = {
 
 const row = {
   listing_clinics: [
-    { is_primary: false, clinics: limassol },
-    { is_primary: true, clinics: nicosia },
-    { is_primary: false, clinics: { ...larnaca, id: "c-old", is_archived: true } },
-    { is_primary: false, clinics: larnaca },
+    { sort_order: 1, clinics: limassol },
+    { sort_order: 0, clinics: nicosia },
+    { sort_order: 1, clinics: { ...larnaca, id: "c-old", is_archived: true } },
+    { sort_order: 1, clinics: larnaca },
   ],
 };
 
@@ -52,23 +52,18 @@ describe("listingClinicLocations", () => {
   it("selects the clinic fields through professional_clinics", () => {
     assert.equal(
       LISTING_CLINICS_SELECT,
-      "listing_clinics:professional_clinics(is_primary, clinics(id, district, town, address, address_maps_link, latitude, longitude, is_archived))",
+      "listing_clinics:professional_clinics(sort_order, created_at, clinics(id, district, town, address, address_maps_link, latitude, longitude, is_archived))",
     );
   });
 
-  it("lists unarchived clinics, primary first, keeping the order of the rest", () => {
+  it("lists unarchived clinics in the listing's clinic order (no primary clinic)", () => {
     const locations = listingClinicLocations(row);
     assert.deepEqual(
-      locations.map((loc) => [loc.clinicId, loc.isPrimary]),
-      [
-        ["c-nic", true],
-        ["c-lim", false],
-        ["c-lar", false],
-      ],
+      locations.map((loc) => loc.clinicId),
+      ["c-nic", "c-lim", "c-lar"],
     );
     assert.deepEqual(locations[0], {
       clinicId: "c-nic",
-      isPrimary: true,
       district: "Nicosia",
       town: "Strovolos",
       address: "Lemesou Avenue 215, Strovolos, 2029, Nicosia",
@@ -83,9 +78,9 @@ describe("listingClinicLocations", () => {
   it("accepts a to-one embed as an array, skips duplicates and rows without a clinic", () => {
     const locations = listingClinicLocations({
       listing_clinics: [
-        { is_primary: true, clinics: [nicosia] },
-        { is_primary: false, clinics: nicosia },
-        { is_primary: false, clinics: null },
+        { sort_order: 0, clinics: [nicosia] },
+        { sort_order: 1, clinics: nicosia },
+        { sort_order: 1, clinics: null },
       ],
     });
     assert.deepEqual(
@@ -103,11 +98,11 @@ describe("listingClinicLocations", () => {
 describe("pickListingCardClinic", () => {
   const locations = listingClinicLocations(row);
 
-  it("is the primary clinic without filters", () => {
+  it("is the first clinic without filters", () => {
     assert.equal(pickListingCardClinic(locations, {})?.clinicId, "c-nic");
   });
 
-  it("is the clinic in the filtered district, primary or not", () => {
+  it("is the clinic in the filtered district, first or not", () => {
     assert.equal(pickListingCardClinic(locations, { district: "Limassol" })?.clinicId, "c-lim");
     assert.equal(pickListingCardClinic(locations, { district: "nicosia" })?.clinicId, "c-nic");
   });
@@ -120,7 +115,7 @@ describe("pickListingCardClinic", () => {
     assert.equal(pickListingCardClinic(locations, { town: "Larnaca" })?.clinicId, "c-lar");
   });
 
-  it("falls back to the primary clinic when no clinic matches the filter", () => {
+  it("falls back to the first clinic when no clinic matches the filter", () => {
     assert.equal(pickListingCardClinic(locations, { district: "Paphos" })?.clinicId, "c-nic");
   });
 

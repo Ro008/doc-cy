@@ -78,6 +78,7 @@ import {
 } from "@/lib/settings-removal-rules";
 import { AddClinicDialog, type NewClinic } from "@/components/dashboard/settings/AddClinicDialog";
 import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
+import { LEAVE_CLINIC_LOSES, leaveClinicNotes, type ClinicUpcomingCounts } from "@/lib/settings-leave-clinic";
 import {
   clinicBookingStatus,
   summarizeClinicBreak,
@@ -203,7 +204,6 @@ export type PendingClinicAdd = { clinic: NewClinic; createdAt: string };
 
 export type DoctorWorkplaceFormData = {
   id: string;
-  isPrimary: boolean;
   label?: string | null;
   district: string;
   clinicAddress: string;
@@ -313,7 +313,6 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
   return [
     {
       id: "primary",
-      isPrimary: true,
       label: "",
       district: initial.district,
       clinicAddress: initial.clinicAddress,
@@ -496,6 +495,28 @@ export function SettingsForm({
     () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
   );
   const [workplaceToRemove, setWorkplaceToRemove] = React.useState<string | null>(null);
+  /** Confirmed visits and open requests at the clinic she is about to leave (null while loading). */
+  const [leaveCounts, setLeaveCounts] = React.useState<ClinicUpcomingCounts | null>(null);
+  React.useEffect(() => {
+    setLeaveCounts(null);
+    if (!workplaceToRemove) return;
+    let cancelled = false;
+    fetch(`/api/professional-clinics/${encodeURIComponent(workplaceToRemove)}/upcoming`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setLeaveCounts({ confirmed: Number(data?.confirmed) || 0, open: Number(data?.open) || 0 });
+      })
+      .catch(() => {
+        if (!cancelled) setLeaveCounts({ confirmed: 0, open: 0 });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workplaceToRemove]);
+  /** The clinic she joined in this visit: its card says what to do next. */
+  const [joinedClinicId, setJoinedClinicId] = React.useState<string | null>(null);
+  const [joinedClinicPhones, setJoinedClinicPhones] = React.useState<SettingsClinicPhone[]>([]);
   const [changeRequestFor, setChangeRequestFor] = React.useState<string | null>(null);
   const [addClinicOpen, setAddClinicOpen] = React.useState(false);
   const [pendingClinicAdds, setPendingClinicAdds] = React.useState<PendingClinicAdd[]>(
@@ -563,7 +584,6 @@ export function SettingsForm({
     const current = workplaces.find((row) => row.id === activeWorkplaceId);
     return {
       id: activeWorkplaceId,
-      isPrimary: current?.isPrimary ?? workplaces.length <= 1,
       label: String(current?.label ?? "").trim(),
       // The address is read-only here: keep the clinic's own.
       district: current?.district ?? "",
@@ -631,12 +651,57 @@ export function SettingsForm({
   }
 
   /**
-   * Clinics are curated by DocCy, so adding one is a request (contract:
-   * POST /api/clinic-requests, docs/handoff/settings-redesign.md): `{ clinicId }` to
-   * join a DocCy clinic, else `{ name, phone, location }` for a new one. It shows as a
+   * A clinic DocCy already has is joined at once (user, 2026-10-11): its card appears,
+   * open on its hours, with online booking off until she switches it on.
+   */
+  async function joinClinic(clinicId: string): Promise<boolean> {
+    try {
+      const res = await fetch("/api/professional-clinics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not add the clinic.");
+        return false;
+      }
+      const joined = data?.location as DoctorWorkplaceFormData | null | undefined;
+      if (!joined?.id) {
+        // Joined, but the card did not come back: reload to show it.
+        window.location.reload();
+        return true;
+      }
+      const captured = captureActiveWorkplace();
+      setWorkplaces((prev) => [...prev.map((row) => (row.id === captured.id ? captured : row)), joined]);
+      setSavedSnapshot((prev) => ({
+        ...prev,
+        workplaces: [
+          ...prev.workplaces,
+          { ...joined, weeklySchedule: joined.weeklySchedule, slotDurationMinutes: joined.slotDurationMinutes },
+        ] as typeof prev.workplaces,
+      }));
+      if (data?.phone) setJoinedClinicPhones((prev) => [...prev, data.phone as SettingsClinicPhone]);
+      setJoinedClinicId(joined.id);
+      setOpenClinicId(joined.id);
+      applyWorkplaceToForm(joined);
+      setEditingWorkplaceId(joined.id);
+      toast.success("Clinic added. Check your hours, then switch online booking on.");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not add the clinic.");
+      return false;
+    }
+  }
+
+  /**
+   * A clinic DocCy does not have yet is a request (contract: POST /api/clinic-requests,
+   * docs/handoff/settings-redesign.md): `{ name, phone, location }`. It shows as a
    * pending card until DocCy approves it.
    */
   async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
+    if (clinic.clinicId) return joinClinic(clinic.clinicId);
     try {
       // EXPECTED TO FAIL until Livio builds POST /api/clinic-requests (backend pending, see
       // lib/settings-backend-pending.ts): the doctor sees a message saying so.
@@ -671,16 +736,14 @@ export function SettingsForm({
     }
     setWorkplaceBusy(true);
     try {
-      // Contract (docs/handoff/settings-redesign.md): the professional leaves the clinic.
-      // EXPECTED TO FAIL until Livio builds DELETE /api/professional-clinics (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
+      // She leaves at once, no founder (user, 2026-10-11); visits there are kept.
       const res = await fetch(
         `/api/professional-clinics?locationId=${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("removeClinic", res.status, data, "Could not remove clinic."));
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not leave the clinic.");
         return false;
       }
       const captured = captureActiveWorkplace();
@@ -700,11 +763,11 @@ export function SettingsForm({
       if (activeWorkplaceId === id && remaining[0]) {
         applyWorkplaceToForm(remaining[0]);
       }
-      toast.success("Clinic removed.");
+      toast.success("You left the clinic.");
       return true;
     } catch (err) {
       console.error(err);
-      toast.error("Could not remove clinic.");
+      toast.error("Could not leave the clinic.");
       return false;
     } finally {
       setWorkplaceBusy(false);
@@ -1102,7 +1165,7 @@ export function SettingsForm({
   const savedAddressOf = (id: string) =>
     savedSnapshot.workplaces.find((row) => row.id === id)?.clinicAddress ?? "";
   const phoneOf = (id: string) =>
-    (initial.clinicPhones ?? []).find((clinic) => clinic.locationId === id)?.phone ?? "";
+    [...(initial.clinicPhones ?? []), ...joinedClinicPhones].find((clinic) => clinic.locationId === id)?.phone ?? "";
   const setWorkplacePaused = (id: string, paused: boolean) =>
     setWorkplaces((prev) =>
       prev.map((row) => (row.id === id ? { ...row, pauseOnlineBookings: paused } : row)),
@@ -1425,6 +1488,11 @@ export function SettingsForm({
               />
             }
             pendingChange={pendingClinicChanges[row.id] ?? null}
+            notice={
+              joinedClinicId === row.id && row.pauseOnlineBookings
+                ? "Set your hours to take online bookings: check the week below, save it, then switch online booking on."
+                : null
+            }
             onRequestChange={row.id === "primary" ? null : () => setChangeRequestFor(row.id)}
             summary={{
               days: summarizeClinicDays(row.weeklySchedule),
@@ -1953,8 +2021,8 @@ export function SettingsForm({
 
       {workplaceToRemove ? (
         <SettingsDialog
-          title={`Remove ${removeDialogName}?`}
-          description="Patients won’t find you at this clinic any more. A clinic with upcoming or requested appointments can’t be removed until you move or cancel them."
+          title={`Leave ${removeDialogName}?`}
+          description={LEAVE_CLINIC_LOSES}
           onClose={() => setWorkplaceToRemove(null)}
           busy={workplaceBusy}
           footer={(close) => (
@@ -1965,24 +2033,42 @@ export function SettingsForm({
                 disabled={workplaceBusy}
                 className={dialogSecondaryButtonClass}
               >
-                Keep clinic
+                Stay at this clinic
               </button>
               <button
                 type="button"
                 onClick={async () => {
                   if (await handleRemoveWorkplace(workplaceToRemove)) close();
                 }}
-                disabled={workplaceBusy}
+                disabled={workplaceBusy || leaveCounts == null}
                 aria-busy={workplaceBusy}
                 className={dialogDangerButtonClass}
               >
-                <BusyLabel busy={workplaceBusy} busyText="Removing…">
-                  Remove clinic
+                <BusyLabel busy={workplaceBusy} busyText="Leaving…">
+                  Leave clinic
                 </BusyLabel>
               </button>
             </>
           )}
-        />
+        >
+          {leaveCounts == null ? (
+            <p className="text-sm text-slate-400">Checking your visits at this clinic…</p>
+          ) : leaveClinicNotes(leaveCounts).length > 0 ? (
+            <div
+              className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+              data-testid="settings-leave-clinic-visits"
+            >
+              <ul className="space-y-1.5">
+                {leaveClinicNotes(leaveCounts).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+              <a href="/agenda" className={`mt-2 inline-block ${SETTINGS_LINK_CLASS}`}>
+                Open my agenda
+              </a>
+            </div>
+          ) : null}
+        </SettingsDialog>
       ) : null}
 
       {changeRequestRow ? (

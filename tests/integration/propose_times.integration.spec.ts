@@ -50,7 +50,7 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
     clinicIds.push(seeded.clinicId);
     linkId = seeded.locationId;
     const other = await seedProfessionalClinic(admin, pro.doctorId, { nonce: `${nonce}b`, district: "Limassol" });
-    await admin.from("professional_clinics").update({ is_primary: false, sort_order: 1 }).eq("id", other.linkId);
+    await admin.from("professional_clinics").update({ sort_order: 1 }).eq("id", other.linkId);
     clinicIds.push(other.clinicId);
     otherLinkId = other.linkId;
     otherClinicId = other.clinicId;

@@ -101,12 +101,12 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
     }
 
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    // The primary clinic's slot length (Point E6: it lives on the clinic link).
+    // Her first clinic's slot length (Point E6: it lives on the clinic link).
     const { data: settingsRow } = await admin
       .from("professional_clinics")
       .select("slot_duration_minutes")
       .eq("professional_id", doctor.id)
-      .eq("is_primary", true)
+      .order("sort_order", { ascending: true })
       .limit(1)
       .maybeSingle();
     const fallbackDurationMinutes =

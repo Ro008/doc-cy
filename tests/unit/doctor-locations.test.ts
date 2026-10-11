@@ -21,7 +21,6 @@ import type { DoctorLocationRow } from "../../lib/doctor-locations";
 function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocationRow {
   return {
     doctor_id: "doc-1",
-    is_primary: false,
     sort_order: 0,
     label: null,
     district: "Nicosia",
@@ -104,9 +103,13 @@ describe("doctor locations", () => {
     assert.equal(settingsForm.includes("agendaClinicEventColor"), true);
     // One name everywhere, DocCy's (user, 2026-10-01): no clinic name field.
     assert.equal(settingsForm.includes('id="clinicName"'), false);
-    // D4 (user, 2026-09-30): clinics are curated by DocCy; adding, leaving and changing a
-    // clinic are requests (settings redesign), never an address field.
+    // D4 (user, 2026-09-30): clinics are curated by DocCy, never an address field. Joining
+    // a DocCy clinic and leaving one are immediate (user, 2026-10-11); a new clinic and a
+    // change to one are requests.
     assert.equal(settingsForm.includes("/api/clinic-requests"), true);
+    assert.equal(settingsForm.includes('fetch("/api/professional-clinics"'), true);
+    assert.equal(settingsForm.includes("Leave clinic"), true);
+    assert.equal(settingsForm.includes("Remove clinic"), false);
     assert.equal(settingsForm.includes("Remove this clinic"), false);
     assert.equal(settingsForm.includes("ClinicAddressAutocomplete"), false);
     assert.equal(settingsForm.includes("ClinicChangeRequestDialog"), true);
@@ -133,10 +136,10 @@ describe("doctor locations", () => {
     assert.equal(profilePage.includes('aria-label="Workplaces"'), false);
   });
 
-  it("keeps the primary workplace first", () => {
+  it("orders workplaces by sort_order", () => {
     const sorted = sortDoctorLocations([
-      loc({ id: "b", is_primary: false, sort_order: 1 }),
-      loc({ id: "a", is_primary: true, sort_order: 0 }),
+      loc({ id: "b", sort_order: 1 }),
+      loc({ id: "a", sort_order: 0 }),
     ]);
     assert.equal(sorted[0]?.id, "a");
     assert.equal(sorted[1]?.id, "b");

@@ -253,7 +253,8 @@ async function main() {
         .from("professional_clinics")
         .select("id, pause_online_bookings, weekly_schedule, monday, tuesday, wednesday, thursday, friday")
         .eq("professional_id", d.id)
-        .eq("is_primary", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
 

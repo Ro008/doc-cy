@@ -270,7 +270,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     const { data: links } = await admin
       .from("professional_clinics")
-      .select("clinic_id, is_primary")
+      .select("clinic_id")
       .eq("professional_id", body.professionalId)
       .order("sort_order");
     expect(links?.map((l) => l.clinic_id)[0]).toBe(clinic.id);

@@ -23,7 +23,7 @@ export type AppointmentClinicCopy = {
 
 type LocationLike = Pick<
   DoctorLocationRow,
-  "id" | "label" | "clinic_address" | "is_primary" | "sort_order"
+  "id" | "label" | "clinic_address" | "sort_order"
 > &
   Partial<Pick<DoctorLocationRow, "clinic_id" | "clinic_name" | "clinic_maps_link" | "latitude" | "longitude">> & {
     created_at?: string;

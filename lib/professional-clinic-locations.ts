@@ -30,7 +30,6 @@ export type ProfessionalClinicJoinClinic = {
 export type ProfessionalClinicJoinRow = {
   id?: string | null;
   professional_id?: string | null;
-  is_primary?: boolean | null;
   sort_order?: number | null;
   label?: string | null;
   pause_online_bookings?: boolean | null;
@@ -55,7 +54,7 @@ export type ProfessionalClinicJoinRow = {
 };
 
 export const PROFESSIONAL_CLINIC_LOCATION_SELECT =
-  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
+  "id, professional_id, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
 
 function text(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
@@ -88,7 +87,7 @@ export type PrimaryClinicLocationFields = {
  * removes those copies, and a professional created by the registration approval never
  * has them, so they come from the clinics alone, with no fallback.
  *
- * `locations` are sorted primary first, as the loaders return them. The first clinic
+ * `locations` are in her clinic order, as the loaders return them. The first clinic
  * with a district wins (skipping one still being set up), and coordinates come from
  * the first clinic that has a pin.
  */
@@ -145,7 +144,6 @@ export function professionalClinicRowToLocation(
     doctor_id: String(row.professional_id ?? ""),
     clinic_id: text(clinic.id),
     clinic_name: text(clinic.name),
-    is_primary: Boolean(row.is_primary),
     sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     // One name everywhere, DocCy's (user, 2026-10-01): a doctor at a shared clinic must
     // not rename it for their patients; a rename goes through "Request a change".

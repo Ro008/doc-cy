@@ -59,7 +59,6 @@ function location(id: string, paused = false, doctorId = A): DoctorLocationRow {
   return {
     id,
     doctor_id: doctorId,
-    is_primary: id === L1 || id === L4,
     sort_order: 0,
     label: null,
     district: "Paphos",

@@ -75,7 +75,6 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     const { error: linkError } = await admin.from("professional_clinics").insert({
       professional_id: listingId,
       clinic_id: listingClinicId,
-      is_primary: true,
       sort_order: 0,
     });
     if (linkError) throw new Error(`listing link: ${linkError.message}`);

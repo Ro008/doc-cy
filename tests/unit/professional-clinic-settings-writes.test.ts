@@ -57,7 +57,6 @@ describe("clinicSettingsPatch", () => {
       doctor_id: "pro-1",
       professional_id: "pro-1",
       clinic_id: "clinic-1",
-      is_primary: true,
       sort_order: 2,
       slot_duration_minutes: 30,
     });
@@ -92,8 +91,8 @@ describe("clinicSettingsPatch", () => {
 });
 
 const OWNED = [
-  { id: "clinic-a", is_primary: true, sort_order: 0 },
-  { id: "clinic-b", is_primary: false, sort_order: 1 },
+  { id: "clinic-a", sort_order: 0 },
+  { id: "clinic-b", sort_order: 1 },
 ];
 
 const WEEK = {

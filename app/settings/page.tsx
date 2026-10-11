@@ -34,6 +34,7 @@ import {
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { settingsWorkplaceFromLocation } from "@/lib/settings-workplace";
 import { loadProAccessEnded } from "@/lib/load-access-ended";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
@@ -290,20 +291,7 @@ export default async function AgendaSettingsPage({
     ? locationToSettingsRow(primaryClinic, ACCOUNT_SETTINGS_FALLBACK)
     : null;
   const pauseOnlineBookings = Boolean(primaryHours?.pause_online_bookings);
-  const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
-    id: row.id,
-    isPrimary: Boolean(row.is_primary),
-    label: String(row.label ?? "").trim(),
-    district: String(row.district ?? "").trim(),
-    clinicAddress: String(row.clinic_address ?? "").trim(),
-    clinicTown: String(row.town ?? "").trim() || null,
-    clinicLatitude: row.latitude ?? null,
-    clinicLongitude: row.longitude ?? null,
-    clinicPlaceId: row.clinic_place_id ?? null,
-    weeklySchedule: locationWeeklySchedule(row),
-    slotDurationMinutes: Number(row.slot_duration_minutes) > 0 ? Number(row.slot_duration_minutes) : 30,
-    pauseOnlineBookings: Boolean(row.pause_online_bookings),
-  }));
+  const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map(settingsWorkplaceFromLocation);
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 

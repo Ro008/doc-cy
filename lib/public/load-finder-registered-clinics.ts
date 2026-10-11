@@ -1,3 +1,4 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import { cache } from "react";
 
 import type { ManualClinicRef } from "@/lib/manual-directory-clinics";
@@ -31,7 +32,8 @@ type JoinClinic = {
 type JoinRow = {
   id?: string | null;
   professional_id?: string | null;
-  is_primary?: boolean | null;
+  sort_order?: number | null;
+  created_at?: string | null;
   /** PostgREST types an embed as an array; a to-one join still arrives as an object. */
   clinics?: JoinClinic | JoinClinic[] | null;
 };
@@ -63,7 +65,7 @@ export const loadFinderRegisteredClinics = cache(
       supabase
         .from("professional_clinics")
         .select(
-          "id, professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+          "id, professional_id, sort_order, created_at, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
         )
         .in("professional_id", idChunk),
     );
@@ -74,13 +76,8 @@ export const loadFinderRegisteredClinics = cache(
     }
 
     const out = emptyResult();
-    // Primary first, so the per-professional fallback list leads with the main clinic.
-    const rows = ([...((res.data ?? []) as unknown as JoinRow[])]).sort((a, b) => {
-      const ap = Boolean(a.is_primary);
-      const bp = Boolean(b.is_primary);
-      if (ap === bp) return 0;
-      return ap ? -1 : 1;
-    });
+    // In her clinic order, so the per-professional fallback list leads with her first clinic.
+    const rows = [...((res.data ?? []) as unknown as JoinRow[])].sort(compareClinicOrder);
 
     for (const row of rows) {
       const clinic = Array.isArray(row.clinics) ? row.clinics[0] : row.clinics;
@@ -95,7 +92,6 @@ export const loadFinderRegisteredClinics = cache(
         id: String(clinic.id ?? "").trim() || null,
         name,
         slug,
-        isPrimary: Boolean(row.is_primary),
         address: String(clinic.address ?? "").trim() || null,
         addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
         district: String(clinic.district ?? "").trim() || null,

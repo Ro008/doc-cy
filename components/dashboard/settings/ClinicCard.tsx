@@ -51,6 +51,7 @@ export function ClinicCard({
   address,
   phoneField,
   pendingChange,
+  notice,
   onRequestChange,
   summary,
   editing,
@@ -74,6 +75,8 @@ export function ClinicCard({
   /** The clinic's phone, with its own "Request phone change" (ClinicPhoneField). */
   phoneField: React.ReactNode;
   pendingChange: PendingClinicChange | null;
+  /** A line at the top of the card, e.g. what to do at a clinic she just joined. */
+  notice?: string | null;
   /** null while the clinic is still being set up (its address is set in the editor). */
   onRequestChange: (() => void) | null;
   summary: { days: string; hours: string; breakTime: string; slot: string };
@@ -150,6 +153,15 @@ export function ClinicCard({
 
       <Collapse open={shown}>
         <div id={bodyId}>
+          {notice ? (
+            <p
+              role="status"
+              data-testid="settings-clinic-notice"
+              className="mt-4 rounded-2xl border border-clinical-400/25 bg-clinical-500/[0.08] px-3.5 py-2.5 text-sm text-clinical-100"
+            >
+              {notice}
+            </p>
+          ) : null}
           {pendingChange ? (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-sm text-amber-100">
               <span className="font-semibold">Change in review</span>
@@ -220,7 +232,7 @@ export function ClinicCard({
                 disabled={busy}
                 className={SETTINGS_DANGER_BUTTON_CLASS}
               >
-                Remove clinic
+                Leave clinic
               </button>
             )}
           </div>

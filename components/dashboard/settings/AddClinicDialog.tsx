@@ -14,14 +14,15 @@ export type NewClinic = Extract<NewClinicValidation, { ok: true }>["clinic"];
 
 /**
  * "Add clinic": the /register picker first (DocCy clinic, else Google or a pin, plus
- * name and phone), then the clinic is created and its hours are set on its card.
+ * name and phone). A clinic DocCy already has is joined at once (user, 2026-10-11);
+ * its hours are then set on its card.
  */
 export function AddClinicDialog({
   onClose,
   onAdd,
 }: {
   onClose: () => void;
-  /** Creates the clinic; resolves true when it worked (the dialog then closes). */
+  /** Joins the DocCy clinic, or asks for a new one; resolves true when it worked (the dialog then closes). */
   onAdd: (clinic: NewClinic) => Promise<boolean>;
 }) {
   const [pick, setPick] = React.useState<ClinicPick | null>(null);
@@ -47,6 +48,8 @@ export function AddClinicDialog({
     }
   }
 
+  const joining = Boolean(pick?.clinicId);
+
   return (
     <SettingsDialog
       wide
@@ -66,14 +69,23 @@ export function AddClinicDialog({
             aria-busy={busy}
             className={dialogPrimaryButtonClass}
           >
-            <BusyLabel busy={busy} busyText="Adding…">
-              Add clinic
+            <BusyLabel busy={busy} busyText={joining ? "Joining…" : "Adding…"}>
+              {joining ? "Join clinic" : "Add clinic"}
             </BusyLabel>
           </button>
         </>
       )}
     >
       <ClinicPicker onChange={onPick} />
+      {joining ? (
+        <p
+          className="mt-3 rounded-2xl border border-clinical-400/25 bg-clinical-500/[0.08] px-3.5 py-2.5 text-sm text-clinical-100"
+          data-testid="settings-add-clinic-joining"
+        >
+          Joining a DocCy clinic: it is added to your profile at once. Online booking stays off there until you
+          check your hours and switch it on.
+        </p>
+      ) : null}
       {error ? (
         <p className="mt-3 text-sm text-rose-300" role="alert">
           {error}

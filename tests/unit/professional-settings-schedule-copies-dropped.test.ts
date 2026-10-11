@@ -164,7 +164,6 @@ describe("nothing reads or writes the professional_settings schedule copies (Poi
 function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocationRow {
   return {
     doctor_id: "doc-1",
-    is_primary: false,
     sort_order: 0,
     label: null,
     district: "Nicosia",
@@ -191,7 +190,7 @@ function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocati
   };
 }
 
-const primary = loc({ id: "p", is_primary: true, slot_duration_minutes: 45, break_start: "13:00:00", break_end: "14:00:00" });
+const primary = loc({ id: "p", sort_order: 0, slot_duration_minutes: 45, break_start: "13:00:00", break_end: "14:00:00" });
 const second = loc({ id: "s", sort_order: 1, slot_duration_minutes: 20, pause_online_bookings: true, saturday: true });
 const account = {
   professional_id: "doc-1",
@@ -249,6 +248,6 @@ describe("schedule at a clinic (Point E6)", () => {
     assert.equal(clinicSlotMinutes([primary, second], null), 45);
     assert.equal(clinicSlotMinutes([primary, second], "gone"), 45);
     assert.equal(clinicSlotMinutes([], null), 30);
-    assert.equal(clinicSlotMinutes([loc({ id: "z", is_primary: true, slot_duration_minutes: 0 })]), 30);
+    assert.equal(clinicSlotMinutes([loc({ id: "z", sort_order: 0, slot_duration_minutes: 0 })]), 30);
   });
 });

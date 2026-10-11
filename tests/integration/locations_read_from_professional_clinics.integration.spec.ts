@@ -61,7 +61,7 @@ async function seedProfessional(
 async function addClinic(
   admin: SupabaseClient,
   created: Created,
-  input: { address: string; isPrimary: boolean; sortOrder: number },
+  input: { address: string; sortOrder: number },
 ): Promise<string> {
   const token = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   const clinic = await admin
@@ -84,7 +84,6 @@ async function addClinic(
     .insert({
       professional_id: created.professionalId,
       clinic_id: clinic.data.id,
-      is_primary: input.isPrimary,
       sort_order: input.sortOrder,
       pause_online_bookings: false,
     })
@@ -134,14 +133,12 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       const primaryId = await addClinic(admin, created, {
         address: `First Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: true,
         sortOrder: 0,
       });
       // The profile only names clinics when there is more than one, so give the
       // professional a second one.
       await addClinic(admin, created, {
         address: `Second Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: false,
         sortOrder: 1,
       });
       const clinicId = await clinicIdFor(admin, primaryId);
@@ -188,12 +185,10 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       await addClinic(admin, created, {
         address: `Kept Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: true,
         sortOrder: 0,
       });
       const archivedId = await addClinic(admin, created, {
         address: `Archived Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: false,
         sortOrder: 1,
       });
       const archivedClinic = await clinicIdFor(admin, archivedId);

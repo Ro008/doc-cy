@@ -150,7 +150,6 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
         .insert({
           professional_id: seeded.professionalId,
           clinic_id: clinic.data.id,
-          is_primary: false,
           sort_order: 1,
         })
         .select("id")

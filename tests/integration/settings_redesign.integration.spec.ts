@@ -10,10 +10,10 @@ import { adminCookieHeader, sharedTestFounder } from "./helpers/test-admin";
  * Settings redesign (design B1): a sidebar of sections, one card per clinic, removal
  * down to one clinic and one specialty, and clinic details changed by request only.
  *
- * Removing a clinic, asking for a clinic and requesting a clinic change
- * are new endpoints the backend builds after this frontend
- * (docs/handoff/settings-redesign.md); here they are stubbed with page.route and the
- * tests pin the request the page sends.
+ * Joining a DocCy clinic and leaving one are immediate and run against the real
+ * backend. Asking for a new clinic and requesting a clinic change are endpoints the
+ * backend builds after this frontend (docs/handoff/settings-redesign.md); here they are
+ * stubbed with page.route and the tests pin the request the page sends.
  */
 
 type Seeded = {
@@ -71,7 +71,6 @@ async function addClinic(
     .insert({
       professional_id: professionalId,
       clinic_id: String(clinic.data.id),
-      is_primary: input.isPrimary,
       sort_order: input.isPrimary ? 0 : 1,
       label: input.ownLabel ?? input.label,
       pause_online_bookings: input.paused,
@@ -298,31 +297,180 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(paphos.getByRole("button", { name: "Edit hours" })).toHaveCount(0, { timeout: 5_000 });
   });
 
-  test("a clinic can be removed until one is left", async ({ page }) => {
+  test("she leaves a clinic at once, told about her visits there, but never her last one", async ({ page }) => {
     test.setTimeout(120_000);
-    let removed = "";
-    await page.route("**/api/professional-clinics?*", async (route) => {
-      if (route.request().method() !== "DELETE") return route.fallback();
-      removed = new URL(route.request().url()).searchParams.get("locationId") ?? "";
-      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    // Two confirmed visits and one open request at the clinic she leaves: they are kept.
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("clinic_id")
+      .eq("id", seeded!.secondId)
+      .single();
+    const visit = (daysAhead: number, status: string) => ({
+      professional_id: seeded!.professionalId,
+      clinic_id: link!.clinic_id,
+      patient_name: `Leave Test ${daysAhead}`,
+      patient_phone: "+35799000111",
+      appointment_datetime: new Date(Date.now() + daysAhead * 86_400_000).toISOString(),
+      status,
+      duration_minutes: 30,
     });
+    const seededVisits = await admin
+      .from("appointments")
+      .insert([visit(3, "CONFIRMED"), visit(4, "CONFIRMED"), visit(5, "REQUESTED")]);
+    expect(seededVisits.error).toBeNull();
+
     await openSettings(page, seeded!, "clinics");
 
-    await (await openClinicCard(page, "Paphos Medical Centre")).getByRole("button", { name: "Remove clinic" }).click();
-    const dialog = page.getByRole("dialog", { name: /Remove Paphos Medical Centre/ });
+    await (await openClinicCard(page, "Paphos Medical Centre")).getByRole("button", { name: "Leave clinic" }).click();
+    const dialog = page.getByRole("dialog", { name: /Leave Paphos Medical Centre/ });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Remove clinic" }).click();
+    await expect(dialog).toContainText("The clinic itself stays in DocCy.");
+    const visits = dialog.getByTestId("settings-leave-clinic-visits");
+    await expect(visits).toContainText("2 confirmed visits at this clinic stay in your agenda.", { timeout: 20_000 });
+    await expect(visits).toContainText(
+      "1 request at this clinic is waiting for your answer. After you leave, you can only accept or decline it. To suggest other times, do it before leaving.",
+    );
+    await expect(visits.getByRole("link", { name: "Open my agenda" })).toHaveAttribute("href", "/agenda");
+    await dialog.getByRole("button", { name: "Leave clinic" }).click();
+    await expect(dialog).toBeHidden({ timeout: 20_000 });
 
     await expect(page.getByTestId("settings-clinic-card")).toHaveCount(1);
     const last = clinicCard(page, "Limassol Skin Clinic");
-    await expect(last.getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
-    await expect(last).toContainText("Your profile needs at least one clinic.");
+    await expect(last.getByRole("button", { name: "Leave clinic" })).toHaveCount(0);
+    await expect(last).toContainText(
+      "You need at least one clinic. To change clinic, add the new one first, then leave this one.",
+    );
     // A single clinic has nothing to fold: it stays open, with no header button.
     await expect(last.getByRole("button", { name: "Limassol Skin Clinic", exact: true })).toHaveCount(0);
     await expect(last.getByRole("button", { name: "Edit hours" })).toBeVisible();
-    expect(removed).toBe(seeded!.secondId);
-    // Removing is not an unsaved edit.
+    // Leaving is not an unsaved edit.
     await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
+
+    // Her link is gone, the clinic and the visits stay, and the change is recorded
+    // with the settings she had there.
+    const { data: links } = await admin
+      .from("professional_clinics")
+      .select("id")
+      .eq("professional_id", seeded!.professionalId);
+    expect(links?.map((row) => row.id)).toEqual([seeded!.primaryId]);
+    const { count: kept } = await admin
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("professional_id", seeded!.professionalId)
+      .eq("clinic_id", link!.clinic_id);
+    expect(kept).toBe(3);
+    const { data: log } = await admin
+      .from("request_log")
+      .select("status, details, before_snapshot")
+      .eq("professional_id", seeded!.professionalId)
+      .eq("request_type", "professional_clinic_leave");
+    expect(log).toHaveLength(1);
+    expect(log![0]!.status).toBe("recorded");
+    expect((log![0]!.details as { clinic_name?: string }).clinic_name).toBe("Paphos Medical Centre");
+    expect((log![0]!.before_snapshot as { settings?: { id?: string } }).settings?.id).toBe(seeded!.secondId);
+
+    // The server keeps her last clinic too, whatever the page sends.
+    const refused = await page.request.delete(`/api/professional-clinics?locationId=${seeded!.primaryId}`);
+    expect(refused.status()).toBe(409);
+    expect((await refused.json()).message).toContain("You need at least one clinic.");
+    // The clinic row has visits: remove them so the cleanup can delete it.
+    await admin.from("appointments").delete().eq("professional_id", seeded!.professionalId);
+    await admin.from("clinics").delete().eq("id", link!.clinic_id);
+  });
+
+  test("a clinic DocCy already has is joined at once, booking off until she switches it on", async ({ page }) => {
+    test.setTimeout(120_000);
+    const joinName = `Join Test Clinic ${seeded!.nonce}`;
+    const created = await admin
+      .from("clinics")
+      .insert({
+        name: joinName,
+        slug: `join-test-${seeded!.nonce}`,
+        district: "Larnaca",
+        town: "Larnaca",
+        address: `Join Road ${seeded!.nonce}, Larnaca, Cyprus`,
+        phone: "24123456",
+        latitude: 34.91,
+        longitude: 33.62,
+      })
+      .select("id")
+      .single();
+    expect(created.error).toBeNull();
+    const joinClinicId = String(created.data!.id);
+    try {
+      await openSettings(page, seeded!, "clinics");
+
+      await page.getByRole("button", { name: "+ Add clinic" }).click();
+      const dialog = page.getByRole("dialog", { name: "Add a clinic" });
+      await dialog.getByRole("combobox").fill(`Join Road ${seeded!.nonce}`);
+      await dialog
+        .getByTestId("register-clinic-search-0-option")
+        .filter({ hasText: `Join Road ${seeded!.nonce}` })
+        .first()
+        .click();
+      await expect(dialog).toContainText("From DocCy");
+      await expect(dialog.getByTestId("settings-add-clinic-joining")).toContainText(
+        "Joining a DocCy clinic: it is added to your profile at once.",
+      );
+      await dialog.getByRole("button", { name: "Join clinic" }).click();
+      await expect(dialog).toBeHidden({ timeout: 20_000 });
+
+      // Its card is there, open on its hours, and says what to do next.
+      await expect(page.getByTestId("settings-clinic-card")).toHaveCount(3);
+      const card = clinicCard(page, joinName);
+      await expect(card.getByTestId("settings-clinic-notice")).toContainText(
+        "Set your hours to take online bookings",
+      );
+      await expect(card).toContainText(`Join Road ${seeded!.nonce}`);
+      await expect(card).toContainText("24 123456");
+      await expect(card.getByRole("switch", { name: /Online booking/ })).toHaveAttribute("aria-checked", "false");
+      await expect(page.getByTestId("settings-clinic-pending")).toHaveCount(0);
+      await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
+
+      const { data: joined } = await admin
+        .from("professional_clinics")
+        .select("id, pause_online_bookings, sort_order, monday, saturday, slot_duration_minutes")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("clinic_id", joinClinicId)
+        .single();
+      expect(joined).toMatchObject({
+        pause_online_bookings: true,
+        sort_order: 2,
+        monday: true,
+        saturday: false,
+        slot_duration_minutes: 30,
+      });
+      const { data: log } = await admin
+        .from("request_log")
+        .select("status, details")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", "professional_clinic_join");
+      expect(log).toHaveLength(1);
+      expect(log![0]!.status).toBe("recorded");
+      expect(log![0]!.details).toMatchObject({ clinic_id: joinClinicId, clinic_name: joinName, link_id: joined!.id });
+
+      // It is still there after a reload, and joining it twice is refused.
+      await page.reload();
+      await expect(page.getByTestId("settings-clinic-card")).toHaveCount(3, { timeout: 30_000 });
+      const again = await page.request.post("/api/professional-clinics", { data: { clinicId: joinClinicId } });
+      expect(again.status()).toBe(409);
+      expect((await again.json()).message).toBe("You already work at this clinic.");
+      const unknown = await page.request.post("/api/professional-clinics", {
+        data: { clinicId: "00000000-0000-4000-8000-000000000000" },
+      });
+      expect(unknown.status()).toBe(404);
+    } finally {
+      await admin.from("professional_clinics").delete().eq("clinic_id", joinClinicId);
+      await admin.from("clinics").delete().eq("id", joinClinicId);
+    }
+  });
+
+  test("joining and leaving a clinic need a signed-in professional", async ({ request }) => {
+    expect((await request.post("/api/professional-clinics", { data: { clinicId: "x" } })).status()).toBe(401);
+    expect((await request.delete("/api/professional-clinics?locationId=x")).status()).toBe(401);
+    expect(
+      (await request.get("/api/professional-clinics/00000000-0000-4000-8000-000000000000/upcoming")).status(),
+    ).toBe(401);
   });
 
   test("clinic details change by request; the address is not editable", async ({ page }) => {
@@ -357,43 +505,6 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       locationId: seeded!.primaryId,
       changes: { name: "Limassol Skin Care" },
     });
-  });
-
-  test("a new clinic is found among DocCy's clinics first", async ({ page }) => {
-    test.setTimeout(120_000);
-    let sent: unknown = null;
-    await page.route("**/api/clinic-requests", async (route) => {
-      sent = route.request().postDataJSON();
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({ request: { createdAt: new Date().toISOString() } }),
-      });
-    });
-    await openSettings(page, seeded!, "clinics");
-
-    await page.getByRole("button", { name: "+ Add clinic" }).click();
-    const dialog = page.getByRole("dialog", { name: "Add a clinic" });
-    await dialog.getByRole("combobox").fill(`Settings Avenue ${seeded!.nonce}`);
-    await dialog
-      .getByTestId("register-clinic-search-0-option")
-      .filter({ hasText: `Settings Avenue ${seeded!.nonce}` })
-      .first()
-      .click();
-    await expect(dialog).toContainText("From DocCy");
-
-    await dialog.getByRole("button", { name: "Add clinic" }).click();
-    await expect(dialog).toBeHidden();
-    const body = sent as { kind?: string; clinic?: { clinicId?: string } } | null;
-    expect(body?.kind).toBe("add");
-    expect(body?.clinic?.clinicId).toBeTruthy();
-
-    // Clinics are curated by DocCy: the new one waits for review, nothing to save.
-    await expect(page.getByTestId("settings-clinic-card")).toHaveCount(2);
-    const pending = page.getByTestId("settings-clinic-pending");
-    await expect(pending).toContainText("Request in review");
-    await expect(pending).toContainText(`Settings Avenue ${seeded!.nonce}`);
-    await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
   });
 
   test("the clinic name is DocCy's, and only a request can change it", async ({ page }) => {

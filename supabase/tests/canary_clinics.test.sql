@@ -20,10 +20,10 @@ begin
     raise exception 'FAIL: no canary professionals found (wrong database?)';
   end if;
 
-  -- One fake clinic per canary, linked as its primary clinic.
+  -- One fake clinic per canary, linked as its first clinic.
   select count(*) into v_linked
   from public.professionals p
-  join public.professional_clinics pc on pc.professional_id = p.id and pc.is_primary
+  join public.professional_clinics pc on pc.professional_id = p.id and pc.sort_order = 0
   join public.clinics c on c.id = pc.clinic_id
   where p.id::text like 'c04180_0-d0cc-4a01-800_-cafebabe000_'
     and c.id::text like 'c041801_-d0cc-4a01-900_-cafebabe100_'
