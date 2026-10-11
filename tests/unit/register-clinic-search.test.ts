@@ -126,3 +126,26 @@ describe("clinics already added in another row", () => {
     assert.equal(withoutTakenClinics([a], []).length, 1);
   });
 });
+
+describe("clinic search reads the clinics fresh", () => {
+  it("never reuses a saved answer: a clinic approved a minute ago must be found", async () => {
+    const { freshFetch } = await import("../../lib/supabase-service");
+    const seen: RequestInit[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(init ?? {});
+      return new Response("[]");
+    }) as typeof fetch;
+    try {
+      await freshFetch("https://example.test/rest/v1/clinics", { headers: { apikey: "k" } });
+    } finally {
+      globalThis.fetch = original;
+    }
+    assert.equal(seen[0]?.cache, "no-store");
+    assert.deepEqual(seen[0]?.headers, { apikey: "k" });
+
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("app/api/register/clinic-search/route.ts", "utf8");
+    assert.ok(route.includes("createServiceRoleClient({ fresh: true })"));
+  });
+});
