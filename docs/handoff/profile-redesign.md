@@ -94,6 +94,14 @@ The contract is in `lib/profile-customization.ts`:
    and the selects of the confirm, choose, calendar, success-page and reminder paths; no writes
    changed. Not shown: decline and reschedule-proposal emails (they show no reason either).
 
+5. **Booking form: patient boxes** (user, 2026-10-10). First name + last name (both
+   required, nothing else checked; sent joined as `patientName`), birth date as Day / Month /
+   Year (sent as `patientBirthdate` YYYY-MM-DD as before), mobile phone with the dial code
+   fixed next to the flag and an example number. **Server change, agreed with Livio (no DB):**
+   `POST /api/appointments` now refuses a phone that isn't a real mobile for its country
+   (`onlineBookingPhoneProblem` in `lib/phone-number.ts`, the same libphonenumber rule as
+   manual booking; a number without a country code is read as Cypriot). Stored as sent.
+
 ## Decision needed: where the professional's personal mobile shows (Livio, 2026-10-09)
 
 Livio is building, on `feat/settings-redesign`, a personal mobile the professional edits in

@@ -1,10 +1,13 @@
 import { isPatientGender, parsePatientBirthdate } from "@/lib/booking-patient-fields";
 import { isValidRegisterEmail } from "@/lib/register-email";
+import { onlineBookingPhoneProblem } from "@/lib/phone-number";
 import { BOOKING_SERVICE_OTHER } from "@/lib/booking-service-choice";
 
 /** Fields of the public booking form, in the order they appear on screen. */
 export const BOOKING_FORM_FIELDS = [
-  "patientName",
+  // Two boxes since 2026-10-10 (the clinic needs the surname); sent joined as patientName.
+  "patientFirstName",
+  "patientLastName",
   "patientEmail",
   "patientPhone",
   "isNewPatient",
@@ -18,11 +21,14 @@ export type BookingFormField = (typeof BOOKING_FORM_FIELDS)[number];
 
 /** Keys under BookingPage.errors in messages/*.json. */
 export type BookingFormErrorKey =
-  | "nameRequired"
+  | "firstNameRequired"
+  | "lastNameRequired"
   | "emailRequired"
   | "validEmail"
   | "phoneRequired"
   | "validPhone"
+  | "validMobile"
+  | "validMobileCy"
   | "selectVisitHistory"
   | "genderRequired"
   | "birthdateRequired"
@@ -30,7 +36,8 @@ export type BookingFormErrorKey =
   | "reasonRequired";
 
 export type BookingFormValues = {
-  patientName: string;
+  patientFirstName: string;
+  patientLastName: string;
   patientEmail: string;
   patientPhone: string;
   phoneValid: boolean;
@@ -55,13 +62,19 @@ export function firstBookingFormError(
   v: BookingFormValues,
   now: Date = new Date(),
 ): BookingFormError | null {
-  if (!v.patientName.trim()) return { field: "patientName", messageKey: "nameRequired" };
+  if (!v.patientFirstName.trim()) return { field: "patientFirstName", messageKey: "firstNameRequired" };
+  if (!v.patientLastName.trim()) return { field: "patientLastName", messageKey: "lastNameRequired" };
   if (!v.patientEmail.trim()) return { field: "patientEmail", messageKey: "emailRequired" };
   // Same check as the server (lib/booking-patient-fields.ts).
   if (!isValidRegisterEmail(v.patientEmail)) return { field: "patientEmail", messageKey: "validEmail" };
   // The phone box keeps the country code (e.g. "+357") after the number is erased: that is empty too.
   if (v.patientPhone.replace(/\D/g, "").length <= 3) return { field: "patientPhone", messageKey: "phoneRequired" };
   if (!v.phoneValid) return { field: "patientPhone", messageKey: "validPhone" };
+  // A real mobile for its country, the same rule as the server (2026-10-10).
+  if (onlineBookingPhoneProblem(v.patientPhone)) {
+    const cyprus = v.patientPhone.replace(/[^\d+]/g, "").startsWith("+357");
+    return { field: "patientPhone", messageKey: cyprus ? "validMobileCy" : "validMobile" };
+  }
   if (v.isNewPatient === null) return { field: "isNewPatient", messageKey: "selectVisitHistory" };
   if (!isPatientGender(v.patientGender)) return { field: "patientGender", messageKey: "genderRequired" };
   if (!parsePatientBirthdate(v.patientBirthdate, now)) {

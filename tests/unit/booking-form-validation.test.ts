@@ -8,7 +8,8 @@ import {
 } from "../../lib/booking-form-validation";
 
 const complete: BookingFormValues = {
-  patientName: "Maria Georgiou",
+  patientFirstName: "Maria",
+  patientLastName: "Georgiou",
   patientEmail: "maria@example.test",
   patientPhone: "+35799123456",
   phoneValid: true,
@@ -24,9 +25,13 @@ describe("firstBookingFormError", () => {
   });
 
   it("names the exact field that is missing, with its own message", () => {
-    assert.deepEqual(firstBookingFormError({ ...complete, patientName: "  " }), {
-      field: "patientName",
-      messageKey: "nameRequired",
+    assert.deepEqual(firstBookingFormError({ ...complete, patientFirstName: "  " }), {
+      field: "patientFirstName",
+      messageKey: "firstNameRequired",
+    });
+    assert.deepEqual(firstBookingFormError({ ...complete, patientLastName: "" }), {
+      field: "patientLastName",
+      messageKey: "lastNameRequired",
     });
     assert.deepEqual(firstBookingFormError({ ...complete, patientEmail: "" }), {
       field: "patientEmail",
@@ -69,6 +74,25 @@ describe("firstBookingFormError", () => {
     });
   });
 
+  it("names are not policed beyond being there: an initial is a last name too", () => {
+    assert.equal(firstBookingFormError({ ...complete, patientFirstName: "Alexander", patientLastName: "G" }), null);
+  });
+
+  it("wants a real mobile number, like manual booking (libphonenumber)", () => {
+    // 7 digits after +357 is not a Cyprus mobile, though the phone box's length check let it through.
+    assert.deepEqual(firstBookingFormError({ ...complete, patientPhone: "+357 99 99999" }), {
+      field: "patientPhone",
+      messageKey: "validMobileCy",
+    });
+    // A Cyprus landline is not a mobile either.
+    assert.equal(firstBookingFormError({ ...complete, patientPhone: "+357 22 123456" })?.messageKey, "validMobileCy");
+    assert.deepEqual(firstBookingFormError({ ...complete, patientPhone: "+44 7400 12" }), {
+      field: "patientPhone",
+      messageKey: "validMobile",
+    });
+    assert.equal(firstBookingFormError({ ...complete, patientPhone: "+44 7400 123456" }), null);
+  });
+
   it("tells an invalid phone apart from a missing one", () => {
     assert.deepEqual(firstBookingFormError({ ...complete, phoneValid: false }), {
       field: "patientPhone",
@@ -85,7 +109,8 @@ describe("firstBookingFormError", () => {
 
   it("reports the first problem in the order the fields appear on screen", () => {
     assert.deepEqual(BOOKING_FORM_FIELDS, [
-      "patientName",
+      "patientFirstName",
+      "patientLastName",
       "patientEmail",
       "patientPhone",
       "isNewPatient",

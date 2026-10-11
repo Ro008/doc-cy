@@ -87,7 +87,7 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
   return (
     <nav
       aria-label={ariaLabel}
-      className="sticky top-0 z-30 border-b border-profile-border bg-profile-bg"
+      className="profile-glass sticky top-0 z-30"
     >
       <ul
         ref={listRef}

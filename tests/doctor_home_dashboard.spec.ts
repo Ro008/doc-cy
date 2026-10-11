@@ -263,10 +263,18 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await waitForHydration(page);
 
     const fade = page.getByTestId("dashboard-scroll-fade");
-    const scrollable = await page.evaluate(
-      () => document.documentElement.scrollHeight > window.innerHeight + 16,
-    );
-    test.skip(!scrollable, "Dashboard fits the viewport for this account; nothing to fade.");
+    // From the top, compare with the page as it is now (cards can still arrive or leave after
+    // the first paint): more than 24px below means the fade shows, as ScrollFade decides.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const atTop = () =>
+      page.evaluate(() => {
+        const root = document.documentElement;
+        const below = root.scrollHeight - (window.scrollY + window.innerHeight);
+        const shown = document.querySelector('[data-testid="dashboard-scroll-fade"]')?.getAttribute("data-visible");
+        return below > 24 ? (shown === "true" ? "fade" : "waiting") : "fits";
+      });
+    await expect.poll(atTop, { timeout: 10_000 }).not.toBe("waiting");
+    test.skip((await atTop()) === "fits", "Dashboard fits the viewport for this account; nothing to fade.");
 
     await expect(fade).toHaveAttribute("data-visible", "true");
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

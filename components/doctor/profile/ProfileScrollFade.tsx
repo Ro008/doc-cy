@@ -36,7 +36,7 @@ export function ProfileScrollFade() {
       data-testid="profile-scroll-fade"
       data-visible={visible ? "true" : "false"}
       className={`pointer-events-none fixed inset-x-0 z-20 h-20 transition-opacity duration-300 ${
-        showProChrome ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:bottom-0" : "bottom-0"
+        showProChrome ? "bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-0" : "bottom-0"
       } ${
         visible ? "opacity-100" : "opacity-0"
       }`}

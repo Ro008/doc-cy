@@ -50,6 +50,14 @@ describe("profile palettes", () => {
     }
   });
 
+  it("dark mode is DocCy's navy, the same as the professional's dashboard (user, 2026-10-10)", () => {
+    // ink-900 page, slate-900/70 cards and slate-700/70 borders over it, slate text.
+    assert.equal(PROFILE_SURFACES.dark.bg, "#062F61");
+    assert.equal(PROFILE_SURFACES.dark.surface, "#0C1E3B");
+    assert.equal(PROFILE_SURFACES.dark.border, "#263C59");
+    assert.equal(PROFILE_SURFACES.dark.text, "#F8FAFC");
+  });
+
   it("keeps every text pair readable (WCAG AA) in light and dark", () => {
     const light = PROFILE_SURFACES.light;
     const dark = PROFILE_SURFACES.dark;

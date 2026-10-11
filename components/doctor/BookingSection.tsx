@@ -30,6 +30,7 @@ import {
 } from "@/lib/booking-form-validation";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import { isValidRegisterEmail, suggestRegisterEmail } from "@/lib/register-email";
+import { birthdateFromParts, fullPatientName } from "@/lib/booking-form-parts";
 import {
   BOOKING_SERVICE_OTHER,
   bookingServiceOptions,
@@ -172,7 +173,9 @@ export function BookingSection({
     null
   );
   const [showContactForm, setShowContactForm] = React.useState(false);
-  const [patientName, setPatientName] = React.useState("");
+  // First and last name in two boxes (2026-10-10); sent joined as patientName.
+  const [patientFirstName, setPatientFirstName] = React.useState("");
+  const [patientLastName, setPatientLastName] = React.useState("");
   const [patientEmail, setPatientEmail] = React.useState("");
   // Same checks as /register's email: "Did you mean …?" for a typo in a common provider
   // (sdf@gmai.com → sdf@gmail.com), shown on leaving the field.
@@ -192,7 +195,9 @@ export function BookingSection({
   const reasonOptional =
     serviceChoice !== null && serviceChoice !== "" && serviceChoice !== BOOKING_SERVICE_OTHER;
   const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
-  const [patientBirthdate, setPatientBirthdate] = React.useState("");
+  // Day / Month / Year boxes (2026-10-10): easier than a calendar for a birth date.
+  const [birthParts, setBirthParts] = React.useState({ day: "", month: "", year: "" });
+  const patientBirthdate = birthdateFromParts(birthParts);
   /** Set once the request is saved: the patient confirms it from the email (user, 2026-10-02). */
   const [checkEmailAddress, setCheckEmailAddress] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -448,12 +453,13 @@ export function BookingSection({
 
   /** Field id to focus for each form field (radio groups: their first option). */
   const FIELD_FOCUS_ID: Record<BookingFormField, string> = {
-    patientName: "name",
+    patientFirstName: "firstName",
+    patientLastName: "lastName",
     patientEmail: "email",
     patientPhone: "phone",
     isNewPatient: "visitHistory-first",
     patientGender: "patientGender-female",
-    patientBirthdate: "patientBirthdate",
+    patientBirthdate: "patientBirthdate-day",
     professionalService: "professionalService",
     visitReason: "visitReason",
   };
@@ -492,7 +498,8 @@ export function BookingSection({
       }
       // Say exactly what is missing, under that field, and take the patient there.
       const problem = firstBookingFormError({
-        patientName,
+        patientFirstName,
+        patientLastName,
         patientEmail,
         patientPhone,
         phoneValid,
@@ -517,7 +524,7 @@ export function BookingSection({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             doctorId,
-            patientName,
+            patientName: fullPatientName(patientFirstName, patientLastName),
             patientEmail,
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
@@ -560,14 +567,15 @@ export function BookingSection({
         setSelectedSlot(null);
         setSelectedDate(null);
         setShowContactForm(false);
-        setPatientName("");
+        setPatientFirstName("");
+        setPatientLastName("");
         setPatientEmail("");
         setPatientPhone("");
         setIsNewPatient(null);
         setVisitReason("");
         setServiceChoice(serviceOptions.length > 0 ? "" : null);
         setPatientGender("");
-        setPatientBirthdate("");
+        setBirthParts({ day: "", month: "", year: "" });
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
@@ -582,7 +590,8 @@ export function BookingSection({
     },
     [
       selectedSlot,
-      patientName,
+      patientFirstName,
+      patientLastName,
       patientEmail,
       patientPhone,
       phoneValid,
@@ -737,34 +746,59 @@ export function BookingSection({
         </div>
         {/* noValidate: our own messages under each field, not the browser's generic bubble. */}
         <form className="space-y-4" noValidate onSubmit={handleSubmit}>
-          <div id="field-patientName" className="scroll-mt-24 space-y-2">
-            <label
-              htmlFor="name"
-              className={LABEL_CLASS}
-            >
-              {t("patientFullNameLabel")}
-              <RequiredMark />
-            </label>
-            <input
-              id="name"
-              type="text"
-              required
-              value={patientName}
-              onChange={(e) => {
-                setPatientName(e.target.value);
-                fixed("patientName");
-              }}
-              aria-invalid={errorFor("patientName") ? true : undefined}
-              aria-describedby={errorFor("patientName") ? "name-error" : undefined}
-              autoComplete="name"
-              className={INPUT_CLASS(Boolean(errorFor("patientName")))}
-              placeholder={t("patientFullNamePlaceholder")}
-            />
-            {errorFor("patientName") ? (
-              <p id="name-error" role="alert" className={FIELD_ERROR_CLASS}>
-                {errorFor("patientName")}
-              </p>
-            ) : null}
+          {/* Two boxes, both required, nothing else checked: the clinic needs the surname to
+              find the record, and "Alexander G" is fine (user, 2026-10-10). */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div id="field-patientFirstName" className="scroll-mt-24 space-y-2">
+              <label htmlFor="firstName" className={LABEL_CLASS}>
+                {t("firstNameLabel")}
+                <RequiredMark />
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                required
+                value={patientFirstName}
+                onChange={(e) => {
+                  setPatientFirstName(e.target.value);
+                  fixed("patientFirstName");
+                }}
+                aria-invalid={errorFor("patientFirstName") ? true : undefined}
+                aria-describedby={errorFor("patientFirstName") ? "firstName-error" : undefined}
+                autoComplete="given-name"
+                className={INPUT_CLASS(Boolean(errorFor("patientFirstName")))}
+              />
+              {errorFor("patientFirstName") ? (
+                <p id="firstName-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("patientFirstName")}
+                </p>
+              ) : null}
+            </div>
+            <div id="field-patientLastName" className="scroll-mt-24 space-y-2">
+              <label htmlFor="lastName" className={LABEL_CLASS}>
+                {t("lastNameLabel")}
+                <RequiredMark />
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                required
+                value={patientLastName}
+                onChange={(e) => {
+                  setPatientLastName(e.target.value);
+                  fixed("patientLastName");
+                }}
+                aria-invalid={errorFor("patientLastName") ? true : undefined}
+                aria-describedby={errorFor("patientLastName") ? "lastName-error" : undefined}
+                autoComplete="family-name"
+                className={INPUT_CLASS(Boolean(errorFor("patientLastName")))}
+              />
+              {errorFor("patientLastName") ? (
+                <p id="lastName-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("patientLastName")}
+                </p>
+              ) : null}
+            </div>
           </div>
           <div id="field-patientEmail" className="scroll-mt-24 space-y-2">
             <label
@@ -830,10 +864,12 @@ export function BookingSection({
               id="phone"
               label={
                 <>
-                  {t("phonePriorityContactLabel")}
+                  {t("mobilePhoneLabel")}
                   <RequiredMark />
                 </>
               }
+              hint={t("mobilePhoneHint")}
+              fixedDialCode
               tone="profile"
               value={patientPhone}
               onChange={(val, isValid) => {
@@ -939,27 +975,87 @@ export function BookingSection({
               </p>
             ) : null}
           </fieldset>
-          <div id="field-patientBirthdate" className="scroll-mt-24 space-y-2">
-            <label htmlFor="patientBirthdate" className={LABEL_CLASS}>
+          {/* Day / Month / Year, as GOV.UK and the NHS ask for a birth date: no calendar to
+              scroll back through decades, numeric keypad on phones (user, 2026-10-10). */}
+          <fieldset
+            id="field-patientBirthdate"
+            className="scroll-mt-24 space-y-2"
+            aria-describedby={
+              errorFor("patientBirthdate") ? "patientBirthdate-hint patientBirthdate-error" : "patientBirthdate-hint"
+            }
+          >
+            <legend className={LABEL_CLASS}>
               {t("birthdateLabel")}
               <RequiredMark />
-            </label>
-            <input
-              id="patientBirthdate"
-              type="date"
-              required
-              min="1900-01-01"
-              max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
-              value={patientBirthdate}
-              onChange={(e) => {
-                setPatientBirthdate(e.target.value);
-                fixed("patientBirthdate");
-              }}
-              aria-invalid={errorFor("patientBirthdate") ? true : undefined}
-              aria-describedby={errorFor("patientBirthdate") ? "patientBirthdate-error" : undefined}
-              autoComplete="bday"
-              className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} [color-scheme:inherit]`}
-            />
+            </legend>
+            <p id="patientBirthdate-hint" className="text-sm text-profile-muted">
+              {t("birthdateHint")}
+            </p>
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-day" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateDay")}
+                </label>
+                <input
+                  id="patientBirthdate-day"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  autoComplete="bday-day"
+                  value={birthParts.day}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    setBirthParts((prev) => ({ ...prev, day: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-16 text-center tabular-nums`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-month" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateMonth")}
+                </label>
+                <input
+                  id="patientBirthdate-month"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  autoComplete="bday-month"
+                  value={birthParts.month}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    setBirthParts((prev) => ({ ...prev, month: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-16 text-center tabular-nums`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-year" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateYear")}
+                </label>
+                <input
+                  id="patientBirthdate-year"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  autoComplete="bday-year"
+                  value={birthParts.year}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setBirthParts((prev) => ({ ...prev, year: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-24 text-center tabular-nums`}
+                />
+              </div>
+            </div>
             {errorFor("patientBirthdate") ? (
               <p id="patientBirthdate-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("patientBirthdate")}
@@ -968,7 +1064,7 @@ export function BookingSection({
             <p className="text-xs leading-relaxed text-profile-muted">
               {t("personalDetailsPrivacyNote", { doctorName })}
             </p>
-          </div>
+          </fieldset>
           {serviceChoice !== null ? (
             <div id="field-professionalService" className="scroll-mt-24 space-y-2">
               <label htmlFor="professionalService" className={LABEL_CLASS}>

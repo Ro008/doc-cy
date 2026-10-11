@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fillBirthdate, fillPatientName, phoneBox } from "../helpers/bookingForm";
 import { fillVisitReason } from "../helpers/fillVisitReason";
 import { fillBookingPatientDetails } from "../helpers/fillBookingPatientDetails";
 import { createClient } from "@supabase/supabase-js";
@@ -52,11 +53,9 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       await selectSlotBtn.click();
       await page.getByRole("button", { name: /Confirm/i }).first().click();
 
-      await page.getByLabel("Full name", { exact: true }).fill(patientName);
+      await fillPatientName(page, patientName);
       await page.getByLabel("Email", { exact: true }).fill(patientEmail);
-      const phoneInput = page.getByRole("textbox", {
-        name: /Phone.*priority contact/i,
-      });
+      const phoneInput = phoneBox(page);
       await phoneInput.fill("99123456");
       await fillBookingPatientDetails(page);
       await page.getByRole("radio", { name: /This is my first visit/i }).check();

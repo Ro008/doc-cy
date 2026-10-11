@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
 import { fillVisitReason } from "./helpers/fillVisitReason";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
@@ -55,17 +56,14 @@ test.describe("Booking backend errors @booking-creates", () => {
     await page.getByRole("button", { name: /Confirm/i }).first().click();
 
     // Contact form
-    const nameInput = page.getByLabel("Full name", { exact: true });
-    await expect(nameInput).toBeVisible();
-    await nameInput.fill("Error E2E");
+    await expect(page.locator("#firstName, #name").first()).toBeVisible();
+    await fillPatientName(page, "Error E2E");
 
     const emailInput = page.getByLabel("Email", { exact: true });
     await expect(emailInput).toBeVisible();
     await emailInput.fill("error.e2e@example.com");
 
-    const phoneInput = page.getByRole("textbox", {
-      name: /Phone.*priority contact/i,
-    });
+    const phoneInput = phoneBox(page);
     await expect(phoneInput).toBeVisible();
     await phoneInput.click();
     await phoneInput.pressSequentially("99123456", { delay: 50 });
@@ -78,7 +76,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
-    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await fillBirthdate(page, "1990-01-01");
 
     // Force backend error by intercepting the booking request.
     // Using an appointmentLocal outside typical working hours ensures:
@@ -188,17 +186,14 @@ test.describe("Booking backend errors @booking-creates", () => {
     await page.getByRole("button", { name: /Confirm/i }).first().click();
 
     // Contact form
-    const nameInput = page.getByLabel("Full name", { exact: true });
-    await expect(nameInput).toBeVisible();
-    await nameInput.fill("Error E2E 403");
+    await expect(page.locator("#firstName, #name").first()).toBeVisible();
+    await fillPatientName(page, "Error E2E 403");
 
     const emailInput = page.getByLabel("Email", { exact: true });
     await expect(emailInput).toBeVisible();
     await emailInput.fill("error403.e2e@example.com");
 
-    const phoneInput = page.getByRole("textbox", {
-      name: /Phone.*priority contact/i,
-    });
+    const phoneInput = phoneBox(page);
     await expect(phoneInput).toBeVisible();
     await phoneInput.click();
     await phoneInput.pressSequentially("99123456", { delay: 50 });
@@ -212,7 +207,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
-    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await fillBirthdate(page, "1990-01-01");
 
     // Force backend: override doctorId to a pending/rejected professional.
     await page.route("**/api/appointments", async (route) => {

@@ -45,6 +45,20 @@ describe("parseBookingPatientFields (online)", () => {
     });
   });
 
+  it("wants a real mobile online too (2026-10-10), Cyprus when typed without a country code", () => {
+    for (const patientPhone of ["+357 99 99999", "+357 22 123456", "+44 7400 12"]) {
+      const res = parseBookingPatientFields({ ...valid, patientPhone }, "online", TODAY);
+      assert.equal(res.ok, false, patientPhone);
+      assert.match(res.message ?? "", /mobile/i);
+    }
+    for (const patientPhone of ["99123456", "+44 7400 123456", "0035799123456"]) {
+      const res = parseBookingPatientFields({ ...valid, patientPhone }, "online", TODAY);
+      assert.equal(res.ok, true, patientPhone);
+      // Kept as sent: only checked.
+      assert.equal(res.ok && res.fields.patientPhone, patientPhone);
+    }
+  });
+
   it("accepts 'returning' as not a first visit", () => {
     const res = parseBookingPatientFields({ ...valid, isNewPatient: "returning" }, "online", TODAY);
     assert.equal(res.ok && res.fields.isNewPatient, false);

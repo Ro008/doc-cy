@@ -953,7 +953,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   <a
                     href={`#${PROFILE_SECTION_IDS.clinics}`}
                     data-testid="profile-hero-clinics-link"
-                    className={`inline-flex items-center gap-1.5 ${heroLinkClass}`}
+                    className={`inline-flex items-center gap-1.5 text-accent-on ${heroLinkClass}`}
                   >
                     <Building2 className="h-4 w-4 shrink-0" aria-hidden />
                     {practiceLocations.length > 1

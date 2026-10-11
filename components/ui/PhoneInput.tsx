@@ -8,6 +8,7 @@ import {
 } from "react-international-phone";
 import "react-international-phone/style.css";
 import { useTranslations } from "next-intl";
+import { mobilePlaceholder } from "@/lib/booking-form-parts";
 
 export type PhoneInputProps = {
   value: string;
@@ -24,6 +25,13 @@ export type PhoneInputProps = {
    * profile theme (light/dark + the doctor's accent, set as CSS variables in globals.css).
    */
   tone?: "light" | "dark" | "profile";
+  /**
+   * The dial code sits fixed next to the flag (change the country with the flag) and the box
+   * shows an example mobile of that country, so erasing everything never loses the country.
+   */
+  fixedDialCode?: boolean;
+  /** A short line under the label. */
+  hint?: React.ReactNode;
 };
 
 /** Digits allowed after the country code (same rule as the validity check below). */
@@ -57,7 +65,10 @@ export function PhoneInput({
   showValidationError = false,
   errorMessage = null,
   tone = "light",
+  fixedDialCode = false,
+  hint = null,
 }: PhoneInputProps) {
+  const [countryIso2, setCountryIso2] = React.useState(defaultCountry);
   const [isValid, setIsValid] = React.useState(true);
   /** Dial code length of the selected country (Cyprus "357" until the patient changes it). */
   const dialLenRef = React.useRef(3);
@@ -67,6 +78,7 @@ export function PhoneInput({
     const digits = phone.replace(/\D/g, "");
     const dialLen = meta.country.dialCode.length;
     dialLenRef.current = dialLen;
+    setCountryIso2(meta.country.iso2);
     const minLen = dialLen + MIN_NATIONAL_DIGITS;
     const maxLen = dialLen + MAX_NATIONAL_DIGITS;
 
@@ -107,8 +119,16 @@ export function PhoneInput({
           {label}
         </label>
       )}
+      {hint ? (
+        <p id={id ? `${id}-hint` : undefined} className={tone === "profile" ? "text-sm text-profile-muted" : "text-xs text-ink-500"}>
+          {hint}
+        </p>
+      ) : null}
       <IntlPhoneInput
         defaultCountry={defaultCountry}
+        disableDialCodeAndPrefix={fixedDialCode}
+        showDisabledDialCodeAndPrefix={fixedDialCode}
+        placeholder={fixedDialCode ? mobilePlaceholder(countryIso2) : undefined}
         value={value}
         onChange={handleChange}
         className="w-full"
@@ -122,7 +142,9 @@ export function PhoneInput({
             ? {
                 id,
                 "aria-invalid": errorMessage ? true : undefined,
-                "aria-describedby": errorMessage ? `${id}-error` : undefined,
+                "aria-describedby":
+                  [errorMessage ? `${id}-error` : "", hint ? `${id}-hint` : ""].filter(Boolean).join(" ") ||
+                  undefined,
                 onBeforeInput: blockExtraDigits,
               }
             : { onBeforeInput: blockExtraDigits }

@@ -3,7 +3,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { parseIsNewPatient } from "@/lib/patient-visit-status";
 import { isValidRegisterEmail } from "@/lib/register-email";
-import { manualPhoneProblem } from "@/lib/phone-number";
+import { manualPhoneProblem, onlineBookingPhoneProblem } from "@/lib/phone-number";
 import { normalizeAppointmentReason } from "@/lib/visit-types";
 
 /**
@@ -77,6 +77,10 @@ export function parseBookingPatientFields(
   // Typed by the professional (no phone widget): a real mobile number with its country code.
   if (source === "manual" && manualPhoneProblem(patientPhone)) {
     return { ok: false, message: "Please enter a valid mobile number with its country code." };
+  }
+  // Online too (2026-10-10): the form checks the same before sending.
+  if (source === "online" && onlineBookingPhoneProblem(patientPhone)) {
+    return { ok: false, message: "Please enter a valid mobile number." };
   }
 
   // Manual bookings: only name, phone and reason are required; the rest is checked when

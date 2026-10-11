@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
 import { fillVisitReason } from "./helpers/fillVisitReason";
 
 /**
@@ -18,10 +19,15 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     const nav = page.getByRole("navigation", { name: "Profile sections" });
     await expect(nav).toBeVisible({ timeout: 15000 });
 
-    await nav.getByRole("link", { name: "About" }).click();
+    // Server-rendered: a click before hydration jumps without the scroll spy; retry until wired.
+    await expect(async () => {
+      await nav.getByRole("link", { name: "About" }).click();
+      await expect(nav.getByRole("link", { name: "About" })).toHaveAttribute("aria-current", "location", {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: 20_000 });
     await expect(page).toHaveURL(/#about$/);
     await expect(page.locator("#about")).toBeInViewport();
-    await expect(nav.getByRole("link", { name: "About" })).toHaveAttribute("aria-current", "location");
     // The tabs travel with the page: a permanent index while reading any section.
     await expect(nav).toBeInViewport();
 
@@ -51,11 +57,11 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
       await dark.click();
       await expect(dark).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
     }).toPass({ timeout: 15_000 });
-    await expect.poll(() => profileBackground(page)).toBe("rgb(11, 20, 24)");
+    await expect.poll(() => profileBackground(page)).toBe("rgb(6, 47, 97)");
 
     // Remembered on reload (cookie read by the server: no flash of light).
     await page.reload({ waitUntil: "domcontentloaded" });
-    expect(await profileBackground(page)).toBe("rgb(11, 20, 24)");
+    expect(await profileBackground(page)).toBe("rgb(6, 47, 97)");
 
     await expect(dark).toHaveAttribute("aria-pressed", "true");
     // Reloaded page: same hydration wait before the click counts.
@@ -110,16 +116,34 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(email).toHaveValue("sdf@gmail.com");
     await expect(suggestion).toHaveCount(0);
 
+    // First and last name are two boxes, both required (2026-10-10).
+    const send = page.getByRole("button", { name: /Send booking request/i });
+    await page.locator("#firstName").fill("Alexander");
+    await send.click();
+    await expect(page.getByRole("alert").filter({ hasText: "Please enter your last name." })).toBeVisible();
+    await page.locator("#lastName").fill("G");
+
+    // The mobile keeps its +357 when emptied, shows an example, and must be a real Cyprus mobile.
+    const phone = phoneBox(page);
+    await expect(phone).toHaveAttribute("placeholder", /^9\d \d{6}$/);
+    await expect(page.locator("#field-patientPhone .react-international-phone-dial-code-preview")).toHaveText("+357");
+    await expect(page.getByText("Only if the clinic needs to reach you.")).toBeVisible();
+    await phone.pressSequentially("9999999");
+    await send.click();
+    await expect(page.getByRole("alert").filter({ hasText: "Cyprus mobile numbers have 8 digits" })).toBeVisible();
+    await phone.press("End");
+    await phone.pressSequentially("9");
+
     // Gender and date of birth are asked too, and every field is required.
-    await page.getByLabel("Full name", { exact: true }).fill("Profile Form Check");
-    await page.getByRole("textbox", { name: /Phone/i }).pressSequentially("99123456");
     await page.getByLabel("This is my first visit").check();
     await fillVisitReason(page, "Checking the form only.");
     await expect(page.getByRole("radio", { name: "Prefer not to say" })).toBeVisible();
-    await page.getByRole("button", { name: /Send booking request/i }).click();
+    await send.click();
     await expect(page.getByRole("alert").filter({ hasText: "Please choose a gender option." })).toBeVisible();
     await page.getByRole("radio", { name: "Female" }).check();
-    await page.getByRole("button", { name: /Send booking request/i }).click();
+    // Day / Month / Year: an impossible date is refused.
+    await fillBirthdate(page, "1990-02-31");
+    await send.click();
     await expect(page.getByRole("alert").filter({ hasText: "Please enter a valid date of birth." })).toBeVisible();
   });
 
@@ -158,12 +182,12 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
       sent = route.request().postDataJSON();
       await route.fulfill({ status: 400, json: { message: "Stopped by the test." } });
     });
-    await page.getByLabel("Full name", { exact: true }).fill("Service Picker Check");
+    await fillPatientName(page, "Service Picker Check");
     await page.getByLabel("Email", { exact: true }).fill("service.picker@example.test");
-    await page.getByRole("textbox", { name: /Phone/i }).pressSequentially("99123456");
+    await phoneBox(page).pressSequentially("99123456");
     await page.getByLabel("This is my first visit").check();
     await page.getByRole("radio", { name: "Prefer not to say" }).check();
-    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await fillBirthdate(page, "1990-01-01");
     await picker.selectOption({ label: firstService });
     await page.locator("#visitReason").fill("A spot on the side of my lip.");
     await page.getByRole("button", { name: /Send booking request/i }).click();

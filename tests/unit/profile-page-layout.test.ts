@@ -43,6 +43,8 @@ describe("public profile: one page with anchor tabs", () => {
     // District links to the finder, the clinic count jumps to #clinics.
     assert.match(page, /<FinderDistrictLink[\s\S]*?className="[^"]*underline[^"]*"/);
     assert.match(page, /data-testid="profile-hero-clinics-link"[\s\S]*?href=\{`#\$\{PROFILE_SECTION_IDS\.clinics\}`\}|href=\{`#\$\{PROFILE_SECTION_IDS\.clinics\}`\}[\s\S]*?data-testid="profile-hero-clinics-link"/);
+    // Both hero links take the hero's text colour, never the default link teal (2026-10-10).
+    assert.match(page, /className=\{`inline-flex items-center gap-1\.5 text-accent-on \$\{heroLinkClass\}`\}/);
     // Same language chips as the finder cards.
     assert.match(page, /languageThemeForLabel\(/);
     assert.match(page, /\.pillClass/);
@@ -63,6 +65,20 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(fade, /data-visible=/);
     // Painted with the page background, so it works in light and dark.
     assert.match(fade, /var\(--p-bg\)/);
+    // Flush on the professional's tab bar, as on the dashboard: a gap left it floating as a
+    // translucent band over sharp content (user, 2026-10-10).
+    const dashboard = read("components/dashboard/DoctorDashboard.tsx");
+    const offset = /bottom-\[calc\((\d+(?:\.\d+)?)rem\+env\(safe-area-inset-bottom,0px\)\)\]/;
+    assert.equal(fade.match(offset)?.[1], dashboard.match(offset)?.[1]);
+  });
+
+  it("the sticky tabs are frosted glass, solid where blur or transparency isn't wanted", () => {
+    const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
+    assert.match(nav, /profile-glass/);
+    const css = read("app/globals.css");
+    assert.match(css, /\.profile-glass\s*\{[\s\S]*?backdrop-filter:/);
+    assert.match(css, /@supports not \(\(backdrop-filter: blur\(1px\)\) or \(-webkit-backdrop-filter: blur\(1px\)\)\)/);
+    assert.match(css, /prefers-reduced-transparency: reduce/);
   });
 
   it("fades the tabs' edge on small screens when more tabs sit off to the side", () => {
@@ -117,7 +133,14 @@ describe("public profile: one page with anchor tabs", () => {
     const booking = read("components/doctor/BookingSection.tsx");
     // Gender and date of birth come from master (stored since 2026-10-04).
     assert.match(booking, /firstBookingFormError\(/);
-    assert.match(booking, /id="patientBirthdate"/);
+    // 2026-10-10: first and last name, birth date as Day / Month / Year, mobile with a fixed
+    // dial code and an example number.
+    assert.match(booking, /id="firstName"/);
+    assert.match(booking, /id="lastName"/);
+    assert.match(booking, /fullPatientName\(/);
+    assert.match(booking, /id="patientBirthdate-day"/);
+    assert.match(booking, /inputMode="numeric"/);
+    assert.match(booking, /fixedDialCode/);
     // Required marker on every field label (name, email, phone, first visit, gender, birth date, reason).
     assert.ok((booking.match(/<RequiredMark \/>/g) ?? []).length >= 7);
     assert.match(booking, /tone="profile"/);

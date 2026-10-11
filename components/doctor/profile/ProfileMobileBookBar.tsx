@@ -54,7 +54,7 @@ export function ProfileMobileBookBar({ next, cta }: Props) {
       data-visible={visible ? "true" : "false"}
       aria-hidden={!visible}
       className={`fixed inset-x-0 z-30 border-t border-profile-border bg-profile-surface px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition duration-300 lg:hidden ${
-        showProChrome ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]" : "bottom-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
+        showProChrome ? "bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "bottom-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
       } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-full opacity-0"}`}
     >
       <div className="mx-auto flex max-w-xl items-center gap-3">

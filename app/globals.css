@@ -612,6 +612,31 @@ html:has(.doccy-profile) {
   scroll-behavior: smooth;
 }
 
+/* Sticky section tabs: frosted glass over the page scrolling underneath (user, 2026-10-10).
+ * The page colour at 72% plus blur and a little saturation, a hairline edge and a soft top
+ * highlight. Solid where blur isn't supported or the person asks for less transparency. */
+.profile-glass {
+  background-color: color-mix(in srgb, var(--p-bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid color-mix(in srgb, var(--p-border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 8%, transparent),
+    0 8px 24px -16px rgb(0 0 0 / 0.35);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .profile-glass {
+    background-color: var(--p-bg);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .profile-glass {
+    background-color: var(--p-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* Phone field in the booking form (react-international-phone). */
 .doccy-profile {
   --react-international-phone-height: 46px;
@@ -630,6 +655,11 @@ html:has(.doccy-profile) {
   --react-international-phone-selected-dropdown-item-background-color: var(--p-accent-soft);
   --react-international-phone-selected-dropdown-item-text-color: var(--p-text);
   --react-international-phone-selected-dropdown-item-dial-code-color: var(--p-muted);
+  /* The fixed dial code next to the flag (PhoneInput fixedDialCode). */
+  --react-international-phone-dial-code-preview-background-color: var(--p-surface);
+  --react-international-phone-dial-code-preview-text-color: var(--p-text);
+  --react-international-phone-dial-code-preview-border-color: var(--p-border);
+  --react-international-phone-dial-code-preview-font-size: 16px;
 }
 
 /* Booking calendar on the profile (react-day-picker). */

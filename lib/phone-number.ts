@@ -20,3 +20,15 @@ export function manualPhoneProblem(value: string): "required" | "invalid" | null
   const e164 = hasPlus ? `+${digits}` : `+${digits.slice(2)}`;
   return isValidPhoneNumber(e164) ? null : "invalid";
 }
+
+/**
+ * The online booking form's rule (2026-10-10): a real mobile, like manual booking. The form
+ * always sends the country code; a number typed without one (API callers, older clients) is
+ * read as Cypriot. Only checks: the value is stored as sent.
+ */
+export function onlineBookingPhoneProblem(value: string): "required" | "invalid" | null {
+  const t = value.trim();
+  if (!t) return "required";
+  const hasCountry = /^\(?\+/.test(t) || t.replace(/\D/g, "").startsWith("00");
+  return manualPhoneProblem(hasCountry ? t : `+357 ${t}`);
+}
