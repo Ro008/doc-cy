@@ -775,6 +775,10 @@ export function RegisterClinicAddressField({
     </>
   ) : null;
 
+  // On the dark form the open list kept the field's pale text on the system's
+  // grey background: give the entries their own dark background.
+  const districtOptionClass = tone === "light" ? undefined : "bg-slate-900 text-slate-100";
+
   const districtSelect = (
     <label className="mt-3 block">
       <span className={styles.label}>District</span>
@@ -784,9 +788,11 @@ export function RegisterClinicAddressField({
         className={styles.input}
         aria-label="District"
       >
-        <option value="">Select a district</option>
+        <option value="" className={districtOptionClass}>
+          Select a district
+        </option>
         {CYPRUS_DISTRICTS.map((district) => (
-          <option key={district} value={district}>
+          <option key={district} value={district} className={districtOptionClass}>
             {district}
           </option>
         ))}
