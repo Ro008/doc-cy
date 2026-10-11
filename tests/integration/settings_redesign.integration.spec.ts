@@ -747,7 +747,10 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await card.getByRole("button", { name: "Edit hours" }).click();
     await card.getByRole("radio", { name: "45 min" }).click();
     await save.click();
-    await expect(page.locator("[data-sonner-toast]").getByText(/Hours saved for Limassol Skin Clinic/)).toBeVisible();
+    // The first save of a run compiles the route on a dev server: allow for it.
+    await expect(page.locator("[data-sonner-toast]").getByText(/Hours saved for Limassol Skin Clinic/)).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(card).toContainText("45 min");
 
     const rows = await admin
@@ -1657,7 +1660,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     await page.goto("/agenda/settings?section=clinics");
     await expect(page).toHaveURL(/\/settings\?section=clinics$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible({ timeout: 20_000 });
   });
 
   test("specialties: removing is immediate and recorded, but never the last one", async ({ page }) => {
