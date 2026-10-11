@@ -43,14 +43,26 @@ export function buildReceptionScriptText(
   return `I've booked you for [day] at [time], [patient name]. For your next visit, you can see ${who.name}'s available times and book online at ${who.bookingUrl}, without calling and waiting on hold.`;
 }
 
-/** The message that goes with her link on WhatsApp and Viber. */
+/** The message that goes with her link on WhatsApp and Viber (Telegram: below). */
 export function buildShareMessage(
   localeLike: string | null | undefined,
   name: string,
   bookingUrl: string
 ): string {
-  if (isGreek(localeLike)) return `Κλείστε ραντεβού online με ${name}: ${bookingUrl}`;
-  return `Book an appointment with ${name} online: ${bookingUrl}`;
+  return `${shareSentence(localeLike, name)}: ${bookingUrl}`;
+}
+
+function shareSentence(localeLike: string | null | undefined, name: string): string {
+  return isGreek(localeLike) ? `Κλείστε ραντεβού online με ${name}` : `Book an appointment with ${name} online`;
+}
+
+/** Telegram takes the link and the sentence apart, and shows the link first. */
+export function buildTelegramShareUrl(
+  localeLike: string | null | undefined,
+  name: string,
+  bookingUrl: string
+): string {
+  return `https://t.me/share/url?url=${encodeURIComponent(bookingUrl)}&text=${encodeURIComponent(shareSentence(localeLike, name))}`;
 }
 
 export function buildWhatsAppShareUrl(text: string): string {

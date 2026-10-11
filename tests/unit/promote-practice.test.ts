@@ -6,6 +6,7 @@ import { resolvePromotePracticeCopy } from "../../lib/promote-practice-copy";
 import {
   buildReceptionScriptText,
   buildShareMessage,
+  buildTelegramShareUrl,
   buildViberShareUrl,
   buildVoicemailScriptText,
   buildWhatsAppShareUrl,
@@ -76,6 +77,16 @@ describe("sharing the link", () => {
     const text = buildShareMessage("en", who.name, url);
     assert.equal(buildWhatsAppShareUrl(text), `https://wa.me/?text=${encodeURIComponent(text)}`);
     assert.equal(buildViberShareUrl(text), `viber://forward?text=${encodeURIComponent(text)}`);
+  });
+});
+
+describe("sharing on Telegram", () => {
+  it("passes the link and the sentence separately, as Telegram expects", () => {
+    assert.equal(
+      buildTelegramShareUrl("en", who.name, url),
+      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Book an appointment with Maria Merakli online")}`,
+    );
+    assert.ok(buildTelegramShareUrl("el", who.name, url).includes(encodeURIComponent("Κλείστε ραντεβού online με Maria Merakli")));
   });
 });
 

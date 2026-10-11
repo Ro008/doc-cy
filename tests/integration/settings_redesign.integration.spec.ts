@@ -1516,6 +1516,10 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(decodeURIComponent(String(whatsapp))).toMatch(/Κλείστε ραντεβού online με Settings B1 ui [\d-]+: http.*\/settings-b1-ui-/);
     expect(await share.getByRole("link", { name: "Viber" }).getAttribute("href")).toMatch(/^viber:\/\/forward\?text=/);
 
+    expect(await share.getByRole("link", { name: "Telegram" }).getAttribute("href")).toMatch(
+      /^https:\/\/t\.me\/share\/url\?url=http.*settings-b1-ui-.*&text=/,
+    );
+
     // The choice is remembered in this browser.
     await page.reload();
     await expect(language.getByRole("button", { name: "Ελληνικά" })).toHaveAttribute("aria-pressed", "true", {

@@ -177,7 +177,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
     (→ Clinics). `lib/promote-booking-notice.ts`.
   - Voicemail script: "search for <name> on mydoccy.com" (a long address is hard to
     catch on a recording). Reception script names her instead of "my".
-  - "Share" under the link: WhatsApp and Viber, message with her name and link.
+  - "Share" under the link: WhatsApp, Viber and Telegram, message with her name and link.
   - Removed: the offer that DocCy adds the button to her website ("Contact Support"),
     and with it the feedback topic "Help with website booking button".
   - With several specialties, "Specialties on the sign" lists them with a tick each

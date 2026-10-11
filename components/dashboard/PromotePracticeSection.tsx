@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Check, Copy, Download, MessageCircle, Printer, QrCode } from "lucide-react";
+import { Check, Copy, Download, MessageCircle, Printer, QrCode, Send } from "lucide-react";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
 import {
   buildPublicProfileUrl,
   buildShareMessage,
+  buildTelegramShareUrl,
   buildViberShareUrl,
   buildWhatsAppShareUrl,
   parsePromoteLanguage,
@@ -306,6 +307,15 @@ export function PromotePracticeSection({
           <a href={buildViberShareUrl(shareMessage)} className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}>
             <MessageCircle className="h-3.5 w-3.5" aria-hidden />
             Viber
+          </a>
+          <a
+            href={buildTelegramShareUrl(language, doctorName, profileBookingUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}
+          >
+            <Send className="h-3.5 w-3.5" aria-hidden />
+            Telegram
           </a>
         </div>
 
