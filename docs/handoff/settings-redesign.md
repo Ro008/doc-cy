@@ -180,6 +180,11 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   - "Share" under the link: WhatsApp and Viber, message with her name and link.
   - Removed: the offer that DocCy adds the button to her website ("Contact Support"),
     and with it the feedback topic "Help with website booking button".
+  - With several specialties, "Specialties on the sign" lists them with a tick each
+    (all ticked at first; the unticked ones are remembered in the browser,
+    `doccy:promote-sign-left-off`). One specialty prints beside the name, several on
+    their own line under it, none leaves the name alone. Before this the sign showed
+    only the first one alphabetically.
   - The QR link still carries its tracking tags; nothing reads them yet (scan counts
     are planned for later).
 

@@ -1522,6 +1522,24 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       timeout: 30_000,
     });
 
+    // With several specialties she ticks the ones the sign shows; all of them at first.
+    const onSign = page.getByTestId("promote-sign-specialties");
+    await expect(onSign.getByRole("checkbox", { name: "Dermatology" })).toBeChecked();
+    await expect(onSign.getByRole("checkbox", { name: "Venereology" })).toBeChecked();
+    await page.getByRole("button", { name: "Print booking sign" }).click();
+    const sign = page.frameLocator('iframe[title="DocCy booking sign"]').last();
+    await expect(sign.locator(".who")).toHaveText(/^Settings B1 ui [\d-]+$/, { timeout: 20_000 });
+    await expect(sign.locator(".specialties")).toHaveText("Dermatology · Venereology");
+
+    await onSign.getByRole("checkbox", { name: "Dermatology" }).uncheck();
+    await page.getByRole("button", { name: "Print booking sign" }).click();
+    await expect(sign.locator(".who")).toHaveText(/^Settings B1 ui [\d-]+ · Venereology$/, { timeout: 20_000 });
+
+    // Remembered in this browser, like the language.
+    await page.reload();
+    await expect(onSign.getByRole("checkbox", { name: "Dermatology" })).not.toBeChecked({ timeout: 30_000 });
+    await expect(onSign.getByRole("checkbox", { name: "Venereology" })).toBeChecked();
+
     // DocCy no longer offers to add the button to her website.
     await page.getByTestId("promote-website-script").getByText("Website booking button").click();
     await expect(page.getByTestId("promote-website-script")).toContainText("Κράτηση online");

@@ -5,13 +5,15 @@ import type { PromotePracticeCopy } from "@/lib/promote-practice-copy";
  * "DocCy booking sign"): the DocCy logo and a "Book online · 24/7" badge, one
  * headline, the name and specialty as on the profile (no "Dr" added: not every
  * professional is a doctor), the QR in a teal frame, three steps and the short link.
+ * With several specialties she ticks the ones it shows (user, 2026-10-11); they go on
+ * their own line under the name.
  * One A5 page, sized in mm so it prints the same on any printer.
  */
 
 export type BookingSignInput = {
   doctorName: string;
-  /** The profile's approved specialty; empty shows the name alone. */
-  specialty: string;
+  /** The approved specialties she wants on the sign; none shows the name alone. */
+  specialties: readonly string[];
   qrDataUrl: string;
   /** Absolute URL: the sign is printed from an iframe. */
   logoUrl: string;
@@ -28,14 +30,35 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * The specialties the sign shows: all of hers, minus the ones she unticked. A single
+ * specialty is always shown, since there is nothing to choose.
+ */
+export function signSpecialties(all: readonly string[], leftOff: readonly string[]): string[] {
+  if (all.length <= 1) return [...all];
+  return all.filter((name) => !leftOff.includes(name));
+}
+
+/** Past this many characters the specialties print smaller, so even five long ones leave room for the QR. */
+const LONG_SPECIALTIES_LINE = 90;
+
 const CALENDAR_ICON =
   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#12B8C0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg>';
 
 export function buildBookingSignHtml(input: BookingSignInput): string {
   const { copy } = input;
   const name = input.doctorName.trim();
-  const specialty = input.specialty.trim();
-  const who = specialty ? `${escapeHtml(name)} · ${escapeHtml(specialty)}` : escapeHtml(name);
+  const specialties = input.specialties.map((value) => value.trim()).filter(Boolean);
+  // One specialty sits beside the name; several get their own line.
+  const who =
+    specialties.length === 1 ? `${escapeHtml(name)} · ${escapeHtml(specialties[0])}` : escapeHtml(name);
+  const specialtiesLine = specialties.join(" · ");
+  const specialtiesHtml =
+    specialties.length > 1
+      ? `\n    <p class="specialties${specialtiesLine.length > LONG_SPECIALTIES_LINE ? " small" : ""}">${specialties
+          .map((value, index) => `<span>${escapeHtml(value)}${index < specialties.length - 1 ? " ·" : ""}</span>`)
+          .join(" ")}</p>`
+      : "";
   const steps = [copy.signStepScan, copy.signStepPick, copy.signStepConfirm]
     .map(
       (label, index) =>
@@ -82,6 +105,9 @@ export function buildBookingSignHtml(input: BookingSignInput): string {
     letter-spacing: -0.03em; text-align: center; text-wrap: balance;
   }
   .who { margin: 3.7mm 0 0; font-size: 12pt; line-height: 1.45; color: #33485C; text-align: center; }
+  .specialties { margin: 1.2mm 0 0; font-size: 10.5pt; line-height: 1.4; color: #4A5F73; text-align: center; }
+  .specialties span { white-space: nowrap; }
+  .specialties.small { font-size: 9pt; }
   .qr-frame { margin-top: 9.5mm; padding: 4.2mm; border-radius: 7.4mm; border: 0.8mm solid #12B8C0; }
   .qr { display: block; width: 61mm; height: 61mm; image-rendering: pixelated; }
   .steps {
@@ -108,7 +134,7 @@ export function buildBookingSignHtml(input: BookingSignInput): string {
       <span class="badge">${CALENDAR_ICON}<span>${escapeHtml(copy.signBadge)}</span></span>
     </div>
     <h1>${escapeHtml(copy.signHeadline)}</h1>
-    <p class="who">${who}</p>
+    <p class="who">${who}</p>${specialtiesHtml}
     <div class="qr-frame"><img class="qr" src="${escapeHtml(input.qrDataUrl)}" alt=""/></div>
     <div class="steps">${steps}</div>
     <div class="foot">

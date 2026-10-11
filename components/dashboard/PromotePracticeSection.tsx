@@ -21,18 +21,20 @@ import {
   SETTINGS_SMALL_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import { shortBookingLink } from "@/lib/settings-account";
-import { buildBookingSignHtml } from "@/lib/booking-sign";
+import { buildBookingSignHtml, signSpecialties } from "@/lib/booking-sign";
 
 type Props = {
   slug: string | null | undefined;
   doctorName: string;
-  /** The profile's approved specialty, printed under the name on the sign. */
-  specialty?: string | null;
+  /** The profile's approved specialties; she ticks the ones printed on the sign. */
+  specialties?: readonly string[];
   localeLike?: string | null;
 };
 
 /** Remembered in this browser only: a convenience, nothing depends on it. */
 const LANGUAGE_STORAGE_KEY = "doccy:promote-language";
+const SIGN_LEFT_OFF_STORAGE_KEY = "doccy:promote-sign-left-off";
+const NO_SPECIALTIES: readonly string[] = [];
 const LANGUAGES: { id: PromoteLanguage; label: string }[] = [
   { id: "en", label: "English" },
   { id: "el", label: "Ελληνικά" },
@@ -56,7 +58,7 @@ function whenSignReady(doc: Document, maxMs = 3000): Promise<void> {
 export function PromotePracticeSection({
   slug,
   doctorName,
-  specialty,
+  specialties = NO_SPECIALTIES,
   localeLike,
 }: Props) {
   const copy = React.useMemo(
@@ -82,6 +84,27 @@ export function PromotePracticeSection({
       // See above.
     }
   }
+  // The specialties she unticked for the sign. Kept as the ones left off, so a
+  // specialty approved later shows without her doing anything.
+  const [leftOff, setLeftOff] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    try {
+      const saved: unknown = JSON.parse(window.localStorage.getItem(SIGN_LEFT_OFF_STORAGE_KEY) ?? "[]");
+      if (Array.isArray(saved)) setLeftOff(saved.filter((value): value is string => typeof value === "string"));
+    } catch {
+      // Blocked or unreadable storage: every specialty shows.
+    }
+  }, []);
+  function toggleSpecialty(name: string, shown: boolean) {
+    const next = shown ? leftOff.filter((value) => value !== name) : [...leftOff, name];
+    setLeftOff(next);
+    try {
+      window.localStorage.setItem(SIGN_LEFT_OFF_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // See above.
+    }
+  }
+  const shownOnSign = React.useMemo(() => signSpecialties(specialties, leftOff), [specialties, leftOff]);
   const signCopy = React.useMemo(() => resolvePromotePracticeCopy(language), [language]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const profileBookingUrl = slug ? buildPublicProfileUrl(slug) : "";
@@ -126,7 +149,7 @@ export function PromotePracticeSection({
 
     const html = buildBookingSignHtml({
       doctorName,
-      specialty: specialty ?? "",
+      specialties: shownOnSign,
       qrDataUrl: dataUrl,
       logoUrl: `${window.location.origin}/brand/doccy-logo.png`,
       shortLink: shortBookingLink(profileBookingUrl),
@@ -185,7 +208,7 @@ export function PromotePracticeSection({
         window.setTimeout(triggerPrint, 50);
       });
     });
-  }, [slug, bookingUrl, profileBookingUrl, doctorName, specialty, copy, signCopy]);
+  }, [slug, bookingUrl, profileBookingUrl, doctorName, shownOnSign, copy, signCopy]);
 
   if (!slug?.trim()) {
     return (
@@ -226,6 +249,33 @@ export function PromotePracticeSection({
           ))}
         </div>
       </div>
+
+      {specialties.length > 1 ? (
+        <div
+          role="group"
+          aria-label={copy.signSpecialtiesLabel}
+          data-testid="promote-sign-specialties"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <p className="text-sm text-slate-300">{copy.signSpecialtiesLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {specialties.map((name) => (
+              <label
+                key={name}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+              >
+                <input
+                  type="checkbox"
+                  checked={!leftOff.includes(name)}
+                  onChange={(event) => toggleSpecialty(name, event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-500 bg-slate-900 accent-clinical-500"
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <section className={SETTINGS_CARD_CLASS} data-testid="promote-booking-link">
         <h2 className={SETTINGS_EYEBROW_CLASS}>{copy.bookingLinkLabel}</h2>

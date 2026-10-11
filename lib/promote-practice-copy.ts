@@ -33,6 +33,7 @@ export type PromotePracticeCopy = {
   copyFailed: string;
   languageLabel: string;
   shareLabel: string;
+  signSpecialtiesLabel: string;
 };
 
 const EN_COPY: PromotePracticeCopy = {
@@ -72,6 +73,7 @@ const EN_COPY: PromotePracticeCopy = {
   copyFailed: "Could not copy. Select the text and copy manually.",
   languageLabel: "Language of the sign and scripts",
   shareLabel: "Share",
+  signSpecialtiesLabel: "Specialties on the sign",
 };
 
 const EL_COPY: PromotePracticeCopy = {
@@ -112,6 +114,7 @@ const EL_COPY: PromotePracticeCopy = {
   copyFailed: "Δεν ήταν δυνατή η αντιγραφή. Επιλέξτε το κείμενο χειροκίνητα.",
   languageLabel: "Γλώσσα πινακίδας και σεναρίων",
   shareLabel: "Κοινοποίηση",
+  signSpecialtiesLabel: "Ειδικότητες στην πινακίδα",
 };
 
 export function resolvePromotePracticeCopy(localeLike?: string | null): PromotePracticeCopy {

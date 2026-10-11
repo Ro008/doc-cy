@@ -462,7 +462,7 @@ export default async function AgendaSettingsPage({
               <PromotePracticeSection
                 slug={doctor.slug}
                 doctorName={doctor.name}
-                specialty={primarySpecialtyEntry(specialtyEntries)?.name ?? ""}
+                specialties={specialtyNames(specialtyEntries)}
                 localeLike={localeLike}
               />
             </div>
