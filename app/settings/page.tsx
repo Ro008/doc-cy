@@ -18,6 +18,7 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
+import { loadPendingEmailChange } from "@/lib/account-email-change-server";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { PlanBillingSection } from "@/components/dashboard/settings/PlanBillingSection";
 import { planSummary } from "@/lib/settings-plan";
@@ -308,6 +309,10 @@ export default async function AgendaSettingsPage({
 
   // professional_specialties has no RLS policies for users: read it with the service role.
   const specialtyService = createServiceRoleClient();
+  // An email change still waiting for its link (Account → Sign-in & security).
+  const pendingEmailChange = specialtyService
+    ? await loadPendingEmailChange(specialtyService, doctor.id).catch(() => null)
+    : null;
   const [specialtyEntries, specialtyOptions] = specialtyService
     ? await Promise.all([
         loadSpecialtyEntries(specialtyService, doctor.id),
@@ -456,7 +461,7 @@ export default async function AgendaSettingsPage({
             </div>
           }
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
-          account={<AccountSecurityCard email={user.email ?? ""} />}
+          account={<AccountSecurityCard email={user.email ?? ""} initialPendingEmail={pendingEmailChange?.email ?? null} />}
           promote={
             <div id="promote-practice">
               <PromotePracticeSection

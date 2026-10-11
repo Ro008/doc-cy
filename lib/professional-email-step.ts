@@ -62,6 +62,7 @@ export const PROFESSIONAL_API_ROUTES = [
   "/api/doctor-settings",
   "/api/professional-clinics",
   "/api/professional-mobile",
+  "/api/account/email",
   "/api/name-change-requests",
   "/api/photo-change-requests",
   "/api/professional-photo",

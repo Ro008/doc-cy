@@ -199,9 +199,14 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   the agenda header (as on `feat/doctor-dashboard`).
 
 ### Account
-- "Sign-in & security": the email with "Change email" (section 3.8, waits for you),
+- "Sign-in & security": the email with "Change email" (section 3.8, **built**),
   "Change password" (calls the existing `POST /api/auth/forgot-password` with the
   account email), sign out other devices (result as a toast), sign out.
+- **A new password signs out her other devices and is announced by email (Livio,
+  2026-10-11).** The "Choose a new password" page calls `POST /api/auth/password-changed`
+  once the password is saved (`lib/revoke-other-sessions.ts`, shared with "Sign out
+  other devices"). Best effort: a session that changes the password straight through
+  Supabase skips it.
 - **Personal mobile (Livio, 2026-10-09; built; in Account since 2026-10-10, not Profile:
   it is DocCy's way to reach her and a future SMS sign-in factor).** Card under "Sign-in & security"
   (`components/dashboard/settings/PersonalMobileCard.tsx`): the /register country picker,
@@ -336,19 +341,34 @@ it (tables, review flow, emails) is yours.
   "Expected for now: these limits apply to all your clinics until Livio stores them per
   clinic…" (`PER_CLINIC_LIMITS_PENDING` in `lib/settings-clinic-limits.ts`).
 
-### 3.8 Change the sign-in email
+### 3.8 Change the sign-in email: built (Livio, 2026-10-11)
 - UI: Account → Sign-in & security → "Change email" → new address → "Send confirmation
-  link" (Rocío, 2026-10-09).
-- Sends `POST /api/account/email` with `{ "email" }` (already checked: well-formed and
-  not the current one, `validateNewEmail` in `lib/settings-account.ts`).
-- UI expects 2xx once a confirmation link has gone to the new address (Supabase's
-  `auth.updateUser({ email })` does this), then shows "Waiting for you to confirm …";
-  nothing changes until the link is opened. 409 = address already has an account,
-  429 = too many tries, `{ "message" }` otherwise.
-- Yours to decide: whether `professionals.registration_email` (and the booking emails) follows the new
-  address on confirmation, and whether the page should load a pending change
-  (the UI only keeps it until reload today).
-- Call site: `requestEmailChange` in `components/dashboard/settings/AccountSecurityCard.tsx`.
+  link" (Rocío, 2026-10-09). The row now reads "You sign in with it, and booking
+  requests are sent here."
+- The address does two jobs, stored in two places: the sign-in address (Supabase Auth)
+  and `professionals.registration_email` (where booking requests go). Confirming moves
+  **both**; if the database refuses, the sign-in address is put back.
+- `POST /api/account/email` `{ "email" }` → 200 `{ "email" }` once the link has gone to
+  the new address · 400 not usable · 409 another account uses it · 429 more than 5 in
+  an hour · 502 the email could not be sent. `DELETE /api/account/email` cancels the
+  change that is waiting. Both behind the emailed sign-in step (middleware).
+- The link (`/account/confirm-email?token=…`) lasts 60 minutes and works once. Opening
+  it changes nothing; the "Confirm new email" button does
+  (`POST /api/account/email-confirmation` `{ "token" }` → 200 `{ "email" }` · 409 ·
+  410 the link no longer works). No session needed: she may open it on another device.
+- "Waiting for you to confirm …" is loaded with the page (`initialPendingEmail`), so it
+  survives a reload, with "Cancel" next to it. Asking again replaces the waiting change.
+- Afterwards the **old** address gets "Your DocCy email was changed". No founder; the
+  change is a `request_log` row `professional_email_change` (recorded, old address in
+  `before_snapshot`).
+- Migration `20261011120000_professional_email_change` (table
+  `professional_email_changes`: new address + SHA-256 of the token; functions
+  `professional_email_change_start` / `_cancel` / `_confirm`, service role only). DB test
+  `supabase/tests/professional_email_change.test.sql` (40 checks).
+- Code: `lib/account-email-change.ts`, `lib/account-email-change-server.ts`,
+  `lib/account-security-emails.ts`, `components/auth/ConfirmEmailChangeClient.tsx`.
+- Security emails about her own account (confirm new email, email changed, password
+  changed) are allowed next to the three automatic booking emails (Livio, 2026-10-11).
 
 ### 3.9 Profile: name change, who she sees, qualifications
 - **Name change: built (Livio, 2026-10-10).** `POST /api/name-change-requests`
@@ -405,7 +425,7 @@ it (tables, review flow, emails) is yours.
   and the qualifications. Read `patients_seen` and `qualifications` through the service
   role (`parsePatientAges`, `parseSavedQualifications` in `lib/settings-profile-details.ts`).
 
-3.2–3.4 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+3.2–3.4 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
 
 ---

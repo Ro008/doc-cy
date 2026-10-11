@@ -1,5 +1,3 @@
-import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
-
 /**
  * Account tab of settings (user, 2026-10-01): one "Sign-in & security" card, and
  * Promote as its own section. "Change password" reuses the forgot-password email
@@ -23,8 +21,7 @@ export function changePasswordMessage(
 /**
  * Changing the sign-in email (user, 2026-10-09). The UI sends POST /api/account/email
  * with `{ "email" }`; the change applies only once the doctor opens the confirmation
- * link sent to the new address. EXPECTED TO FAIL until Livio builds that endpoint
- * (and decides what else follows the new address: docs/handoff/settings-redesign.md).
+ * link sent to the new address (built 2026-10-11: lib/account-email-change.ts).
  */
 export function validateNewEmail(currentEmail: string, input: string): string | null {
   const next = input.trim();
@@ -47,10 +44,8 @@ export function changeEmailMessage(
   }
   if (status === 409) return { ok: false, message: "That email already has a DocCy account." };
   if (status === 429) return { ok: false, message: "Too many tries. Please wait an hour and try again." };
-  return {
-    ok: false,
-    message: settingsActionErrorMessage("changeEmail", status, body, "Could not change your email. Please try again."),
-  };
+  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  return { ok: false, message: message || "Could not change your email. Please try again." };
 }
 
 /** The booking link as a doctor reads it: no protocol, no www, no tracking params. */

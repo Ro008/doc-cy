@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { parseAuthTokenClaims } from "@/lib/auth-token-claims";
+import { revokeOtherSessions } from "@/lib/revoke-other-sessions";
 
 export async function POST() {
   const supabase = createRouteHandlerClient({ cookies });
@@ -15,26 +15,9 @@ export async function POST() {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  const claims = parseAuthTokenClaims(session.access_token);
-  if (!claims.sessionId) {
-    return NextResponse.json(
-      { message: "Could not read current session identifier." },
-      { status: 400 }
-    );
-  }
-
-  const nowIso = new Date().toISOString();
-  const { error } = await supabase
-    .from("professionals")
-    .update({
-      auth_session_revoked_after: nowIso,
-      auth_keep_session_id: claims.sessionId,
-    })
-    .eq("auth_user_id", user.id);
-
-  if (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "42703") {
+  const revoked = await revokeOtherSessions(supabase, { userId: user.id, accessToken: session.access_token });
+  if (!revoked.ok) {
+    if (revoked.code === "42703") {
       return NextResponse.json(
         {
           message:
@@ -43,17 +26,14 @@ export async function POST() {
         { status: 500 }
       );
     }
-    console.error("[DocCy][auth] revoke_other_sessions_failed", error);
-    return NextResponse.json(
-      { message: "Could not revoke other sessions." },
-      { status: 500 }
-    );
+    if (revoked.status === 500) console.error("[DocCy][auth] revoke_other_sessions_failed", revoked);
+    return NextResponse.json({ message: revoked.message }, { status: revoked.status });
   }
 
   console.info("[DocCy][auth] revoke_other_sessions_success", {
     userId: user.id,
-    keepSessionId: claims.sessionId,
-    revokedAfter: nowIso,
+    keepSessionId: revoked.sessionId,
+    revokedAfter: revoked.revokedAfter,
   });
 
   return NextResponse.json({ ok: true });

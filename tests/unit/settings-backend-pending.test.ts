@@ -18,7 +18,6 @@ describe("backendPendingMessage", () => {
   it("has a message for every stubbed settings action", () => {
     assert.deepEqual(Object.keys(BACKEND_PENDING).sort(), [
       "addClinic",
-      "changeEmail",
       "clinicChangeRequest",
       "removeClinic",
     ]);

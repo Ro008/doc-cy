@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -1430,42 +1431,174 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     const card = page.getByTestId("settings-account-security");
     await expect(card.getByRole("heading", { name: "Sign-in & security" })).toBeVisible();
     await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
+    await expect(page.getByTestId("settings-account-email-row")).toContainText(
+      "You sign in with it, and booking requests are sent here.",
+    );
     await expect(card.getByRole("button", { name: "Change password" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Sign out other devices" })).toBeVisible();
     await expect(card.getByTestId("settings-sign-out-button")).toBeVisible();
   });
 
-  test("Account: changing the email waits for a confirmation link", async ({ page }) => {
-    test.setTimeout(120_000);
+  test("Account: a new email waits for its link, survives a reload, and can be cancelled", async ({ page }) => {
+    test.setTimeout(180_000);
     await openSettings(page, seeded!, "account");
     const row = page.getByTestId("settings-account-email-row");
-    await row.getByRole("button", { name: "Change email" }).click();
-    const input = row.getByLabel("New email");
     const result = page.getByTestId("settings-account-email-result");
+    const pending = page.getByTestId("settings-account-email-pending");
+    const newEmail = `settings-new-${seeded!.nonce}@integration.test`;
+    const waiting = () =>
+      admin
+        .from("professional_email_changes")
+        .select("new_email, confirmed_at, cancelled_at")
+        .eq("professional_id", seeded!.professionalId)
+        .is("confirmed_at", null)
+        .is("cancelled_at", null);
+
+    await expect(async () => {
+      if (!(await row.getByLabel("New email").isVisible())) {
+        await row.getByRole("button", { name: "Change email" }).click({ timeout: 2_000 });
+      }
+      await expect(row.getByLabel("New email")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    const input = row.getByLabel("New email");
 
     await input.fill(seeded!.email.toUpperCase());
     await row.getByRole("button", { name: "Send confirmation link" }).click();
     await expect(result).toHaveText("That's already your email.");
 
-    // EXPECTED TO FAIL until Livio builds POST /api/account/email: the doctor is told so.
-    await input.fill("new-address@example.com");
-    await input.press("Enter");
-    await expect(result).toContainText("Expected to fail for now: changing your email");
-    await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
+    // An address another account uses is refused.
+    const other = await seed(admin, "taken");
+    try {
+      await input.fill(other.email);
+      await input.press("Enter");
+      await expect(result).toHaveText("That email already has a DocCy account.", { timeout: 20_000 });
+    } finally {
+      await cleanup(admin, other);
+    }
 
-    // With the endpoint in place: nothing changes until the link is opened.
-    let sent: unknown = null;
-    await page.route("**/api/account/email", async (route) => {
-      sent = route.request().postDataJSON();
-      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-    });
-    await row.getByRole("button", { name: "Send confirmation link" }).click();
-    await expect(result).toContainText("Check new-address@example.com: open the link we sent");
-    await expect(page.getByTestId("settings-account-email-pending")).toHaveText(
-      "Waiting for you to confirm new-address@example.com.",
-    );
+    // A free address: the link is sent, and nothing changes until it is opened.
+    await input.fill(newEmail.toUpperCase());
+    await input.press("Enter");
+    await expect(result).toContainText(`Check ${newEmail}: open the link we sent`, { timeout: 20_000 });
+    await expect(pending).toContainText(`Waiting for you to confirm ${newEmail}.`);
     await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
-    expect(sent).toEqual({ email: "new-address@example.com" });
+    expect((await waiting()).data).toEqual([{ new_email: newEmail, confirmed_at: null, cancelled_at: null }]);
+    const unchanged = await admin
+      .from("professionals")
+      .select("registration_email")
+      .eq("id", seeded!.professionalId)
+      .single();
+    expect(unchanged.data?.registration_email).toBe(seeded!.email);
+
+    // The waiting change is still shown after a reload, and she can cancel it.
+    await page.reload();
+    await expect(pending).toContainText(`Waiting for you to confirm ${newEmail}.`, { timeout: 30_000 });
+    await expect(async () => {
+      await pending.getByRole("button", { name: "Cancel" }).click({ timeout: 2_000 });
+      await expect(pending).toHaveCount(0, { timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
+    expect((await waiting()).data).toEqual([]);
+    await page.reload();
+    await expect(page.getByTestId("settings-account-security")).toBeVisible({ timeout: 30_000 });
+    await expect(pending).toHaveCount(0);
+  });
+
+  test("Account: the emailed link changes the sign-in email and where bookings go, once", async ({
+    page,
+    browser,
+  }) => {
+    test.setTimeout(180_000);
+    const newEmail = `settings-new-${seeded!.nonce}@integration.test`;
+    // The link only travels by email (never sent to test addresses), so the test makes
+    // the waiting change the way the server does: a token, and its hash in the database.
+    const token = randomBytes(32).toString("base64url");
+    const started = await admin.rpc("professional_email_change_start", {
+      p_professional_id: seeded!.professionalId,
+      p_new_email: newEmail,
+      p_token_hash: createHash("sha256").update(token).digest("hex"),
+    });
+    expect(started.error).toBeNull();
+
+    // She opens the link on a device where she is not signed in.
+    const context = await browser.newContext();
+    const link = await context.newPage();
+    try {
+      await link.goto(`/account/confirm-email?token=${token}`);
+      const card = link.getByTestId("confirm-email");
+      await expect(card).toContainText(newEmail, { timeout: 30_000 });
+
+      // Opening the link changed nothing.
+      const before = await admin.auth.admin.getUserById(seeded!.authUserId);
+      expect(before.data.user?.email).toBe(seeded!.email);
+
+      await expect(async () => {
+        if (await card.isVisible()) await card.getByRole("button", { name: "Confirm new email" }).click({ timeout: 2_000 });
+        await expect(link.getByTestId("confirm-email-done")).toBeVisible({ timeout: 10_000 });
+      }).toPass({ timeout: 40_000 });
+      await expect(link.getByTestId("confirm-email-done")).toContainText(`You now sign in to DocCy with ${newEmail}`);
+
+      const after = await admin.auth.admin.getUserById(seeded!.authUserId);
+      expect(after.data.user?.email).toBe(newEmail);
+      const professional = await admin
+        .from("professionals")
+        .select("registration_email")
+        .eq("id", seeded!.professionalId)
+        .single();
+      expect(professional.data?.registration_email).toBe(newEmail);
+      const log = await admin
+        .from("request_log")
+        .select("status, details, before_snapshot")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", "professional_email_change");
+      expect(log.data).toEqual([
+        {
+          status: "recorded",
+          details: { registration_email: newEmail },
+          before_snapshot: { registration_email: seeded!.email },
+        },
+      ]);
+
+      // The link works once.
+      await link.goto(`/account/confirm-email?token=${token}`);
+      await expect(link.getByTestId("confirm-email-gone")).toContainText("This link no longer works", {
+        timeout: 30_000,
+      });
+    } finally {
+      await context.close();
+    }
+
+    // Settings shows the new address, with nothing left waiting.
+    await openSettings(page, { ...seeded!, email: newEmail }, "account");
+    await expect(page.getByTestId("settings-account-email")).toHaveText(newEmail);
+    await expect(page.getByTestId("settings-account-email-pending")).toHaveCount(0);
+  });
+
+  test("Account: a new password signs out her other devices", async ({ page, playwright }) => {
+    test.setTimeout(120_000);
+    // Signed out: nothing to do.
+    const anonymous = await playwright.request.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
+    expect((await anonymous.post("/api/auth/password-changed")).status()).toBe(401);
+    await anonymous.dispose();
+
+    // The "Choose a new password" page calls this once the password is saved.
+    await openSettings(page, seeded!, "account");
+    const before = Date.now();
+    const res = await page.request.post("/api/auth/password-changed");
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, othersSignedOut: true });
+
+    // Sessions made before now stop working, except this one.
+    const row = await admin
+      .from("professionals")
+      .select("auth_session_revoked_after, auth_keep_session_id")
+      .eq("id", seeded!.professionalId)
+      .single();
+    expect(Date.parse(String(row.data?.auth_session_revoked_after))).toBeGreaterThan(before - 5_000);
+    expect(String(row.data?.auth_keep_session_id ?? "")).toMatch(/^[0-9a-f-]{36}$/);
+
+    // This device stays signed in.
+    await page.reload();
+    await expect(page.getByTestId("settings-account-security")).toBeVisible({ timeout: 30_000 });
   });
 
   test("Promote is its own section, and old Account links land on it", async ({ page }) => {

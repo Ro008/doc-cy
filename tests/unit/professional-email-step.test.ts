@@ -79,6 +79,7 @@ describe("isProfessionalApiPath", () => {
       "/api/doctor-settings/trial-notice",
       "/api/professional-clinics/abc/dismiss-pause-notice",
       "/api/professional-mobile",
+      "/api/account/email",
       "/api/professional-mobile/visibility",
       "/api/name-change-requests",
       "/api/photo-change-requests",

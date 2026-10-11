@@ -17,11 +17,17 @@ import { changeEmailMessage, changePasswordMessage, validateNewEmail } from "@/l
 /**
  * Account → "Sign-in & security" (user, 2026-10-01): who is signed in, a new password
  * by email (the forgot-password flow, unchanged), other devices and this device, as
- * rows like the rest of settings. "Change email" (2026-10-09) asks for the new address
- * and waits for the doctor to confirm it from a link; EXPECTED TO FAIL until Livio
- * builds POST /api/account/email (lib/settings-account.ts).
+ * rows like the rest of settings. "Change email" asks for the new address and waits
+ * for her to confirm it from the link sent there (lib/account-email-change.ts); the
+ * waiting change is loaded with the page and can be cancelled.
  */
-export function AccountSecurityCard({ email }: { email: string }) {
+export function AccountSecurityCard({
+  email,
+  initialPendingEmail = null,
+}: {
+  email: string;
+  initialPendingEmail?: string | null;
+}) {
   const [passwordBusy, setPasswordBusy] = React.useState(false);
   const [passwordResult, setPasswordResult] = React.useState<{ ok: boolean; message: string } | null>(
     null,
@@ -31,7 +37,25 @@ export function AccountSecurityCard({ email }: { email: string }) {
   const [newEmail, setNewEmail] = React.useState("");
   const [emailBusy, setEmailBusy] = React.useState(false);
   const [emailResult, setEmailResult] = React.useState<{ ok: boolean; message: string } | null>(null);
-  const [pendingEmail, setPendingEmail] = React.useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = React.useState<string | null>(initialPendingEmail);
+  const [cancelBusy, setCancelBusy] = React.useState(false);
+
+  async function cancelEmailChange() {
+    setCancelBusy(true);
+    try {
+      const res = await fetch("/api/account/email", { method: "DELETE" });
+      if (!res.ok) {
+        setEmailResult({ ok: false, message: "Could not cancel. Please try again." });
+        return;
+      }
+      setPendingEmail(null);
+      setEmailResult(null);
+    } catch {
+      setEmailResult({ ok: false, message: "Could not cancel. Please try again." });
+    } finally {
+      setCancelBusy(false);
+    }
+  }
 
   function closeEmailForm() {
     setEmailOpen(false);
@@ -56,9 +80,9 @@ export function AccountSecurityCard({ email }: { email: string }) {
         body: JSON.stringify({ email: next }),
       });
       const body = await res.json().catch(() => null);
-      const result = changeEmailMessage(res.status, body, next);
+      const result = changeEmailMessage(res.status, body, next.toLowerCase());
       if (result.ok) {
-        setPendingEmail(next);
+        setPendingEmail(typeof body?.email === "string" && body.email ? body.email : next.toLowerCase());
         setEmailOpen(false);
         setNewEmail("");
       }
@@ -99,10 +123,21 @@ export function AccountSecurityCard({ email }: { email: string }) {
               <p className="mt-0.5 truncate text-sm text-slate-300" data-testid="settings-account-email">
                 {email}
               </p>
-              <p className="mt-0.5 text-xs text-slate-400">You sign in with it.</p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                You sign in with it, and booking requests are sent here.
+              </p>
               {pendingEmail ? (
                 <p className="mt-1.5 text-xs font-medium text-amber-200" data-testid="settings-account-email-pending">
-                  Waiting for you to confirm {pendingEmail}.
+                  Waiting for you to confirm {pendingEmail}.{" "}
+                  <button
+                    type="button"
+                    onClick={() => void cancelEmailChange()}
+                    disabled={cancelBusy}
+                    aria-busy={cancelBusy}
+                    className="font-semibold text-slate-200 underline decoration-slate-500 underline-offset-2 hover:text-slate-50 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
                 </p>
               ) : null}
             </div>

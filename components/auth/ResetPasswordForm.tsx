@@ -103,6 +103,16 @@ export function ResetPasswordForm() {
       }
     }
 
+    // A new password signs out her other devices and is announced by email (user,
+    // 2026-10-11), so a password she did not change is noticed. Best effort: the
+    // password is already saved.
+    try {
+      await fetch("/api/auth/password-changed", { method: "POST" });
+      await supabase.auth.signOut({ scope: "others" });
+    } catch (noticeError) {
+      console.warn("[DocCy] Signing out other devices after password reset failed", noticeError);
+    }
+
     writeProSessionHintCookie();
     try {
       await fetch("/api/auth/session-audit", { method: "POST" });

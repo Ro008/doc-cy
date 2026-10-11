@@ -223,6 +223,7 @@ export const config = {
     "/api/doctor-settings/:path*",
     "/api/professional-clinics/:path*",
     "/api/professional-mobile/:path*",
+    "/api/account/email",
     "/api/name-change-requests",
     "/api/photo-change-requests",
     "/api/professional-photo",

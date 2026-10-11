@@ -59,8 +59,8 @@ describe("shortBookingLink", () => {
 
 /**
  * Changing the sign-in email (user, 2026-10-09): Account → Sign-in & security. The
- * change only applies once the doctor confirms it from a link sent to the new address.
- * EXPECTED TO FAIL until Livio builds POST /api/account/email.
+ * change only applies once the doctor confirms it from a link sent to the new address
+ * (built 2026-10-11: lib/account-email-change.ts).
  */
 describe("validateNewEmail", () => {
   it("accepts a different, well-formed address", () => {
@@ -90,10 +90,11 @@ describe("changeEmailMessage", () => {
       message: "That email already has a DocCy account.",
     });
   });
-  it("says the failure is expected while the endpoint is missing", () => {
-    const result = changeEmailMessage(404, null, "new@clinic.cy");
-    assert.equal(result.ok, false);
-    assert.match(result.message, /^Expected to fail for now: .*Livio.*POST \/api\/account\/email/);
+  it("says when the email could not be sent", () => {
+    assert.equal(
+      changeEmailMessage(502, { message: "Could not send the email. Please try again." }, "new@clinic.cy").message,
+      "Could not send the email. Please try again.",
+    );
   });
   it("asks to wait after too many tries", () => {
     assert.equal(changeEmailMessage(429, null, "new@clinic.cy").message, "Too many tries. Please wait an hour and try again.");
