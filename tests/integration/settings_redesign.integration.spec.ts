@@ -2342,6 +2342,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       .eq("id", seeded!.professionalId)
       .single();
     const before = Boolean(pro?.is_gesy);
+    // A minute ago, on both stamps: a record is never decided before it is created.
+    const madeAt = new Date(Date.now() - 60_000).toISOString();
     const filled = await admin.from("request_log").insert(
       Array.from({ length: 20 }, () => ({
         request_type: "professional_gesy_change",
@@ -2352,7 +2354,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         professional_id: seeded!.professionalId,
         requester_name: "Limit Test",
         requester_email: seeded!.email,
-        decided_at: new Date().toISOString(),
+        created_at: madeAt,
+        decided_at: madeAt,
       })),
     );
     expect(filled.error).toBeNull();
