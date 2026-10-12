@@ -6,7 +6,8 @@
 --   online booking stays off there until she switches it on; at most 5 clinics;
 -- - she leaves a clinic at once, recorded with the settings she had there, but never
 --   her last clinic: the functions refuse it and so does the table itself;
--- - nothing uses professional_clinics.is_primary any more (no "primary clinic").
+-- - nothing uses professional_clinics.is_primary any more (no "primary clinic"); the column
+--   itself went later (drop_is_primary_and_old_limits.test.sql).
 --
 -- Run against TESTING only. One transaction that ALWAYS rolls back: the final error
 -- message is the result. "ALL professional_clinic_join_leave TESTS PASSED (…)" means
@@ -230,28 +231,17 @@ begin
   v_checks := v_checks + 3;
 
   ---------------------------------------------------------------- no "primary clinic"
-  assert (select is_primary from public.professional_clinics where professional_id = v_pro and clinic_id = v_second)
-    = false, 'FAIL: joining does not mark a primary clinic';
   assert not exists (
     select 1 from pg_proc
     where pronamespace = 'public'::regnamespace and prosrc ilike '%is_primary%'
   ), 'FAIL: no database function uses is_primary any more';
-  -- The order shown today is kept in sort_order: where a clinic is still marked
-  -- primary, it is the first one, and no two clinics of a professional share a place.
-  assert not exists (
-    select 1 from (
-      select is_primary, row_number() over (
-        partition by professional_id order by sort_order, created_at, id) as rn
-      from public.professional_clinics
-      where professional_id not in (v_pro)
-    ) r where r.is_primary and r.rn > 1
-  ), 'FAIL: a clinic marked primary comes first by sort_order';
+  -- No two clinics of a professional share a place in the order.
   assert not exists (
     select 1 from public.professional_clinics
     where professional_id <> v_pro
     group by professional_id, sort_order having count(*) > 1
   ), 'FAIL: each clinic of a professional has its own place in the order';
-  v_checks := v_checks + 4;
+  v_checks := v_checks + 2;
 
   ---------------------------------------------------------------- access
   foreach v_fn in array array[
