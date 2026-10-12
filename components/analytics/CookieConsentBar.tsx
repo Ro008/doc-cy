@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { isPrivateAreaPath } from "@/lib/analytics-scope";
 import {
   applyGoogleAdsConsent,
   readAdsConsentFromDocumentCookie,
@@ -17,13 +19,16 @@ type CookieConsentBarProps = {
 
 export function CookieConsentBar({ googleTagEnabled }: CookieConsentBarProps) {
   const [open, setOpen] = React.useState(false);
+  // Google's tag doesn't run in the doctor's internal area (PrivateAreaGate), so there is
+  // nothing to ask there, and the bar would cover the phone tab bar.
+  const inPrivateArea = isPrivateAreaPath(usePathname());
 
   React.useEffect(() => {
-    if (googleTagEnabled && !readAdsConsentFromDocumentCookie()) {
+    if (googleTagEnabled && !inPrivateArea && !readAdsConsentFromDocumentCookie()) {
       setOpen(true);
     }
     return subscribeOpenCookiePreferences(() => setOpen(true));
-  }, [googleTagEnabled]);
+  }, [googleTagEnabled, inPrivateArea]);
 
   function choose(choice: AdsConsentChoice) {
     writeAdsConsentCookie(choice);
@@ -31,7 +36,7 @@ export function CookieConsentBar({ googleTagEnabled }: CookieConsentBarProps) {
     setOpen(false);
   }
 
-  if (!open) return null;
+  if (!open || inPrivateArea) return null;
 
   return (
     <div
