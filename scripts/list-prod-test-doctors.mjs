@@ -48,7 +48,7 @@ async function main() {
   for (const d of doctors ?? []) {
     const settings = await admin
       .from("professional_settings")
-      .select("holiday_mode_enabled, booking_horizon_days")
+      .select("holiday_mode_enabled")
       .eq("professional_id", d.id)
       .maybeSingle();
     const s = settings.data;
