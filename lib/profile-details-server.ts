@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { HttpResult } from "@/lib/profile-change-requests-server";
@@ -45,6 +46,9 @@ export async function setProfessionalPatientAges(
     p_professional_id: input.professionalId,
     p_patients_seen: input.patientAges,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     console.error("[DocCy] patients seen change", error);
     return { ok: false, status: 500, message: SAVE_FAILED };
@@ -61,6 +65,9 @@ export async function setProfessionalBio(
     p_professional_id: input.professionalId,
     p_bio: input.bio,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     console.error("[DocCy] bio change", error);
     return { ok: false, status: 500, message: SAVE_FAILED };
@@ -77,6 +84,9 @@ export async function setProfessionalLanguages(
     p_professional_id: input.professionalId,
     p_languages: input.languages,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     console.error("[DocCy] languages change", error);
     return { ok: false, status: 500, message: SAVE_FAILED };
@@ -95,6 +105,9 @@ export async function addProfessionalQualification(
     p_institution: input.qualification.institution,
     p_year: input.qualification.year,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     if (error.code === "23514") {
       return {
@@ -123,6 +136,9 @@ export async function removeProfessionalQualification(
     p_professional_id: input.professionalId,
     p_qualification_id: input.qualificationId,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     // Not hers, or not an id at all (22P02): nothing to remove.
     if (error.code === "P0002" || error.code === "22P02") {

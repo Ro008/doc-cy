@@ -2285,6 +2285,59 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     ]);
   });
 
+  test("a setting changed too often is refused, and she is told when it opens again", async ({ page }) => {
+    test.setTimeout(120_000);
+    // 20 GeSY changes already today (the limit, request_types): the next one is refused.
+    const { data: pro } = await admin
+      .from("professionals")
+      .select("is_gesy")
+      .eq("id", seeded!.professionalId)
+      .single();
+    const before = Boolean(pro?.is_gesy);
+    const filled = await admin.from("request_log").insert(
+      Array.from({ length: 20 }, () => ({
+        request_type: "professional_gesy_change",
+        status: "recorded",
+        details: { is_gesy: before },
+        details_version: 1,
+        before_snapshot: { is_gesy: !before },
+        professional_id: seeded!.professionalId,
+        requester_name: "Limit Test",
+        requester_email: seeded!.email,
+        decided_at: new Date().toISOString(),
+      })),
+    );
+    expect(filled.error).toBeNull();
+    const recorded = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("id", { count: "exact", head: true })
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_gesy_change")
+      ).count;
+    const countBefore = await recorded();
+
+    await openSettings(page, seeded!, "profile");
+    const gesy = page.getByRole("switch", { name: "I see GeSY patients" });
+    await expect(gesy).toHaveAttribute("aria-checked", String(before), { timeout: 20_000 });
+    await expect(async () => {
+      await gesy.click();
+      await expect(
+        page.getByText(/You have reached the limit for this change. You can make it again on d{2}/d{2}/d{4} at d{2}:d{2}. If it is urgent, contact us./),
+      ).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
+    // Nothing changed and nothing was recorded.
+    await expect(gesy).toHaveAttribute("aria-checked", String(before));
+    const { data: after } = await admin
+      .from("professionals")
+      .select("is_gesy")
+      .eq("id", seeded!.professionalId)
+      .single();
+    expect(Boolean(after?.is_gesy)).toBe(before);
+    expect(await recorded()).toBe(countBefore);
+  });
+
   test("Account: one sign-in & security card with the signed-in email", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "account");

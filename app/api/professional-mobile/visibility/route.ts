@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
     p_professional_id: pro.id,
     p_show: show,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return NextResponse.json(tooOften, { status: tooOften.status });
   if (error?.code === "22023") {
     return NextResponse.json({ message: "Save your mobile first." }, { status: 409 });
   }

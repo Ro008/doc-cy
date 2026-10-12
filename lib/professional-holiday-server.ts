@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { holidayRangeUtc, type HolidayVisitCounts } from "@/lib/holiday-mode";
@@ -22,6 +23,9 @@ export async function saveHoliday(
     p_start_date: input.enabled ? input.startDate : null,
     p_end_date: input.enabled ? input.endDate : null,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     // 22023 refused dates, 22007 / 22008 a date that cannot be read.
     if (["22023", "22007", "22008"].includes(String(error.code))) {

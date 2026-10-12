@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { HttpResult } from "@/lib/profile-change-requests-server";
@@ -27,6 +28,9 @@ export async function addProfessionalService(
     p_name: input.service.name,
     p_price: input.service.price,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     if (error.code === "23514") {
       return {
@@ -59,6 +63,9 @@ export async function updateProfessionalService(
     p_name: input.service.name,
     p_price: input.service.price,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     // Not hers, or not an id at all (22P02): nothing to change.
     if (error.code === "P0002" || error.code === "22P02") return { ok: false, status: 404, message: NOT_HERS };
@@ -83,6 +90,9 @@ export async function removeProfessionalService(
     p_professional_id: input.professionalId,
     p_service_id: input.serviceId,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     if (error.code === "P0002" || error.code === "22P02") return { ok: false, status: 404, message: NOT_HERS };
     console.error("[DocCy] service remove", error);

@@ -63,6 +63,10 @@ declare
   v_priv text;
 begin
   ---------------------------------------------------------------- fixtures
+  -- How often she may change things has its own test (request_frequency_limits.test.sql):
+  -- the limits are lifted here, and come back when this transaction rolls back.
+  update public.request_types
+  set limit_count = null, limit_window = null, limit_scope_key = null, wait_after_approval = null;
   insert into public.professionals (name, slug, is_registered, auth_user_id, registration_email)
   values ('Sv Pro', 'sv-pro-' || v_tag, true, pg_temp.new_login('sv-pro-' || v_tag || '@integration.test'),
           'sv-pro-' || v_tag || '@integration.test')

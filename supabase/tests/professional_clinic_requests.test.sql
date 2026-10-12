@@ -86,6 +86,10 @@ declare
   v_fn text;
 begin
   ---------------------------------------------------------------- fixtures
+  -- How often she may change things has its own test (request_frequency_limits.test.sql):
+  -- the limits are lifted here, and come back when this transaction rolls back.
+  update public.request_types
+  set limit_count = null, limit_window = null, limit_scope_key = null, wait_after_approval = null;
   insert into public.admin_users (auth_user_id, name, email, role)
   values (pg_temp.new_login('cr-founder-' || v_tag || '@integration.test'), 'Cr Founder',
           'cr-founder-' || v_tag || '@integration.test', 'founder')

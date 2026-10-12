@@ -20,6 +20,11 @@ import {
   holidayVisitNotes,
 } from "../../lib/holiday-mode";
 import { saveHoliday } from "../../lib/professional-holiday-server";
+import { clinicRequestDbErrorMessage } from "../../lib/clinic-requests";
+import { profileChangeDbErrorMessage } from "../../lib/profile-change-requests";
+import { setProfessionalBio } from "../../lib/profile-details-server";
+import { addProfessionalService } from "../../lib/professional-services-server";
+import { tooOftenMessage, tooOftenRefusal } from "../../lib/request-frequency";
 import { LEAVE_CLINIC_LOSES, leaveClinicNotes } from "../../lib/settings-leave-clinic";
 
 /**
@@ -29,7 +34,10 @@ import { LEAVE_CLINIC_LOSES, leaveClinicNotes } from "../../lib/settings-leave-c
 
 type Call = { fn: string; args: Record<string, unknown> };
 
-function fakeService(result: { data?: unknown; error?: { code: string; message?: string } | null }) {
+function fakeService(result: {
+  data?: unknown;
+  error?: { code: string; message?: string; details?: string; hint?: string } | null;
+}) {
   const calls: Call[] = [];
   const service = {
     rpc: async (fn: string, args: Record<string, unknown>) => {
@@ -449,5 +457,61 @@ describe("saveHoliday", () => {
       endDate: "2026-10-25",
     });
     assert.deepEqual(result, { ok: false, status: 500, message: "Could not save holiday mode. Please try again." });
+  });
+});
+
+/**
+ * How often she can change a setting (user, 2026-10-12): the database refuses a change
+ * over the limit (DC429) and says when it opens again; she is told that time.
+ */
+describe("a change refused as too frequent", () => {
+  // 13 October 2026, 11:05 UTC = 14:05 in Cyprus (summer time).
+  const refused = { code: "DC429", message: "too many", details: "2026-10-13T11:05:00Z", hint: "window" };
+  const told =
+    "You have reached the limit for this change. You can make it again on 13/10/2026 at 14:05. If it is urgent, contact us.";
+
+  it("is read from the database error, with the time in Cyprus", () => {
+    assert.deepEqual(tooOftenRefusal(refused), {
+      status: 429,
+      message: told,
+      code: "too_often",
+      retryAt: "2026-10-13T11:05:00.000Z",
+    });
+    assert.equal(tooOftenRefusal({ code: "23505" }), null);
+    assert.equal(tooOftenRefusal(null), null);
+  });
+
+  it("names the wait after an approved request by its date only", () => {
+    // 10 January 2027, 23:30 UTC is already the 11th in Cyprus (winter time).
+    assert.equal(
+      tooOftenRefusal({ code: "DC429", details: "2027-01-10T23:30:00Z", hint: "after_approval" })?.message,
+      "Your last request of this kind was approved recently. You can send a new one from 11/01/2027. If it is urgent, contact us.",
+    );
+  });
+
+  it("still answers when the database gave no time", () => {
+    assert.equal(tooOftenMessage(null, "window"), "You have reached the limit for this change. If it is urgent, contact us.");
+    assert.equal(tooOftenRefusal({ code: "DC429", details: "soon" })?.retryAt, null);
+  });
+
+  it("reaches her from every kind of save", async () => {
+    const answer = { ok: false, status: 429, message: told, code: "too_often", retryAt: "2026-10-13T11:05:00.000Z" };
+    const { service } = fakeService({ error: refused });
+    assert.deepEqual(await joinProfessionalClinic(service, { professionalId: PRO, clinicId: CLINIC }), answer);
+    assert.deepEqual(await leaveProfessionalClinic(service, { professionalId: PRO, linkId: LINK }), answer);
+    assert.deepEqual(await setClinicOnlineBooking(service, { professionalId: PRO, linkId: LINK, online: false }), answer);
+    assert.deepEqual(
+      await saveHoliday(service, { professionalId: PRO, enabled: true, startDate: "2026-12-01", endDate: "2026-12-05" }),
+      answer,
+    );
+    assert.deepEqual(await setProfessionalBio(service, { professionalId: PRO, bio: "Hello" }), answer);
+    assert.deepEqual(
+      await addProfessionalService(service, { professionalId: PRO, service: { name: "Visit", price: "60" } }),
+      answer,
+    );
+    // Requests for the founders go through the shared error readers.
+    assert.equal(profileChangeDbErrorMessage(refused, "submit").status, 429);
+    assert.equal(profileChangeDbErrorMessage(refused, "submit").message, told);
+    assert.equal(clinicRequestDbErrorMessage(refused, "submit").message, told);
   });
 });

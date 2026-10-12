@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
@@ -361,6 +362,9 @@ export async function removeProfessionalSpecialty(
     p_professional_id: input.professionalId,
     p_specialty: specialty,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error?.code === "23514") return { ok: false, status: 409, message: LAST_SPECIALTY_REFUSAL };
   if (error?.code === "P0002") return { ok: false, status: 404, message: "That specialty is not on your profile." };
   if (error) {
@@ -384,6 +388,9 @@ export async function setProfessionalGesy(
     p_professional_id: input.professionalId,
     p_is_gesy: input.isGesy,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     console.error("[DocCy] GeSY change", error);
     return { ok: false, status: 500, message: "Could not save. Please try again." };
@@ -404,6 +411,9 @@ export async function removeProfessionalPhoto(
   const { data: requestId, error } = await service.rpc("professional_photo_remove", {
     p_professional_id: professionalId,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     console.error("[DocCy] photo remove", error);
     return { ok: false, status: 500, message: "Could not remove the photo. Please try again." };

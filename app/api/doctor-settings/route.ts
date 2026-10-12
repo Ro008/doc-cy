@@ -218,6 +218,10 @@ export async function POST(req: NextRequest) {
       ? await setProfessionalBio(profileService, { professionalId: doctorId, bio: bioRaw })
       : languagesSaved;
   if (bioSaved.ok === false) {
+    // Changed too often: she is told when it opens again (lib/request-frequency.ts).
+    if (bioSaved.status === 429) {
+      return NextResponse.json({ message: bioSaved.message }, { status: 429 });
+    }
     return NextResponse.json({ message: "Error updating professional profile." }, { status: 500 });
   }
 

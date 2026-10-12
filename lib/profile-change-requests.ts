@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 
 /**
@@ -221,12 +222,15 @@ export function reviewedSpecialtyAdd(
 
 /** A database refusal in plain words, for her ("submit", "withdraw") or the founder ("decide"). */
 export function profileChangeDbErrorMessage(
-  error: { code?: string | null; message?: string | null },
+  error: { code?: string | null; message?: string | null; details?: string | null; hint?: string | null },
   action: "submit" | "withdraw" | "decide",
 ): { status: number; message: string } {
   const code = error.code ?? "";
   const text = error.message ?? "";
   if (action === "submit") {
+    // Sent too often (request_types limits): she is told when she can send another.
+    const tooOften = tooOftenRefusal(error);
+    if (tooOften) return tooOften;
     if (code === "23505") {
       return { status: 409, message: "You already have a request waiting. Withdraw it to send a new one." };
     }

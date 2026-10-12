@@ -1,3 +1,4 @@
+import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { isDirectoryCanaryClinicId } from "@/lib/directory-canaries";
@@ -30,6 +31,9 @@ export async function joinProfessionalClinic(
     p_professional_id: input.professionalId,
     p_clinic_id: clinicId,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     if (error.code === "23505") return { ok: false, status: 409, message: "You already work at this clinic." };
     if (error.code === "23514") {
@@ -63,6 +67,9 @@ export async function leaveProfessionalClinic(
     p_professional_id: input.professionalId,
     p_link_id: input.linkId,
   });
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error) {
     if (error.code === "23514") return { ok: false, status: 409, message: LAST_CLINIC_MESSAGE };
     if (error.code === "P0002" || error.code === "22P02") return { ok: false, status: 404, message: NOT_HERS };
@@ -97,6 +104,9 @@ export type ClinicLimitsInput = {
 type Saved = HttpResult<{ changed: boolean }>;
 
 function clinicSaveError(error: { code?: string }, what: string, refused: string): Saved {
+  // Changed too often (request_types limits): she is told when it opens again.
+  const tooOften = tooOftenRefusal(error);
+  if (tooOften) return { ok: false, ...tooOften };
   if (error.code === "P0002" || error.code === "22P02") return { ok: false, status: 404, message: NOT_HERS };
   if (error.code === "22023" || error.code === "23514") return { ok: false, status: 400, message: refused };
   console.error(`[DocCy] clinic ${what}`, error);
