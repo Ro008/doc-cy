@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { resolveClinicSlugRedirect } from "../../lib/load-clinic-by-slug";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
   resolveCanonicalManualDirectorySlug,
@@ -266,5 +267,43 @@ describe("resolveAbsorbedProfessionalSlugRedirect", () => {
     } as unknown as SupabaseClient;
 
     assert.equal(await resolveAbsorbedProfessionalSlugRedirect(supabase, "unknown-slug"), null);
+  });
+});
+
+// User, 2026-10-12: a clinic's web address follows its name; the old one forwards.
+describe("resolveClinicSlugRedirect", () => {
+  function db(redirect: unknown, clinic: unknown, asked: string[] = []) {
+    return {
+      from(table: string) {
+        const result = table === "clinic_slug_redirects" ? redirect : clinic;
+        const chain = {
+          select: () => chain,
+          eq: (column: string, value: unknown) => {
+            asked.push(`${table}.${column}=${String(value)}`);
+            return chain;
+          },
+          maybeSingle: async () => ({ data: result, error: null }),
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+  }
+
+  it("gives the clinic's current address for an old one", async () => {
+    const asked: string[] = [];
+    const supabase = db({ clinic_id: "c1" }, { slug: "new-name-clinic" }, asked);
+    assert.equal(await resolveClinicSlugRedirect(supabase, " Old-Name-Clinic "), "new-name-clinic");
+    assert.deepEqual(asked, [
+      "clinic_slug_redirects.slug=old-name-clinic",
+      "clinics.id=c1",
+      "clinics.is_archived=false",
+    ]);
+  });
+
+  it("gives nothing for an unknown address, an archived clinic, or an address that forwards to itself", async () => {
+    assert.equal(await resolveClinicSlugRedirect(db(null, null), "unknown"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, null), "old"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, { slug: "old" }), "old"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, { slug: "x" }), ""), null);
   });
 });

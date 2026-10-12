@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
 import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
@@ -51,7 +51,7 @@ import {
   type Coordinates,
 } from "@/lib/finder-distance";
 import { isAllSlug, slugToDistrict, toTitleCaseWords } from "@/lib/finder-seo";
-import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
+import { loadClinicBySlug, resolveClinicSlugRedirect } from "@/lib/load-clinic-by-slug";
 import { loadClinicProfessionalCountById } from "@/lib/clinic-professional-counts";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
@@ -148,6 +148,9 @@ export async function generateMetadata({ params }: ClinicsPageProps): Promise<Me
     if (!supabase) return { title: "Clinic | DocCy" };
     const clinic = await loadClinicBySlug(supabase, segment);
     if (!clinic) {
+      // An address the clinic had before its name changed forwards to the current one.
+      const movedTo = await resolveClinicSlugRedirect(supabase, segment);
+      if (movedTo) permanentRedirect(clinicLandingPath(movedTo));
       return { title: "Clinic not found | DocCy", robots: { index: false, follow: false } };
     }
     const pageUrl = `${siteBaseUrl()}${clinicLandingPath(clinic.slug)}`;
@@ -208,7 +211,11 @@ async function ClinicsPageContent({ params, searchParams }: ClinicsPageProps) {
     const supabase = createServiceRoleClient();
     if (!supabase) notFound();
     const clinic = await loadClinicBySlug(supabase, segment);
-    if (!clinic) notFound();
+    if (!clinic) {
+      const movedTo = await resolveClinicSlugRedirect(supabase, segment);
+      if (movedTo) permanentRedirect(clinicLandingPath(movedTo));
+      notFound();
+    }
     return (
       <ClinicLandingView
         clinic={clinic}

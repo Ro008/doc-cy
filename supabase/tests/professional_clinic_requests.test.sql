@@ -293,12 +293,17 @@ begin
     jsonb_build_object('clinic_id', v_home, 'changes', jsonb_build_object('name', 'Cr Home Medical', 'phone', '26654321')));
   select * into v_clinic from public.clinics where id = v_home;
   assert v_clinic.name = 'Cr Home Medical' and v_clinic.phone = '26654321'
-    and v_clinic.address = '1 Cr Home St, Paphos' and v_clinic.slug = 'cr-home-' || v_tag,
+    and v_clinic.address = '1 Cr Home St, Paphos',
     'FAIL: approving changes what was asked (as corrected), and nothing else';
+  -- The web address follows the new name (clinic_slug_redirects.test.sql has the rules).
+  assert v_clinic.slug like 'cr-home-medical%'
+    and (select clinic_id from public.clinic_slug_redirects where slug = 'cr-home-' || v_tag) = v_home,
+    'FAIL: a new name moves the web address, and the old one forwards';
   assert (select outcome from public.request_log where id = v_req)
-    = jsonb_build_object('clinic_id', v_home, 'changed', jsonb_build_array('name', 'phone')),
+    = jsonb_build_object('clinic_id', v_home, 'changed', jsonb_build_array('name', 'phone'),
+        'slug', v_clinic.slug, 'previous_slug', 'cr-home-' || v_tag),
     'FAIL: the approval records what changed';
-  v_checks := v_checks + 4;
+  v_checks := v_checks + 5;
 
   -- A new address moves the pin with it.
   v_req := public.request_submit('professional_clinic_details_change', v_pro,

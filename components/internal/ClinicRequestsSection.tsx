@@ -373,7 +373,9 @@ function ClinicRequestCard({ item, canMutate }: { item: ClinicRequestReviewItem;
           <p className="text-xs text-slate-400">
             {isAdd
               ? "Approving puts the clinic on her profile, with online booking off until she switches it on."
-              : "Approving changes the clinic for everyone who works there. Its web address stays the same."}
+              : editable.name
+                ? "Approving changes the clinic for everyone who works there. A new name also moves the clinic’s web address; the old address forwards to it."
+                : "Approving changes the clinic for everyone who works there."}
           </p>
           <div className="flex flex-wrap gap-2">
             <button

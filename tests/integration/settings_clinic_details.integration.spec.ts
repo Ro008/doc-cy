@@ -254,6 +254,7 @@ test.describe("Integration: settings clinic details request", { tag: "@pr-e2e" }
       await expect(review.getByTestId("clinic-request-shared")).toContainText("Shared with 1 other professional");
       await expect(review).toContainText(`→ renamed clinic ${nonce}`);
       await expect(review).toContainText(`→ ${shown(newPhone)}`);
+      await expect(review).toContainText("A new name also moves the clinic’s web address; the old address forwards to it.");
       // Only what she asked about can be corrected.
       await expect(review.getByLabel(/Address to approve/)).toHaveCount(0);
       const approveName = review.getByLabel(/Name to approve/);
@@ -268,13 +269,41 @@ test.describe("Integration: settings clinic details request", { tag: "@pr-e2e" }
       await founderPage.close();
     }
 
-    // The clinic shows the corrected name and the new phone; its web address stays.
-    expect(await clinicInDb()).toMatchObject({ name: `Renamed Clinic ${nonce}`, phone: newPhone, slug: slugBefore });
+    // The clinic shows the corrected name and the new phone, and its web address follows the name.
+    const slugAfter = `renamed-clinic-${nonce}`;
+    expect(slugBefore).not.toBe(slugAfter);
+    expect(await clinicInDb()).toMatchObject({ name: `Renamed Clinic ${nonce}`, phone: newPhone, slug: slugAfter });
     const after = await requests();
     const approved = after[after.length - 1]!;
     expect(approved.status).toBe("approved");
     expect(approved.approved_details).toMatchObject({ changes: { name: `Renamed Clinic ${nonce}`, phone: newPhone } });
-    expect(approved.outcome).toMatchObject({ clinic_id: clinicId, changed: ["name", "phone"] });
+    expect(approved.outcome).toMatchObject({
+      clinic_id: clinicId,
+      changed: ["name", "phone"],
+      slug: slugAfter,
+      previous_slug: slugBefore,
+    });
+
+    // The old address keeps working: it forwards to the new one. The clinic page streams
+    // its loading screen first, so the forward travels in the page (an instant refresh
+    // that search engines read as a permanent move), not as a 308 status.
+    const old = await page.request.get(`/clinics/${slugBefore}`, { maxRedirects: 0 });
+    expect(old.status()).toBeLessThan(400);
+    if (old.status() === 308) {
+      expect(old.headers()["location"]).toContain(`/clinics/${slugAfter}`);
+    } else {
+      expect(await old.text()).toMatch(new RegExp(`http-equiv="refresh" content="0;url=[^"]*/clinics/${slugAfter}"`));
+    }
+    const visitor = await page.context().browser()!.newPage();
+    try {
+      await visitor.goto(`/clinics/${slugBefore}`);
+      await expect(visitor).toHaveURL(new RegExp(`/clinics/${slugAfter}$`), { timeout: 30_000 });
+      await expect(visitor.getByRole("heading", { level: 1 })).toContainText(`Renamed Clinic ${nonce}`, {
+        timeout: 30_000,
+      });
+    } finally {
+      await visitor.close();
+    }
 
     await page.reload();
     const renamed = page.getByTestId("settings-clinic-card").filter({ hasText: `Renamed Clinic ${nonce}` });
