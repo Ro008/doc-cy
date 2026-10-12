@@ -2845,14 +2845,55 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       });
       await expect(chip).toHaveCount(0);
 
-      // 5. A specialty that is not in the catalogue joins it when approved.
+      // 5. Three requests in 30 days is the limit (request_types), withdrawn and denied ones
+      //    included: a fourth is refused, and she is told when she can send another.
+      const fourth = await page.request.post("/api/specialty-requests", {
+        data: { toSpecialty: custom, toSpecialtyFromMaster: false, licenseNumber: "CY-NEW-1" },
+      });
+      expect(fourth.status(), await fourth.text()).toBe(429);
+      expect((await fourth.json()).message).toContain("You have reached the limit for this change.");
+      expect(await requests()).toHaveLength(3);
+    } finally {
+      await admin.from("professional_specialties").delete().eq("professional_id", seeded!.professionalId).eq("specialty", custom);
+      await admin.from("specialties").delete().eq("name", custom);
+    }
+  });
+
+  test("a specialty that is not in the catalogue joins it when a founder approves it", async ({ page, request }) => {
+    test.setTimeout(180_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    const letters = seeded!.nonce.replace(/\D/g, "").replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
+    const custom = `Zztest ${letters}`;
+    const requests = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("id, status, details, before_snapshot, approved_details, outcome")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_specialty_add")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const hers = async () =>
+      (
+        (
+          await admin
+            .from("professional_specialties")
+            .select("specialty, license_number")
+            .eq("professional_id", seeded!.professionalId)
+            .order("specialty")
+        ).data ?? []
+      ).map((row) => `${row.specialty}:${row.license_number ?? ""}`);
+
+    await openSettings(page, seeded!, "profile");
+    try {
       const customRequest = await page.request.post("/api/specialty-requests", {
         data: { toSpecialty: custom, toSpecialtyFromMaster: false, licenseNumber: "CY-NEW-1" },
       });
       expect(customRequest.status(), await customRequest.text()).toBe(201);
-      rows = await requests();
-      expect(rows[3]!.details).toMatchObject({ name: custom, from_catalogue: false, license_number: "CY-NEW-1" });
-      const approve = await request.post(`/api/internal/profile-changes/${rows[3]!.id}/approve`, { headers, data: {} });
+      const rows = await requests();
+      expect(rows[0]!.details).toMatchObject({ name: custom, from_catalogue: false, license_number: "CY-NEW-1" });
+      const approve = await request.post(`/api/internal/profile-changes/${rows[0]!.id}/approve`, { headers, data: {} });
       expect(approve.status(), await approve.text()).toBe(200);
       expect(await hers()).toContain(`${custom}:CY-NEW-1`);
       const { data: inCatalogue } = await admin.from("specialties").select("name").eq("name", custom).maybeSingle();
