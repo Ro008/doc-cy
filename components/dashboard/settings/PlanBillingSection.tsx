@@ -2,21 +2,21 @@
 
 import * as React from "react";
 import { CalendarClock, Check } from "lucide-react";
-import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
   SETTINGS_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
-import { NOTHING_TO_PAY_TODAY, type PlanSummary } from "@/lib/settings-plan";
+import { PLAN_NOTE, PLAN_NOTE_ENDED, type PlanSummary } from "@/lib/settings-plan";
 
 /**
  * Settings → Plan & billing (user, 2026-10-01): the free period with its countdown,
- * the terms that follow, and that there is nothing to pay today. Read-only: there
- * are no payments yet.
+ * her terms, and that there is nothing to pay today. Read-only: there are no payments
+ * yet. One card, no price and no tier (user, 2026-10-12): those come with the
+ * subscription work.
  */
-export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isFounder: boolean }) {
+export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
   const ended = plan.state === "ended";
   const endingSoon = plan.state === "ending_soon";
 
@@ -26,7 +26,6 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
       "Online booking",
       plan.endsOn ? (ended ? `Free period ended on ${plan.endsOn}` : `Free until ${plan.endsOn}`) : "Free during your trial",
     ],
-    ["After your free period", plan.priceAfter],
   ];
 
   return (
@@ -35,14 +34,7 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
         className={`${SETTINGS_CARD_CLASS} ${ended || endingSoon ? "!border-amber-400/40" : ""}`}
         data-testid="settings-plan-status"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={SETTINGS_EYEBROW_CLASS}>Your plan</h2>
-          {isFounder ? <FoundingMemberBadge href={null} /> : (
-            <span className="rounded-full border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200">
-              {plan.tierLabel}
-            </span>
-          )}
-        </div>
+        <h2 className={SETTINGS_EYEBROW_CLASS}>Your plan</h2>
 
         {plan.state === "none" ? (
           <p className="mt-4 text-sm text-slate-300">
@@ -85,11 +77,8 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
             </p>
           </div>
         )}
-      </section>
 
-      <section className={SETTINGS_CARD_CLASS} data-testid="settings-plan-terms">
-        <h2 className={SETTINGS_EYEBROW_CLASS}>Your terms</h2>
-        <dl className="mt-3 divide-y divide-slate-800">
+        <dl className="mt-5 divide-y divide-slate-800 border-t border-slate-800 pt-4" data-testid="settings-plan-terms">
           {terms.map(([label, value]) => (
             <div key={label} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
               <dt className="text-sm text-slate-400">{label}</dt>
@@ -100,28 +89,13 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
             </div>
           ))}
         </dl>
-        {isFounder ? (
-          // The Founding Member's direct line (was the badge pop-up's "Contact Founding Team").
-          <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-100">A direct line to the founders</p>
-              <p className="mt-0.5 text-xs text-slate-400">Your feedback shapes what DocCy builds next.</p>
-            </div>
-            <button
-              type="button"
-              data-testid="settings-plan-write-founders"
-              onClick={() => emitOpenFeedback({ subject: "Founding Member Inquiry" })}
-              className={SETTINGS_SECONDARY_BUTTON_CLASS}
-            >
-              Write to the founders
-            </button>
-          </div>
-        ) : null}
-      </section>
 
-      <section className={SETTINGS_CARD_CLASS} data-testid="settings-plan-payment">
-        <h2 className={SETTINGS_EYEBROW_CLASS}>Payment</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-300">{NOTHING_TO_PAY_TODAY}</p>
+        <p
+          className="mt-4 border-t border-slate-800 pt-4 text-sm leading-relaxed text-slate-300"
+          data-testid="settings-plan-note"
+        >
+          {ended ? PLAN_NOTE_ENDED : PLAN_NOTE}
+        </p>
       </section>
     </div>
   );

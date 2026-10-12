@@ -1133,7 +1133,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(pro?.bio ?? "").not.toBe("A bio I have not saved");
   });
 
-  test("Plan & billing shows the free period, the terms and nothing to pay", async ({ page }) => {
+  test("Plan & billing shows the free period and nothing to pay, with no price and no tier", async ({ page }) => {
     test.setTimeout(120_000);
     const until = new Date(Date.now() + 100 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await admin
@@ -1145,16 +1145,38 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await openSettings(page, seeded!, "plan");
     await expect(page.getByRole("heading", { level: 1, name: "Plan & billing" })).toBeVisible();
     await expect(page.getByTestId("settings-plan-days-left")).toHaveText(/^(99|100) days$/);
+    // One card (user, 2026-10-12): the countdown, the two terms and the note.
+    const card = page.getByTestId("settings-plan-status");
     const terms = page.getByTestId("settings-plan-terms");
     await expect(terms).toContainText("Free, forever");
-    await expect(terms).toContainText("€19/month, locked for life");
-    await expect(page.getByTestId("settings-plan-payment")).toContainText("Nothing to pay today.");
-    // The badge names the status here; it no longer opens a pop-up with the terms.
-    await expect(page.getByTestId("settings-plan-status").getByTestId("founding-member-badge")).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByTestId("settings-plan-write-founders").click();
-    await expect(page.getByRole("dialog", { name: /How can we help you/i })).toBeVisible();
+    await expect(terms).toContainText("Free until");
+    await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
+    await expect(page.getByTestId("settings-plan-note")).toContainText(
+      "After your free period, online booking continues with a paid subscription.",
+    );
+    await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing changes without notice");
+    // No price and no tier until the subscription work, even for a Founding Member.
+    await expect(card).not.toContainText("€");
+    await expect(card).not.toContainText(/month/i);
+    await expect(card.getByTestId("founding-member-badge")).toHaveCount(0);
+    await expect(card.getByText(/Standard|Founding Member/)).toHaveCount(0);
+    await expect(page.getByTestId("settings-plan-payment")).toHaveCount(0);
     await expect(page.getByText(/coming soon/i)).toHaveCount(0);
+
+    // Access ended: the date it ended, and a way to reach DocCy.
+    await admin
+      .from("professionals")
+      .update({ pro_access_until: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() })
+      .eq("id", seeded!.professionalId);
+    await page.reload();
+    await expect(card).toContainText("Your free period ended on", { timeout: 20_000 });
+    await expect(page.getByTestId("settings-plan-days-left")).toHaveCount(0);
+    await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
+    await expect(page.getByTestId("settings-plan-note")).not.toContainText("After your free period");
+    await expect(async () => {
+      await page.getByTestId("settings-plan-contact").click();
+      await expect(page.getByRole("dialog", { name: /How can we help you/i })).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
   });
 
   test("Profile: the name changes by request, with who she sees and her qualifications", async ({ page }) => {

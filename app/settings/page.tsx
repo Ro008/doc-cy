@@ -281,7 +281,6 @@ export default async function AgendaSettingsPage({
     .maybeSingle();
   const plan = planSummary({
     proAccessUntil: (accessRow as { pro_access_until?: string | null } | null)?.pro_access_until ?? null,
-    isFounder: isFoundingMember,
   });
 
   const locationRows = await loadDoctorLocations(doctor.id);
@@ -455,7 +454,7 @@ export default async function AgendaSettingsPage({
 
         <SettingsForm
           initial={initial}
-          plan={<PlanBillingSection plan={plan} isFounder={isFoundingMember} />}
+          plan={<PlanBillingSection plan={plan} />}
           publicProfileHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
           section={section}
           sidebarHeader={
