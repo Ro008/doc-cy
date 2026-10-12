@@ -2324,7 +2324,9 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(async () => {
       await gesy.click();
       await expect(
-        page.getByText(/You have reached the limit for this change. You can make it again on d{2}/d{2}/d{4} at d{2}:d{2}. If it is urgent, contact us./),
+        page.getByText(
+          /You have reached the limit for this change\. You can make it again on \d{2}\/\d{2}\/\d{4} at \d{2}:\d{2}\. If it is urgent, contact us\./,
+        ),
       ).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 30_000 });
     // Nothing changed and nothing was recorded.
