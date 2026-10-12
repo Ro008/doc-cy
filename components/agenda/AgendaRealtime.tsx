@@ -900,7 +900,14 @@ export function AgendaRealtime({
     };
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    // Something appearing above the month later (a notice, a banner) moves it down:
+    // measure again, so it still ends at the bottom of the window.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(document.body);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
   }, [view, sidebarOpen]);
 
   function monthItemsForDay(dateKey: string): AgendaMonthItem[] {

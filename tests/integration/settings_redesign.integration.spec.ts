@@ -1923,7 +1923,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(toggle).toHaveAttribute("aria-checked", "true");
     await toggle.click();
     const dialog = page.getByRole("dialog", { name: "Pause online booking at Limassol Skin Clinic?" });
-    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    // The first check of a run compiles its route on a dev server: allow for it.
+    await expect(dialog).toBeVisible({ timeout: 45_000 });
     const listed = dialog.getByTestId("settings-clinic-pause-visits");
     await expect(listed).toContainText("1 confirmed visit at this clinic stays in your agenda.");
     await expect(listed).toContainText(
