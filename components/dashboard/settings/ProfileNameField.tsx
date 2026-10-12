@@ -117,9 +117,10 @@ export function ProfileNameField({
   // the request or its form under both.
   return (
     <>
-      <div className="min-w-0 flex-1" data-testid="settings-profile-name">
+      {/* On a phone the name keeps its room (and may wrap): the photo buttons drop to their own row. */}
+      <div className="min-w-[11rem] flex-1 sm:min-w-0" data-testid="settings-profile-name">
         <div className="flex items-center gap-2">
-          <p className="min-w-0 truncate text-[17px] font-semibold text-slate-50">{name}</p>
+          <p className="min-w-0 break-words text-[17px] font-semibold text-slate-50 sm:truncate">{name}</p>
           <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
         </div>
         {pending || editing ? null : (
