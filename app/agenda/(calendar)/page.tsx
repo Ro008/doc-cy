@@ -137,16 +137,15 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     holiday_start_date?: string | null;
     holiday_end_date?: string | null;
   } | null;
-  const holidayBanner = holidayBannerText(
-    holidayState(
-      {
-        enabled: Boolean(holidayRow?.holiday_mode_enabled),
-        start: holidayRow?.holiday_start_date ?? null,
-        end: holidayRow?.holiday_end_date ?? null,
-      },
-      cyprusTodayKey(),
-    ),
+  const holidayNow = holidayState(
+    {
+      enabled: Boolean(holidayRow?.holiday_mode_enabled),
+      start: holidayRow?.holiday_start_date ?? null,
+      end: holidayRow?.holiday_end_date ?? null,
+    },
+    cyprusTodayKey(),
   );
+  const holidayBanner = holidayBannerText(holidayNow);
   // Each clinic carries its own cancellation deadline (user, 2026-10-11).
   const clinics = locationsToAgendaClinics(locationRows);
   // The primary clinic's hours frame the calendar (Point E6: schedules live on the
@@ -193,6 +192,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           openManualBooking={searchParams?.manual === "1"}
           highlightAppointmentId={parseAgendaHighlight(searchParams?.highlight)}
           accessEnded={accessEnded}
+          holiday={holidayNow.kind === "off" ? null : { start: holidayNow.start, end: holidayNow.end }}
         />
       </div>
     </main>

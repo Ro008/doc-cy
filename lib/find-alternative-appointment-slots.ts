@@ -132,7 +132,9 @@ export function findFirstAlternativeSlotStarts(opts: {
     const dayCyprusKey = addCalendarDaysCyprus(firstYmd, offset);
     const dayOfWeek = cyprusYmdToJsDayOfWeek(dayCyprusKey);
 
-    if (holidayActive && isDateInHolidayRange(settings, dayCyprusKey)) {
+    // The suggested times avoid her holiday; a day she picks herself lists its times,
+    // so she can propose one (user, 2026-10-12).
+    if (!onlyDateKey && holidayActive && isDateInHolidayRange(settings, dayCyprusKey)) {
       continue;
     }
 

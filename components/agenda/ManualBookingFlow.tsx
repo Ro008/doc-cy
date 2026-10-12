@@ -432,7 +432,7 @@ export function ManualBookingFlow({
               data-testid="manual-booking-success-title"
               className="text-2xl font-bold tracking-tight text-slate-50"
             >
-              Appointment Blocked!
+              Appointment Confirmed!
             </h3>
             <p className="mt-2 text-sm text-slate-300">
               {success.patientName} is now booked for {success.dateLabel} at{" "}

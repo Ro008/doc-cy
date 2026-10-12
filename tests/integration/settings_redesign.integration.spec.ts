@@ -1857,6 +1857,18 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
 
     await page.goto("/agenda");
     await expect(page.getByTestId("agenda-holiday-banner")).toContainText(announced, { timeout: 30_000 });
+    // Its days are marked in the agenda, and the day after it is not.
+    await page.goto(`/agenda?view=month&date=${start.iso}`);
+    await expect(page.getByTestId(`agenda-month-day-${start.iso}`)).toHaveAttribute("data-holiday", "true", {
+      timeout: 30_000,
+    });
+    // The month fits the window: the page does not scroll.
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);
+    // (Another month may hold the day after: opened on its own.)
+    await page.goto(`/agenda?view=month&date=${cyDay(7).iso}`);
+    await expect(page.getByTestId(`agenda-month-day-${cyDay(7).iso}`)).toHaveAttribute("data-holiday", "false", {
+      timeout: 30_000,
+    });
 
     // Switching it off is recorded too, with the dates it had.
     await page.goto("/settings?section=clinics");

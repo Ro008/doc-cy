@@ -37,13 +37,15 @@ export function scheduleSlotRefusal(input: {
   blockingRows: DoctorAppointmentForBlocking[];
   /** The visit being moved: its own (held) times don't block it. */
   excludeAppointmentId?: string | null;
+  /** A time she proposes herself may fall in her holiday (user, 2026-10-12). */
+  allowHoliday?: boolean;
   now: Date;
 }): ScheduleRefusal | null {
   const { settingsRow, appointmentUtc, now } = input;
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dateKey = format(cyLocal, "yyyy-MM-dd");
 
-  if (isDateInHolidayRange(settingsRow, dateKey)) {
+  if (!input.allowHoliday && isDateInHolidayRange(settingsRow, dateKey)) {
     return { code: "holiday", status: 403, message: "Bookings temporarily unavailable" };
   }
 

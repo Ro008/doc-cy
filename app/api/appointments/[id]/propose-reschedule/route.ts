@@ -165,6 +165,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       durationMinutes,
       blockingRows,
       excludeAppointmentId: id,
+      // Holiday mode stops patients booking online, not her own proposals.
+      allowHoliday: true,
       now,
     });
     if (refusal) {

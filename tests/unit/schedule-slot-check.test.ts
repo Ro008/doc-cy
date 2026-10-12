@@ -97,4 +97,21 @@ describe("scheduleSlotRefusal", () => {
     });
     assert.equal(refusal?.code, "holiday");
   });
+
+  // A time she proposes herself may fall in her holiday (user, 2026-10-12).
+  it("accepts a holiday day when she offers the time herself", () => {
+    const input = {
+      settingsRow: { ...settings, holiday_mode_enabled: true, holiday_start_date: "2026-10-06", holiday_end_date: "2026-10-08" },
+      appointmentUtc: at("2026-10-07T07:00:00Z"),
+      durationMinutes: 30,
+      blockingRows: [],
+      now: NOW,
+    };
+    assert.equal(scheduleSlotRefusal({ ...input, allowHoliday: true }), null);
+    // The other rules still hold on a holiday day.
+    assert.equal(
+      scheduleSlotRefusal({ ...input, appointmentUtc: at("2026-10-07T02:00:00Z"), allowHoliday: true })?.code,
+      "outside_hours",
+    );
+  });
 });
