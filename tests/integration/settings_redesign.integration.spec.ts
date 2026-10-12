@@ -2097,8 +2097,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     // The month fits the window: the page does not scroll.
     await expect
-      .poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), { timeout: 20_000 })
-      .toBe(true);
+      .poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), { timeout: 20_000 })
+      .toBeLessThanOrEqual(0);
     // (Another month may hold the day after: opened on its own.)
     await page.goto(`/agenda?view=month&date=${cyDay(7).iso}`);
     await expect(page.getByTestId(`agenda-month-day-${cyDay(7).iso}`)).toHaveAttribute("data-holiday", "false", {
