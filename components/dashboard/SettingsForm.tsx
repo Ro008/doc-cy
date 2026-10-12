@@ -129,6 +129,18 @@ import {
   dialogDangerButtonClass,
   dialogSecondaryButtonClass,
 } from "@/components/dashboard/settings/SettingsDialog";
+import { formatInTimeZone } from "date-fns-tz";
+import {
+  cyprusTodayKey,
+  holidayBannerText,
+  holidayDatesProblem,
+  holidayState,
+  holidayVisitNotes,
+  type HolidayVisitCounts,
+} from "@/lib/holiday-mode";
+
+/** A visit or open request inside the holiday dates she is about to save. */
+type HolidayVisitRow = { id: string; at: string; patientName: string; clinicName: string; open: boolean };
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -343,10 +355,6 @@ function resolveInitialClinicLocation(initial: DoctorSettingsFormData): ClinicLo
     district: initial.district || primary?.district || "",
     town: initial.clinicTown ?? primary?.clinicTown ?? null,
   });
-}
-
-function cyprusTodayKey(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(new Date());
 }
 
 const SECTION_CARD_CLASS = SETTINGS_CARD_CLASS;
@@ -568,6 +576,11 @@ export function SettingsForm({
   const [holidayEndInput, setHolidayEndInput] = React.useState(
     formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate)
   );
+  /** Visits inside the holiday dates she is about to save: shown before saving (nothing is cancelled). */
+  const [holidayWarning, setHolidayWarning] = React.useState<
+    (HolidayVisitCounts & { visits: HolidayVisitRow[] }) | null
+  >(null);
+  const [holidayChecking, setHolidayChecking] = React.useState(false);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarCropping, setAvatarCropping] = React.useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
@@ -1077,6 +1090,61 @@ export function SettingsForm({
   const groupDirty = (group: SaveGroup) => saveGroupHasChanges(savedSnapshot, currentSnapshot, group);
   const holidayDirty = groupDirty({ kind: "holiday" });
 
+  /** The holiday as last saved (lib/holiday-mode). */
+  const savedHoliday = {
+    enabled: savedSnapshot.holidayModeEnabled,
+    start: holidayStartDate,
+    end: holidayEndDate,
+  };
+
+  function saveHolidayDates() {
+    const start = parseDDMMYYYYToISO(holidayStartInput);
+    const startsLater = Boolean(start && start > cyprusTodayKey());
+    return saveGroup(
+      { kind: "holiday" },
+      startsLater
+        ? `Holiday saved. It starts on ${holidayStartInput.trim()}.`
+        : savedSnapshot.holidayModeEnabled
+          ? "Holiday dates saved."
+          : "Holiday mode is on.",
+    );
+  }
+
+  /**
+   * "Turn on holiday mode" / "Save dates" (user, 2026-10-11): the dates are checked, and
+   * when confirmed visits or open requests fall inside them she is told first. Nothing is
+   * ever cancelled.
+   */
+  async function requestHolidaySave() {
+    const start = parseDDMMYYYYToISO(holidayStartInput);
+    const end = parseDDMMYYYYToISO(holidayEndInput);
+    const problem = holidayDatesProblem({ start, end }, savedHoliday, cyprusTodayKey());
+    if (problem || !start || !end) {
+      toast.error(problem ?? "Pick both holiday dates.", { id: "holiday" });
+      return;
+    }
+    setHolidayChecking(true);
+    try {
+      const res = await fetch(
+        `/api/professional-holiday/visits?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+        { cache: "no-store" },
+      );
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      const confirmed = Number(data?.confirmed) || 0;
+      const open = Number(data?.open) || 0;
+      if (confirmed + open > 0) {
+        setHolidayWarning({ confirmed, open, visits: Array.isArray(data?.visits) ? data.visits : [] });
+        return;
+      }
+    } catch (err) {
+      // The warning is a courtesy: a failed check does not stop the save.
+      console.error(err);
+    } finally {
+      setHolidayChecking(false);
+    }
+    await saveHolidayDates();
+  }
+
   function revertHoliday() {
     setHolidayModeEnabled(savedSnapshot.holidayModeEnabled);
     setHolidayStartInput(savedSnapshot.holidayStartInput);
@@ -1199,11 +1267,10 @@ export function SettingsForm({
   );
   const liveWorkplaces = workplacesForSave();
   const todayKey = cyprusTodayKey();
-  const holidayActive =
-    holidayModeEnabled &&
-    Boolean(holidayStartDate && holidayEndDate) &&
-    todayKey >= String(holidayStartDate) &&
-    todayKey <= String(holidayEndDate);
+  // From the saved dates: a holiday being typed is not on yet, a finished one is off.
+  const holidayNow = holidayState(savedHoliday, todayKey);
+  const holidayActive = holidayNow.kind === "active";
+  const holidayBanner = holidayBannerText(holidayNow);
   const workplaceName = (row: DoctorWorkplaceFormData, index: number) =>
     clinicDisplayName(row.label, index, liveWorkplaces.length);
   const savedAddressOf = (id: string) =>
@@ -1332,7 +1399,8 @@ export function SettingsForm({
         />
       </div>
       <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-        Pauses online booking at every clinic between the dates you pick.
+        Pauses online booking at every clinic between the dates you pick. Visits already
+        booked stay, and you can still add visits yourself.
       </p>
       {holidayModeEnabled ? (
         <fieldset disabled={savingGroup === "holiday"} className="mt-3 grid min-w-0 grid-cols-2 gap-2">
@@ -1365,17 +1433,15 @@ export function SettingsForm({
             <button
               type="button"
               data-testid="settings-holiday-save"
-              disabled={savingGroup === "holiday"}
-              aria-busy={savingGroup === "holiday"}
-              onClick={() =>
-                void saveGroup(
-                  { kind: "holiday" },
-                  savedSnapshot.holidayModeEnabled ? "Holiday dates saved." : "Holiday mode is on.",
-                )
-              }
+              disabled={savingGroup === "holiday" || holidayChecking}
+              aria-busy={savingGroup === "holiday" || holidayChecking}
+              onClick={() => void requestHolidaySave()}
               className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
             >
-              <BusyLabel busy={savingGroup === "holiday"} busyText="Saving…">
+              <BusyLabel
+                busy={savingGroup === "holiday" || holidayChecking}
+                busyText={holidayChecking ? "Checking…" : "Saving…"}
+              >
                 {savedSnapshot.holidayModeEnabled ? "Save dates" : "Turn on holiday mode"}
               </BusyLabel>
             </button>
@@ -1481,12 +1547,13 @@ export function SettingsForm({
           + Add clinic
         </button>,
       )}
-      {holidayActive ? (
+      {holidayBanner ? (
         <div
           role="status"
+          data-testid="settings-holiday-banner"
           className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
         >
-          Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
+          {holidayBanner}
         </div>
       ) : null}
       {accessEndedNotice}
@@ -1993,7 +2060,7 @@ export function SettingsForm({
   const promoteNotice = promoteBookingNotice({
     accessEnded: Boolean(initial.accessEnded),
     holidayActive,
-    holidayEnd: holidayEndInput,
+    holidayEnd: formatISOToDDMMYYYYOrEmpty(holidayEndDate),
     clinics: liveWorkplaces.map((row) => ({ paused: row.pauseOnlineBookings })),
   });
 
@@ -2071,6 +2138,70 @@ export function SettingsForm({
 
 
       </div>
+
+      {holidayWarning ? (
+        <SettingsDialog
+          title="You have visits in these dates"
+          description="Holiday mode only stops new online bookings. Nothing is cancelled: you decide what to do with each one in your agenda."
+          onClose={() => setHolidayWarning(null)}
+          busy={savingGroup === "holiday"}
+          footer={(close) => (
+            <>
+              <button
+                type="button"
+                onClick={close}
+                disabled={savingGroup === "holiday"}
+                className={dialogSecondaryButtonClass}
+              >
+                Go back
+              </button>
+              <button
+                type="button"
+                data-testid="settings-holiday-confirm"
+                onClick={async () => {
+                  if (await saveHolidayDates()) close();
+                }}
+                disabled={savingGroup === "holiday"}
+                aria-busy={savingGroup === "holiday"}
+                className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
+              >
+                <BusyLabel busy={savingGroup === "holiday"} busyText="Saving…">
+                  {savedSnapshot.holidayModeEnabled ? "Save dates" : "Turn on holiday mode"}
+                </BusyLabel>
+              </button>
+            </>
+          )}
+        >
+          <div
+            className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+            data-testid="settings-holiday-visits"
+          >
+            <ul className="space-y-1.5">
+              {holidayVisitNotes(holidayWarning).map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+            <ul className="mt-3 space-y-1 text-xs text-amber-50/90">
+              {holidayWarning.visits.map((visit) => (
+                <li key={visit.id}>
+                  {formatInTimeZone(new Date(visit.at), "Europe/Nicosia", "EEE d MMM, HH:mm")} · {visit.patientName}
+                  {visit.clinicName ? ` · ${visit.clinicName}` : ""}
+                  {visit.open ? " · waiting for your answer" : ""}
+                </li>
+              ))}
+              {holidayWarning.confirmed + holidayWarning.open > holidayWarning.visits.length ? (
+                <li>and {holidayWarning.confirmed + holidayWarning.open - holidayWarning.visits.length} more</li>
+              ) : null}
+            </ul>
+            <a
+              href={`/agenda?date=${encodeURIComponent(parseDDMMYYYYToISO(holidayStartInput) ?? "")}`}
+              className={`mt-2 inline-block ${SETTINGS_LINK_CLASS}`}
+            >
+              Open my agenda
+            </a>
+          </div>
+        </SettingsDialog>
+      ) : null}
 
       {workplaceToRemove ? (
         <SettingsDialog

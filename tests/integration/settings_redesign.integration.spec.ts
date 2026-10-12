@@ -1750,6 +1750,179 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
+  test("holiday mode: dates checked, visits warned about, recorded, announced in the agenda", async ({ page }) => {
+    test.setTimeout(180_000);
+    // A day in Cyprus, as stored and as she types it.
+    const cyDay = (daysAhead: number) => {
+      const iso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(
+        new Date(Date.now() + daysAhead * 86_400_000),
+      );
+      const [year, month, day] = iso.split("-");
+      return { iso, shown: `${day}/${month}/${year}` };
+    };
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("clinic_id")
+      .eq("id", seeded!.primaryId)
+      .single();
+    const visit = (daysAhead: number, status: string) => ({
+      professional_id: seeded!.professionalId,
+      clinic_id: link!.clinic_id,
+      patient_name: `Holiday Test ${daysAhead}`,
+      patient_phone: "+35799000111",
+      appointment_datetime: new Date(Date.now() + daysAhead * 86_400_000).toISOString(),
+      status,
+      duration_minutes: 30,
+    });
+    // One confirmed visit and one open request inside the holiday, one visit after it.
+    const seededVisits = await admin
+      .from("appointments")
+      .insert([visit(4, "CONFIRMED"), visit(5, "REQUESTED"), visit(9, "CONFIRMED")]);
+    expect(seededVisits.error).toBeNull();
+    const changes = async () =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", "professional_holiday_change")
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const toastText = (text: string) => page.locator("[data-sonner-toast]").getByText(text);
+
+    await openSettings(page, seeded!, "clinics");
+    const sidebar = page.getByTestId("settings-sidebar");
+    const toggle = sidebar.getByRole("switch", { name: "Holiday mode" });
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("settings-holiday-banner")).toHaveCount(0);
+    await toggle.click();
+    const from = sidebar.getByLabel("From");
+    const to = sidebar.getByLabel("To");
+    const save = sidebar.getByTestId("settings-holiday-save");
+
+    // It cannot start in the past, nor end before it starts.
+    await from.fill(cyDay(-1).shown);
+    await to.fill(cyDay(6).shown);
+    await save.click();
+    await expect(toastText("The holiday cannot start in the past.")).toBeVisible({ timeout: 20_000 });
+    await from.fill(cyDay(6).shown);
+    await to.fill(cyDay(3).shown);
+    await save.click();
+    await expect(toastText("The holiday must end on or after the day it starts.")).toBeVisible({ timeout: 20_000 });
+    expect(await changes()).toHaveLength(0);
+
+    // Good dates with visits inside: she is told first, and nothing is cancelled.
+    const start = cyDay(3);
+    const end = cyDay(6);
+    await from.fill(start.shown);
+    await to.fill(end.shown);
+    await save.click();
+    const dialog = page.getByRole("dialog", { name: "You have visits in these dates" });
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    const visits = dialog.getByTestId("settings-holiday-visits");
+    await expect(visits).toContainText(
+      "1 confirmed visit falls in these dates. It stays in your agenda: holiday mode cancels nothing.",
+    );
+    await expect(visits).toContainText("1 request in these dates is waiting for your answer.");
+    await expect(visits).toContainText("Holiday Test 4");
+    await expect(visits).toContainText("Holiday Test 5");
+    await expect(visits).not.toContainText("Holiday Test 9");
+    expect(await changes()).toHaveLength(0);
+    await dialog.getByTestId("settings-holiday-confirm").click();
+    await expect(dialog).toBeHidden({ timeout: 20_000 });
+
+    // Announced before it starts, in Settings and in the agenda.
+    const announced = `Holiday mode starts on ${start.shown} and runs until ${end.shown}. Patients cannot book online for those days.`;
+    await expect(page.getByTestId("settings-holiday-banner")).toHaveText(announced, { timeout: 20_000 });
+    await expect.poll(async () => (await changes()).length, { timeout: 20_000 }).toBe(1);
+    const on = (await changes())[0];
+    expect(on.status).toBe("recorded");
+    expect(on.details).toMatchObject({ enabled: true, start_date: start.iso, end_date: end.iso });
+    expect(on.before_snapshot).toMatchObject({ enabled: false });
+    const { data: settingsRow } = await admin
+      .from("professional_settings")
+      .select("holiday_mode_enabled, holiday_start_date, holiday_end_date")
+      .eq("professional_id", seeded!.professionalId)
+      .single();
+    expect(settingsRow).toEqual({
+      holiday_mode_enabled: true,
+      holiday_start_date: start.iso,
+      holiday_end_date: end.iso,
+    });
+    const { data: kept } = await admin
+      .from("appointments")
+      .select("status")
+      .eq("professional_id", seeded!.professionalId);
+    expect((kept ?? []).map((row) => row.status).sort()).toEqual(["CONFIRMED", "CONFIRMED", "REQUESTED"]);
+
+    await page.goto("/agenda");
+    await expect(page.getByTestId("agenda-holiday-banner")).toContainText(announced, { timeout: 30_000 });
+
+    // Switching it off is recorded too, with the dates it had.
+    await page.goto("/settings?section=clinics");
+    const toggleAgain = page.getByTestId("settings-sidebar").getByRole("switch", { name: "Holiday mode" });
+    await expect(toggleAgain).toHaveAttribute("aria-checked", "true", { timeout: 30_000 });
+    await toggleAgain.click();
+    await expect(toastText("Holiday mode is off.")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("settings-holiday-banner")).toHaveCount(0);
+    await expect.poll(async () => (await changes()).length, { timeout: 20_000 }).toBe(2);
+    const off = (await changes())[1];
+    expect(off.details).toMatchObject({ enabled: false });
+    expect(off.before_snapshot).toMatchObject({ enabled: true, start_date: start.iso, end_date: end.iso });
+
+    // The clinic row has visits: remove them so the cleanup can delete it.
+    await admin.from("appointments").delete().eq("professional_id", seeded!.professionalId);
+  });
+
+  test("a holiday that has ended shows as off, and one that runs keeps its start", async ({ page }) => {
+    test.setTimeout(150_000);
+    const cyDay = (daysAhead: number) => {
+      const iso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(
+        new Date(Date.now() + daysAhead * 86_400_000),
+      );
+      const [year, month, day] = iso.split("-");
+      return { iso, shown: `${day}/${month}/${year}` };
+    };
+    const setHoliday = async (startDays: number, endDays: number) => {
+      const { error } = await admin.from("professional_settings").upsert(
+        {
+          professional_id: seeded!.professionalId,
+          holiday_mode_enabled: true,
+          holiday_start_date: cyDay(startDays).iso,
+          holiday_end_date: cyDay(endDays).iso,
+        },
+        { onConflict: "professional_id" },
+      );
+      expect(error).toBeNull();
+    };
+
+    // Ended three days ago: the switch is off and nothing is announced.
+    await setHoliday(-8, -3);
+    await openSettings(page, seeded!, "clinics");
+    const sidebar = page.getByTestId("settings-sidebar");
+    await expect(sidebar.getByRole("switch", { name: "Holiday mode" })).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("settings-holiday-banner")).toHaveCount(0);
+
+    // Running since two days ago: it says so with both dates, and its end can move.
+    await setHoliday(-2, 2);
+    await page.reload();
+    await expect(page.getByTestId("settings-holiday-banner")).toHaveText(
+      `Holiday mode is on from ${cyDay(-2).shown} until ${cyDay(2).shown}. Patients cannot book online for those days.`,
+      { timeout: 30_000 },
+    );
+    await page.getByTestId("settings-sidebar").getByLabel("To").fill(cyDay(4).shown);
+    await page.getByTestId("settings-sidebar").getByTestId("settings-holiday-save").click();
+    await expect(page.getByTestId("settings-holiday-banner")).toContainText(`until ${cyDay(4).shown}`, {
+      timeout: 20_000,
+    });
+    const { data: row } = await admin
+      .from("professional_settings")
+      .select("holiday_start_date, holiday_end_date")
+      .eq("professional_id", seeded!.professionalId)
+      .single();
+    expect(row).toEqual({ holiday_start_date: cyDay(-2).iso, holiday_end_date: cyDay(4).iso });
+  });
+
   test("old Availability links open Clinics, with holiday mode on phones", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });

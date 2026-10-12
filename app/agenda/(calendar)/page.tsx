@@ -14,6 +14,8 @@ import { parseAgendaHighlight } from "@/lib/agenda-highlight";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { loadProAccessEnded } from "@/lib/load-access-ended";
+import { cyprusTodayKey, holidayBannerText, holidayState } from "@/lib/holiday-mode";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
@@ -120,10 +122,31 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  const [locationRows, accessEnded] = await Promise.all([
+  const [locationRows, accessEnded, holidayRes] = await Promise.all([
     loadDoctorLocations(doctor.id),
     loadProAccessEnded(supabase, doctor.id),
+    supabase
+      .from("professional_settings")
+      .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+      .eq("professional_id", doctor.id)
+      .maybeSingle(),
   ]);
+  // Holiday mode, running or announced, is said here too (user, 2026-10-11).
+  const holidayRow = holidayRes.data as {
+    holiday_mode_enabled?: boolean | null;
+    holiday_start_date?: string | null;
+    holiday_end_date?: string | null;
+  } | null;
+  const holidayBanner = holidayBannerText(
+    holidayState(
+      {
+        enabled: Boolean(holidayRow?.holiday_mode_enabled),
+        start: holidayRow?.holiday_start_date ?? null,
+        end: holidayRow?.holiday_end_date ?? null,
+      },
+      cyprusTodayKey(),
+    ),
+  );
   // Each clinic carries its own cancellation deadline (user, 2026-10-11).
   const clinics = locationsToAgendaClinics(locationRows);
   // The primary clinic's hours frame the calendar (Point E6: schedules live on the
@@ -145,6 +168,19 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         <h1 className="sr-only">Agenda</h1>
 
         <FirstLoginTrialNoticeGate />
+
+        {holidayBanner ? (
+          <div
+            role="status"
+            data-testid="agenda-holiday-banner"
+            className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-2.5 text-sm text-amber-100"
+          >
+            {holidayBanner} Visits already booked stay, and you can still add visits yourself.{" "}
+            <a href="/settings?section=clinics" className="font-semibold underline underline-offset-2">
+              Change
+            </a>
+          </div>
+        ) : null}
 
         <AgendaRealtime
           doctorId={doctor.id}

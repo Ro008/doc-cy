@@ -6,6 +6,7 @@ import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
+import { saveHoliday } from "@/lib/professional-holiday-server";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
   clinicHoursUnchanged,
@@ -73,8 +74,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert professional_settings (the holiday) + update the bio and languages
- * (owner only). Each clinic's hours and booking limits are saved on the professional's
+/** POST - save the holiday (professional_settings; saved and recorded by its database
+ * function, user 2026-10-11; a body without holidayModeEnabled leaves it alone) + update
+ * the bio and languages (owner only). Each clinic's hours and booking limits are saved on the professional's
  * join row and recorded (user, 2026-10-11): the limits belong to each clinic, sent with
  * its entry in `locations`; a clinic sent without limits keeps them.
  * Clinics are read-only here (user, 2026-09-29 phones; 2026-09-30 D4 addresses): they are
@@ -189,41 +191,26 @@ export async function POST(req: NextRequest) {
     if (wrongHours) return NextResponse.json({ message: wrongHours }, { status: 400 });
   }
 
-  const { data, error: settingsError } = await supabase
-    .from("professional_settings")
-    .upsert(
-      {
-        professional_id: doctorId,
-        holiday_mode_enabled: Boolean(b.holidayModeEnabled),
-        holiday_start_date: Boolean(b.holidayModeEnabled)
-          ? (b.holidayStartDate ?? null)
-          : null,
-        holiday_end_date: Boolean(b.holidayModeEnabled)
-          ? (b.holidayEndDate ?? null)
-          : null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "professional_id" },
-    )
-    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
-    .single();
-
-  if (settingsError || !data) {
-    console.error(settingsError);
-    return NextResponse.json(
-      { message: "Error saving settings." },
-      { status: 500 }
-    );
-  }
-
   // The personal mobile is not saved here: POST /api/professional-mobile changes and
   // records it (2026-10-09). A doctorPhone sent by an old page is ignored.
-  // Bio and languages change as she pleases, but each change is recorded (user,
-  // 2026-10-10): the database functions write the value and its request_log row
-  // together, and do nothing when the value is the same.
+  // Holiday, bio and languages change as she pleases, but each change is recorded
+  // (user, 2026-10-10 and 2026-10-11): the database functions write the value and its
+  // request_log row together, and do nothing when the value is the same.
   const profileService = createServiceRoleClient();
   if (!profileService) {
     return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+  }
+  if (b.holidayModeEnabled !== undefined) {
+    const holidayOn = Boolean(b.holidayModeEnabled);
+    const holidaySaved = await saveHoliday(profileService, {
+      professionalId: doctorId,
+      enabled: holidayOn,
+      startDate: holidayOn ? String(b.holidayStartDate ?? "").trim() || null : null,
+      endDate: holidayOn ? String(b.holidayEndDate ?? "").trim() || null : null,
+    });
+    if (holidaySaved.ok === false) {
+      return NextResponse.json({ message: holidaySaved.message }, { status: holidaySaved.status });
+    }
   }
   const languagesSaved = await setProfessionalLanguages(profileService, { professionalId: doctorId, languages });
   const bioSaved =
@@ -282,5 +269,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ settings: data }, { status: 200 });
+  const { data } = await profileService
+    .from("professional_settings")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+    .eq("professional_id", doctorId)
+    .maybeSingle();
+  return NextResponse.json({ settings: data ?? null }, { status: 200 });
 }

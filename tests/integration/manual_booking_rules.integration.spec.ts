@@ -116,6 +116,29 @@ test.describe("Integration: manual booking rules", { tag: "@pr-e2e" }, () => {
     }
   });
 
+  // Holiday mode pauses online booking only (user, 2026-10-11).
+  test("works on a day of her holiday", async () => {
+    const appointmentLocal = weekdayLocal(15);
+    const day = appointmentLocal.slice(0, 10);
+    const holiday = (enabled: boolean) =>
+      admin.from("professional_settings").upsert(
+        {
+          professional_id: pro!.doctorId,
+          holiday_mode_enabled: enabled,
+          holiday_start_date: enabled ? day : null,
+          holiday_end_date: enabled ? day : null,
+        },
+        { onConflict: "professional_id" },
+      );
+    expect((await holiday(true)).error).toBeNull();
+    try {
+      const res = await post({ appointmentLocal, ...manual(`${nonce}h`) });
+      expect(res.status(), await res.text()).toBe(201);
+    } finally {
+      await holiday(false);
+    }
+  });
+
   test("is refused once pro access has ended", async () => {
     const until = new Date(Date.now() + 180 * 86_400_000).toISOString();
     await admin

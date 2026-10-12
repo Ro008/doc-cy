@@ -12,6 +12,14 @@ import {
   saveClinicLimits,
   setClinicOnlineBooking,
 } from "../../lib/professional-clinics-server";
+import {
+  holidayBannerText,
+  holidayDatesProblem,
+  holidayRangeUtc,
+  holidayState,
+  holidayVisitNotes,
+} from "../../lib/holiday-mode";
+import { saveHoliday } from "../../lib/professional-holiday-server";
 import { LEAVE_CLINIC_LOSES, leaveClinicNotes } from "../../lib/settings-leave-clinic";
 
 /**
@@ -270,5 +278,176 @@ describe("her hours, limits and online-booking switch at a clinic (stage 3)", ()
       online: true,
     });
     assert.equal(notHers.ok === false && notHers.status, 404);
+  });
+});
+
+/**
+ * Holiday mode (user, 2026-10-11): no founder, recorded; it cannot start in the past or
+ * end before it starts (a running one keeps its start); once its end date has passed it
+ * counts as off; saving warns about the visits in its dates and cancels nothing.
+ */
+describe("holidayState", () => {
+  const dates = { enabled: true, start: "2026-10-20", end: "2026-10-25" };
+
+  it("is upcoming before its first day, active on its days, off afterwards", () => {
+    assert.deepEqual(holidayState(dates, "2026-10-19"), { kind: "upcoming", start: "2026-10-20", end: "2026-10-25" });
+    assert.deepEqual(holidayState(dates, "2026-10-20"), { kind: "active", start: "2026-10-20", end: "2026-10-25" });
+    assert.deepEqual(holidayState(dates, "2026-10-25"), { kind: "active", start: "2026-10-20", end: "2026-10-25" });
+    assert.deepEqual(holidayState(dates, "2026-10-26"), { kind: "off" });
+  });
+
+  it("is off when switched off or without both dates", () => {
+    assert.deepEqual(holidayState({ ...dates, enabled: false }, "2026-10-21"), { kind: "off" });
+    assert.deepEqual(holidayState({ enabled: true, start: "2026-10-20", end: null }, "2026-10-21"), { kind: "off" });
+  });
+});
+
+describe("holidayBannerText", () => {
+  it("names both dates while it runs", () => {
+    assert.equal(
+      holidayBannerText({ kind: "active", start: "2026-10-20", end: "2026-10-25" }),
+      "Holiday mode is on from 20/10/2026 until 25/10/2026. Patients cannot book online for those days.",
+    );
+  });
+
+  it("announces a holiday that has not started", () => {
+    assert.equal(
+      holidayBannerText({ kind: "upcoming", start: "2026-10-20", end: "2026-10-25" }),
+      "Holiday mode starts on 20/10/2026 and runs until 25/10/2026. Patients cannot book online for those days.",
+    );
+  });
+
+  it("says nothing when off", () => {
+    assert.equal(holidayBannerText({ kind: "off" }), null);
+  });
+});
+
+describe("holidayDatesProblem", () => {
+  const off = { enabled: false, start: null, end: null };
+  const today = "2026-10-12";
+
+  it("accepts a holiday from today on", () => {
+    assert.equal(holidayDatesProblem({ start: "2026-10-12", end: "2026-10-12" }, off, today), null);
+    assert.equal(holidayDatesProblem({ start: "2026-10-20", end: "2026-10-25" }, off, today), null);
+  });
+
+  it("needs both dates, in order", () => {
+    assert.equal(holidayDatesProblem({ start: "2026-10-20", end: null }, off, today), "Pick both holiday dates.");
+    assert.equal(
+      holidayDatesProblem({ start: "2026-10-25", end: "2026-10-20" }, off, today),
+      "The holiday must end on or after the day it starts.",
+    );
+  });
+
+  it("refuses a start in the past", () => {
+    assert.equal(
+      holidayDatesProblem({ start: "2026-10-11", end: "2026-10-20" }, off, today),
+      "The holiday cannot start in the past.",
+    );
+  });
+
+  it("lets a running holiday keep its start and move its end, not below today", () => {
+    const running = { enabled: true, start: "2026-10-09", end: "2026-10-14" };
+    assert.equal(holidayDatesProblem({ start: "2026-10-09", end: "2026-10-18" }, running, today), null);
+    assert.equal(holidayDatesProblem({ start: "2026-10-09", end: "2026-10-12" }, running, today), null);
+    assert.equal(
+      holidayDatesProblem({ start: "2026-10-10", end: "2026-10-18" }, running, today),
+      "The holiday cannot start in the past.",
+    );
+    assert.equal(
+      holidayDatesProblem({ start: "2026-10-09", end: "2026-10-11" }, running, today),
+      "The holiday cannot end in the past.",
+    );
+  });
+
+  it("does not let a finished holiday come back with its old start", () => {
+    const finished = { enabled: true, start: "2026-10-01", end: "2026-10-05" };
+    assert.equal(
+      holidayDatesProblem({ start: "2026-10-01", end: "2026-10-20" }, finished, today),
+      "The holiday cannot start in the past.",
+    );
+  });
+});
+
+describe("holidayVisitNotes", () => {
+  it("says what falls in the dates, and that nothing is cancelled", () => {
+    assert.deepEqual(holidayVisitNotes({ confirmed: 0, open: 0 }), []);
+    assert.deepEqual(holidayVisitNotes({ confirmed: 1, open: 0 }), [
+      "1 confirmed visit falls in these dates. It stays in your agenda: holiday mode cancels nothing.",
+    ]);
+    assert.deepEqual(holidayVisitNotes({ confirmed: 3, open: 2 }), [
+      "3 confirmed visits fall in these dates. They stay in your agenda: holiday mode cancels nothing.",
+      "2 requests in these dates are waiting for your answer.",
+    ]);
+    assert.deepEqual(holidayVisitNotes({ confirmed: 0, open: 1 }), [
+      "1 request in these dates is waiting for your answer.",
+    ]);
+  });
+});
+
+describe("holidayRangeUtc", () => {
+  it("covers the Cyprus days from the first midnight to the one after the last", () => {
+    // Cyprus is UTC+3 in summer and UTC+2 in winter.
+    assert.deepEqual(holidayRangeUtc("2026-10-20", "2026-10-21"), {
+      from: "2026-10-19T21:00:00.000Z",
+      to: "2026-10-21T21:00:00.000Z",
+    });
+    assert.deepEqual(holidayRangeUtc("2026-12-24", "2026-12-24"), {
+      from: "2026-12-23T22:00:00.000Z",
+      to: "2026-12-24T22:00:00.000Z",
+    });
+  });
+});
+
+describe("saveHoliday", () => {
+  it("saves through the database function and says whether anything changed", async () => {
+    const { service, calls } = fakeService({ data: "request-id" });
+    assert.deepEqual(
+      await saveHoliday(service, { professionalId: PRO, enabled: true, startDate: "2026-10-20", endDate: "2026-10-25" }),
+      { ok: true, changed: true },
+    );
+    assert.deepEqual(calls, [
+      {
+        fn: "professional_holiday_set",
+        args: { p_professional_id: PRO, p_enabled: true, p_start_date: "2026-10-20", p_end_date: "2026-10-25" },
+      },
+    ]);
+  });
+
+  it("sends no dates when switching off, and reports an unchanged save", async () => {
+    const { service, calls } = fakeService({ data: null });
+    assert.deepEqual(
+      await saveHoliday(service, { professionalId: PRO, enabled: false, startDate: "2026-10-20", endDate: "2026-10-25" }),
+      { ok: true, changed: false },
+    );
+    assert.deepEqual(calls[0].args, {
+      p_professional_id: PRO,
+      p_enabled: false,
+      p_start_date: null,
+      p_end_date: null,
+    });
+  });
+
+  it("answers 400 when the database refuses the dates", async () => {
+    const { service } = fakeService({ error: { code: "22023", message: "a holiday cannot start in the past" } });
+    assert.deepEqual(
+      await saveHoliday(service, { professionalId: PRO, enabled: true, startDate: "2026-10-01", endDate: "2026-10-25" }),
+      {
+        ok: false,
+        status: 400,
+        message: "Check the holiday dates: it cannot start in the past or end before it starts.",
+      },
+    );
+  });
+
+  it("answers 500 on any other failure", async () => {
+    const { service } = fakeService({ error: { code: "XX000" } });
+    const result = await saveHoliday(service, {
+      professionalId: PRO,
+      enabled: true,
+      startDate: "2026-10-20",
+      endDate: "2026-10-25",
+    });
+    assert.deepEqual(result, { ok: false, status: 500, message: "Could not save holiday mode. Please try again." });
   });
 });

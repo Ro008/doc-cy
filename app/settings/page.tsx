@@ -43,6 +43,7 @@ import {
   locationWeeklySchedule,
 } from "@/lib/doctor-locations";
 import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
+import { cyprusTodayKey, holidayState } from "@/lib/holiday-mode";
 import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { loadProfileChangeStates } from "@/lib/profile-change-requests-server";
@@ -339,6 +340,20 @@ export default async function AgendaSettingsPage({
       })
     : null;
 
+  const holidayRow = settings as {
+    holiday_mode_enabled?: boolean | null;
+    holiday_start_date?: string | null;
+    holiday_end_date?: string | null;
+  } | null;
+  const holidayShown = holidayState(
+    {
+      enabled: Boolean(holidayRow?.holiday_mode_enabled),
+      start: holidayRow?.holiday_start_date ?? null,
+      end: holidayRow?.holiday_end_date ?? null,
+    },
+    cyprusTodayKey(),
+  );
+
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
     patientAges: profileDetails?.patientAges ?? null,
@@ -417,16 +432,10 @@ export default async function AgendaSettingsPage({
     bookingHorizonDays: primaryClinic?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
     minimumNoticeHours: primaryClinic?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
     patientCancelNoticeHours: parsePatientCancelNoticeHours(primaryClinic?.patient_cancel_notice_hours),
-    holidayModeEnabled: Boolean(
-      (settings as { holiday_mode_enabled?: boolean | null } | null)
-        ?.holiday_mode_enabled
-    ),
-    holidayStartDate:
-      (settings as { holiday_start_date?: string | null } | null)
-        ?.holiday_start_date ?? null,
-    holidayEndDate:
-      (settings as { holiday_end_date?: string | null } | null)
-        ?.holiday_end_date ?? null,
+    // A holiday whose end date has passed shows as off (user, 2026-10-11).
+    holidayModeEnabled: holidayShown.kind !== "off",
+    holidayStartDate: holidayShown.kind === "off" ? null : holidayShown.start,
+    holidayEndDate: holidayShown.kind === "off" ? null : holidayShown.end,
     pauseOnlineBookings,
     accessEnded,
     services,
