@@ -900,24 +900,6 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       .eq("id", seeded!.primaryId)
       .single();
     expect(link?.pause_online_bookings).toBe(false);
-
-    // Said on the pages she opens every day too (user, 2026-10-12).
-    await page.goto("/dashboard");
-    const onDashboard = page.getByTestId("dashboard-access-ended");
-    await expect(onDashboard).toContainText(
-      "Your DocCy access has ended, so online bookings are switched off.",
-      { timeout: 30_000 },
-    );
-    await expect(onDashboard).toContainText("You can still answer the requests and handle the visits you already have.");
-    await expect(onDashboard.getByRole("link", { name: "See your plan" })).toHaveAttribute(
-      "href",
-      "/settings?section=plan",
-    );
-    await page.goto("/agenda");
-    await expect(page.getByTestId("agenda-access-ended")).toContainText(
-      "Your DocCy access has ended: no new bookings, online or manual.",
-      { timeout: 30_000 },
-    );
   });
 
   // User, 2026-10-10: an end time before the start time must not be possible.
@@ -2048,6 +2030,24 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       .eq("id", seeded!.primaryId)
       .single();
     expect(link?.pause_online_bookings).toBe(false);
+
+    // Said on the pages she opens every day too (user, 2026-10-12).
+    await page.goto("/dashboard");
+    const onDashboard = page.getByTestId("dashboard-access-ended");
+    await expect(onDashboard).toContainText(
+      "Your DocCy access has ended, so online bookings are switched off.",
+      { timeout: 30_000 },
+    );
+    await expect(onDashboard).toContainText("You can still answer the requests and handle the visits you already have.");
+    await expect(onDashboard.getByRole("link", { name: "See your plan" })).toHaveAttribute(
+      "href",
+      "/settings?section=plan",
+    );
+    await page.goto("/agenda");
+    await expect(page.getByTestId("agenda-access-ended")).toContainText(
+      "Your DocCy access has ended: no new bookings, online or manual.",
+      { timeout: 30_000 },
+    );
   });
 
   test("holiday mode: dates checked, visits warned about, recorded, announced in the agenda", async ({ page }) => {
