@@ -538,7 +538,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card.getByTestId("settings-clinic-change-pending")).toHaveCount(0);
   });
 
-  test("a new clinic waits for a founder: withdrawn, denied with a reason, approved, or joined to one DocCy has", async ({
+  test("a new clinic waits for a founder: withdrawn, denied with a reason, approved; a 4th request in a month is refused", async ({
     page,
     request,
   }) => {
@@ -686,7 +686,55 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       await expect(clinicCard(page, `Asked Clinic Two ${n}`)).toContainText("Online booking paused");
       await expect(pendingCard).toHaveCount(0);
 
-      // 5. A request for a clinic DocCy already has: the founder joins her to it, nothing is created.
+      // 5. Three requests in 30 days is the limit (request_types), withdrawn and denied ones
+      //    included: a fourth is refused, and she is told when she can send another.
+      const fourth = await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`Asked Clinic ${n}`) } });
+      expect(fourth.status(), await fourth.text()).toBe(429);
+      expect((await fourth.json()).message).toMatch(
+        /^You have reached the limit for this change\. You can make it again on \d{2}\/\d{2}\/\d{4} at \d{2}:\d{2}\. If it is urgent, contact us\.$/,
+      );
+      expect(((await requests()).data ?? []).length).toBe(3);
+    } finally {
+      const { data: leftovers } = await admin.from("clinics").select("id").in("name", [...createdClinicNames, `Already Here ${n}`]);
+      const ids = (leftovers ?? []).map((row) => String(row.id));
+      if (ids.length) {
+        await admin.from("professional_clinics").delete().in("clinic_id", ids);
+        await admin.from("clinics").delete().in("id", ids);
+      }
+    }
+  });
+
+  test("a new-clinic request for a clinic DocCy already has: the founder joins her to it, nothing is created", async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(180_000);
+    const founder = await sharedTestFounder();
+    const headers = { cookie: adminCookieHeader(founder) };
+    const n = seeded!.nonce;
+    const clinic = (name: string) => ({
+      clinicId: null,
+      name,
+      phone: "25 123456",
+      location: {
+        address: `New Road ${n}, Limassol, Cyprus`,
+        latitude: 34.7,
+        longitude: 33.08,
+        placeId: null,
+        district: "Limassol",
+        town: "Limassol",
+      },
+    });
+    const requests = () =>
+      admin
+        .from("request_log")
+        .select("id, status, details, approved_details, outcome, decision_note")
+        .eq("professional_id", seeded!.professionalId)
+        .eq("request_type", "professional_clinic_add")
+        .order("created_at", { ascending: true });
+
+    try {
+      await openSettings(page, seeded!, "clinics");
       const existing = await admin
         .from("clinics")
         .insert({
@@ -700,8 +748,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         .single();
       expect(existing.error).toBeNull();
       await page.request.post("/api/clinic-requests", { data: { clinic: clinic(`Asked Clinic ${n}`) } });
-      rows = (await requests()).data ?? [];
-      const joinedId = rows[3]!.id as string;
+      let rows = (await requests()).data ?? [];
+      const joinedId = rows[0]!.id as string;
       const joined = await request.post(`/api/internal/clinic-requests/${joinedId}/approve`, {
         headers,
         data: { existingClinicId: existing.data!.id },
@@ -719,9 +767,9 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         .eq("clinic_id", existing.data!.id);
       expect(hers).toBe(1);
       rows = (await requests()).data ?? [];
-      expect(rows[3]!.outcome).toMatchObject({ clinic_id: existing.data!.id, created: false });
+      expect(rows[0]!.outcome).toMatchObject({ clinic_id: existing.data!.id, created: false });
     } finally {
-      const { data: leftovers } = await admin.from("clinics").select("id").in("name", [...createdClinicNames, `Already Here ${n}`]);
+      const { data: leftovers } = await admin.from("clinics").select("id").in("name", [`Asked Clinic ${n}`, `Already Here ${n}`]);
       const ids = (leftovers ?? []).map((row) => String(row.id));
       if (ids.length) {
         await admin.from("professional_clinics").delete().in("clinic_id", ids);
