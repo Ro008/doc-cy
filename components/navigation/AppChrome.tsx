@@ -1,6 +1,5 @@
 "use client";
 
-import { AuthAboutFooter } from "@/components/navigation/AuthAboutFooter";
 import {
   DoctorSessionProvider,
   useDoctorSession,
@@ -10,7 +9,7 @@ import { ResponsiveBottomInset } from "@/components/navigation/ResponsiveBottomI
 import { UserBar } from "@/components/navigation/UserBar";
 
 function AppChromeInner({ children }: { children: React.ReactNode }) {
-  const { sessionState, showProChrome } = useDoctorSession();
+  const { showProChrome } = useDoctorSession();
 
   return (
     <>
@@ -18,7 +17,6 @@ function AppChromeInner({ children }: { children: React.ReactNode }) {
       <UserBar />
       <ResponsiveBottomInset enabled={showProChrome}>
         {children}
-        <AuthAboutFooter visible={sessionState.isLoggedIn} />
       </ResponsiveBottomInset>
     </>
   );
