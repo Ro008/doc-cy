@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -1567,7 +1568,17 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       expect(await liveAvatar()).toBeNull();
 
       // 4. Approved by a founder, who sees the requested photo on the dashboard.
+      //    She has a photo by now (put there directly): the new one replaces it.
+      const oldAvatar = `profiles/${seeded!.authUserId}/avatar-old.jpg`;
+      const put = await admin.storage
+        .from("avatars")
+        .upload(oldAvatar, fs.readFileSync(fixture), { contentType: "image/jpeg", upsert: true });
+      expect(put.error).toBeNull();
+      await admin.from("professionals").update({ avatar_url: oldAvatar }).eq("id", seeded!.professionalId);
+      await page.reload();
       await send();
+      // The denied photo is kept (about 90 days); this one waits beside it.
+      expect(await waiting()).toHaveLength(2);
       rows = (await requests()).data ?? [];
       const approvedId = rows[2]!.id as string;
       const founderContext = await browser.newContext();
@@ -1586,7 +1597,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
         await expect(card).toBeVisible({ timeout: 30_000 });
         await expect(card).toContainText("Photo change");
         await expect(card.getByRole("img", { name: "Requested photo" })).toBeVisible();
-        await expect(card.getByText("No photo")).toBeVisible();
+        await expect(card.getByRole("img", { name: "Current photo" })).toBeVisible();
         await expect(async () => {
           await card.getByRole("button", { name: "Approve", exact: true }).click();
           await expect(founderPage.locator(`[data-decided-change-id="${approvedId}"]`)).toHaveCount(1, {
@@ -1601,6 +1612,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       rows = (await requests()).data ?? [];
       expect(rows.map((row) => row.status)).toEqual(["withdrawn", "rejected", "approved"]);
       expect(rows[2]!.outcome).toMatchObject({ avatar_url: approvedAvatar });
+      // Clean-up: the approved copy left the private bucket (the denied one stays), and
+      // the photo it replaced left the public one.
+      expect(await waiting()).toHaveLength(1);
+      const live = (await admin.storage.from("avatars").list(`profiles/${seeded!.authUserId}`)).data ?? [];
+      expect(live.map((file) => `profiles/${seeded!.authUserId}/${file.name}`)).toEqual([approvedAvatar]);
 
       // 5. She removes it: no founder, gone at once, and recorded.
       await page.reload();
