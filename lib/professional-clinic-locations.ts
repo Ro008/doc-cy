@@ -8,8 +8,8 @@ import type { DoctorLocationRow } from "@/lib/doctor-locations";
  * the old `doctor_locations` table), so profiles, agendas, emails, the finder and the
  * booking flow read clinics without knowing where they come from.
  *
- * The split of ownership is the point: the join row owns the schedule, pause, label
- * and ordering; the clinic owns the address, town, district and coordinates. Clinics
+ * The split of ownership is the point: the join row owns the schedule, pause and
+ * ordering; the clinic owns the name, address, town, district and coordinates. Clinics
  * are admin-curated, which is why a professional edits the former and requests the
  * latter.
  */
@@ -30,7 +30,6 @@ export type ProfessionalClinicJoinClinic = {
 export type ProfessionalClinicJoinRow = {
   id?: string | null;
   professional_id?: string | null;
-  is_primary?: boolean | null;
   sort_order?: number | null;
   label?: string | null;
   pause_online_bookings?: boolean | null;
@@ -48,6 +47,9 @@ export type ProfessionalClinicJoinRow = {
   break_start?: string | null;
   break_end?: string | null;
   slot_duration_minutes?: number | null;
+  booking_horizon_days?: number | null;
+  minimum_notice_hours?: number | null;
+  patient_cancel_notice_hours?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
   /** PostgREST types an embed as an array; a to-one join still arrives as an object. */
@@ -55,7 +57,7 @@ export type ProfessionalClinicJoinRow = {
 };
 
 export const PROFESSIONAL_CLINIC_LOCATION_SELECT =
-  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
+  "id, professional_id, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
 
 function text(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
@@ -64,6 +66,10 @@ function text(value: unknown): string | null {
 
 function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function limit(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
 type LocationFieldsSource = {
@@ -88,7 +94,7 @@ export type PrimaryClinicLocationFields = {
  * removes those copies, and a professional created by the registration approval never
  * has them, so they come from the clinics alone, with no fallback.
  *
- * `locations` are sorted primary first, as the loaders return them. The first clinic
+ * `locations` are in her clinic order, as the loaders return them. The first clinic
  * with a district wins (skipping one still being set up), and coordinates come from
  * the first clinic that has a pin.
  */
@@ -145,9 +151,11 @@ export function professionalClinicRowToLocation(
     doctor_id: String(row.professional_id ?? ""),
     clinic_id: text(clinic.id),
     clinic_name: text(clinic.name),
-    is_primary: Boolean(row.is_primary),
     sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
-    label: text(row.label),
+    // One name everywhere, DocCy's (user, 2026-10-01): a doctor at a shared clinic must
+    // not rename it for their patients; a rename goes through "Request a change".
+    // professional_clinics.label is only a fallback for a clinic with no name.
+    label: text(clinic.name) ?? text(row.label),
     district: text(clinic.district),
     clinic_address: text(clinic.address),
     town: text(clinic.town),
@@ -173,6 +181,10 @@ export function professionalClinicRowToLocation(
     break_start: text(row.break_start),
     break_end: text(row.break_end),
     slot_duration_minutes: Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30,
+    // The clinic's own booking limits; the table's defaults for a row read without them.
+    booking_horizon_days: limit(row.booking_horizon_days, 90),
+    minimum_notice_hours: limit(row.minimum_notice_hours, 2),
+    patient_cancel_notice_hours: limit(row.patient_cancel_notice_hours, 12),
     created_at: text(row.created_at) ?? undefined,
     updated_at: text(row.updated_at) ?? undefined,
   };

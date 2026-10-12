@@ -60,7 +60,6 @@ test.describe("Integration: agenda closed days", { tag: "@pr-e2e" }, () => {
     const { error } = await admin
       .from("professional_clinics")
       .update({
-        is_primary: false,
         sort_order: 1,
         saturday: true,
         weekly_schedule: {

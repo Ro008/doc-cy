@@ -11,7 +11,6 @@ const clinic = (over: Partial<ManualClinicRef> = {}): ManualClinicRef => ({
   id: "clinic-1",
   name: "Maria Chrysostomou",
   slug: "maria-chrysostomou-a1439-paphos",
-  isPrimary: true,
   address: "Avenue Michalaki Kyprianou 24, Pegeia, 8560, Paphos",
   addressMapsLink: null,
   district: "Paphos",
@@ -62,7 +61,6 @@ describe("clinicForRenderedLocation", () => {
     id: "clinic-2",
     name: "Solomonidi Physiotherapy",
     slug: "solomonidi-physiotherapy-paphos",
-    isPrimary: false,
     address: "B6 39, Geroskipou, Pafos 8035, Cyprus",
   });
 

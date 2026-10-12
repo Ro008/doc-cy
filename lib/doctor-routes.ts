@@ -10,13 +10,26 @@ export type DoctorNavTab = {
   href: string;
 };
 
-/** Top-level doctor pages, in navigation order (desktop header and mobile tab bar). */
-export const DOCTOR_NAV_TABS: readonly DoctorNavTab[] = [
+/**
+ * Insights is hidden for now (user, 2026-10-12): with few appointments it shows zeros,
+ * and some of its numbers need rework. Its page and code stay; while this is false no
+ * tab names it and /agenda/insights lands on the Dashboard. Set it to true to bring
+ * the tab and the page back.
+ */
+export const INSIGHTS_ENABLED: boolean = false;
+
+const ALL_DOCTOR_NAV_TABS: readonly DoctorNavTab[] = [
   { id: "dashboard", label: "Dashboard", href: DOCTOR_HOME_PATH },
   { id: "agenda", label: "Agenda", href: "/agenda" },
-  { id: "settings", label: "Settings", href: "/agenda/settings" },
+  // Settings is its own page, not under the agenda (settings redesign, 2026-09-30).
+  { id: "settings", label: "Settings", href: "/settings" },
   { id: "insights", label: "Insights", href: "/agenda/insights" },
 ];
+
+/** Top-level doctor pages, in navigation order (desktop header and mobile tab bar). */
+export const DOCTOR_NAV_TABS: readonly DoctorNavTab[] = ALL_DOCTOR_NAV_TABS.filter(
+  (tab) => tab.id !== "insights" || INSIGHTS_ENABLED,
+);
 
 function normalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";
@@ -30,7 +43,7 @@ export function activeDoctorNavTab(pathname: string): DoctorNavTabId | null {
   const path = normalizePath(pathname);
   if (path === DOCTOR_HOME_PATH) return "dashboard";
   if (path === "/agenda") return "agenda";
-  if (path === "/agenda/settings" || path.startsWith("/agenda/settings/")) return "settings";
+  if (path === "/settings" || path.startsWith("/settings/")) return "settings";
   if (path === "/agenda/insights" || path.startsWith("/agenda/insights/")) return "insights";
   return null;
 }
@@ -42,7 +55,13 @@ export function activeDoctorNavTab(pathname: string): DoctorNavTabId | null {
  */
 export function isDoctorProductPath(pathname: string): boolean {
   const path = normalizePath(pathname);
-  return path === DOCTOR_HOME_PATH || path === "/agenda" || path.startsWith("/agenda/");
+  return (
+    path === DOCTOR_HOME_PATH ||
+    path === "/agenda" ||
+    path.startsWith("/agenda/") ||
+    path === "/settings" ||
+    path.startsWith("/settings/")
+  );
 }
 
 /**
@@ -85,4 +104,39 @@ export function showSectionsInAccountMenu({
   headerHasTabs: boolean;
 }): boolean {
   return !applicant && !headerHasTabs;
+}
+
+export type AccountMenuItemId =
+  | "manual-booking"
+  | "account"
+  | "plan"
+  | "public-profile"
+  | "support"
+  | "logout";
+
+/**
+ * What the account menu lists, in order: the photo menu on desktop and "More" on a
+ * phone (user, 2026-10-12). It is about her account: no "Promote" shortcut (a Settings
+ * section). Manual booking is offered only outside her private space (finder, public
+ * pages), where nothing else leads to it; inside, the Dashboard and the Agenda have
+ * the button. Applicants get Support and Log out only (user, 2026-09-28).
+ */
+export function accountMenuItems({
+  applicant,
+  insidePrivateSpace,
+  hasPublicProfile,
+  onOwnProfile,
+}: {
+  applicant: boolean;
+  insidePrivateSpace: boolean;
+  hasPublicProfile: boolean;
+  onOwnProfile: boolean;
+}): AccountMenuItemId[] {
+  if (applicant) return ["support", "logout"];
+  const items: AccountMenuItemId[] = [];
+  if (!insidePrivateSpace) items.push("manual-booking");
+  items.push("account", "plan");
+  if (hasPublicProfile && !onOwnProfile) items.push("public-profile");
+  items.push("support", "logout");
+  return items;
 }

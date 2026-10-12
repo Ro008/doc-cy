@@ -73,8 +73,6 @@ async function seedWeekdaySettings(doctorId, { holidayModeEnabled, holidayStartD
       holiday_mode_enabled: holidayModeEnabled,
       holiday_start_date: holidayStartDate,
       holiday_end_date: holidayEndDate,
-      booking_horizon_days: 90,
-      minimum_notice_hours: 1,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "professional_id" },

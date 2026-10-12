@@ -58,7 +58,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const header = page.getByTestId("pro-sticky-header");
     await expect(header).toBeVisible();
     const tabs = header.getByRole("navigation", { name: "Doctor sections" }).getByRole("link");
-    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Settings", "Insights"]);
+    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Settings"]);
     await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("aria-current", "page");
     await expect(header.getByTestId("userbar-nav-agenda")).not.toHaveAttribute("aria-current", "page");
   });
@@ -100,19 +100,16 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(panel).toBeHidden({ timeout: 10_000 });
   });
 
-  test("desktop: nav tabs reach agenda, settings and insights", async ({ page }) => {
+  test("desktop: nav tabs reach agenda and settings; Insights is hidden for now", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
 
     const header = page.getByTestId("pro-sticky-header");
-    await header.getByTestId("userbar-nav-insights").click();
-    await expect(page).toHaveURL(/\/agenda\/insights(?:[/?#]|$)/, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "Practice insights" })).toBeVisible();
-    await expect(header.getByTestId("userbar-nav-insights")).toHaveAttribute("aria-current", "page");
+    await expect(header.getByTestId("userbar-nav-insights")).toHaveCount(0);
 
     await header.getByTestId("userbar-nav-settings").click();
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 15_000 });
 
     await header.getByTestId("userbar-nav-agenda").click();
     await expect(page).toHaveURL(/\/agenda(?:[?#]|$)/, { timeout: 15_000 });
@@ -121,7 +118,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/, { timeout: 15_000 });
   });
 
-  test("desktop: the user menu keeps the extras, not the tab pages", async ({ page }) => {
+  test("desktop: the user menu is about her account, not the tab pages or shortcuts", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
@@ -134,11 +131,29 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
       await expect(menu).toBeVisible();
     }).toPass({ timeout: 15_000 });
 
-    await expect(menu.getByTestId("userbar-link-manual-booking")).toBeVisible();
-    await expect(menu.getByTestId("userbar-link-promote")).toBeVisible();
+    const items = await menu
+      .locator('[role="menuitem"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
+    expect(items.filter((id) => id !== "userbar-link-public-profile")).toEqual([
+      "userbar-link-account",
+      "userbar-link-plan",
+      "userbar-action-support",
+      "userbar-action-logout",
+    ]);
+    await expect(menu.getByTestId("userbar-link-account")).toHaveText("Account");
+    await expect(menu.getByTestId("userbar-link-plan")).toHaveText("Plan & billing");
+    await expect(menu.getByTestId("userbar-action-logout")).toHaveText("Log out");
+    await expect(menu.getByRole("separator")).toHaveCount(1);
+    // Manual booking stays on the Dashboard and the Agenda; Promote is a Settings section.
+    await expect(menu.getByTestId("userbar-link-manual-booking")).toHaveCount(0);
+    await expect(menu.getByTestId("userbar-link-promote")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-agenda")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-insights")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-settings")).toHaveCount(0);
+
+    await menu.getByTestId("userbar-link-account").click();
+    await expect(page).toHaveURL(/\/settings\?section=account/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible({ timeout: 20_000 });
   });
 
   test("mobile: bottom tabs start with Dashboard and it is active", async ({ page }) => {
@@ -157,7 +172,6 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
       "userbar-tab-dashboard",
       "userbar-tab-agenda",
       "userbar-tab-settings",
-      "userbar-tab-insights",
       "userbar-tab-more",
     ]);
     await expect(page.getByTestId("userbar-tab-dashboard")).toHaveAttribute("aria-current", "page");
@@ -165,7 +179,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("button", { name: "Add manual booking" })).toBeVisible();
   });
 
-  test("mobile: More menu shows the account, manual booking first and logout last", async ({ page }) => {
+  test("mobile: More menu shows the account, the same items as on desktop, log out last", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await signInAndOpenDashboard(page);
@@ -182,11 +196,10 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const items = await menu
       .locator('[role="menuitem"]')
       .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
-    expect(items[0]).toBe("userbar-mobile-more-link-manual-booking");
     expect(items[items.length - 1]).toBe("userbar-mobile-more-action-logout");
     expect(items.filter((id) => id !== "userbar-mobile-more-link-public-profile")).toEqual([
-      "userbar-mobile-more-link-manual-booking",
-      "userbar-mobile-more-link-promote",
+      "userbar-mobile-more-link-account",
+      "userbar-mobile-more-link-plan",
       "userbar-mobile-more-action-support",
       "userbar-mobile-more-action-logout",
     ]);
@@ -200,32 +213,32 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await waitForHydration(page);
 
     const header = page.getByTestId("pro-sticky-header");
-    const insights = header.getByTestId("userbar-nav-insights");
+    const settings = header.getByTestId("userbar-nav-settings");
     const pill = header.getByTestId("userbar-nav-pill");
-    const widthBefore = (await insights.boundingBox())!.width;
+    const widthBefore = (await settings.boundingBox())!.width;
 
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
-    await page.route("**/agenda/insights**", async (route) => {
+    await page.route("**/settings**", async (route) => {
       await released;
       await route.continue();
     });
 
-    await insights.click({ noWaitAfter: true });
-    await expect(insights).toHaveAttribute("data-selected", "true");
+    await settings.click({ noWaitAfter: true });
+    await expect(settings).toHaveAttribute("data-selected", "true");
     await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("data-selected", "false");
-    await expect(insights).toHaveAttribute("aria-busy", "true");
+    await expect(settings).toHaveAttribute("aria-busy", "true");
     await expect
       .poll(async () => {
-        const [p, t] = [await pill.boundingBox(), await insights.boundingBox()];
+        const [p, t] = [await pill.boundingBox(), await settings.boundingBox()];
         return p && t ? Math.abs(p.x - t.x) < 2 && Math.abs(p.width - t.width) < 2 : false;
       }, { timeout: 3_000 })
       .toBe(true);
-    expect(Math.abs((await insights.boundingBox())!.width - widthBefore)).toBeLessThan(1);
+    expect(Math.abs((await settings.boundingBox())!.width - widthBefore)).toBeLessThan(1);
 
     release();
-    await expect(page).toHaveURL(/\/agenda\/insights(?:[/?#]|$)/, { timeout: 20_000 });
-    await expect(insights).toHaveAttribute("aria-current", "page");
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(settings).toHaveAttribute("aria-current", "page");
   });
 
   test("the Dashboard tab shows how many requests are waiting, on every page", async ({ page }) => {

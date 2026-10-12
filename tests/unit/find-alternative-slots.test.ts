@@ -62,6 +62,27 @@ describe("findFirstAlternativeSlotStarts", () => {
     assert.equal(all[5], "2026-10-08T08:30:00.000Z");
   });
 
+  // Holiday mode (user, 2026-10-12): the suggested times avoid her holiday, but a day
+  // she picks herself lists its times, so she can propose one.
+  it("suggests nothing inside her holiday, yet lists a holiday day she picks", () => {
+    const onHoliday = {
+      ...base,
+      settings: {
+        ...base.settings,
+        holiday_mode_enabled: true,
+        holiday_start_date: "2026-10-08",
+        holiday_end_date: "2026-10-08",
+      },
+    };
+    const suggested = findFirstAlternativeSlotStarts({ ...onHoliday, limit: 100 });
+    assert.ok(suggested.length > 0);
+    assert.ok(suggested.every((iso) => !iso.startsWith("2026-10-08")));
+    assert.deepEqual(
+      findFirstAlternativeSlotStarts({ ...onHoliday, onlyDateKey: "2026-10-08", limit: 100 }),
+      findFirstAlternativeSlotStarts({ ...base, onlyDateKey: "2026-10-08", limit: 100 }),
+    );
+  });
+
   it("onlyDateKey on a closed day gives nothing", () => {
     assert.deepEqual(findFirstAlternativeSlotStarts({ ...base, onlyDateKey: "2026-10-10", limit: 100 }), []);
   });

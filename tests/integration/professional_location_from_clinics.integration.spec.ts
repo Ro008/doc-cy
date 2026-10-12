@@ -110,7 +110,6 @@ async function seedClinicOnlyProfessional(
     .insert({
       professional_id: professionalId,
       clinic_id: created.clinicId,
-      is_primary: true,
       sort_order: 0,
       pause_online_bookings: false,
       monday: true,

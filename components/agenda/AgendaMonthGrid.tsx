@@ -4,8 +4,13 @@ import { format, isSameDay, isSameMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { Phone } from "lucide-react";
 import { MANUAL_BOOKING_LABEL } from "@/lib/agenda-booking-source";
-import { agendaAppointmentBadgeClass, agendaAppointmentPendingClass, agendaAppointmentTimeClass } from "@/components/agenda/agenda-surface";
-import { agendaMonthGrid, splitMonthDayItems } from "@/lib/agenda-calendar";
+import {
+  agendaAppointmentBadgeClass,
+  agendaAppointmentPendingClass,
+  agendaAppointmentTimeClass,
+  agendaHolidayTagClass,
+} from "@/components/agenda/agenda-surface";
+import { agendaMonthGrid, monthDayVisibleCount, splitMonthDayItems } from "@/lib/agenda-calendar";
 
 export type AgendaMonthItem = {
   key: string;
@@ -29,15 +34,38 @@ type Props = {
   today: Date;
   itemsForDay: (dateKey: string) => AgendaMonthItem[];
   isWorkingDay: (date: Date) => boolean;
+  /** A day of her holiday: washed amber and tagged. */
+  isHoliday?: (date: Date) => boolean;
   onOpenDay: (date: Date) => void;
+  /**
+   * Desktop: the height the whole month takes, so it fills the window without
+   * scrolling; each day then shows as many appointments as fit. Null on phones.
+   */
+  height?: number | null;
 };
 
+/** The row of weekday names above the days. */
+const WEEKDAY_ROW_PX = 33;
+
 /** Google Calendar–style month: up to 3 appointments per day, then "+N more" (opens the day). */
-export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOpenDay }: Props) {
+export function AgendaMonthGrid({
+  anchor,
+  today,
+  itemsForDay,
+  isWorkingDay,
+  isHoliday,
+  onOpenDay,
+  height = null,
+}: Props) {
   const weeks = agendaMonthGrid(anchor);
+  const cellHeight = height != null ? (height - WEEKDAY_ROW_PX) / weeks.length : null;
 
   return (
-    <div className="min-w-0" data-testid="agenda-month-grid">
+    <div
+      className={`min-w-0 ${height != null ? "flex flex-col" : ""}`}
+      style={height != null ? { height } : undefined}
+      data-testid="agenda-month-grid"
+    >
       <div className="grid grid-cols-7 border-b border-white/10">
         {weeks[0]!.map((day) => (
           <p
@@ -48,11 +76,20 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
           </p>
         ))}
       </div>
-      <div className="grid grid-cols-7 border-l border-white/[0.08]">
+      <div
+        className={`grid grid-cols-7 border-l border-white/[0.08] ${height != null ? "min-h-0 flex-1" : ""}`}
+        style={
+          height != null ? { gridTemplateRows: `repeat(${weeks.length}, minmax(0, 1fr))` } : undefined
+        }
+      >
         {weeks.flat().map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const items = itemsForDay(dateKey);
-          const { visible, hiddenCount } = splitMonthDayItems(items);
+          const { visible, hiddenCount } =
+            cellHeight != null
+              ? splitMonthDayItems(items, monthDayVisibleCount({ cellHeight, itemCount: items.length }))
+              : splitMonthDayItems(items);
+          const holiday = Boolean(isHoliday?.(day));
           const inMonth = isSameMonth(day, anchor);
           const isToday = isSameDay(day, today);
           const dayLabel = format(day, "EEEE d MMMM", { locale: enGB });
@@ -60,21 +97,25 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
             <div
               key={dateKey}
               data-testid={`agenda-month-day-${dateKey}`}
-              className={`flex min-h-[5.75rem] min-w-0 flex-col gap-0.5 border-b border-r border-white/[0.08] p-0.5 md:min-h-[7.5rem] md:p-1 ${
-                isWorkingDay(day) ? "" : "bg-black/25"
-              }`}
+              data-holiday={holiday ? "true" : "false"}
+              className={`relative flex min-w-0 flex-col gap-0.5 border-b border-r border-white/[0.08] p-0.5 md:p-1 ${
+                height != null ? "min-h-0 overflow-hidden" : "min-h-[5.75rem] md:min-h-[7.5rem]"
+              } ${holiday ? "bg-amber-400/[0.09]" : isWorkingDay(day) ? "" : "bg-black/25"}`}
             >
+              {holiday ? (
+                <span className={`absolute left-1 top-1.5 hidden md:inline ${agendaHolidayTagClass}`}>Holiday</span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onOpenDay(day)}
-                aria-label={`Open ${dayLabel}`}
+                aria-label={`Open ${dayLabel}${holiday ? " (holiday)" : ""}`}
                 className={`mx-auto flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-1.5 text-xs tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
                   isToday
                     ? "bg-clinical-500 font-bold text-ink-900 hover:bg-clinical-400"
                     : inMonth
                       ? "font-medium text-slate-100 hover:bg-white/15"
                       : "text-slate-500 hover:bg-white/10"
-                }`}
+                } ${holiday && !isToday ? "ring-1 ring-amber-400/70 md:ring-0" : ""}`}
               >
                 {day.getDate() === 1 ? (
                   <>
@@ -151,7 +192,10 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     onClick={item.onOpen}
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
-                    className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                    className={`flex min-w-0 items-center gap-x-1.5 gap-y-0.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                      // One line each when the month is sized to the window, so the count that fits holds.
+                      height != null ? "shrink-0 flex-nowrap" : "flex-wrap"
+                    } ${
                       item.isPendingRequest
                         ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/40"
                         : "text-slate-100"

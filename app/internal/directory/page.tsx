@@ -35,6 +35,10 @@ import { TrialConversionTable } from "@/components/internal/TrialConversionTable
 import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
 import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
+import { ClinicRequestsSection } from "@/components/internal/ClinicRequestsSection";
+import { ProfileChangeRequestsSection } from "@/components/internal/ProfileChangeRequestsSection";
+import { countPendingClinicRequests, loadClinicRequestsForReview } from "@/lib/clinic-requests-server";
+import { countPendingProfileChanges, loadProfileChangesForReview } from "@/lib/profile-change-requests-server";
 import {
   countReviewablePendingRequests,
   loadRegistrationRequestsForReview,
@@ -296,7 +300,7 @@ export default async function FounderDashboardPage({
   const tab = internalDashboardTab(searchParams?.tab);
   if (tab === "requests") {
     // The review queue only: nothing else on this page is loaded.
-    const [trialMonthsSetting, review, specialtyCatalogue] = await Promise.all([
+    const [trialMonthsSetting, review, specialtyCatalogue, profileChanges, clinicRequests] = await Promise.all([
       loadTrialMonths(supabase),
       loadRegistrationRequestsForReview(supabase).catch((err) => {
         console.error("[internal/directory] registration requests load failed", err);
@@ -305,6 +309,14 @@ export default async function FounderDashboardPage({
       loadSpecialtyCatalogueNames(supabase).catch((err) => {
         console.error("[internal/directory] specialty catalogue load failed", err);
         return [] as string[];
+      }),
+      loadProfileChangesForReview(supabase).catch((err) => {
+        console.error("[internal/directory] profile change requests load failed", err);
+        return [];
+      }),
+      loadClinicRequestsForReview(supabase).catch((err) => {
+        console.error("[internal/directory] clinic requests load failed", err);
+        return [];
       }),
     ]);
     return (
@@ -319,7 +331,11 @@ export default async function FounderDashboardPage({
           runtimeLabel={runtimeLabel}
           runtimeBadgeClass={runtimeBadgeClass}
           tab="requests"
-          pendingRequestsCount={review.items.filter((item) => item.status === "pending").length}
+          pendingRequestsCount={
+            review.items.filter((item) => item.status === "pending").length +
+            profileChanges.filter((item) => item.status === "pending").length +
+            clinicRequests.filter((item) => item.status === "pending").length
+          }
         />
         <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
           <RegistrationRequestsSection
@@ -330,6 +346,8 @@ export default async function FounderDashboardPage({
             defaultTrialMonths={trialMonthsSetting.ok ? trialMonthsSetting.months : null}
             specialtyCatalogue={specialtyCatalogue}
           />
+          <ProfileChangeRequestsSection items={profileChanges} canMutate={canMutate} />
+          <ClinicRequestsSection items={clinicRequests} canMutate={canMutate} />
         </div>
       </main>
     );
@@ -712,7 +730,10 @@ export default async function FounderDashboardPage({
   const trialMonths = await loadTrialMonths(supabase);
   if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
 
-  const pendingRequestsCount = await countReviewablePendingRequests(supabase);
+  const pendingRequestsCount =
+    (await countReviewablePendingRequests(supabase)) +
+    (await countPendingProfileChanges(supabase)) +
+    (await countPendingClinicRequests(supabase));
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">

@@ -10,7 +10,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { coerceProposedSlotsArray } from "@/lib/appointment-overlap";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
-import type { DayKey } from "@/lib/doctor-settings";
+import { dayBreakTimes, type DayKey } from "@/lib/doctor-settings";
 
 /** Anchor of the "Needs your answer" section (agenda sidebar "Pending requests" links here). */
 export const DASHBOARD_NEEDS_ANSWER_ID = "needs-your-answer";
@@ -57,7 +57,7 @@ export function pausedClinicNotices(
 }
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source";
+  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source, patient_cancel_notice_hours";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -72,6 +72,8 @@ export type DashboardAppointmentRow = {
   proposed_slots: unknown;
   reason: string | null;
   clinic_id: string | null;
+  /** The cancellation deadline the visit was confirmed with (lib/visit-cancel-notice). */
+  patient_cancel_notice_hours?: number | null;
   /** For "Missed requests": she can call the patient back. */
   patient_phone?: string | null;
   /** The rest is for the visit details window (components/agenda/VisitDetailsDialog.tsx). */
@@ -262,11 +264,13 @@ export function todayWorkingWindow(
   if (open.length === 0) return null;
 
   const single = open.length === 1 ? open[0].hours : null;
+  // Today's own break, or the clinic's one break for a day saved without its own.
+  const todayBreak = single ? dayBreakTimes(single.weeklySchedule[dayKey], single.breakStart, single.breakEnd) : null;
   return {
     startHour: Math.floor(Math.min(...open.map((w) => w.start)) / 60),
     endHour: Math.ceil(Math.max(...open.map((w) => w.end)) / 60),
-    breakStart: single ? parseAgendaClockMinutes(single.breakStart) : null,
-    breakEnd: single ? parseAgendaClockMinutes(single.breakEnd) : null,
+    breakStart: parseAgendaClockMinutes(todayBreak?.start),
+    breakEnd: parseAgendaClockMinutes(todayBreak?.end),
   };
 }
 

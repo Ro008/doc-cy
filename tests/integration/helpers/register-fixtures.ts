@@ -89,7 +89,6 @@ export async function seedRegisterFixtures(admin: SupabaseClient): Promise<Regis
       [seeds[0]!, seeds[2]!].map((seed, i) => ({
         professional_id: listingId,
         clinic_id: idByName.get(seed.name),
-        is_primary: i === 0,
         sort_order: i,
       })),
     );

@@ -20,13 +20,17 @@ export function RegisterClinicSearchInput({
   onSelect,
   onSearchGoogle,
   takenIds,
+  tone = "light",
 }: {
   index: number;
   onSelect: (clinic: ClinicSearchCandidate) => void;
   onSearchGoogle: () => void;
   /** DocCy clinics already picked in other rows: never offered twice. */
   takenIds?: readonly string[];
+  /** Settings uses the dark chrome. */
+  tone?: "light" | "dark";
 }) {
+  const dark = tone === "dark";
   const testId = `register-clinic-search-${index}`;
   const listId = `${testId}-list`;
   const [query, setQuery] = React.useState("");
@@ -124,7 +128,11 @@ export function RegisterClinicSearchInput({
             }
           }}
           placeholder="Clinic name, street or town"
-          className={`${registerInputClass} !mt-0 pl-10`}
+          className={
+            dark
+              ? "w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 pl-10 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-clinical-400/60"
+              : `${registerInputClass} !mt-0 pl-10`
+          }
         />
       </label>
 
@@ -132,7 +140,9 @@ export function RegisterClinicSearchInput({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-ink-100 bg-white py-1 shadow-lg"
+          className={`absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-xl border py-1 shadow-lg ${
+            dark ? "border-slate-700 bg-[#0B1A30] shadow-black/40" : "border-ink-100 bg-white"
+          }`}
         >
           {results.map((clinic, optionIndex) => (
             <li key={clinic.id} role="option" aria-selected={optionIndex === highlight}>
@@ -144,13 +154,24 @@ export function RegisterClinicSearchInput({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(clinic)}
                 className={`flex w-full items-start gap-3 px-3 py-2.5 text-left ${
-                  optionIndex === highlight ? "bg-clinical-50" : "hover:bg-ink-50"
+                  dark
+                    ? optionIndex === highlight
+                      ? "bg-clinical-500/15"
+                      : "hover:bg-white/5"
+                    : optionIndex === highlight
+                      ? "bg-clinical-50"
+                      : "hover:bg-ink-50"
                 }`}
               >
-                <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-clinical-700" aria-hidden />
+                <Building2
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${dark ? "text-clinical-300" : "text-clinical-700"}`}
+                  aria-hidden
+                />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-ink-900">{clinic.name}</span>
-                  <span className="block truncate text-xs text-ink-600">
+                  <span className={`block truncate text-sm font-bold ${dark ? "text-slate-50" : "text-ink-900"}`}>
+                    {clinic.name}
+                  </span>
+                  <span className={`block truncate text-xs ${dark ? "text-slate-400" : "text-ink-600"}`}>
                     {clinic.address}
                   </span>
                 </span>
@@ -166,13 +187,17 @@ export function RegisterClinicSearchInput({
       ) : null}
 
       {showEmpty ? (
-        <div className="absolute z-30 mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2.5 text-sm text-ink-600 shadow-lg">
+        <div
+          className={`absolute z-30 mt-1 w-full rounded-xl border px-3 py-2.5 text-sm shadow-lg ${
+            dark ? "border-slate-700 bg-[#0B1A30] text-slate-300" : "border-ink-100 bg-white text-ink-600"
+          }`}
+        >
           No DocCy clinic matches.{" "}
           <button
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={onSearchGoogle}
-            className="font-bold text-clinical-800 underline underline-offset-2"
+            className={`font-bold underline underline-offset-2 ${dark ? "text-clinical-300" : "text-clinical-800"}`}
           >
             Search Google Maps
           </button>

@@ -8,6 +8,7 @@ import {
   clinicForAppointment,
   clinicSlotMinutes,
   linkIdForClinic,
+  requestClinicLeft,
   settingsAtClinic,
 } from "@/lib/professional-account-settings";
 
@@ -129,9 +130,10 @@ describe("nothing reads or writes the professional_settings schedule copies (Poi
   });
 
   it("the account settings select is the professional-level columns only", () => {
+    // The booking limits moved to each clinic link (user, 2026-10-11).
     assert.equal(
       PROFESSIONAL_ACCOUNT_SETTINGS_SELECT,
-      "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours",
+      "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date",
     );
   });
 
@@ -164,7 +166,6 @@ describe("nothing reads or writes the professional_settings schedule copies (Poi
 function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocationRow {
   return {
     doctor_id: "doc-1",
-    is_primary: false,
     sort_order: 0,
     label: null,
     district: "Nicosia",
@@ -191,7 +192,7 @@ function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocati
   };
 }
 
-const primary = loc({ id: "p", is_primary: true, slot_duration_minutes: 45, break_start: "13:00:00", break_end: "14:00:00" });
+const primary = loc({ id: "p", sort_order: 0, slot_duration_minutes: 45, break_start: "13:00:00", break_end: "14:00:00" });
 const second = loc({ id: "s", sort_order: 1, slot_duration_minutes: 20, pause_online_bookings: true, saturday: true });
 const account = {
   professional_id: "doc-1",
@@ -215,6 +216,11 @@ describe("schedule at a clinic (Point E6)", () => {
     const b = loc({ id: "s", clinic_id: "clinic-b" } as never);
     assert.equal(linkIdForClinic([a, b], "clinic-b"), "s");
     assert.equal(linkIdForClinic([a, b], "s"), null);
+    // A request at a clinic she has left: accept or decline only (user, 2026-10-11).
+    assert.equal(requestClinicLeft([a, b], "clinic-b"), false);
+    assert.equal(requestClinicLeft([a, b], "clinic-gone"), true);
+    // An old request without a clinic is not "left": it follows her first clinic as before.
+    assert.equal(requestClinicLeft([a, b], null), false);
     assert.equal(linkIdForClinic([a, b], null), null);
   });
 
@@ -249,6 +255,6 @@ describe("schedule at a clinic (Point E6)", () => {
     assert.equal(clinicSlotMinutes([primary, second], null), 45);
     assert.equal(clinicSlotMinutes([primary, second], "gone"), 45);
     assert.equal(clinicSlotMinutes([], null), 30);
-    assert.equal(clinicSlotMinutes([loc({ id: "z", is_primary: true, slot_duration_minutes: 0 })]), 30);
+    assert.equal(clinicSlotMinutes([loc({ id: "z", sort_order: 0, slot_duration_minutes: 0 })]), 30);
   });
 });

@@ -30,6 +30,7 @@ const handleI18nRouting = createMiddleware(routing);
 
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
+  "settings",
   // Patient link pages: /booking/confirm, /booking/choose, /booking/cancel, /booking/review.
   "booking",
   "blog",
@@ -215,11 +216,22 @@ export const config = {
   matcher: [
     "/((?!api|_next|_vercel|.*\\..*).*)",
     "/api/appointments/:path+",
-    "/api/doctor-avatar",
     "/api/doctor-gesy",
     "/api/doctor-locations",
     "/api/doctor-online-bookings",
-    "/api/doctor-services",
+    "/api/professional-services",
     "/api/doctor-settings/:path*",
+    "/api/professional-clinics/:path*",
+    "/api/professional-mobile/:path*",
+    "/api/account/email",
+    "/api/name-change-requests",
+    "/api/photo-change-requests",
+    "/api/professional-photo",
+    "/api/professional-specialties",
+    "/api/professional-profile",
+    "/api/professional-qualifications",
+    "/api/specialty-requests",
+    "/api/clinic-requests",
+    "/api/clinic-change-requests",
   ],
 };

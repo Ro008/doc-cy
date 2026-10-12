@@ -18,7 +18,6 @@ function joinRow(partial: Partial<ProfessionalClinicJoinRow> = {}): Professional
   return {
     id: "join-1",
     professional_id: "pro-1",
-    is_primary: true,
     sort_order: 0,
     label: "Evenings",
     pause_online_bookings: false,
@@ -72,9 +71,9 @@ describe("professional clinic locations", () => {
       // (never the join-row label; user 2026-10-03).
       clinic_id: "clinic-1",
       clinic_name: "Evangelismos",
-      is_primary: true,
       sort_order: 0,
-      label: "Evenings",
+      // One name everywhere: DocCy's, never the professional's own label (user, 2026-10-01).
+      label: "Evangelismos",
       district: "Nicosia",
       clinic_address: "Makariou Avenue 10, Nicosia 1065, Cyprus",
       town: "Nicosia",
@@ -98,6 +97,10 @@ describe("professional clinic locations", () => {
       break_start: "13:00:00",
       break_end: "14:00:00",
       slot_duration_minutes: 45,
+      // The table's defaults for a row read without its limits.
+      booking_horizon_days: 90,
+      minimum_notice_hours: 2,
+      patient_cancel_notice_hours: 12,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-02T10:00:00Z",
     });
@@ -131,7 +134,6 @@ describe("professional clinic locations", () => {
         break_start: null,
         break_end: null,
         slot_duration_minutes: null,
-        is_primary: null,
         sort_order: null,
       }),
     );
@@ -139,10 +141,23 @@ describe("professional clinic locations", () => {
     assert.equal(location.end_time, "17:00:00");
     assert.equal(location.slot_duration_minutes, 30);
     assert.equal(location.pause_online_bookings, true, "never open bookings by accident");
-    assert.equal(location.is_primary, false);
+    assert.equal("is_primary" in location, false);
     assert.equal(location.sort_order, 0);
     assert.equal(location.monday, false);
-    assert.equal(location.label, null);
+    assert.equal(location.label, "Evangelismos");
+  });
+
+  it("shows the DocCy clinic's name, not a professional's own label for it", () => {
+    // A doctor at Evangelismos must not rename it to "Evangelismos private hospital"
+    // for their patients: a rename goes through "Request a change".
+    const location = professionalClinicRowToLocation(joinRow({ label: "Evangelismos private hospital" }));
+    assert.equal(location.label, "Evangelismos");
+  });
+
+  it("keeps the old label only when the clinic has no name", () => {
+    const row = joinRow();
+    const nameless = { ...row, clinics: { ...(row.clinics as object), name: "  " } } as ProfessionalClinicJoinRow;
+    assert.equal(professionalClinicRowToLocation(nameless).label, "Evenings");
   });
 
   it("drops a join row whose clinic is missing or archived", () => {

@@ -53,13 +53,25 @@ export function amrFromAccessToken(accessToken: string | null | undefined): unkn
   }
 }
 
-const PROFESSIONAL_API_ROUTES = [
-  "/api/doctor-avatar",
+/** Each one must also be in middleware.ts's matcher, or the middleware never runs there. */
+export const PROFESSIONAL_API_ROUTES = [
   "/api/doctor-gesy",
   "/api/doctor-locations",
   "/api/doctor-online-bookings",
-  "/api/doctor-services",
+  "/api/professional-services",
   "/api/doctor-settings",
+  "/api/professional-clinics",
+  "/api/professional-mobile",
+  "/api/account/email",
+  "/api/name-change-requests",
+  "/api/photo-change-requests",
+  "/api/professional-photo",
+  "/api/professional-specialties",
+  "/api/professional-profile",
+  "/api/professional-qualifications",
+  "/api/specialty-requests",
+  "/api/clinic-requests",
+  "/api/clinic-change-requests",
 ];
 
 /**

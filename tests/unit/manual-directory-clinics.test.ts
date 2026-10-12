@@ -12,7 +12,7 @@ describe("buildManualDirectoryClinicRefs", () => {
     const refs = buildManualDirectoryClinicRefs([
       {
         clinic_id: "c1",
-        is_primary: true,
+        sort_order: 0,
         clinics: {
           name: "Alpha Clinic",
           slug: "alpha-clinic",
@@ -28,7 +28,6 @@ describe("buildManualDirectoryClinicRefs", () => {
       id: "c1",
       name: "Alpha Clinic",
       slug: "alpha-clinic",
-      isPrimary: true,
       address: "Street 1",
       addressMapsLink: "https://maps.example/a",
       district: "Nicosia",
@@ -36,11 +35,11 @@ describe("buildManualDirectoryClinicRefs", () => {
     });
   });
 
-  it("orders primary first and keeps both clinics for multi-clinic pros", () => {
+  it("keeps the clinic order (sort_order) and both clinics for multi-clinic pros", () => {
     const refs = buildManualDirectoryClinicRefs([
       {
         clinic_id: "c2",
-        is_primary: false,
+        sort_order: 1,
         clinics: {
           name: "Second Place",
           slug: "second-place",
@@ -51,7 +50,7 @@ describe("buildManualDirectoryClinicRefs", () => {
       },
       {
         clinic_id: "c1",
-        is_primary: true,
+        sort_order: 0,
         clinics: {
           name: "Primary Place",
           slug: "primary-place",
@@ -63,16 +62,14 @@ describe("buildManualDirectoryClinicRefs", () => {
     ]);
     assert.equal(refs.length, 2);
     assert.equal(refs[0]?.slug, "primary-place");
-    assert.equal(refs[0]?.isPrimary, true);
     assert.equal(refs[1]?.slug, "second-place");
-    assert.equal(refs[1]?.isPrimary, false);
   });
 
   it("skips archived and incomplete clinics, dedupes by id", () => {
     const refs = buildManualDirectoryClinicRefs([
       {
         clinic_id: "c1",
-        is_primary: true,
+        sort_order: 0,
         clinics: {
           name: "Keep",
           slug: "keep",
@@ -81,7 +78,7 @@ describe("buildManualDirectoryClinicRefs", () => {
       },
       {
         clinic_id: "c-archived",
-        is_primary: false,
+        sort_order: 1,
         clinics: {
           name: "Gone",
           slug: "gone",
@@ -90,12 +87,12 @@ describe("buildManualDirectoryClinicRefs", () => {
       },
       {
         clinic_id: "c-bad",
-        is_primary: false,
+        sort_order: 1,
         clinics: { name: "", slug: "no-name" },
       },
       {
         clinic_id: "c1",
-        is_primary: false,
+        sort_order: 1,
         clinics: {
           name: "Duplicate id",
           slug: "keep-dup",
@@ -106,29 +103,29 @@ describe("buildManualDirectoryClinicRefs", () => {
     assert.equal(refs[0]?.slug, "keep");
   });
 
-  it("marks the first clinic primary when none is flagged", () => {
+  it("keeps the given order when two clinics share a place", () => {
     const refs = buildManualDirectoryClinicRefs([
       {
         clinic_id: "c1",
-        is_primary: false,
+        sort_order: 1,
         clinics: { name: "One", slug: "one" },
       },
       {
         clinic_id: "c2",
-        is_primary: false,
+        sort_order: 1,
         clinics: { name: "Two", slug: "two" },
       },
     ]);
     assert.equal(refs.length, 2);
-    assert.equal(refs[0]?.isPrimary, true);
-    assert.equal(refs[1]?.isPrimary, false);
+    assert.deepEqual(refs.map((ref) => ref.slug), ["one", "two"]);
+    assert.equal("isPrimary" in refs[0]!, false);
   });
 
   it("marks hasPhone from clinic phone without exposing the number", () => {
     const refs = buildManualDirectoryClinicRefs([
       {
         clinic_id: "c1",
-        is_primary: true,
+        sort_order: 0,
         clinics: {
           id: "c1",
           name: "Alpha Clinic",

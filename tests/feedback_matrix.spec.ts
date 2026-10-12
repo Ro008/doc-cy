@@ -241,10 +241,14 @@ test.describe("Feedback matrix toasts", () => {
       });
     });
 
-    await page.goto("/agenda/settings");
-    await page.getByRole("button", { name: /Save settings/i }).click();
+    await page.goto("/settings?section=clinics");
+    // Booking limits save the moment they change (one save rule, no page-wide Save);
+    // they are set on each clinic's card.
+    const notice = page.locator('[id^="minimumNoticeHours-"]').first();
+    const current = await notice.inputValue();
+    await notice.selectOption(current === "24" ? "48" : "24");
     await expect(
-      page.locator("[data-sonner-toast]").getByText(/Settings saved\./i),
+      page.locator("[data-sonner-toast]").getByText(/Booking limits saved/i),
     ).toBeVisible({
       timeout: 8_000,
     });

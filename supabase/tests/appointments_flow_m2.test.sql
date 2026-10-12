@@ -94,7 +94,7 @@ begin
   select pc.professional_id, pc.id into v_pro, v_primary
   from public.professional_clinics pc
   join public.professionals p on p.id = pc.professional_id
-  where p.is_registered and pc.is_primary
+  where p.is_registered and pc.sort_order = 0
   order by pc.created_at
   limit 1;
   if v_pro is null then
@@ -107,8 +107,8 @@ begin
   order by c.id
   limit 1;
   update public.professional_clinics set slot_duration_minutes = 15 where id = v_primary;
-  insert into public.professional_clinics (professional_id, clinic_id, is_primary, slot_duration_minutes)
-  values (v_pro, v_other_clinic, false, 60);
+  insert into public.professional_clinics (professional_id, clinic_id, sort_order, slot_duration_minutes)
+  values (v_pro, v_other_clinic, 99, 60);
 
   -- 5. Status values: the six live ones only, and a row must name its status.
   insert into public.appointments (professional_id, clinic_id, patient_name, patient_phone,

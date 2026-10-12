@@ -85,8 +85,8 @@ begin
   insert into public.clinics (name, slug, district, address, phone)
   values ('E6 Clinic', 'e6-clinic-' || substr(v_login::text, 1, 8), 'Nicosia', '1 Test St', '22123456')
   returning id into v_clinic;
-  insert into public.professional_clinics (professional_id, clinic_id, is_primary, slot_duration_minutes)
-  values (v_pro, v_clinic, true, 45);
+  insert into public.professional_clinics (professional_id, clinic_id, slot_duration_minutes)
+  values (v_pro, v_clinic, 45);
   insert into public.appointments (professional_id, patient_name, patient_phone, appointment_datetime,
                                    status, duration_minutes)
   values (v_pro, 'E6 Patient', '+35799000000', v_start, 'REQUESTED', 90);

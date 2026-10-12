@@ -49,13 +49,14 @@ export function SignOutButton({
       type="button"
       onClick={handleSignOut}
       disabled={isPending}
+      aria-busy={isPending}
       className={merged}
       data-testid={dataTestId}
     >
       {variant === "utility" ? (
         <LogOut className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
       ) : null}
-      {isPending ? "Signing out..." : "Sign out"}
+      {isPending ? "Signing out…" : "Sign out"}
     </button>
   );
 }

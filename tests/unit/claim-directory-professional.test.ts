@@ -198,11 +198,11 @@ describe("register claim from finder card", () => {
   it("takes district and address hint from the first (primary) clinic", () => {
     const clinics = registerClaimClinicsFromJoin([
       {
-        is_primary: false,
+        sort_order: 1,
         clinics: { id: "c2", name: "Paphos Rooms", address: "1 Kennedy, Paphos", district: "Paphos" },
       },
       {
-        is_primary: true,
+        sort_order: 0,
         clinics: { id: "c1", name: "Nicosia Rooms", address: "12 Ledras Street, Nicosia", district: "Nicosia" },
       },
     ]);
@@ -251,7 +251,7 @@ describe("register claim from finder card", () => {
   it("maps linked clinics for claim without copying a clinic phone", () => {
     const clinics = registerClaimClinicsFromJoin([
       {
-        is_primary: false,
+        sort_order: 1,
         clinics: {
           id: "11111111-1111-4111-8111-111111111111",
           name: "Paphos Rooms",
@@ -263,7 +263,7 @@ describe("register claim from finder card", () => {
         },
       },
       {
-        is_primary: true,
+        sort_order: 0,
         clinics: {
           id: "22222222-2222-4222-8222-222222222222",
           name: "Nicosia Rooms",

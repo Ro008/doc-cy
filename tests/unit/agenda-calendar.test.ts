@@ -14,6 +14,8 @@ import {
   parseAgendaView,
   shiftAgendaAnchor,
   splitMonthDayItems,
+  monthDayVisibleCount,
+  isAgendaHolidayDay,
 } from "../../lib/agenda-calendar";
 import type { WeeklySchedule } from "../../lib/doctor-settings";
 
@@ -244,5 +246,38 @@ describe("agendaHourRowHeight", () => {
   it("falls back to the minimum for nonsense input", () => {
     assert.equal(agendaHourRowHeight({ availablePx: 0, hours: 12, topInset: 14 }), 44);
     assert.equal(agendaHourRowHeight({ availablePx: 600, hours: 0, topInset: 14 }), 44);
+  });
+});
+
+// Desktop month (user, 2026-10-12): it fills the window and each day shows what fits.
+describe("monthDayVisibleCount", () => {
+  it("shows every appointment when they fit", () => {
+    assert.equal(monthDayVisibleCount({ cellHeight: 160, itemCount: 4 }), 4);
+    assert.equal(monthDayVisibleCount({ cellHeight: 160, itemCount: 5 }), 5);
+  });
+
+  it("keeps the last line for +N more when they do not fit", () => {
+    assert.equal(monthDayVisibleCount({ cellHeight: 160, itemCount: 6 }), 4);
+    assert.equal(monthDayVisibleCount({ cellHeight: 90, itemCount: 5 }), 1);
+  });
+
+  it("never goes below zero in a very short cell", () => {
+    assert.equal(monthDayVisibleCount({ cellHeight: 50, itemCount: 3 }), 0);
+    assert.equal(monthDayVisibleCount({ cellHeight: 20, itemCount: 0 }), 0);
+  });
+});
+
+describe("isAgendaHolidayDay", () => {
+  const holiday = { start: "2026-10-12", end: "2026-10-16" };
+
+  it("is true from the first to the last day of the holiday", () => {
+    assert.equal(isAgendaHolidayDay("2026-10-11", holiday), false);
+    assert.equal(isAgendaHolidayDay("2026-10-12", holiday), true);
+    assert.equal(isAgendaHolidayDay("2026-10-16", holiday), true);
+    assert.equal(isAgendaHolidayDay("2026-10-17", holiday), false);
+  });
+
+  it("is false without a holiday", () => {
+    assert.equal(isAgendaHolidayDay("2026-10-12", null), false);
   });
 });

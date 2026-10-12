@@ -1,3 +1,4 @@
+import { removePhotosAfterApproval, storageRemover } from "@/lib/photo-cleanup";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
@@ -415,6 +416,12 @@ export async function approveRegistrationRequest(
     console.error("[requests] approve failed", error);
     return { ok: false, status: statusForDbError(error.code), message: approvalErrorMessage(error) };
   }
+  // The copies that waited (hers, and a founder's replacement) are not kept.
+  await removePhotosAfterApproval(storageRemover(service), {
+    waitingPaths: [request.details.photo?.path, details.photo?.path],
+    replacedAvatar: null,
+    newAvatar: avatarPath,
+  });
 
   const { data: approved } = await service
     .from("request_log")

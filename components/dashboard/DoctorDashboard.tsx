@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
+import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { CY_TZ } from "@/lib/appointments";
+import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 import {
   clinicIdForAppointment,
   type AgendaClinic,
@@ -47,6 +49,7 @@ import {
   selectMissedRequests,
 } from "@/lib/missed-requests";
 import { splitMonthDayItems } from "@/lib/agenda-calendar";
+import { settingsSectionHref } from "@/lib/settings-sections";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   NO_NEW_TIME_DISMISSED_KEY,
@@ -65,8 +68,6 @@ type Props = {
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
-  /** Patients' cancel window, for the short-notice warning when she cancels a visit. */
-  patientCancelNoticeHours: number;
 };
 
 type ExitKind = "accepted" | "declined";
@@ -103,7 +104,6 @@ export function DoctorDashboard({
   todayWindow,
   pausedNotices,
   accessEnded = false,
-  patientCancelNoticeHours,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -212,7 +212,12 @@ export function DoctorDashboard({
         </button>
       </header>
 
-      <BookingsPausedNotice notices={pausedNotices} />
+      {/* Access ended explains why no requests come in; it outranks the per-clinic pauses. */}
+      {accessEnded ? (
+        <AccessEndedBanner testId="dashboard-access-ended" />
+      ) : (
+        <BookingsPausedNotice notices={pausedNotices} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
         <section
@@ -374,7 +379,7 @@ export function DoctorDashboard({
           clinicName={clinicTag(openVisitRow.clinic_id)?.name ?? null}
           clinicSwatchClass={clinicTag(openVisitRow.clinic_id)?.swatchClass ?? null}
           previousVisitClinicName={(clinicId) => clinicTag(clinicId ?? null)?.name ?? null}
-          patientCancelNoticeHours={patientCancelNoticeHours}
+          patientCancelNoticeHours={visitCancelNoticeHours(openVisitRow, clinics)}
           agendaHref={agendaHighlightHref(
             formatInTimeZone(new Date(openVisitRow.appointment_datetime), CY_TZ, "yyyy-MM-dd"),
             openVisitRow.id,
@@ -748,7 +753,10 @@ function BookingsPausedNotice({ notices }: { notices: PausedClinicNotice[] }) {
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
           <p className="text-sm font-semibold text-amber-200">Online bookings are paused at {n.clinicName}</p>
           <p className="flex-1 text-sm text-slate-300">Patients can&apos;t request new times there.</p>
-          <Link href="/agenda/settings" className="text-sm font-semibold text-clinical-300 hover:text-clinical-200">
+          <Link
+            href={settingsSectionHref("clinics")}
+            className="text-sm font-semibold text-clinical-300 hover:text-clinical-200"
+          >
             Resume in settings
           </Link>
           <button

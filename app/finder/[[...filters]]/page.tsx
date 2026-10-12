@@ -1,3 +1,4 @@
+import { compareClinicOrder, type ClinicOrderFields } from "@/lib/clinic-order";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
@@ -1021,7 +1022,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         supabase
           .from("professional_clinics")
           .select(
-            "professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+            "professional_id, sort_order, created_at, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
           )
           .in("professional_id", idChunk),
       );
@@ -1039,14 +1040,15 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         }>
       >();
       if (!linksRes.error && linksRes.data?.length) {
-        // The clinic the card leads with first, then the primary, then the rest.
+        // The clinic the card leads with first, then the rest in the listing's clinic order.
         const rank = (link: unknown) => {
-          const l = link as { professional_id?: string; is_primary?: boolean; clinics?: { id?: string } | null };
+          const l = link as { professional_id?: string; clinics?: { id?: string } | null };
           const lead = manualClinicIdByRowId.get(String(l.professional_id ?? ""));
-          if (lead && String(l.clinics?.id ?? "") === lead) return 0;
-          return l.is_primary ? 1 : 2;
+          return lead && String(l.clinics?.id ?? "") === lead ? 0 : 1;
         };
-        const sorted = [...linksRes.data].sort((a, b) => rank(a) - rank(b));
+        const sorted = [...linksRes.data].sort(
+          (a, b) => rank(a) - rank(b) || compareClinicOrder(a as ClinicOrderFields, b as ClinicOrderFields),
+        );
         for (const link of sorted) {
           const manualId = String(
             (link as { professional_id?: string }).professional_id ?? "",

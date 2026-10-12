@@ -504,7 +504,6 @@ async function main() {
       linkedClinics += 1;
     }
 
-    const primaryClinicId = clinicIdByGhs.values().next().value ?? null;
     const existing = await supabase
       .from("professionals")
       .select("id, slug")
@@ -567,18 +566,9 @@ async function main() {
       const links = [...clinicIdByGhs.entries()].map(([ghs, clinicId], index) => ({
         professional_id: manualId,
         clinic_id: clinicId,
-        is_primary: index === 0 || clinicId === primaryClinicId,
+        // No "primary clinic" (2026-10-11): the clinics keep the order GeSY lists them in.
+        sort_order: index,
       }));
-      // Ensure only one primary
-      let sawPrimary = false;
-      for (const link of links) {
-        if (link.is_primary && !sawPrimary) {
-          sawPrimary = true;
-        } else {
-          link.is_primary = false;
-        }
-      }
-      if (links.length && !sawPrimary) links[0].is_primary = true;
       if (links.length) {
         const linkRes = await supabase.from("professional_clinics").insert(links);
         if (linkRes.error) {

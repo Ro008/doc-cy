@@ -179,7 +179,6 @@ export async function seedProfessionalClinic(
     .insert({
       professional_id: professionalId,
       clinic_id: clinicId,
-      is_primary: true,
       sort_order: 0,
       pause_online_bookings: input.open === false,
       monday: true,

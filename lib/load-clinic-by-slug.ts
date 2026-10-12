@@ -151,3 +151,39 @@ export async function loadClinicBySlug(
     professionals,
   };
 }
+
+/**
+ * A clinic's web address follows its name (user, 2026-10-12). The address it had
+ * before is kept in `clinic_slug_redirects`: this gives the clinic's current address
+ * for an old one, so the page can forward for good. Null when there is nothing to
+ * forward to.
+ */
+export async function resolveClinicSlugRedirect(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<string | null> {
+  const normalizedSlug = String(slug ?? "").trim().toLowerCase();
+  if (!normalizedSlug) return null;
+
+  const redirectRes = await supabase
+    .from("clinic_slug_redirects")
+    .select("clinic_id")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+  if (redirectRes.error || !redirectRes.data) return null;
+
+  const clinicId = String((redirectRes.data as { clinic_id?: string }).clinic_id ?? "").trim();
+  if (!clinicId) return null;
+
+  const targetRes = await supabase
+    .from("clinics")
+    .select("slug")
+    .eq("id", clinicId)
+    .eq("is_archived", false)
+    .maybeSingle();
+  if (targetRes.error || !targetRes.data) return null;
+
+  const target = String((targetRes.data as { slug?: string | null }).slug ?? "").trim();
+  if (!target || target.toLowerCase() === normalizedSlug) return null;
+  return target;
+}

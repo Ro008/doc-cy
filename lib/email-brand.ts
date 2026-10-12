@@ -11,8 +11,17 @@ export const EMAIL_HEADING = "#FFFFFF";
 /** Text on the teal buttons: navy, not white (white on #12B8C0 is ~2.4:1, navy is ~7:1). */
 export const EMAIL_BTN_TEXT = "#041C3A";
 
+/**
+ * The logo for the navy card (light "my", user 2026-10-11): the standard logo's dark
+ * letters disappear on it. Hosted, so Gmail loads it even when the email was sent
+ * from localhost.
+ */
+export const EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo-on-dark.png";
+
+/** The navy card every email sits in; it opens with the logo (user, 2026-10-11). */
 export const EMAIL_SHELL_OPEN = `<div style="margin:0;padding:20px;background:${EMAIL_OUTER_BG};color:${EMAIL_TEXT};font-family:${EMAIL_FONT};">
-  <div style="max-width:560px;margin:0 auto;background:${EMAIL_CARD_BG};border:1px solid rgba(18,184,192,.22);border-radius:16px;padding:22px;">`;
+  <div style="max-width:560px;margin:0 auto;background:${EMAIL_CARD_BG};border:1px solid rgba(18,184,192,.22);border-radius:16px;padding:22px;">
+    <img src="${EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />`;
 
 export const EMAIL_SHELL_CLOSE = `</div></div>`;
 
@@ -37,6 +46,9 @@ export const EMAIL_CANCEL_BTN =
 
 export const EMAIL_LINK_ACCENT =
   "color:#7DD9DF;font-weight:600;text-decoration:none;";
+
+/** A link inside a sentence: the light accent, underlined so it reads as a link. */
+export const EMAIL_TEXT_LINK = "color:#7DD9DF;font-weight:600;text-decoration:underline;";
 
 export const EMAIL_SECTION_LABEL =
   "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#8A9BB0;";
