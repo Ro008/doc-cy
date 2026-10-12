@@ -192,7 +192,10 @@ export function AgendaMonthGrid({
                     onClick={item.onOpen}
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
-                    className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                    className={`flex min-w-0 items-center gap-x-1.5 gap-y-0.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                      // One line each when the month is sized to the window, so the count that fits holds.
+                      height != null ? "shrink-0 flex-nowrap" : "flex-wrap"
+                    } ${
                       item.isPendingRequest
                         ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/40"
                         : "text-slate-100"
