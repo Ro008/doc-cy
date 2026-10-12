@@ -21,7 +21,10 @@ import { computeTrialDaysRemaining } from "@/lib/trial-period";
  * No tier badge on the tab.
  */
 
-export const FOUNDER_PRICE = "€19/month, your Founding Member price";
+export const FOUNDER_PRICE = "€19/month";
+export const FOUNDER_PRICE_TAG = "Founding Member price";
+/** Shown beside every price (user, 2026-10-12). */
+export const PRICE_VAT_NOTE = "+ VAT, if applicable";
 export const STANDARD_PRICE = "€49/month";
 export const ENDING_SOON_DAYS = 30;
 
@@ -40,6 +43,8 @@ export type PlanSummary = {
   daysLeft: number | null;
   /** The price she registered with, hers to keep. */
   priceAfter: string;
+  /** Why her price differs from the standard one, if it does. */
+  priceTag: string | null;
 };
 
 export function planSummary(input: {
@@ -48,9 +53,10 @@ export function planSummary(input: {
   now?: Date;
 }): PlanSummary {
   const priceAfter = input.isFounder ? FOUNDER_PRICE : STANDARD_PRICE;
+  const priceTag = input.isFounder ? FOUNDER_PRICE_TAG : null;
   const until = input.proAccessUntil ? new Date(input.proAccessUntil) : null;
   if (!until || !Number.isFinite(until.getTime())) {
-    return { state: "none", endsOn: null, daysLeft: null, priceAfter };
+    return { state: "none", endsOn: null, daysLeft: null, priceAfter, priceTag };
   }
   const daysLeft = Math.max(0, computeTrialDaysRemaining(until, input.now ?? new Date()));
   const state: PlanState = daysLeft <= 0 ? "ended" : daysLeft <= ENDING_SOON_DAYS ? "ending_soon" : "free";
@@ -59,5 +65,6 @@ export function planSummary(input: {
     endsOn: format(utcToZonedTime(until, CY_TZ), "d MMMM yyyy"),
     daysLeft,
     priceAfter,
+    priceTag,
   };
 }

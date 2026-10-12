@@ -8,7 +8,7 @@ import {
   SETTINGS_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
-import { PLAN_NOTE, PLAN_NOTE_ENDED, type PlanSummary } from "@/lib/settings-plan";
+import { PLAN_NOTE, PLAN_NOTE_ENDED, PRICE_VAT_NOTE, type PlanSummary } from "@/lib/settings-plan";
 
 /**
  * Settings → Plan & billing (user, 2026-10-01): the free period with its countdown,
@@ -20,14 +20,14 @@ export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
   const ended = plan.state === "ended";
   const endingSoon = plan.state === "ending_soon";
 
-  const terms: Array<[string, string, string?]> = [
+  const terms: Array<[string, string]> = [
     ["Public profile", "Free, forever"],
     [
       "Online booking",
       plan.endsOn ? (ended ? `Free period ended on ${plan.endsOn}` : `Free until ${plan.endsOn}`) : "Free during your trial",
     ],
-    [ended ? "Your price for online booking" : "Your price after the free period", plan.priceAfter, "settings-plan-price"],
   ];
+  const priceLabel = ended ? "Your price for online booking" : "Your price after the free period";
 
   return (
     <div className="space-y-5">
@@ -80,15 +80,25 @@ export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
         )}
 
         <dl className="mt-5 divide-y divide-slate-800 border-t border-slate-800 pt-4" data-testid="settings-plan-terms">
-          {terms.map(([label, value, testId]) => (
+          {terms.map(([label, value]) => (
             <div key={label} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
               <dt className="text-sm text-slate-400">{label}</dt>
               <dd className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
                 <Check className="h-4 w-4 text-clinical-300" aria-hidden />
-                <span data-testid={testId}>{value}</span>
+                {value}
               </dd>
             </div>
           ))}
+          <div className="flex flex-col gap-1 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+            <dt className="text-sm text-slate-400">{priceLabel}</dt>
+            <dd className="inline-flex items-start gap-2 text-sm font-semibold text-slate-100 sm:items-center">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-clinical-300 sm:mt-0" aria-hidden />
+              <span data-testid="settings-plan-price">
+                {plan.priceAfter} <span className="font-normal text-slate-400">{PRICE_VAT_NOTE}</span>
+                {plan.priceTag ? <span className="font-normal text-slate-400"> · {plan.priceTag}</span> : null}
+              </span>
+            </dd>
+          </div>
         </dl>
 
         <p

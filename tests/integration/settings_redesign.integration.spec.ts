@@ -1152,7 +1152,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(terms).toContainText("Free until");
     await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
     // Her price is the one she registered with (here a Founding Member's), and it is hers to keep.
-    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month, your Founding Member price");
+    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month + VAT, if applicable · Founding Member price");
     await expect(page.getByTestId("settings-plan-note")).toContainText(
       "After your free period, online booking continues at the price shown above. It is the price from when you registered, and it stays yours if DocCy’s prices change later.",
     );
@@ -1173,7 +1173,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByTestId("settings-plan-days-left")).toHaveCount(0);
     await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
     await expect(page.getByTestId("settings-plan-note")).not.toContainText("After your free period");
-    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month, your Founding Member price");
+    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month + VAT, if applicable · Founding Member price");
     await expect(async () => {
       await page.getByTestId("settings-plan-contact").click();
       await expect(page.getByRole("dialog", { name: /How can we help you/i })).toBeVisible({ timeout: 3_000 });

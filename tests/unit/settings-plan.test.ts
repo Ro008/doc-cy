@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { PLAN_NOTE, PLAN_NOTE_ENDED, planSummary } from "../../lib/settings-plan";
+import { PLAN_NOTE, PLAN_NOTE_ENDED, PRICE_VAT_NOTE, planSummary } from "../../lib/settings-plan";
 import { SETTINGS_SECTIONS } from "../../lib/settings-sections";
 
 /**
@@ -25,12 +25,17 @@ describe("planSummary", () => {
   });
 
   it("shows the price she registered with: Founding Member or standard", () => {
-    assert.equal(
-      planSummary({ proAccessUntil: "2027-03-15T10:00:00Z", isFounder: true, now }).priceAfter,
-      "€19/month, your Founding Member price",
-    );
-    assert.equal(planSummary({ proAccessUntil: "2027-03-15T10:00:00Z", isFounder: false, now }).priceAfter, "€49/month");
+    const founder = planSummary({ proAccessUntil: "2027-03-15T10:00:00Z", isFounder: true, now });
+    assert.equal(founder.priceAfter, "€19/month");
+    assert.equal(founder.priceTag, "Founding Member price");
+    const standard = planSummary({ proAccessUntil: "2027-03-15T10:00:00Z", isFounder: false, now });
+    assert.equal(standard.priceAfter, "€49/month");
+    assert.equal(standard.priceTag, null);
     assert.equal(planSummary({ proAccessUntil: null, isFounder: false, now }).priceAfter, "€49/month");
+  });
+
+  it("says VAT comes on top where it applies (user, 2026-10-12)", () => {
+    assert.equal(PRICE_VAT_NOTE, "+ VAT, if applicable");
   });
 
   it("warns in the last 30 days", () => {
