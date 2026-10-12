@@ -358,6 +358,30 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       .eq("professional_id", seeded!.professionalId)
       .eq("clinic_id", link!.clinic_id);
     expect(kept).toBe(3);
+    // The request waiting at the clinic she left: she can accept or decline it, but not
+    // suggest other times (user, 2026-10-11).
+    const { data: openRequest } = await admin
+      .from("appointments")
+      .select("id")
+      .eq("professional_id", seeded!.professionalId)
+      .eq("status", "REQUESTED")
+      .single();
+    const proposal = await page.request.post(`/api/appointments/${openRequest!.id}/propose-reschedule`, {
+      data: { durationMinutes: 30 },
+    });
+    expect(proposal.status()).toBe(409);
+    expect((await proposal.json()).code).toBe("clinic_left");
+    const otherTimes = await page.request.get(
+      `/api/appointments/${openRequest!.id}/alternative-slots?durationMinutes=30`,
+    );
+    expect(otherTimes.status()).toBe(409);
+    await page.goto(`/dashboard/appointments/${openRequest!.id}`);
+    await expect(page.getByTestId("review-clinic-left")).toContainText(
+      "You no longer work at this clinic, so you can accept or decline this request but not suggest other times.",
+      { timeout: 30_000 },
+    );
+    await expect(page.getByRole("button", { name: "Decline" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Suggest other times/i })).toHaveCount(0);
     const { data: log } = await admin
       .from("request_log")
       .select("status, details, before_snapshot")
@@ -1748,6 +1772,215 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       () => document.documentElement.scrollHeight - window.innerHeight,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("hours that leave a visit outside ask first; Apply to all copies the week and the slot length", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    // A confirmed visit at 10:00 on the next weekday at least three days ahead (Cyprus).
+    const cyprusDay = (daysAhead: number) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(
+        new Date(Date.now() + daysAhead * 86_400_000),
+      );
+    let daysAhead = 3;
+    const weekdayOf = (iso: string) =>
+      new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" }).toLowerCase();
+    while (["saturday", "sunday"].includes(weekdayOf(cyprusDay(daysAhead)))) daysAhead += 1;
+    const visitDay = cyprusDay(daysAhead);
+    const weekday = weekdayOf(visitDay);
+    // 10:00 in Cyprus, whatever its offset that day: found by trying both.
+    const visitAt = ["+03:00", "+02:00"]
+      .map((offset) => new Date(`${visitDay}T10:00:00${offset}`))
+      .find(
+        (date) =>
+          new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Nicosia", hour: "2-digit", hourCycle: "h23" }).format(
+            date,
+          ) === "10",
+      )!;
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("clinic_id")
+      .eq("id", seeded!.primaryId)
+      .single();
+    const seededVisit = await admin.from("appointments").insert({
+      professional_id: seeded!.professionalId,
+      clinic_id: link!.clinic_id,
+      patient_name: "Hours Test Patient",
+      patient_phone: "+35799000111",
+      appointment_datetime: visitAt.toISOString(),
+      status: "CONFIRMED",
+      duration_minutes: 30,
+    });
+    expect(seededVisit.error).toBeNull();
+    const links = async () => {
+      const { data } = await admin
+        .from("professional_clinics")
+        .select(`id, slot_duration_minutes, ${weekday}`)
+        .in("id", [seeded!.primaryId, seeded!.secondId]);
+      return Object.fromEntries(
+        ((data ?? []) as unknown as Array<Record<string, unknown>>).map((row) => [String(row.id), row]),
+      );
+    };
+    const toastText = (text: string) => page.locator("[data-sonner-toast]").getByText(text);
+
+    await openSettings(page, seeded!, "clinics");
+    const card = clinicCard(page, "Limassol Skin Clinic");
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    // Closing the day of the visit: she is told before anything is saved.
+    await card.getByTestId(`settings-clinic-day-${weekday}`).getByRole("checkbox").uncheck();
+    await card.getByTestId("settings-clinic-hours-save").click();
+    const warning = page.getByRole("dialog", { name: "You have visits outside these hours" });
+    await expect(warning).toBeVisible({ timeout: 20_000 });
+    const listed = warning.getByTestId("settings-hours-visits");
+    await expect(listed).toContainText(
+      "1 confirmed visit falls outside these hours. It stays in your agenda: changing your hours cancels nothing.",
+    );
+    await expect(listed).toContainText("Hours Test Patient");
+    await expect(listed).toContainText("day closed");
+    // "Go back" saves nothing.
+    await warning.getByRole("button", { name: "Go back" }).click();
+    await expect(warning).toBeHidden();
+    expect((await links())[seeded!.primaryId]?.[weekday]).toBe(true);
+    // Saving anyway keeps the visit.
+    await card.getByTestId("settings-clinic-hours-save").click();
+    await expect(warning).toBeVisible({ timeout: 20_000 });
+    await warning.getByTestId("settings-hours-confirm").click();
+    await expect(toastText("Hours saved for Limassol Skin Clinic.")).toBeVisible({ timeout: 20_000 });
+    await expect.poll(async () => (await links())[seeded!.primaryId]?.[weekday], { timeout: 20_000 }).toBe(false);
+    expect((await links())[seeded!.secondId]?.[weekday]).toBe(true);
+    const { data: stillThere } = await admin
+      .from("appointments")
+      .select("status")
+      .eq("professional_id", seeded!.professionalId);
+    expect(stillThere).toEqual([{ status: "CONFIRMED" }]);
+
+    // "Apply these hours to all my clinics": asks first, naming the other clinic.
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    await card.getByTestId("settings-clinic-apply-week").click();
+    const applyWeek = page.getByRole("dialog", { name: "Apply these hours to all your clinics?" });
+    await expect(applyWeek).toContainText(
+      "Paphos Medical Centre will get the same open days, hours and breaks as Limassol Skin Clinic.",
+    );
+    await applyWeek.getByRole("button", { name: "Apply to all 2 clinics" }).click();
+    await expect(toastText("Hours applied to all 2 of your clinics.")).toBeVisible({ timeout: 20_000 });
+    await expect.poll(async () => (await links())[seeded!.secondId]?.[weekday], { timeout: 20_000 }).toBe(false);
+    // The slot length was not copied with the week.
+    expect((await links())[seeded!.secondId]?.slot_duration_minutes).toBe(30);
+
+    // "Apply this slot length to all my clinics".
+    await card.getByRole("radio", { name: "45 min" }).click();
+    await card.getByTestId("settings-clinic-apply-slot").click();
+    const applySlot = page.getByRole("dialog", { name: "Apply this slot length to all your clinics?" });
+    await expect(applySlot).toContainText("Paphos Medical Centre will use 45-minute slots like Limassol Skin Clinic.");
+    await applySlot.getByRole("button", { name: "Apply to all 2 clinics" }).click();
+    await expect(toastText("45-minute slots applied to all 2 of your clinics.")).toBeVisible({ timeout: 20_000 });
+    await expect
+      .poll(
+        async () => {
+          const rows = await links();
+          return [rows[seeded!.primaryId]?.slot_duration_minutes, rows[seeded!.secondId]?.slot_duration_minutes];
+        },
+        { timeout: 20_000 },
+      )
+      .toEqual([45, 45]);
+    // Each real change is recorded for its clinic: two each (Limassol: the day, the
+    // slot; Paphos: the copied week, the slot).
+    const { data: recorded } = await admin
+      .from("request_log")
+      .select("details")
+      .eq("professional_id", seeded!.professionalId)
+      .eq("request_type", "professional_clinic_hours_change");
+    const byClinic = (id: string) =>
+      (recorded ?? []).filter((row) => (row.details as { link_id?: string }).link_id === id).length;
+    expect([byClinic(seeded!.primaryId), byClinic(seeded!.secondId)]).toEqual([2, 2]);
+
+    // The clinic row has visits: remove them so the cleanup can delete it.
+    await admin.from("appointments").delete().eq("professional_id", seeded!.professionalId);
+  });
+
+  test("pausing a clinic that has visits asks first, and cancels nothing", async ({ page }) => {
+    test.setTimeout(150_000);
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("clinic_id")
+      .eq("id", seeded!.primaryId)
+      .single();
+    const visit = (daysAhead: number, status: string) => ({
+      professional_id: seeded!.professionalId,
+      clinic_id: link!.clinic_id,
+      patient_name: `Pause Test ${daysAhead}`,
+      patient_phone: "+35799000111",
+      appointment_datetime: new Date(Date.now() + daysAhead * 86_400_000).toISOString(),
+      status,
+      duration_minutes: 30,
+    });
+    const seededVisits = await admin.from("appointments").insert([visit(3, "CONFIRMED"), visit(4, "REQUESTED")]);
+    expect(seededVisits.error).toBeNull();
+
+    await openSettings(page, seeded!, "clinics");
+    const toggle = clinicCard(page, "Limassol Skin Clinic").getByRole("switch", { name: /Online booking/ });
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await toggle.click();
+    const dialog = page.getByRole("dialog", { name: "Pause online booking at Limassol Skin Clinic?" });
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    const listed = dialog.getByTestId("settings-clinic-pause-visits");
+    await expect(listed).toContainText("1 confirmed visit at this clinic stays in your agenda.");
+    await expect(listed).toContainText(
+      "1 request at this clinic is waiting for your answer. You can still answer it.",
+    );
+    // "Keep it on" changes nothing.
+    await dialog.getByRole("button", { name: "Keep it on" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    await toggle.click();
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    await dialog.getByTestId("settings-clinic-pause-confirm").click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false", { timeout: 20_000 });
+    const { data: paused } = await admin
+      .from("professional_clinics")
+      .select("pause_online_bookings")
+      .eq("id", seeded!.primaryId)
+      .single();
+    expect(paused?.pause_online_bookings).toBe(true);
+    const { data: kept } = await admin
+      .from("appointments")
+      .select("status")
+      .eq("professional_id", seeded!.professionalId);
+    expect((kept ?? []).map((row) => row.status).sort()).toEqual(["CONFIRMED", "REQUESTED"]);
+    // Switching it back on asks nothing.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true", { timeout: 20_000 });
+    await expect(dialog).toHaveCount(0);
+
+    // The clinic row has visits: remove them so the cleanup can delete it.
+    await admin.from("appointments").delete().eq("professional_id", seeded!.professionalId);
+  });
+
+  test("with her access ended, each clinic switch is off and says when it opens again", async ({ page }) => {
+    test.setTimeout(120_000);
+    const ended = await admin
+      .from("professionals")
+      .update({ pro_access_until: new Date(Date.now() - 86_400_000).toISOString() })
+      .eq("id", seeded!.professionalId);
+    expect(ended.error).toBeNull();
+    await openSettings(page, seeded!, "clinics");
+    await expect(page.getByTestId("settings-access-ended")).toBeVisible({ timeout: 20_000 });
+    const card = clinicCard(page, "Limassol Skin Clinic");
+    const toggle = card.getByRole("switch", { name: /Online booking/ });
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(toggle).toBeDisabled();
+    await expect(card.getByTestId("settings-clinic-switch-note")).toHaveText(
+      "Opens again when your DocCy access is renewed.",
+    );
+    // The pause is not written into the clinic: renewing brings it back as she left it.
+    const { data: link } = await admin
+      .from("professional_clinics")
+      .select("pause_online_bookings")
+      .eq("id", seeded!.primaryId)
+      .single();
+    expect(link?.pause_online_bookings).toBe(false);
   });
 
   test("holiday mode: dates checked, visits warned about, recorded, announced in the agenda", async ({ page }) => {

@@ -139,6 +139,33 @@ import {
   type HolidayVisitCounts,
 } from "@/lib/holiday-mode";
 
+import {
+  ACCESS_ENDED_SWITCH_NOTE,
+  APPLY_SLOT_NOTE,
+  APPLY_WEEK_NOTE,
+  HOURS_VISIT_REASON_LABEL,
+  applyToAllCopy,
+  hoursVisitNotes,
+  type HoursVisitReason,
+} from "@/lib/clinic-hours-visits";
+
+/** One clinic's visits that a change of hours would leave outside them. */
+type ClinicHoursCheckRow = {
+  locationId: string;
+  clinicName: string;
+  confirmed: number;
+  open: number;
+  visits: Array<{ id: string; at: string; patientName: string; open: boolean; reason: HoursVisitReason }>;
+};
+
+/** The dialog before hours are saved for one clinic, or copied to all of them. */
+type HoursDialogState = {
+  kind: "save" | "week" | "slot";
+  sourceId: string;
+  /** null while the visits are being checked. */
+  checks: ClinicHoursCheckRow[] | null;
+};
+
 /** A visit or open request inside the holiday dates she is about to save. */
 type HolidayVisitRow = { id: string; at: string; patientName: string; clinicName: string; open: boolean };
 
@@ -581,6 +608,9 @@ export function SettingsForm({
     (HolidayVisitCounts & { visits: HolidayVisitRow[] }) | null
   >(null);
   const [holidayChecking, setHolidayChecking] = React.useState(false);
+  /** Hours about to be saved for a clinic, or copied to all: she confirms first when visits are affected. */
+  const [hoursDialog, setHoursDialog] = React.useState<HoursDialogState | null>(null);
+  const [hoursChecking, setHoursChecking] = React.useState(false);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarCropping, setAvatarCropping] = React.useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
@@ -1090,6 +1120,107 @@ export function SettingsForm({
   const groupDirty = (group: SaveGroup) => saveGroupHasChanges(savedSnapshot, currentSnapshot, group);
   const holidayDirty = groupDirty({ kind: "holiday" });
 
+  /**
+   * The clinics where the given week would leave confirmed visits or open requests
+   * outside her hours (user, 2026-10-11). Only a warning: a failed check stops nothing.
+   */
+  async function checkHoursVisits(
+    targets: Array<{ locationId: string; weeklySchedule: WeeklySchedule }>,
+  ): Promise<ClinicHoursCheckRow[]> {
+    try {
+      const res = await fetch("/api/professional-clinics/hours-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinics: targets.filter((target) => target.locationId !== "primary") }),
+      });
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      const rows: ClinicHoursCheckRow[] = Array.isArray(data?.clinics) ? data.clinics : [];
+      return rows.filter((row) => row.confirmed + row.open > 0);
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  async function saveClinicHoursNow(id: string): Promise<boolean> {
+    const index = liveWorkplaces.findIndex((row) => row.id === id);
+    const name = index >= 0 ? workplaceName(liveWorkplaces[index]!, index) : "this clinic";
+    const saved = await saveGroup({ kind: "clinic", id }, `Hours saved for ${name}.`);
+    if (saved) setEditingWorkplaceId(null);
+    return saved;
+  }
+
+  /** "Save hours": saved at once, unless visits would fall outside the new hours. */
+  async function requestClinicHoursSave(id: string) {
+    const draft = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === id);
+    if (!draft) return;
+    setHoursChecking(true);
+    const checks = await checkHoursVisits([{ locationId: id, weeklySchedule: draft.weeklySchedule }]);
+    setHoursChecking(false);
+    if (checks.length > 0) {
+      setHoursDialog({ kind: "save", sourceId: id, checks });
+      return;
+    }
+    await saveClinicHoursNow(id);
+  }
+
+  /** "Apply to all my clinics" for the week or the slot length: always asks first. */
+  function openApplyToAll(kind: "week" | "slot", sourceId: string) {
+    const source = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId);
+    if (!source) return;
+    // A slot length moves no visit: only the week is checked against her visits.
+    setHoursDialog({ kind, sourceId, checks: kind === "week" ? null : [] });
+    if (kind !== "week") return;
+    void checkHoursVisits(
+      liveWorkplaces.map((row) => ({ locationId: row.id, weeklySchedule: source.weeklySchedule })),
+    ).then((checks) =>
+      setHoursDialog((open) => (open && open.kind === "week" && open.sourceId === sourceId ? { ...open, checks } : open)),
+    );
+  }
+
+  /** Copies the week or the slot length of one clinic to all of them and saves at once. */
+  async function applyToAllNow(kind: "week" | "slot", sourceId: string, doneText: string): Promise<boolean> {
+    const source = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId);
+    if (!source) return false;
+    const patch =
+      kind === "week"
+        ? { weeklySchedule: source.weeklySchedule }
+        : { slotDurationMinutes: source.slotDurationMinutes };
+    // The last saved settings with only this copied: nothing else half-edited goes out.
+    const next: SettingsDirtySnapshot = {
+      ...savedSnapshot,
+      workplaces: savedSnapshot.workplaces.map((row) => ({ ...row, ...patch })),
+    };
+    const invalid = validateSettingsToSave(next);
+    if (invalid) {
+      toast.error(invalid);
+      return false;
+    }
+    setSavingGroup("apply-all");
+    try {
+      const res = await fetch("/api/doctor-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next, savedClinicLimits)),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not save. Please try again.", { id: "apply-all" });
+        return false;
+      }
+      setSavedSnapshot(next);
+      setWorkplaces((prev) => prev.map((row) => ({ ...row, ...patch })));
+      toast.success(doneText, { id: "apply-all" });
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not save. Please try again.", { id: "apply-all" });
+      return false;
+    } finally {
+      setSavingGroup(null);
+    }
+  }
+
   /** The holiday as last saved (lib/holiday-mode). */
   const savedHoliday = {
     enabled: savedSnapshot.holidayModeEnabled,
@@ -1474,6 +1605,20 @@ export function SettingsForm({
       </p>
 
       <ClinicHoursEditor schedule={weeklySchedule} onChange={setWeeklySchedule} problems={hoursProblems} />
+      {liveWorkplaces.length > 1 ? (
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <p className="text-xs leading-relaxed text-slate-400">{APPLY_WEEK_NOTE}</p>
+          <button
+            type="button"
+            data-testid="settings-clinic-apply-week"
+            disabled={hoursHaveProblems || savingGroup != null}
+            onClick={() => openApplyToAll("week", row.id)}
+            className={`self-start whitespace-nowrap sm:self-auto ${SETTINGS_LINK_CLASS}`}
+          >
+            Apply these hours to all my clinics
+          </button>
+        </div>
+      ) : null}
 
         <div>
           <p id="slotDurationLabel" className={SECTION_EYEBROW_CLASS}>
@@ -1500,22 +1645,40 @@ export function SettingsForm({
               );
             })}
           </div>
+          {liveWorkplaces.length > 1 ? (
+            <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <p className="text-xs leading-relaxed text-slate-400">{APPLY_SLOT_NOTE}</p>
+              <button
+                type="button"
+                data-testid="settings-clinic-apply-slot"
+                disabled={savingGroup != null}
+                onClick={() => openApplyToAll("slot", row.id)}
+                className={`self-start whitespace-nowrap sm:self-auto ${SETTINGS_LINK_CLASS}`}
+              >
+                Apply this slot length to all my clinics
+              </button>
+            </div>
+          ) : null}
         </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
         <button
           type="button"
           data-testid="settings-clinic-hours-save"
           disabled={
-            !groupDirty({ kind: "clinic", id: row.id }) || hoursHaveProblems || savingGroup === `clinic:${row.id}`
+            !groupDirty({ kind: "clinic", id: row.id }) ||
+            hoursHaveProblems ||
+            hoursChecking ||
+            savingGroup === `clinic:${row.id}`
           }
-          aria-busy={savingGroup === `clinic:${row.id}`}
-          onClick={async () => {
-            const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);
-            if (saved) setEditingWorkplaceId(null);
-          }}
+          aria-busy={hoursChecking || savingGroup === `clinic:${row.id}`}
+          onClick={() => void requestClinicHoursSave(row.id)}
           className={SETTINGS_PRIMARY_BUTTON_CLASS}
         >
-          <BusyLabel busy={savingGroup === `clinic:${row.id}`} busyText="Saving…" icon={<Save className="h-4 w-4" aria-hidden />}>
+          <BusyLabel
+            busy={hoursChecking || savingGroup === `clinic:${row.id}`}
+            busyText={hoursChecking ? "Checking…" : "Saving…"}
+            icon={<Save className="h-4 w-4" aria-hidden />}
+          >
             Save hours
           </BusyLabel>
         </button>
@@ -1577,6 +1740,7 @@ export function SettingsForm({
               holidayActive,
               accessEnded: Boolean(initial.accessEnded),
             })}
+            statusNote={initial.accessEnded ? ACCESS_ENDED_SWITCH_NOTE : null}
             bookingSwitch={
               <ClinicBookingSwitch
                 clinicName={name}
@@ -2138,6 +2302,100 @@ export function SettingsForm({
 
 
       </div>
+
+      {hoursDialog
+        ? (() => {
+            const { kind, sourceId, checks } = hoursDialog;
+            const sourceIndex = liveWorkplaces.findIndex((row) => row.id === sourceId);
+            const sourceName = sourceIndex >= 0 ? workplaceName(liveWorkplaces[sourceIndex]!, sourceIndex) : "this clinic";
+            const otherNames = liveWorkplaces
+              .map((row, index) => ({ id: row.id, name: workplaceName(row, index) }))
+              .filter((row) => row.id !== sourceId)
+              .map((row) => row.name);
+            const sourceSlot =
+              buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId)?.slotDurationMinutes ?? 30;
+            const copy =
+              kind === "save"
+                ? {
+                    title: "You have visits outside these hours",
+                    description:
+                      "The new hours stop new bookings at those times. Nothing is cancelled: you decide what to do with each one in your agenda.",
+                    confirm: "Save hours",
+                    done: "",
+                  }
+                : applyToAllCopy(kind, sourceName, otherNames, sourceSlot);
+            const saving = savingGroup === "apply-all" || savingGroup === `clinic:${sourceId}`;
+            const flagged = (checks ?? []).filter((row) => row.confirmed + row.open > 0);
+            return (
+              <SettingsDialog
+                title={copy.title}
+                description={copy.description}
+                onClose={() => setHoursDialog(null)}
+                busy={saving}
+                footer={(close) => (
+                  <>
+                    <button type="button" onClick={close} disabled={saving} className={dialogSecondaryButtonClass}>
+                      Go back
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="settings-hours-confirm"
+                      disabled={saving || checks == null}
+                      aria-busy={saving}
+                      onClick={async () => {
+                        const ok =
+                          kind === "save"
+                            ? await saveClinicHoursNow(sourceId)
+                            : await applyToAllNow(kind, sourceId, copy.done);
+                        if (ok) close();
+                      }}
+                      className={SETTINGS_PRIMARY_BUTTON_CLASS}
+                    >
+                      <BusyLabel busy={saving} busyText="Saving…">
+                        {copy.confirm}
+                      </BusyLabel>
+                    </button>
+                  </>
+                )}
+              >
+                {checks == null ? (
+                  <p className="text-sm text-slate-400">Checking your visits…</p>
+                ) : flagged.length > 0 ? (
+                  <div
+                    className="space-y-3 rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+                    data-testid="settings-hours-visits"
+                  >
+                    {flagged.map((clinic) => (
+                      <div key={clinic.locationId}>
+                        {kind === "save" ? null : <p className="font-semibold">{clinic.clinicName}</p>}
+                        <ul className="space-y-1.5">
+                          {hoursVisitNotes(clinic).map((note) => (
+                            <li key={note}>{note}</li>
+                          ))}
+                        </ul>
+                        <ul className="mt-2 space-y-1 text-xs text-amber-50/90">
+                          {clinic.visits.map((visit) => (
+                            <li key={visit.id}>
+                              {formatInTimeZone(new Date(visit.at), "Europe/Nicosia", "EEE d MMM, HH:mm")} ·{" "}
+                              {visit.patientName} · {HOURS_VISIT_REASON_LABEL[visit.reason]}
+                              {visit.open ? " · waiting for your answer" : ""}
+                            </li>
+                          ))}
+                          {clinic.confirmed + clinic.open > clinic.visits.length ? (
+                            <li>and {clinic.confirmed + clinic.open - clinic.visits.length} more</li>
+                          ) : null}
+                        </ul>
+                      </div>
+                    ))}
+                    <a href="/agenda" className={`inline-block ${SETTINGS_LINK_CLASS}`}>
+                      Open my agenda
+                    </a>
+                  </div>
+                ) : null}
+              </SettingsDialog>
+            );
+          })()
+        : null}
 
       {holidayWarning ? (
         <SettingsDialog

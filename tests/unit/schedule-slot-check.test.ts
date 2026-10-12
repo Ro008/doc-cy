@@ -98,6 +98,65 @@ describe("scheduleSlotRefusal", () => {
     assert.equal(refusal?.code, "holiday");
   });
 
+  // The calendar hides times in a break; the server refuses them too (user, 2026-10-11).
+  it("refuses an online booking that starts in the day's break", () => {
+    const withBreak = { ...settings, break_start: "13:00:00", break_end: "14:00:00" } as DoctorSettingsRow;
+    const input = { durationMinutes: 30, blockingRows: [], now: NOW, refuseBreak: true };
+    // Wednesday 7 October, Cyprus is UTC+3: 13:00 and 13:30 are in the break, 12:30 and 14:00 are not.
+    assert.equal(
+      scheduleSlotRefusal({ ...input, settingsRow: withBreak, appointmentUtc: at("2026-10-07T10:00:00Z") })?.code,
+      "outside_hours",
+    );
+    assert.equal(
+      scheduleSlotRefusal({ ...input, settingsRow: withBreak, appointmentUtc: at("2026-10-07T10:30:00Z") })?.code,
+      "outside_hours",
+    );
+    assert.equal(scheduleSlotRefusal({ ...input, settingsRow: withBreak, appointmentUtc: at("2026-10-07T09:30:00Z") }), null);
+    assert.equal(scheduleSlotRefusal({ ...input, settingsRow: withBreak, appointmentUtc: at("2026-10-07T11:00:00Z") }), null);
+    // No break that day: nothing to refuse.
+    assert.equal(scheduleSlotRefusal({ ...input, settingsRow: settings, appointmentUtc: at("2026-10-07T10:00:00Z") }), null);
+  });
+
+  it("uses the day's own break when the week has one per day", () => {
+    const day = (breakStart: string | null, breakEnd: string | null) => ({
+      enabled: true,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      break_start: breakStart,
+      break_end: breakEnd,
+    });
+    const perDay = {
+      ...settings,
+      weekly_schedule: {
+        monday: day(null, null),
+        tuesday: day(null, null),
+        wednesday: day("12:00:00", "12:30:00"),
+        thursday: day(null, null),
+        friday: day(null, null),
+        saturday: { ...day(null, null), enabled: false },
+        sunday: { ...day(null, null), enabled: false },
+      },
+    } as DoctorSettingsRow;
+    const input = { settingsRow: perDay, durationMinutes: 30, blockingRows: [], now: NOW, refuseBreak: true };
+    assert.equal(scheduleSlotRefusal({ ...input, appointmentUtc: at("2026-10-07T09:00:00Z") })?.code, "outside_hours");
+    // Thursday has no break at noon.
+    assert.equal(scheduleSlotRefusal({ ...input, appointmentUtc: at("2026-10-08T09:00:00Z") }), null);
+  });
+
+  it("leaves a break alone when the caller does not ask (a time she offers herself)", () => {
+    const withBreak = { ...settings, break_start: "13:00:00", break_end: "14:00:00" } as DoctorSettingsRow;
+    assert.equal(
+      scheduleSlotRefusal({
+        settingsRow: withBreak,
+        appointmentUtc: at("2026-10-07T10:00:00Z"),
+        durationMinutes: 30,
+        blockingRows: [],
+        now: NOW,
+      }),
+      null,
+    );
+  });
+
   // A time she proposes herself may fall in her holiday (user, 2026-10-12).
   it("accepts a holiday day when she offers the time herself", () => {
     const input = {

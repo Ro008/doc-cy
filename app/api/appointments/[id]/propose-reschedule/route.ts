@@ -18,6 +18,7 @@ import { issueAppointmentLink } from "@/lib/appointment-links-db";
 import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
 import { sendPatientRescheduleProposalEmail } from "@/lib/send-patient-reschedule-proposal-email";
 import { computeProposalExpiresAt } from "@/lib/proposal-expires-at";
+import { LEFT_CLINIC_PROPOSAL_MESSAGE, requestClinicLeft } from "@/lib/professional-account-settings";
 import { scheduleSlotRefusal } from "@/lib/schedule-slot-check";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -117,6 +118,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   // Which clinic: the one she picked (one of hers), else the request's own, else her primary
   // (legacy rows without a clinic; the same fallback as alternative-slots).
   const locations = await loadDoctorLocations(doctor.id);
+  // A request at a clinic she has left: accept or decline only (user, 2026-10-11).
+  if (requestClinicLeft(locations, appt.clinic_id as string | null)) {
+    return NextResponse.json({ message: LEFT_CLINIC_PROPOSAL_MESSAGE, code: "clinic_left" }, { status: 409 });
+  }
   const requestedLink = String(body.locationId ?? "").trim();
   const location = requestedLink
     ? locations.find((l) => l.id === requestedLink)

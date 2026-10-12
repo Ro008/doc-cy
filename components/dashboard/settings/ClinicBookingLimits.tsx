@@ -10,6 +10,7 @@ import {
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { SETTINGS_LINK_CLASS } from "@/components/dashboard/settings/styles";
 import { SavingNote } from "@/components/dashboard/settings/BusyLabel";
+import { APPLY_LIMITS_NOTE } from "@/lib/clinic-hours-visits";
 import type { ClinicLimits } from "@/lib/settings-clinic-limits";
 
 const SELECT_CLASS =
@@ -140,6 +141,11 @@ export function ClinicBookingLimits({
             {sharedByAll
               ? `All ${clinicCount} of your clinics use these limits.`
               : "Only for this clinic. Your other clinics keep their own limits."}
+            {sharedByAll ? null : (
+              <span className="block" data-testid="clinic-limits-apply-note">
+                {APPLY_LIMITS_NOTE}
+              </span>
+            )}
           </p>
           <button
             type="button"

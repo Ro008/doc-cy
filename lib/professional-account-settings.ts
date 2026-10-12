@@ -47,6 +47,21 @@ export function linkIdForClinic(
   return locations.find((row) => row.clinic_id === id)?.id ?? null;
 }
 
+/**
+ * True when the request was made at a clinic she no longer works at (user, 2026-10-11):
+ * she can still accept or decline it, but not suggest other times, because her hours
+ * there are gone. A request without a clinic (old rows) is not one of these.
+ */
+export function requestClinicLeft(
+  locations: readonly Pick<DoctorLocationRow, "id" | "clinic_id">[],
+  clinicId: string | null | undefined,
+): boolean {
+  const id = String(clinicId ?? "").trim();
+  return Boolean(id) && linkIdForClinic(locations, id) === null;
+}
+
+export { LEFT_CLINIC_PROPOSAL_MESSAGE } from "@/lib/clinic-hours-visits";
+
 /** The clinic's schedule merged with the account settings; null without a clinic. */
 export function settingsAtClinic(
   account: Omit<ProfessionalAccountSettings, "professional_id"> | null | undefined,

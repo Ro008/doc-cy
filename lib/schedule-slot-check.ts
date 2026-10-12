@@ -39,6 +39,8 @@ export function scheduleSlotRefusal(input: {
   excludeAppointmentId?: string | null;
   /** A time she proposes herself may fall in her holiday (user, 2026-10-12). */
   allowHoliday?: boolean;
+  /** An online booking cannot start in the day's break (user, 2026-10-11). */
+  refuseBreak?: boolean;
   now: Date;
 }): ScheduleRefusal | null {
   const { settingsRow, appointmentUtc, now } = input;
@@ -66,6 +68,14 @@ export function scheduleSlotRefusal(input: {
   const hhmmss = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
   if (!isTimeWithinSettings(settingsRow, dayOfWeek, hhmmss)) {
     return { code: "outside_hours", status: 400, message: "Requested time is outside the professional's availability." };
+  }
+
+  // The calendar never offers a time in the break; a request sent anyway is refused.
+  if (input.refuseBreak) {
+    const dayConfig = buildWeeklyScheduleFromSettings(settingsRow)[DAY_KEYS[dayOfWeek]];
+    if (dayConfig?.break_start && dayConfig.break_end && hhmmss >= dayConfig.break_start && hhmmss < dayConfig.break_end) {
+      return { code: "outside_hours", status: 400, message: "Requested time is outside the professional's availability." };
+    }
   }
 
   const rawSlot = Number(settingsRow.slot_duration_minutes ?? 30);

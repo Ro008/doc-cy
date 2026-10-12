@@ -8,6 +8,7 @@ import {
   clinicForAppointment,
   clinicSlotMinutes,
   linkIdForClinic,
+  requestClinicLeft,
   settingsAtClinic,
 } from "@/lib/professional-account-settings";
 
@@ -215,6 +216,11 @@ describe("schedule at a clinic (Point E6)", () => {
     const b = loc({ id: "s", clinic_id: "clinic-b" } as never);
     assert.equal(linkIdForClinic([a, b], "clinic-b"), "s");
     assert.equal(linkIdForClinic([a, b], "s"), null);
+    // A request at a clinic she has left: accept or decline only (user, 2026-10-11).
+    assert.equal(requestClinicLeft([a, b], "clinic-b"), false);
+    assert.equal(requestClinicLeft([a, b], "clinic-gone"), true);
+    // An old request without a clinic is not "left": it follows her first clinic as before.
+    assert.equal(requestClinicLeft([a, b], null), false);
     assert.equal(linkIdForClinic([a, b], null), null);
   });
 

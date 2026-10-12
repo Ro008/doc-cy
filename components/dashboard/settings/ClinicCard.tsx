@@ -39,6 +39,7 @@ export function ClinicCard({
   onToggleOpen,
   swatchClass,
   status,
+  statusNote = null,
   bookingSwitch,
   address,
   phone,
@@ -65,6 +66,8 @@ export function ClinicCard({
   onToggleOpen: () => void;
   swatchClass: string;
   status: ClinicBookingStatus;
+  /** A line under the switch, e.g. why it is off and locked. */
+  statusNote?: string | null;
   bookingSwitch: React.ReactNode;
   address: string;
   /** The phone patients call, as shown (+357 XX XXXXXX); "" when the clinic has none yet. */
@@ -150,6 +153,11 @@ export function ClinicCard({
         </span>
         {bookingSwitch}
       </div>
+      {statusNote ? (
+        <p className="mt-1.5 text-xs text-slate-400 sm:text-right" data-testid="settings-clinic-switch-note">
+          {statusNote}
+        </p>
+      ) : null}
 
       <Collapse open={shown}>
         <div id={bodyId}>
