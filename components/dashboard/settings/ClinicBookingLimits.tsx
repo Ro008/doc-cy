@@ -137,16 +137,14 @@ export function ClinicBookingLimits({
       </div>
       {clinicCount > 1 ? (
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <p className="text-xs leading-relaxed text-slate-400" data-testid="clinic-limits-scope">
-            {sharedByAll
-              ? `All ${clinicCount} of your clinics use these limits.`
-              : "Only for this clinic. Your other clinics keep their own limits."}
-            {sharedByAll ? null : (
-              <span className="block" data-testid="clinic-limits-apply-note">
-                {APPLY_LIMITS_NOTE}
-              </span>
-            )}
-          </p>
+          <div className="text-xs leading-relaxed text-slate-400">
+            <p data-testid="clinic-limits-scope">
+              {sharedByAll
+                ? `All ${clinicCount} of your clinics use these limits.`
+                : "Only for this clinic. Your other clinics keep their own limits."}
+            </p>
+            {sharedByAll ? null : <p data-testid="clinic-limits-apply-note">{APPLY_LIMITS_NOTE}</p>}
+          </div>
           <button
             type="button"
             onClick={onApplyToAll}
