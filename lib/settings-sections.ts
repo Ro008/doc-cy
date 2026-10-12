@@ -5,14 +5,15 @@
 // No "Availability" section: it only repeated each clinic card's status (user, 2026-10-09).
 // No "Contact & phone" section: each clinic card holds its phone, and the personal mobile
 // is in Account (user, 2026-10-10).
+// `shortLabel`: what the phone's grid of sections shows when the label is too long for a cell.
 export const SETTINGS_SECTIONS = [
   { id: "profile", label: "Profile" },
   { id: "clinics", label: "Clinics" },
-  { id: "services", label: "Services & prices" },
+  { id: "services", label: "Services & prices", shortLabel: "Services" },
   // QR, print sign and scripts: their own section, not part of Account (user, 2026-10-01).
   { id: "promote", label: "Promote" },
   // The professional's own terms: free period, price after it (user, 2026-10-01).
-  { id: "plan", label: "Plan & billing", group: "account" },
+  { id: "plan", label: "Plan & billing", shortLabel: "Plan", group: "account" },
   { id: "account", label: "Account", group: "account" },
 ] as const;
 
