@@ -4,6 +4,7 @@ export const revalidate = 0;
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import {
@@ -168,7 +169,10 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
         <FirstLoginTrialNoticeGate />
 
-        {holidayBanner ? (
+        {/* Access ended is the stronger reason: it replaces the holiday line (user, 2026-10-12). */}
+        {accessEnded ? (
+          <AccessEndedBanner testId="agenda-access-ended" short />
+        ) : holidayBanner ? (
           <div
             role="status"
             data-testid="agenda-holiday-banner"

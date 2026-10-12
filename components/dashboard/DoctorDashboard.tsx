@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
+import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { CY_TZ } from "@/lib/appointments";
 import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
@@ -211,7 +212,12 @@ export function DoctorDashboard({
         </button>
       </header>
 
-      <BookingsPausedNotice notices={pausedNotices} />
+      {/* Access ended explains why no requests come in; it outranks the per-clinic pauses. */}
+      {accessEnded ? (
+        <AccessEndedBanner testId="dashboard-access-ended" />
+      ) : (
+        <BookingsPausedNotice notices={pausedNotices} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
         <section

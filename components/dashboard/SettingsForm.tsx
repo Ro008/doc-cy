@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { Clock, ExternalLink, Lock, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
+import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
@@ -1451,26 +1452,13 @@ export function SettingsForm({
 
   // Pro access has ended (master, 2026-10): bookings are off at every clinic.
   const accessEndedNotice = initial.accessEnded ? (
-    <div
-      role="status"
-      data-testid="settings-access-ended"
-      className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
-    >
-      Your DocCy access has ended, so online bookings are switched off. Patients can still call your
-      clinic&apos;s phone from your profile. You can still answer the requests and handle the visits
-      you already have.{" "}
-      <a
-        href={settingsSectionHref("plan")}
-        data-settings-section="plan"
-        onClick={(event) => {
-          event.preventDefault();
-          selectSection("plan");
-        }}
-        className="whitespace-nowrap font-semibold text-amber-300 underline decoration-amber-300 underline-offset-2 hover:text-amber-200"
-      >
-        See your plan
-      </a>
-    </div>
+    <AccessEndedBanner
+      testId="settings-access-ended"
+      onSeePlan={(event) => {
+        event.preventDefault();
+        selectSection("plan");
+      }}
+    />
   ) : null;
 
   // See the result of an edit where patients see it (user, 2026-10-01).
