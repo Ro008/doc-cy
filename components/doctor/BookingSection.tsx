@@ -38,6 +38,9 @@ type WeeklySlot = {
   start_time: string;
   end_time: string;
   duration: number;
+  /** That day's break ("HH:mm:00"), null for none; absent on slots built before breaks were per day. */
+  break_start?: string | null;
+  break_end?: string | null;
 };
 
 type BookingSectionProps = {
@@ -212,13 +215,11 @@ export function BookingSection({
             continue;
           }
 
-          // Skip slots that fall inside the doctor's daily break window
-          if (
-            breakStart &&
-            breakEnd &&
-            timeLabel >= breakStart &&
-            timeLabel < breakEnd
-          ) {
+          // Skip slots inside that day's break (its own, travelling with the day's
+          // slots; the clinic's one break for slots without one).
+          const dayBreakStart = s.break_start !== undefined ? s.break_start?.slice(0, 5) : breakStart;
+          const dayBreakEnd = s.break_end !== undefined ? s.break_end?.slice(0, 5) : breakEnd;
+          if (dayBreakStart && dayBreakEnd && timeLabel >= dayBreakStart && timeLabel < dayBreakEnd) {
             cursorMinutes += s.duration;
             continue;
           }

@@ -72,16 +72,14 @@ function loadEnvFile(explicit) {
   return null;
 }
 
-// Point E6: professional_settings holds the account settings (holiday, horizon, notice);
-// the schedule and the pause live on the professional's clinic link.
+// professional_settings holds the account settings (the holiday); the schedule, the
+// pause and the booking limits (horizon, notice) live on the professional's clinic link.
 function bookableAccountSettingsPayload(doctorId) {
   return {
     professional_id: doctorId,
     holiday_mode_enabled: false,
     holiday_start_date: null,
     holiday_end_date: null,
-    booking_horizon_days: 90,
-    minimum_notice_hours: 1,
     updated_at: new Date().toISOString(),
   };
 }
@@ -112,6 +110,8 @@ function bookableClinicSchedulePayload() {
     break_end: null,
     pause_online_bookings: false,
     slot_duration_minutes: 30,
+    booking_horizon_days: 90,
+    minimum_notice_hours: 1,
     updated_at: new Date().toISOString(),
   };
 }
@@ -130,7 +130,7 @@ function settingsLookBookable(settings, clinicLink) {
       return { ok: false, reason: `holiday mode active (${start}..${end})` };
     }
   }
-  const horizon = Number(settings.booking_horizon_days ?? 0);
+  const horizon = Number(clinicLink.booking_horizon_days ?? 0);
   if (horizon < 7) {
     return { ok: false, reason: `booking_horizon_days too low (${horizon})` };
   }
@@ -245,15 +245,18 @@ async function main() {
       const settingsRes = await admin
         .from("professional_settings")
         .select(
-          "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days",
+          "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date",
         )
         .eq("professional_id", d.id)
         .maybeSingle();
       const clinicRes = await admin
         .from("professional_clinics")
-        .select("id, pause_online_bookings, weekly_schedule, monday, tuesday, wednesday, thursday, friday")
+        .select(
+          "id, pause_online_bookings, booking_horizon_days, weekly_schedule, monday, tuesday, wednesday, thursday, friday",
+        )
         .eq("professional_id", d.id)
-        .eq("is_primary", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
 

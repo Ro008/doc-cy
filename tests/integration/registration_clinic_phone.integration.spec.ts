@@ -111,7 +111,7 @@ test.describe("Integration: registration clinic phone", { tag: "@pr-e2e" }, () =
       .not("clinics.address", "is", null)
       .eq("professionals.is_registered", false)
       .eq("professionals.is_archived", false)
-      .eq("is_primary", true)
+      .eq("sort_order", 0)
       .limit(1);
     const link = (links ?? [])[0] as { professional_id: string; clinic_id: string } | undefined;
     expect(link, "an unregistered listing with a clinic").toBeTruthy();

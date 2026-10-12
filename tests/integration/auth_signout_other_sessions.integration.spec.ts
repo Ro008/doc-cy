@@ -52,18 +52,18 @@ test.describe("Auth: sign out other sessions", () => {
       await loginWithBackoff(deviceAPage);
       await loginWithBackoff(deviceBPage);
 
-      await deviceAPage.goto("/agenda/settings");
-      await expect(deviceAPage).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, {
+      await deviceAPage.goto("/settings?section=account");
+      await expect(deviceAPage).toHaveURL(/\/settings(?:[/?#]|$)/, {
         timeout: 20_000,
       });
       await expect(
-        deviceAPage.getByRole("button", { name: /Sign out on other devices/i })
+        deviceAPage.getByRole("button", { name: /Sign out other devices/i })
       ).toBeVisible();
 
       await deviceBPage.goto("/agenda");
       await expect(deviceBPage).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
-      await deviceAPage.getByRole("button", { name: /Sign out on other devices/i }).click();
+      await deviceAPage.getByRole("button", { name: /Sign out other devices/i }).click();
       await expect(
         deviceAPage.getByText(/Other devices have been signed out\./i)
       ).toBeVisible({ timeout: 15_000 });

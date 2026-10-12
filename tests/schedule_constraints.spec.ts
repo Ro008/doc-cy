@@ -57,7 +57,8 @@ async function syncPrimaryLocationSchedule(
     .from("professional_clinics")
     .select("id")
     .eq("professional_id", doctorId)
-    .eq("is_primary", true)
+    .order("sort_order", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (primaryErr || !primary?.id) {

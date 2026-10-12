@@ -58,7 +58,7 @@ describe("pro session hint cookie", () => {
   }
 
   it("boot script gives the dashboard the same sticky chrome as the agenda", () => {
-    for (const path of ["/dashboard", "/agenda", "/agenda/settings"]) {
+    for (const path of ["/dashboard", "/agenda", "/agenda/settings", "/settings"]) {
       const attrs = runBootScript(path);
       assert.equal(attrs[PRO_CHROME_BOOT_ATTR], "1", path);
       assert.equal(attrs[PRO_CHROME_AGENDA_ATTR], "1", path);

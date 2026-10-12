@@ -8,7 +8,7 @@ import {
 import { findFirstAlternativeSlotStarts } from "@/lib/find-alternative-appointment-slots";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { linkIdForClinic } from "@/lib/professional-account-settings";
+import { LEFT_CLINIC_PROPOSAL_MESSAGE, linkIdForClinic, requestClinicLeft } from "@/lib/professional-account-settings";
 import {
   fetchBlockingAppointments,
   toBlockingRows,
@@ -86,9 +86,14 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   if (dateKey != null && !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
     return NextResponse.json({ message: "Invalid date." }, { status: 400 });
   }
+  const ownedLocations = await loadDoctorLocations(doctor.id);
+  const apptClinicId = (appt as { clinic_id?: string | null }).clinic_id;
+  // A request at a clinic she has left: accept or decline only (user, 2026-10-11).
+  if (requestClinicLeft(ownedLocations, apptClinicId)) {
+    return NextResponse.json({ message: LEFT_CLINIC_PROPOSAL_MESSAGE, code: "clinic_left" }, { status: 409 });
+  }
   const locationId =
-    req.nextUrl.searchParams.get("locationId")?.trim() ||
-    linkIdForClinic(await loadDoctorLocations(doctor.id), (appt as { clinic_id?: string | null }).clinic_id);
+    req.nextUrl.searchParams.get("locationId")?.trim() || linkIdForClinic(ownedLocations, apptClinicId);
 
   // At the chosen clinic (its hours and slot length, Point E6).
   const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id, locationId);

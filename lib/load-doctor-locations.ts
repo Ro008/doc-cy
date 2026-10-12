@@ -50,8 +50,8 @@ export async function loadDoctorLocations(professionalId: string): Promise<Docto
       .select(`${PROFESSIONAL_CLINIC_LOCATION_SELECT}, professionals!inner ( is_registered )`)
       .eq("professional_id", id)
       .eq("professionals.is_registered", true)
-      .order("is_primary", { ascending: false })
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
   );
 
   if (error) {

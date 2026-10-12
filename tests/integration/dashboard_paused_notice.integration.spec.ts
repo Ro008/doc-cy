@@ -40,7 +40,7 @@ test.describe("Integration: dashboard paused notice", { tag: "@pr-e2e" }, () => 
     pausedLinkId = paused.linkId;
     await admin
       .from("professional_clinics")
-      .update({ is_primary: false, sort_order: 1, pause_online_bookings: true })
+      .update({ sort_order: 1, pause_online_bookings: true })
       .eq("id", pausedLinkId);
     const { data } = await admin.from("clinics").select("name").eq("id", paused.clinicId).single();
     pausedClinicName = String(data!.name);
@@ -65,6 +65,11 @@ test.describe("Integration: dashboard paused notice", { tag: "@pr-e2e" }, () => 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(notice()).toHaveCount(1, { timeout: 20_000 });
     await expect(notice()).toContainText(`Online bookings are paused at ${pausedClinicName}`);
+    // Clinics is not the default settings section, so the link names it.
+    await expect(notice().getByRole("link", { name: "Resume in settings" })).toHaveAttribute(
+      "href",
+      "/settings?section=clinics",
+    );
 
     await expect(async () => {
       await notice().getByRole("button", { name: /Close/ }).click();

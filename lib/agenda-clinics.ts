@@ -3,17 +3,19 @@ import {
   locationWeeklySchedule,
   type DoctorLocationRow,
 } from "@/lib/doctor-locations";
-import type { DayKey, WeeklySchedule } from "@/lib/doctor-settings";
+import { dayBreakTimes, type DayKey, type WeeklySchedule } from "@/lib/doctor-settings";
 
 export const AGENDA_APPOINTMENT_SELECT =
-  "id, professional_id, patient_name, patient_phone, patient_email, patient_gender, patient_birthdate, is_new_patient, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, clinic_id, professional_notes, review_requested_at, booking_source";
+  "id, professional_id, patient_name, patient_phone, patient_email, patient_gender, patient_birthdate, is_new_patient, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, clinic_id, professional_notes, review_requested_at, booking_source, patient_cancel_notice_hours";
 
 /** Statuses the agenda shows. Declined, cancelled and expired visits are kept (never
  *  deleted) but leave the agenda. */
 export const AGENDA_VISIBLE_STATUSES = ["REQUESTED", "NEEDS_RESCHEDULE", "CONFIRMED"] as const;
 
 export type AgendaWorkingHours = {
+  /** Each day carries its own break (lib/doctor-settings `dayBreakTimes`). */
   weeklySchedule: WeeklySchedule;
+  /** The clinic's one break, for days saved without their own. */
   breakStart: string | null;
   breakEnd: string | null;
   slotDurationMinutes: number;
@@ -26,6 +28,8 @@ export type AgendaClinic = {
   clinicId?: string | null;
   name: string;
   hours: AgendaWorkingHours;
+  /** Until how many hours before a visit here the patient cancels online (lib/visit-cancel-notice). */
+  cancelNoticeHours?: number;
 };
 
 export type AgendaWorkingWindow = {
@@ -53,6 +57,7 @@ export function locationsToAgendaClinics(rows: readonly DoctorLocationRow[]): Ag
     // Every screen shows the clinic's own name (user, 2026-10-03).
     name: row.clinic_name?.trim() || clinicDisplayName(row.label, index, rows.length),
     hours: locationToAgendaHours(row),
+    cancelNoticeHours: row.patient_cancel_notice_hours,
   }));
 }
 
@@ -96,12 +101,13 @@ export function workingWindowForHours(
     };
   }
   const dayCfg = hours.weeklySchedule[agendaWeekdayKey(d)];
+  const dayBreak = dayBreakTimes(dayCfg, hours.breakStart, hours.breakEnd);
   return {
     enabled: Boolean(dayCfg?.enabled),
     start: parseAgendaClockMinutes(dayCfg?.start_time) ?? gridStart,
     end: parseAgendaClockMinutes(dayCfg?.end_time) ?? gridEnd,
-    breakStart: parseAgendaClockMinutes(hours.breakStart),
-    breakEnd: parseAgendaClockMinutes(hours.breakEnd),
+    breakStart: parseAgendaClockMinutes(dayBreak?.start),
+    breakEnd: parseAgendaClockMinutes(dayBreak?.end),
   };
 }
 

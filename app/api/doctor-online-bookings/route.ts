@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
-import { writeClinicSettings } from "@/lib/professional-clinic-settings-writes";
+import { setClinicOnlineBooking } from "@/lib/professional-clinics-server";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { resumeOnlineBookingsPermission } from "@/lib/booking-permission";
 
 export async function GET() {
@@ -124,16 +125,19 @@ export async function POST(req: NextRequest) {
 
   // Paused or not, patients can call the clinic's phone (user, 2026-09-29): pausing
   // needs no number from the professional.
-  // The pause is this professional's setting at this clinic: it lives on their join row.
-  const saved = await writeClinicSettings(doctor.id, target.id, {
-    pause_online_bookings: nextPaused,
+  // The pause is this professional's setting at this clinic: it lives on their join
+  // row, and every switch is recorded (user, 2026-10-11).
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+  }
+  const saved = await setClinicOnlineBooking(service, {
+    professionalId: doctor.id,
+    linkId: target.id,
+    online: !nextPaused,
   });
-  if (!saved.ok) {
-    console.error("[DocCy] Failed to save clinic pause state", saved.error);
-    return NextResponse.json(
-      { message: "Error saving pause state." },
-      { status: 500 }
-    );
+  if (saved.ok === false) {
+    return NextResponse.json({ message: "Error saving pause state." }, { status: saved.status });
   }
   return NextResponse.json(
     {

@@ -16,6 +16,8 @@ describe("isPrivateAreaPath", () => {
       "/agenda/visits",
       "/agenda/visits/",
       "/agenda/settings",
+      "/settings",
+      "/settings/",
       "/agenda/insights",
       "/dashboard/appointments/abc",
     ]) {

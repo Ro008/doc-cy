@@ -24,6 +24,8 @@ export type AgendaAppointmentRow = {
   professional_notes?: string | null;
   review_requested_at?: string | null;
   booking_source?: string | null;
+  /** The cancellation deadline the visit was confirmed with (lib/visit-cancel-notice). */
+  patient_cancel_notice_hours?: number | null;
 };
 
 /** What the visit details window shows on top of the row (the agenda adds more for its grid). */

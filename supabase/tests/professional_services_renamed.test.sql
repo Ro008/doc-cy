@@ -150,13 +150,20 @@ begin
   execute 'reset role';
   v_checks := v_checks + 1;
 
-  -- 6. The owner (emailed-step session) adds and removes services; a password-only
-  --    session and another professional can't.
+  -- 6. Nobody writes services through a session any more, not even the owner (since
+  --    *_professional_services_not_writable, 2026-10-10: professional_service_add /
+  --    _update / _remove record each change; see professional_service_requests.test.sql).
   perform pg_temp.as_user(v_login, 'otp');
-  insert into public.professional_services (professional_id, name) values (v_pro, 'Owner service');
-  delete from public.professional_services where professional_id = v_pro and name = 'Owner service';
-  get diagnostics v_n = row_count;
-  if v_n <> 1 then raise exception 'FAIL: owner removes % services, expected 1', v_n; end if;
+  begin
+    insert into public.professional_services (professional_id, name) values (v_pro, 'Owner service');
+    raise exception 'FAIL: the owner adds a service directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from public.professional_services where professional_id = v_pro;
+    raise exception 'FAIL: the owner removes a service directly';
+  exception when insufficient_privilege then null;
+  end;
   if v_view then
     -- The previous deployment's write path: insert with doctor_id through the view.
     execute 'insert into public.doctor_services (doctor_id, name) values ($1, $2)' using v_pro, 'Old path service';
@@ -188,9 +195,11 @@ begin
     exception when insufficient_privilege then null;
     end;
   end if;
-  delete from public.professional_services where professional_id = v_pro;
-  get diagnostics v_n = row_count;
-  if v_n <> 0 then raise exception 'FAIL: another professional removes % services', v_n; end if;
+  begin
+    delete from public.professional_services where professional_id = v_pro;
+    raise exception 'FAIL: another professional removes a service';
+  exception when insufficient_privilege then null;
+  end;
   execute 'reset role'; perform set_config('request.jwt.claims', '', true);
   v_checks := v_checks + 1;
 

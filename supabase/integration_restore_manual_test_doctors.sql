@@ -207,23 +207,20 @@ BEGIN
     INSERT INTO public.professional_specialties (professional_id, specialty, license_number)
     VALUES (v_doctor_id, rec.specialty, upper(rec.slug) || '-SEED-LIC');
 
-    -- Account settings only: the schedule and the pause live on the clinic link (Point E6).
+    -- Account settings only (the holiday): the schedule, the pause and the booking limits
+    -- live on the clinic link.
     INSERT INTO public.professional_settings (
       professional_id,
       holiday_mode_enabled,
       holiday_start_date,
       holiday_end_date,
-      booking_horizon_days,
-      minimum_notice_hours,
       updated_at
     )
-    VALUES (v_doctor_id, false, null, null, 90, 1, now())
+    VALUES (v_doctor_id, false, null, null, now())
     ON CONFLICT (professional_id) DO UPDATE SET
       holiday_mode_enabled = excluded.holiday_mode_enabled,
       holiday_start_date = excluded.holiday_start_date,
       holiday_end_date = excluded.holiday_end_date,
-      booking_horizon_days = excluded.booking_horizon_days,
-      minimum_notice_hours = excluded.minimum_notice_hours,
       updated_at = excluded.updated_at;
 
     RAISE NOTICE 'Restored manual test doctor: % (%), tier=%', rec.full_name, rec.slug, rec.tier;

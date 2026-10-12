@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { REGISTRATION_UPLOADS_BUCKET } from "@/lib/professional-registration-request";
+import { deniedPhotoWindow, purgeDeniedPhotos } from "@/lib/photo-cleanup";
+import {
+  PROFESSIONAL_REGISTRATION_REQUEST_TYPE,
+  REGISTRATION_UPLOADS_BUCKET,
+} from "@/lib/professional-registration-request";
+import { PHOTO_CHANGE_REQUEST_TYPE } from "@/lib/profile-change-requests";
 import {
   purgeExpiredRegistrationDrafts,
   type ExpiredRegistrationDraft,
@@ -19,7 +24,10 @@ function isAuthorized(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-/** Daily (vercel.json): deletes expired registration drafts, their photos and new logins. */
+/**
+ * Daily (vercel.json): deletes expired registration drafts, their photos and new logins,
+ * then the photos of requests denied (or withdrawn) about 90 days ago.
+ */
 export async function GET(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,8 +75,29 @@ export async function GET(request: Request) {
     },
   });
 
-  console.log("[DocCy][purge-registration-drafts]", JSON.stringify(result));
-  return NextResponse.json({ ok: result.failed === 0, ...result }, { status: result.failed === 0 ? 200 : 500 });
+  const removePhoto = async (path: string) => {
+    const { error } = await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([path]);
+    if (error) throw new Error(error.message);
+  };
+  const deniedPhotos = await purgeDeniedPhotos({
+    listDenied: async () => {
+      const { decidedFrom, decidedBefore } = deniedPhotoWindow(new Date());
+      const { data, error } = await service
+        .from("request_log")
+        .select("id, details")
+        .in("request_type", [PHOTO_CHANGE_REQUEST_TYPE, PROFESSIONAL_REGISTRATION_REQUEST_TYPE])
+        .in("status", ["rejected", "withdrawn"])
+        .gte("decided_at", decidedFrom)
+        .lt("decided_at", decidedBefore);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => ({ id: String(row.id), details: row.details }));
+    },
+    removePhoto,
+  });
+
+  const failed = result.failed + deniedPhotos.failed;
+  console.log("[DocCy][purge-registration-drafts]", JSON.stringify({ ...result, deniedPhotos }));
+  return NextResponse.json({ ok: failed === 0, ...result, deniedPhotos }, { status: failed === 0 ? 200 : 500 });
 }
 
 export async function POST(request: Request) {

@@ -18,7 +18,6 @@ function location(partial: Partial<DoctorLocationRow> = {}): DoctorLocationRow {
     doctor_id: PRO,
     clinic_id: "clinic-1",
     clinic_name: "Evangelismos",
-    is_primary: true,
     sort_order: 0,
     label: null,
     district: "Nicosia",
@@ -135,13 +134,13 @@ describe("checkOnlineBookingSlot", () => {
   });
 
   it("books the clinic the patient picked when she has several", async () => {
-    const two = [location(), location({ id: "link-2", clinic_id: "clinic-2", is_primary: false })];
+    const two = [location(), location({ id: "link-2", clinic_id: "clinic-2", sort_order: 1 })];
     const res = await check("2026-10-07T10:00", {}, two, "link-2");
     assert.equal(res.ok && res.bookingLocation.id, "link-2");
   });
 
   it("finds the clinic link by clinic id (confirming a draft)", async () => {
-    const two = [location(), location({ id: "link-2", clinic_id: "clinic-2", is_primary: false })];
+    const two = [location(), location({ id: "link-2", clinic_id: "clinic-2", sort_order: 1 })];
     const res = await checkOnlineBookingSlot(
       fakeSupabase() as never,
       { professionalId: PRO, appointmentLocal: "2026-10-07T10:00", clinicId: "clinic-2" },

@@ -1,6 +1,6 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
-import type { DayKey, WeeklySchedule } from "@/lib/doctor-settings";
+import { dayBreakTimes, type DayKey, type WeeklySchedule } from "@/lib/doctor-settings";
 
 function toMinutesFromMidnight(time: string | null | undefined): number | null {
   if (!time) return null;
@@ -63,8 +63,10 @@ export function getScheduleOverlapWarning(
   const startMin = cyprusStartMinutesFromMidnight(appointmentDatetimeIso);
   const endMin = startMin + durationMinutes;
 
-  const bs = toMinutesFromMidnight(breakStart);
-  const be = toMinutesFromMidnight(breakEnd);
+  // That day's own break, or the clinic's one break for a day saved without its own.
+  const dayBreak = dayBreakTimes(dayCfg, breakStart, breakEnd);
+  const bs = toMinutesFromMidnight(dayBreak?.start ?? null);
+  const be = toMinutesFromMidnight(dayBreak?.end ?? null);
   const hasBreak = bs != null && be != null && be > bs;
 
   if (hasBreak) {

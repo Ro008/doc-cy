@@ -70,6 +70,25 @@ export function agendaRangeTitle(anchor: Date, view: AgendaView): string {
   return `${fmt(start, "d")} – ${fmt(end, "d MMM yyyy")}`;
 }
 
+/**
+ * How many appointments a month cell of this height shows on desktop (user, 2026-10-12:
+ * the month fills the window and never scrolls). A day with more keeps its last line for
+ * "+N more".
+ */
+export function monthDayVisibleCount(input: { cellHeight: number; itemCount: number }): number {
+  // Cell padding and the day number, then one line per appointment.
+  const lines = Math.max(0, Math.floor((input.cellHeight - 40) / 24));
+  return input.itemCount <= lines ? input.itemCount : Math.max(0, lines - 1);
+}
+
+/** True on a day of her holiday; `holiday` holds Cyprus days as YYYY-MM-DD. */
+export function isAgendaHolidayDay(
+  dateKey: string,
+  holiday: { start: string; end: string } | null | undefined,
+): boolean {
+  return Boolean(holiday) && dateKey >= holiday!.start && dateKey <= holiday!.end;
+}
+
 export function splitMonthDayItems<T>(
   items: readonly T[],
   max: number = MONTH_DAY_VISIBLE_ITEMS,

@@ -102,8 +102,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           holiday_mode_enabled: false,
           holiday_start_date: null,
           holiday_end_date: null,
-          booking_horizon_days: 90,
-          minimum_notice_hours: 1,
+          // The booking limits are each clinic's own (professional_clinics): its defaults do here.
           updated_at: new Date().toISOString(),
         },
         { onConflict: "professional_id" },

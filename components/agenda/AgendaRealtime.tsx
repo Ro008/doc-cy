@@ -44,6 +44,7 @@ import { AgendaMonthGrid, type AgendaMonthItem } from "@/components/agenda/Agend
 import { AgendaSidebar } from "@/components/agenda/AgendaSidebar";
 import {
   agendaGridScrollHeight,
+  isAgendaHolidayDay,
   agendaHourRowHeight,
   agendaHref,
   agendaInitialGridScrollTop,
@@ -87,6 +88,8 @@ import {
   agendaHourGridLineClass,
   agendaHourAxisLabelClass,
   agendaNavIconButtonClass,
+  agendaHolidayOverlayClass,
+  agendaHolidayTagClass,
   agendaOffHoursBandClass,
   agendaOffHoursOverlayClass,
   agendaPrimaryChipButtonClass,
@@ -95,7 +98,7 @@ import {
   agendaToolbarDividerClass,
   agendaWeekGridColsClass,
 } from "@/components/agenda/agenda-surface";
-import { DEFAULT_PATIENT_CANCEL_NOTICE_HOURS } from "@/lib/patient-cancel-window";
+import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 
 
 function agendaRowFromSupabasePayload(
@@ -309,8 +312,8 @@ export function AgendaRealtime({
   initialView,
   openManualBooking,
   highlightAppointmentId,
-  patientCancelNoticeHours = DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
   accessEnded = false,
+  holiday = null,
 }: {
   doctorId: string | null;
   doctorSlug?: string | null;
@@ -322,10 +325,10 @@ export function AgendaRealtime({
   openManualBooking?: boolean;
   /** Visit to point out after arriving from a link (e.g. the dashboard's Today). */
   highlightAppointmentId?: string | null;
-  /** Her patients can cancel online until this many hours before; inside it, warn her. */
-  patientCancelNoticeHours?: number;
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
+  /** Holiday mode, running or announced (Cyprus days, YYYY-MM-DD): its days are marked. */
+  holiday?: { start: string; end: string } | null;
 }) {
   const router = useRouter();
   const tAgenda = useTranslations("DoctorAgenda");
@@ -360,6 +363,10 @@ export function AgendaRealtime({
   /** Desktop time grid scrolls inside itself so the page fits the window. */
   const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
   const [gridScrollHeight, setGridScrollHeight] = React.useState<number | null>(null);
+  /** Desktop month: as tall as the window allows, never scrolling (user, 2026-10-12). */
+  const monthRef = React.useRef<HTMLDivElement | null>(null);
+  const [monthHeight, setMonthHeight] = React.useState<number | null>(null);
+  const isHolidayDate = (date: Date) => isAgendaHolidayDay(format(date, "yyyy-MM-dd"), holiday);
   /** Stretched so the working day fills the grid (see agendaHourRowHeight). */
   const [hourRowHeight, setHourRowHeight] = React.useState(DEFAULT_HOUR_ROW_HEIGHT);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
@@ -874,6 +881,35 @@ export function AgendaRealtime({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridKey, gridScrollHeight != null]);
 
+  React.useEffect(() => {
+    if (view !== "month") return;
+    const measure = () => {
+      const el = monthRef.current;
+      // Phones keep the month at its natural height (the page scrolls there).
+      if (!el || window.innerWidth < 768) {
+        setMonthHeight(null);
+        return;
+      }
+      setMonthHeight(
+        agendaGridScrollHeight({
+          viewportHeight: window.innerHeight,
+          gridTop: el.getBoundingClientRect().top + window.scrollY,
+          bottomReserve: 40 + (window.innerWidth >= 1024 ? 0 : 84),
+        }),
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    // Something appearing above the month later (a notice, a banner) moves it down:
+    // measure again, so it still ends at the bottom of the window.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(document.body);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [view, sidebarOpen]);
+
   function monthItemsForDay(dateKey: string): AgendaMonthItem[] {
     return rowsForDay(dateKey).map((row) => ({
       key: row.rowKey,
@@ -953,9 +989,11 @@ export function AgendaRealtime({
         data-weekday={agendaWeekdayKey(dayDate)}
         /* Greyed when none of the shown clinics opens that day. */
         data-closed={work.enabled ? "false" : "true"}
+        data-holiday={isHolidayDate(dayDate) ? "true" : "false"}
         className={agendaDayColumnClass(isTodayCol)}
         style={{ height: calendarBodyHeight }}
       >
+        {isHolidayDate(dayDate) ? <div className={agendaHolidayOverlayClass} /> : null}
         {closedBands === "closed" ? (
           <div className={agendaOffHoursOverlayClass} />
         ) : (
@@ -1179,18 +1217,22 @@ export function AgendaRealtime({
               clinics={clinics}
               hiddenClinicIds={hiddenClinicIds}
               onToggleClinic={toggleClinicCalendar}
+              isHoliday={isHolidayDate}
+              showHolidayLegend={Boolean(holiday)}
             />
           ) : null}
 
           <div className="min-w-0 flex-1 px-3 pb-4 pt-2 sm:px-4 sm:pb-5">
             {view === "month" ? (
-              <div>
+              <div ref={monthRef}>
                 <AgendaMonthGrid
                   anchor={anchorDate}
                   today={todayDate}
                   itemsForDay={monthItemsForDay}
                   isWorkingDay={(date) => workingWindowsForDate(date).enabled}
+                  isHoliday={isHolidayDate}
                   onOpenDay={openDay}
+                  height={monthHeight}
                 />
               </div>
             ) : null}
@@ -1229,8 +1271,13 @@ export function AgendaRealtime({
                           working || isTodayHeader ? "" : "opacity-60"
                         }`}
                       >
-                        <p className={agendaDayNameClass(isTodayHeader)}>
+                        <p className={`flex items-center gap-1 ${agendaDayNameClass(isTodayHeader)}`}>
                           {format(day, "EEE", { locale: enGB })}
+                          {isHolidayDate(day) ? (
+                            <span data-testid="agenda-holiday-tag" className={agendaHolidayTagClass}>
+                              Holiday
+                            </span>
+                          ) : null}
                         </p>
                         <button
                           type="button"
@@ -1289,7 +1336,7 @@ export function AgendaRealtime({
           previousVisitClinicName={(clinicId) =>
             isMultiClinic ? clinics.find((c) => c.clinicId === clinicId)?.name ?? null : null
           }
-          patientCancelNoticeHours={patientCancelNoticeHours}
+          patientCancelNoticeHours={visitCancelNoticeHours(selected, clinics)}
           onClose={() => setSelected(null)}
           onUpdated={(id, patch) =>
             setAppointments((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)))

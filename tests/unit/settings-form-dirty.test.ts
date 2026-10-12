@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildSettingsDirtySnapshot,
   settingsFormHasUnsavedChanges,
+  unsavedSettingsSections,
 } from "../../lib/settings-form-dirty";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 
@@ -38,7 +39,6 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
-    mobileNumber: "+35799111222",
     bookingHorizonDays: 60,
     minimumNoticeHours: 24,
     patientCancelNoticeHours: 24,
@@ -78,11 +78,11 @@ describe("settings-form-dirty", () => {
     });
     assert.equal(settingsFormHasUnsavedChanges(changedSchedule, saved), true);
 
-    const changedClinic = buildSettingsDirtySnapshot({
+    const renamedClinic = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
-      workplaces: [{ ...baseWorkplace, clinicAddress: "2 Other St, Limassol" }],
+      workplaces: [{ ...baseWorkplace, label: "Ledra Clinic" }],
     });
-    assert.equal(settingsFormHasUnsavedChanges(changedClinic, saved), true);
+    assert.equal(settingsFormHasUnsavedChanges(renamedClinic, saved), true);
   });
 
   it("does not flag a switch between clinic tabs as an edit", () => {
@@ -107,13 +107,9 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 
-  it("detects mobile number edits", () => {
-    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
-    const changed = buildSettingsDirtySnapshot({
-      ...baseSnapshotInput(),
-      mobileNumber: "+35799111333",
-    });
-    assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
+  it("has no mobile: Account's mobile card saves itself (2026-10-09)", () => {
+    const snapshot = buildSettingsDirtySnapshot(baseSnapshotInput());
+    assert.equal("mobileNumber" in snapshot, false);
   });
 
   it("detects bio edits", () => {
@@ -137,3 +133,67 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 });
+
+describe("unsavedSettingsSections", () => {
+  const saved = () => buildSettingsDirtySnapshot(baseSnapshotInput());
+
+  it("is empty when nothing changed", () => {
+    assert.deepEqual(unsavedSettingsSections(saved(), saved()), []);
+  });
+
+  it("names the section each change belongs to, in sidebar order", () => {
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      bio: "New bio.",
+      holidayModeEnabled: true,
+      workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
+    });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), [
+      "clinics",
+      "profile",
+    ]);
+  });
+
+  it("puts booking limits under Clinics, where each clinic sets them (2026-10-09)", () => {
+    const changed = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), minimumNoticeHours: 48 });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
+  });
+
+  it("puts holiday dates under Clinics, now that there is no Availability section", () => {
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      holidayModeEnabled: true,
+      holidayStartInput: "01/08/2026",
+    });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
+  });
+
+  it("counts languages as Profile, ignoring their order", () => {
+    const reordered = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), languages: ["Greek", "English"] });
+    assert.deepEqual(unsavedSettingsSections(reordered, saved()), []);
+    const changed = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), languages: ["English"] });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["profile"]);
+  });
+});
+
+describe("clinic address in the dirty check", () => {
+  it("never counts the address: it is read-only and not saved from settings", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const otherCopy = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      workplaces: [
+        {
+          ...baseWorkplace,
+          district: "Limassol",
+          clinicAddress: "2 Other St, Limassol",
+          clinicLatitude: null,
+          clinicLongitude: null,
+          clinicPlaceId: null,
+        },
+      ],
+    });
+    assert.equal(settingsFormHasUnsavedChanges(otherCopy, saved), false);
+    assert.deepEqual(unsavedSettingsSections(otherCopy, saved), []);
+  });
+});
+

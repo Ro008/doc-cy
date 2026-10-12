@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   CLINIC_SETTINGS_COLUMNS,
   clinicChangeContactMessage,
+  clinicHoursUnchanged,
   clinicSettingsPatch,
   settingsSaveTargets,
 } from "../../lib/professional-clinic-settings-writes";
@@ -57,7 +58,6 @@ describe("clinicSettingsPatch", () => {
       doctor_id: "pro-1",
       professional_id: "pro-1",
       clinic_id: "clinic-1",
-      is_primary: true,
       sort_order: 2,
       slot_duration_minutes: 30,
     });
@@ -92,8 +92,8 @@ describe("clinicSettingsPatch", () => {
 });
 
 const OWNED = [
-  { id: "clinic-a", is_primary: true, sort_order: 0 },
-  { id: "clinic-b", is_primary: false, sort_order: 1 },
+  { id: "clinic-a", sort_order: 0 },
+  { id: "clinic-b", sort_order: 1 },
 ];
 
 const WEEK = {
@@ -203,5 +203,95 @@ describe("clinicChangeContactMessage", () => {
     assert.equal(clinicChangeContactMessage(["A", "B"]), expected);
     assert.equal(clinicChangeContactMessage([]), expected);
     assert.equal(clinicChangeContactMessage(["", "  "]), expected);
+  });
+});
+
+describe("settingsSaveTargets: booking limits per clinic (user, 2026-10-11)", () => {
+  it("carries each clinic's own limits, only the ones sent", () => {
+    const targets = settingsSaveTargets(
+      [
+        { id: "clinic-a", bookingHorizonDays: 30, minimumNoticeHours: 24, patientCancelNoticeHours: 48 },
+        { id: "clinic-b", patientCancelNoticeHours: "24" },
+      ],
+      OWNED,
+    );
+    assert.deepEqual(targets[0]!.limits, {
+      bookingHorizonDays: 30,
+      minimumNoticeHours: 24,
+      patientCancelNoticeHours: 48,
+    });
+    assert.deepEqual(targets[1]!.limits, { patientCancelNoticeHours: 24 });
+  });
+
+  it("carries none for a clinic sent without limits (an older page)", () => {
+    const [only] = settingsSaveTargets([{ id: "clinic-a", slotDurationMinutes: 20 }], OWNED);
+    assert.equal(only!.limits, null);
+  });
+
+  it("keeps a value that is not a number out, for the database to refuse nothing by accident", () => {
+    const [only] = settingsSaveTargets([{ id: "clinic-a", bookingHorizonDays: "soon", minimumNoticeHours: null }], OWNED);
+    assert.equal(only!.limits, null);
+  });
+});
+
+describe("clinicHoursUnchanged: a save sends every clinic, only a real change is recorded", () => {
+  const stored = {
+    id: "clinic-a",
+    doctor_id: "pro",
+    sort_order: 0,
+    label: null,
+    district: "Paphos",
+    clinic_address: "1 Street",
+    town: null,
+    latitude: null,
+    longitude: null,
+    clinic_place_id: null,
+    pause_online_bookings: false,
+    monday: true,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false,
+    // Stored the old way: no week, times without a break.
+    start_time: "14:00:00",
+    end_time: "18:00:00",
+    weekly_schedule: null,
+    break_start: null,
+    break_end: null,
+    slot_duration_minutes: 30,
+  };
+  const sent = (week: typeof WEEK, slot = 30) =>
+    settingsSaveTargets([{ id: "clinic-a", weeklySchedule: week, slotDurationMinutes: slot }], OWNED)[0]!.settings;
+  const sameWeek = {
+    ...WEEK,
+    tuesday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+    wednesday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+    thursday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+    friday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+    saturday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+    sunday: { enabled: false, start_time: "14:00", end_time: "18:00" },
+  };
+
+  it("is unchanged when the page sends back the week it was given, however it is written", () => {
+    assert.equal(clinicHoursUnchanged(sent(sameWeek), stored), true);
+  });
+
+  it("is changed by a different time, an opened day, a break or a new slot length", () => {
+    assert.equal(
+      clinicHoursUnchanged(sent({ ...sameWeek, monday: { enabled: true, start_time: "15:00", end_time: "18:00" } }), stored),
+      false,
+    );
+    assert.equal(
+      clinicHoursUnchanged(sent({ ...sameWeek, tuesday: { enabled: true, start_time: "14:00", end_time: "18:00" } }), stored),
+      false,
+    );
+    const withBreak = {
+      ...sameWeek,
+      monday: { enabled: true, start_time: "14:00", end_time: "18:00", break_start: "16:00", break_end: "16:30" },
+    };
+    assert.equal(clinicHoursUnchanged(sent(withBreak), stored), false);
+    assert.equal(clinicHoursUnchanged(sent(sameWeek, 45), stored), false);
   });
 });

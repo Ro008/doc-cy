@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { needsSupabaseSessionMiddleware, shouldSkipSupabaseSessionRefresh } from "@/lib/needs-supabase-session-middleware";
+import {
+  isProfessionalGatedPath,
+  needsSupabaseSessionMiddleware,
+  shouldSkipSupabaseSessionRefresh,
+} from "@/lib/needs-supabase-session-middleware";
 
 describe("needsSupabaseSessionMiddleware", () => {
   it("skips Auth on public patient pages", () => {
@@ -21,6 +25,7 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/andreas-nikos",
       "/en/andreas-nikos",
       "/internalx",
+      "/settingsx",
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), false, path);
     }
@@ -33,6 +38,8 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/agenda",
       "/agenda/settings",
       "/agenda/insights",
+      "/settings",
+      "/settings/",
       "/dashboard",
       "/dashboard/appointments/abc",
       "/login",
@@ -57,5 +64,19 @@ describe("needsSupabaseSessionMiddleware", () => {
     assert.equal(shouldSkipSupabaseSessionRefresh("/register", "GET"), false);
     assert.equal(shouldSkipSupabaseSessionRefresh("/register?error=auth", "POST"), true);
     assert.equal(shouldSkipSupabaseSessionRefresh("/agenda", "POST"), false);
+  });
+});
+
+describe("isProfessionalGatedPath", () => {
+  it("gates the agenda and settings (signed-in, verified professionals)", () => {
+    for (const path of ["/agenda", "/agenda/insights", "/agenda/settings", "/settings", "/settings/"]) {
+      assert.equal(isProfessionalGatedPath(path), true, path);
+    }
+  });
+
+  it("leaves other routes to their own checks", () => {
+    for (const path of ["/", "/settingsx", "/login", "/dashboard", "/andreas-nikos"]) {
+      assert.equal(isProfessionalGatedPath(path), false, path);
+    }
   });
 });

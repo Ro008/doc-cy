@@ -42,16 +42,18 @@ describe("public phone comes from the clinic", () => {
     assert.equal(read("components/finder/FinderClinicLocationBlock.tsx").includes("listingHasPhone"), false);
   });
 
-  it("settings never write professionals.phone and show clinic phones read-only", () => {
+  it("settings never write professionals.phone; clinic phones change by request, from the clinic card", () => {
     const route = read("app/api/doctor-settings/route.ts");
     assert.equal(/\.phone = /.test(route), false);
     assert.equal(route.includes("directoryPhone"), false);
     assert.equal(route.includes("show_phone_public"), false);
-    const page = read("app/agenda/settings/page.tsx");
+    const page = read("app/settings/page.tsx");
     assert.equal(page.includes("loadSettingsClinicPhones"), true);
     assert.equal(page.includes("doctor.mobile_number ?? doctor.phone"), false);
-    const phones = read("components/dashboard/PhoneNumbersSettings.tsx");
-    assert.equal(phones.includes('data-testid="settings-clinic-phones"'), true);
-    assert.equal(phones.includes('id="clinicPhone"'), false);
+    // The settings save never carries a clinic phone: it goes to DocCy as a change request.
+    assert.equal(
+      read("components/dashboard/settings/ClinicChangeRequestDialog.tsx").includes("/api/clinic-change-requests"),
+      true,
+    );
   });
 });

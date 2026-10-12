@@ -19,14 +19,18 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     await signInDoctorOrFail(page, undefined, { email, password });
     await exposeSupabaseAuthCookiesToClient(page);
-    await page.goto("/agenda/settings#promote-practice", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/agenda\/settings(?:#promote-practice)?/, { timeout: 20_000 });
+    await page.goto("/settings?section=promote", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/settings\?section=promote/, { timeout: 20_000 });
   });
 
   test("verified doctor sees QR block and phone/website scripts", async ({ page }) => {
     test.setTimeout(120_000);
 
-    await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Promote" })).toBeVisible();
+    // The link as a doctor reads it, with Copy link; the QR keeps its tracking.
+    await expect(page.getByTestId("promote-booking-link")).not.toContainText("://");
+    await expect(page.getByTestId("promote-booking-link")).not.toContainText("utm_source");
+    await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
     await expect(page.getByText("Phone and website scripts")).toBeVisible();
     await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
     await expect(page.getByTestId("promote-reception-script")).toBeVisible();
@@ -34,30 +38,15 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     await expect(page.getByRole("button", { name: "Print booking sign" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Download QR (PNG)" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Copy text" }).first()).toBeVisible();
+    // Scripts open one at a time.
+    await expect(page.getByRole("button", { name: "Copy text" })).toHaveCount(0);
+    await page.getByTestId("promote-voicemail-script").getByText("Voicemail message").click();
+    await expect(page.getByTestId("promote-voicemail-script").getByRole("button", { name: "Copy text" })).toBeVisible();
 
     await expect(page.getByText(/Quick access:/i)).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Promote your practice, booking QR/i })
     ).toHaveCount(0);
-  });
-
-  test("website Contact Support opens feedback with locked topic and prefilled message", async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-
-    const websiteBlock = page.getByTestId("promote-website-script");
-    await websiteBlock.scrollIntoViewIfNeeded();
-    await websiteBlock.getByRole("button", { name: "Contact Support" }).click();
-
-    const dialog = page.getByRole("dialog", { name: /How can we help you/i });
-    await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByText("Help with website booking button")).toBeVisible();
-
-    const message = dialog.getByRole("textbox", { name: /message/i });
-    await expect(message).toHaveValue(/booking page|σύνδεσμος κρατήσεων/i);
-    await expect(message).toHaveValue(/DocCy/i);
   });
 
   test("mobile settings tab reaches promote scripts section", async ({ page }) => {
@@ -68,7 +57,10 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
     await page.getByTestId("userbar-tab-settings").click();
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 15_000 });
+    // Promote has its own settings section (user, 2026-10-01).
+    await page.getByTestId("settings-sidebar").getByRole("link", { name: "Promote" }).click();
+    await expect(page).toHaveURL(/section=promote/);
     await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
   });
 });

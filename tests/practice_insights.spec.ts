@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signInDoctorOrFail } from "./helpers/signInDoctorOrFail";
 import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
+import { INSIGHTS_ENABLED } from "@/lib/doctor-routes";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -25,7 +26,24 @@ async function signInAndOpenAgenda(page: import("@playwright/test").Page) {
 }
 
 test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => {
+  // Insights is hidden until there are enough appointments and traffic (user, 2026-10-12).
+  test("while Insights is hidden, its address lands on the Dashboard and no tab names it", async ({ page }) => {
+    test.skip(INSIGHTS_ENABLED, "Insights is shown.");
+    test.setTimeout(120_000);
+    await signInAndOpenAgenda(page);
+    await page.goto("/agenda/insights", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Practice insights" })).toHaveCount(0);
+    await expect(page.getByTestId("userbar-nav-insights")).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByTestId("userbar-mobile-tabs")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("userbar-tab-settings")).toBeVisible();
+    await expect(page.getByTestId("userbar-tab-insights")).toHaveCount(0);
+  });
+
   test("insights page shows expected English shell copy", async ({ page }) => {
+    test.skip(!INSIGHTS_ENABLED, "Insights is hidden for now.");
     test.setTimeout(120_000);
     await signInAndOpenAgenda(page);
     await page.goto("/agenda/insights", { waitUntil: "domcontentloaded" });
@@ -40,6 +58,7 @@ test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => 
   });
 
   test("mobile tab bar shows five tabs and navigates to insights", async ({ page }) => {
+    test.skip(!INSIGHTS_ENABLED, "Insights is hidden for now.");
     test.setTimeout(120_000);
     await signInAndOpenAgenda(page);
     await page.setViewportSize({ width: 390, height: 844 });

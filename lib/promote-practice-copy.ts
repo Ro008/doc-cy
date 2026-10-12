@@ -1,15 +1,22 @@
 export type PromotePracticeCopy = {
-  title: string;
-  subtitle: string;
   missingSlugTitle: string;
   missingSlugBody: string;
-  patientsScanPrefix: string;
+  bookingLinkLabel: string;
+  copyLinkButton: string;
+  patientsScanCaption: string;
   printButton: string;
   downloadButton: string;
   printHelper: string;
   printPrepareFailed: string;
   printDialogFailed: string;
-  printCta: string;
+  /** `lang` of the printed sign. */
+  htmlLang: string;
+  signBadge: string;
+  signHeadline: string;
+  signStepScan: string;
+  signStepPick: string;
+  signStepConfirm: string;
+  signNoApp: string;
   scriptsSectionTitle: string;
   voicemailTitle: string;
   voicemailHint: string;
@@ -19,30 +26,35 @@ export type PromotePracticeCopy = {
   websiteHint: string;
   websiteButtonLabel: string;
   websiteSendToWebPerson: string;
-  websiteFreeHelp: string;
-  websiteFreeHelpNote: string;
-  websiteContactSupport: string;
   websiteHtmlToggle: string;
   websiteHtmlHint: string;
   copyButton: string;
   copiedButton: string;
   copyFailed: string;
+  languageLabel: string;
+  shareLabel: string;
+  signSpecialtiesLabel: string;
 };
 
 const EN_COPY: PromotePracticeCopy = {
-  title: "Promote your practice",
-  subtitle: "QR, phone scripts, and your booking link in one place.",
   missingSlugTitle: "Promote your practice",
   missingSlugBody:
     "Your public profile link isn't ready yet. Once your profile has a URL slug, you can generate a QR code and print a sign for your clinic.",
-  patientsScanPrefix: "Patients scan to open",
+  bookingLinkLabel: "Your booking page",
+  copyLinkButton: "Copy link",
+  patientsScanCaption: "Patients scan to open your booking page.",
   printButton: "Print booking sign",
   downloadButton: "Download QR (PNG)",
-  printHelper:
-    "Print opens an A5 layout with the DocCy wordmark, your name, QR, and a short call to action, ready for your printer.",
+  printHelper: "An A5 sign with your name and QR, ready to print.",
   printPrepareFailed: "Could not prepare print view. Please try again.",
   printDialogFailed: "Could not open the print dialog on this device.",
-  printCta: "Scan to book your next appointment",
+  htmlLang: "en",
+  signBadge: "Book online · 24/7",
+  signHeadline: "Book your next visit online",
+  signStepScan: "Scan the code",
+  signStepPick: "Choose a time",
+  signStepConfirm: "We confirm by email",
+  signNoApp: "No app needed",
   scriptsSectionTitle: "Phone and website scripts",
   voicemailTitle: "Voicemail message",
   voicemailHint: "Paste this on your clinic phone when you are closed. Edit the wording if you like, then copy.",
@@ -51,34 +63,38 @@ const EN_COPY: PromotePracticeCopy = {
     "A short line for your team after they book a caller. Replace the placeholders in square brackets.",
   websiteTitle: "Website booking button",
   websiteHint:
-    "Send the button label and link below to whoever maintains your website. We do not rebuild your site, we add a booking path.",
+    "Send the button label and link below to whoever maintains your website.",
   websiteButtonLabel: "Button label",
   websiteSendToWebPerson: "Send this to your web person",
-  websiteFreeHelp: "Want us to add it for you?",
-  websiteFreeHelpNote:
-    "For verified profiles with an existing website, we can add a booking button at no extra cost. Tell us through Support.",
-  websiteContactSupport: "Contact Support",
   websiteHtmlToggle: "Show HTML for your web person (optional)",
   websiteHtmlHint: "Only needed if they ask for embed code.",
   copyButton: "Copy text",
   copiedButton: "Copied",
   copyFailed: "Could not copy. Select the text and copy manually.",
+  languageLabel: "Language of the sign and scripts",
+  shareLabel: "Share",
+  signSpecialtiesLabel: "Specialties on the sign",
 };
 
 const EL_COPY: PromotePracticeCopy = {
-  title: "Προωθήστε το ιατρείο σας",
-  subtitle: "QR, σενάρια τηλεφώνου και σύνδεσμος κρατήσεων σε ένα σημείο.",
   missingSlugTitle: "Προωθήστε το ιατρείο σας",
   missingSlugBody:
     "Ο δημόσιος σύνδεσμος προφίλ σας δεν είναι έτοιμος ακόμη. Μόλις το προφίλ αποκτήσει slug, μπορείτε να δημιουργήσετε QR και να εκτυπώσετε πινακίδα για το ιατρείο σας.",
-  patientsScanPrefix: "Οι ασθενείς σκανάρουν για να ανοίξουν",
+  bookingLinkLabel: "Η σελίδα κρατήσεών σας",
+  copyLinkButton: "Αντιγραφή συνδέσμου",
+  patientsScanCaption: "Οι ασθενείς σκανάρουν για να ανοίξουν τη σελίδα κρατήσεών σας.",
   printButton: "Εκτύπωση πινακίδας κράτησης",
   downloadButton: "Λήψη QR (PNG)",
-  printHelper:
-    "Η εκτύπωση ανοίγει διάταξη A5 με το λογότυπο DocCy, το όνομά σας, το QR και σύντομο κάλεσμα για ενέργεια, έτοιμο για εκτύπωση.",
+  printHelper: "Πινακίδα A5 με το όνομά σας και το QR, έτοιμη για εκτύπωση.",
   printPrepareFailed: "Δεν ήταν δυνατή η προετοιμασία για εκτύπωση. Δοκιμάστε ξανά.",
   printDialogFailed: "Δεν ήταν δυνατό να ανοίξει το παράθυρο εκτύπωσης σε αυτή τη συσκευή.",
-  printCta: "Σκανάρετε για να κλείσετε το επόμενο ραντεβού σας",
+  htmlLang: "el",
+  signBadge: "Κράτηση online · 24/7",
+  signHeadline: "Κλείστε το επόμενο ραντεβού σας online",
+  signStepScan: "Σκανάρετε τον κωδικό",
+  signStepPick: "Επιλέξτε ώρα",
+  signStepConfirm: "Επιβεβαιώνουμε με email",
+  signNoApp: "Χωρίς εφαρμογή",
   scriptsSectionTitle: "Σενάρια τηλεφώνου και ιστότοπου",
   voicemailTitle: "Μήνυμα φωνητικού ταχυδρομείου",
   voicemailHint:
@@ -88,18 +104,17 @@ const EL_COPY: PromotePracticeCopy = {
     "Μια σύντομη φράση για την ομάδα σας αφού κλείσει ραντεβού από τηλέφωνο. Αντικαταστήστε τα κενά σε αγκύλες.",
   websiteTitle: "Κουμπί κράτησης στον ιστότοπο",
   websiteHint:
-    "Στείλτε την ετικέτα και τον σύνδεσμο παρακάτω σε όποιον συντηρεί τον ιστότοπό σας. Δεν ξαναφτιάχνουμε το site, προσθέτουμε διαδρομή κράτησης.",
+    "Στείλτε την ετικέτα και τον σύνδεσμο παρακάτω σε όποιον συντηρεί τον ιστότοπό σας.",
   websiteButtonLabel: "Κείμενο κουμπιού",
   websiteSendToWebPerson: "Στείλτε το στον τεχνικό της ιστοσελίδας",
-  websiteFreeHelp: "Θέλετε να το προσθέσουμε εμείς;",
-  websiteFreeHelpNote:
-    "Για επαληθευμένα προφίλ με υπάρχοντα site, μπορούμε να προσθέσουμε κουμπί κράτησης χωρίς επιπλέον κόστος. Γράψτε μας από το Support.",
-  websiteContactSupport: "Επικοινωνία Support",
   websiteHtmlToggle: "Εμφάνιση HTML για τον τεχνικό (προαιρετικό)",
   websiteHtmlHint: "Μόνο αν ζητήσουν κώδικα ενσωμάτωσης.",
   copyButton: "Αντιγραφή",
   copiedButton: "Αντιγράφηκε",
   copyFailed: "Δεν ήταν δυνατή η αντιγραφή. Επιλέξτε το κείμενο χειροκίνητα.",
+  languageLabel: "Γλώσσα πινακίδας και σεναρίων",
+  shareLabel: "Κοινοποίηση",
+  signSpecialtiesLabel: "Ειδικότητες στην πινακίδα",
 };
 
 export function resolvePromotePracticeCopy(localeLike?: string | null): PromotePracticeCopy {

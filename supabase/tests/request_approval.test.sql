@@ -168,11 +168,11 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- Clinics: the picked clinic is linked as primary; the proposed one is created and linked.
+  -- Clinics: the picked clinic is linked first; the proposed one is created and linked.
   if not exists (select 1 from public.professional_clinics
-                 where professional_id = v_pro.id and clinic_id = v_clinic and is_primary and sort_order = 0
+                 where professional_id = v_pro.id and clinic_id = v_clinic and sort_order = 0
                    and pause_online_bookings) then
-    raise exception 'FAIL: the picked clinic should be the primary link, paused';
+    raise exception 'FAIL: the picked clinic should be the first link, paused';
   end if;
   -- Links start with the same default hours the old registration path gave
   -- (Mon-Fri 09:00-17:00, 30-minute slots), so the settings form opens clean.
@@ -185,7 +185,7 @@ begin
   end if;
   v_checks := v_checks + 1;
   select c.id into v_new_clinic from public.professional_clinics pc join public.clinics c on c.id = pc.clinic_id
-  where pc.professional_id = v_pro.id and not pc.is_primary and pc.sort_order = 1
+  where pc.professional_id = v_pro.id and pc.sort_order = 1
     and c.name = 'Appr New Clinic ' || v_tag and c.slug = 'appr-new-clinic-' || v_tag
     and c.district = 'Limassol' and c.address = '2 New Rd, Limassol' and c.ghs_code is null
     and c.clinic_place_id = 'place-' || v_tag and c.phone = '25123456';
@@ -274,7 +274,7 @@ begin
   insert into public.clinics (name, slug, district, address, phone)
   values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd', '26123457')
   returning id into v_listing_clinic;
-  insert into public.professional_clinics (professional_id, clinic_id, is_primary) values (v_listing, v_listing_clinic, true);
+  insert into public.professional_clinics (professional_id, clinic_id) values (v_listing, v_listing_clinic);
 
   v_email := 'appr-claim-' || v_tag || '@integration.test';
   v_req := pg_temp.new_request(v_email, pg_temp.details(v_email, 'Claim ' || v_tag, jsonb_build_array(v_clinics -> 0), v_listing));
@@ -300,7 +300,7 @@ begin
   end if;
   if exists (select 1 from public.professional_clinics where professional_id = v_listing and clinic_id = v_listing_clinic)
      or not exists (select 1 from public.clinics where id = v_listing_clinic)
-     or not exists (select 1 from public.professional_clinics where professional_id = v_listing and clinic_id = v_clinic and is_primary) then
+     or not exists (select 1 from public.professional_clinics where professional_id = v_listing and clinic_id = v_clinic and sort_order = 0) then
     raise exception 'FAIL: clinic links should be replaced, and the old clinic kept';
   end if;
   if not exists (select 1 from public.professional_settings where professional_id = v_listing) then

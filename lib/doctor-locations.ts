@@ -1,8 +1,9 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import {
   DAY_NAMES,
-  DEFAULT_BOOKING_HORIZON_DAYS,
-  DEFAULT_MIN_NOTICE_HOURS,
   buildWeeklyScheduleFromSettings,
+  dayBreakTimes,
+  dayHasOwnBreak,
   settingsToWeeklySlots,
   type DoctorSettingsRow,
   type WeeklySchedule,
@@ -18,7 +19,7 @@ import { isCyprusDistrict } from "@/lib/cyprus-districts";
 export const MAX_DOCTOR_LOCATIONS = 5;
 
 export const DOCTOR_LOCATION_SELECT =
-  "id, doctor_id, is_primary, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
+  "id, doctor_id, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
 
 export type DoctorLocationRow = {
   /** The professional_clinics (join row) id. */
@@ -28,7 +29,6 @@ export type DoctorLocationRow = {
   clinic_id?: string | null;
   /** `clinics.name`: what every screen shows (never the join-row label). */
   clinic_name?: string | null;
-  is_primary: boolean;
   sort_order: number;
   label: string | null;
   district: string | null;
@@ -55,27 +55,34 @@ export type DoctorLocationRow = {
   break_start: string | null;
   break_end: string | null;
   slot_duration_minutes: number;
+  /**
+   * Booking limits of this clinic (user, 2026-10-11): how far ahead, the shortest
+   * notice, and until when patients cancel online. Absent only on rows built by hand.
+   */
+  booking_horizon_days?: number;
+  minimum_notice_hours?: number;
+  patient_cancel_notice_hours?: number;
   created_at?: string;
   updated_at?: string;
 };
 
-export function sortDoctorLocations<T extends { is_primary?: boolean; sort_order?: number; created_at?: string }>(
+/** Her clinics in order: sort_order, then the date she joined (no "primary clinic"). */
+export function sortDoctorLocations<T extends { sort_order?: number; created_at?: string }>(
   rows: readonly T[],
 ): T[] {
-  return [...rows].sort((a, b) => {
-    if (Boolean(a.is_primary) !== Boolean(b.is_primary)) {
-      return a.is_primary ? -1 : 1;
-    }
-    const order = (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    if (order !== 0) return order;
-    return String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""));
-  });
+  return [...rows].sort(compareClinicOrder);
 }
 
 export const MAX_CLINIC_NAME_LENGTH = 40;
 
 export function sanitizeClinicLabel(value: string | null | undefined): string | null {
   const trimmed = String(value ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_CLINIC_NAME_LENGTH);
+  return trimmed || null;
+}
+
+/** A clinic name as shown: DocCy's names are shown whole, only spaces are tidied. */
+function clinicNameForDisplay(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? "").replace(/\s+/g, " ").trim();
   return trimmed || null;
 }
 
@@ -88,7 +95,7 @@ export function clinicDisplayName(
   index: number,
   total: number,
 ): string {
-  return sanitizeClinicLabel(label) ?? clinicDefaultName(index, total);
+  return clinicNameForDisplay(label) ?? clinicDefaultName(index, total);
 }
 
 /** Custom name if set, otherwise the caller’s fallback (e.g. translated “Clinic 1”). */
@@ -96,7 +103,7 @@ export function clinicTitleOrFallback(
   label: string | null | undefined,
   fallback: string,
 ): string {
-  return sanitizeClinicLabel(label) ?? fallback;
+  return clinicNameForDisplay(label) ?? fallback;
 }
 
 export function workplaceTabLabel(index: number, total: number): string {
@@ -256,16 +263,14 @@ export function locationToClinicLocation(location: DoctorLocationRow): ClinicLoc
   });
 }
 
+/**
+ * One bookable schedule: the clinic's hours, break, slot length, pause and booking
+ * limits, with the professional's holiday. The limits are the clinic's (user,
+ * 2026-10-11); `global` only supplies them for a row that carries none.
+ */
 export function locationToSettingsRow(
   location: DoctorLocationRow,
-  global: Pick<
-    DoctorSettingsRow,
-    | "holiday_mode_enabled"
-    | "holiday_start_date"
-    | "holiday_end_date"
-    | "booking_horizon_days"
-    | "minimum_notice_hours"
-  > &
+  global: Pick<DoctorSettingsRow, "holiday_mode_enabled" | "holiday_start_date" | "holiday_end_date"> &
     Partial<DoctorSettingsRow>,
 ): DoctorSettingsRow {
   return {
@@ -286,8 +291,8 @@ export function locationToSettingsRow(
     holiday_mode_enabled: Boolean(global.holiday_mode_enabled),
     holiday_start_date: global.holiday_start_date ?? null,
     holiday_end_date: global.holiday_end_date ?? null,
-    booking_horizon_days: Number(global.booking_horizon_days ?? 90),
-    minimum_notice_hours: Number(global.minimum_notice_hours ?? 2),
+    booking_horizon_days: Number(location.booking_horizon_days ?? global.booking_horizon_days ?? 90),
+    minimum_notice_hours: Number(location.minimum_notice_hours ?? global.minimum_notice_hours ?? 2),
     slot_duration_minutes:
       Number(location.slot_duration_minutes) > 0
         ? Number(location.slot_duration_minutes)
@@ -304,8 +309,6 @@ export const ACCOUNT_SETTINGS_FALLBACK = {
   holiday_mode_enabled: false,
   holiday_start_date: null,
   holiday_end_date: null,
-  booking_horizon_days: DEFAULT_BOOKING_HORIZON_DAYS,
-  minimum_notice_hours: DEFAULT_MIN_NOTICE_HOURS,
 } as const;
 
 export function locationWeeklySlots(location: DoctorLocationRow): WeeklySlotFromSettings[] {
@@ -367,18 +370,29 @@ export function locationScheduleColumns(input: DoctorLocationScheduleInput): {
 } {
   const startFallback = toTime(input.startTime, "09:00:00");
   const endFallback = toTime(input.endTime, "17:00:00");
+  // Breaks are per day (user, 2026-10-10) once any day sent carries break keys: every
+  // day then gets its own (null for none; never on a closed day) and the clinic's one
+  // break is cleared. A save without them (an old page) keeps the one clinic break.
+  const perDayBreaks = DAY_NAMES.some((day) => dayHasOwnBreak(input.weeklySchedule?.[day]));
   const weekly_schedule = DAY_NAMES.reduce((acc, day) => {
     const incoming = input.weeklySchedule?.[day];
     const legacyEnabled = Boolean(input[day]);
+    const enabled = typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled;
+    const dayBreak = perDayBreaks && enabled ? dayBreakTimes(incoming) : null;
     acc[day] = {
-      enabled:
-        typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled,
+      enabled,
       start_time: incoming?.start_time
         ? toTime(incoming.start_time, "09:00:00")
         : startFallback,
       end_time: incoming?.end_time
         ? toTime(incoming.end_time, "17:00:00")
         : endFallback,
+      ...(perDayBreaks
+        ? {
+            break_start: dayBreak ? `${dayBreak.start}:00` : null,
+            break_end: dayBreak ? `${dayBreak.end}:00` : null,
+          }
+        : {}),
     };
     return acc;
   }, {} as WeeklySchedule);
@@ -395,8 +409,8 @@ export function locationScheduleColumns(input: DoctorLocationScheduleInput): {
     start_time: startFallback,
     end_time: endFallback,
     weekly_schedule,
-    break_start: input.breakEnabled ? toTime(input.breakStart, "13:00:00") : null,
-    break_end: input.breakEnabled ? toTime(input.breakEnd, "14:00:00") : null,
+    break_start: !perDayBreaks && input.breakEnabled ? toTime(input.breakStart, "13:00:00") : null,
+    break_end: !perDayBreaks && input.breakEnabled ? toTime(input.breakEnd, "14:00:00") : null,
     slot_duration_minutes:
       Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30,
   };

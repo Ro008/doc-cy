@@ -64,14 +64,14 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
             .getByTestId("navigation-progress-bar")
             .isVisible()
             .catch(() => false);
-          const onSettings = /\/agenda\/settings/.test(page.url());
+          const onSettings = /\/settings/.test(page.url());
           return busy === "true" || barVisible || onSettings;
         },
         { timeout: 10_000, intervals: [50, 100, 150, 200] },
       )
       .toBe(true);
 
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
   });
 
   test("desktop nav tabs keep a single loading spinner when switching targets", async ({ page }) => {
@@ -82,25 +82,25 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     await expect(stickyHeader).toBeVisible();
 
     const settingsTab = stickyHeader.getByTestId("userbar-nav-settings");
-    const insightsTab = stickyHeader.getByTestId("userbar-nav-insights");
+    const dashboardTab = stickyHeader.getByTestId("userbar-nav-dashboard");
     const busyTabs = stickyHeader.locator('[data-testid^="userbar-nav-"][aria-busy="true"]');
 
     await settingsTab.click({ noWaitAfter: true });
-    await insightsTab.click({ noWaitAfter: true });
+    await dashboardTab.click({ noWaitAfter: true });
 
     await expect
       .poll(async () => {
         const busyCount = await busyTabs.count();
         if (busyCount > 1) return "too-many";
 
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const onInsights = /\/agenda\/insights(?:[/?#]|$)/.test(page.url());
+        const onDashboard = /\/dashboard(?:[/?#]|$)/.test(page.url());
 
-        if (busyCount === 1 && insightsBusy === "true" && settingsBusy === "false") {
+        if (busyCount === 1 && dashboardBusy === "true" && settingsBusy === "false") {
           return "ok-pending";
         }
-        if (busyCount === 0 && onInsights) return "ok-landed";
+        if (busyCount === 0 && onDashboard) return "ok-landed";
         return "waiting";
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })
       .not.toBe("too-many");
@@ -108,12 +108,12 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     await expect
       .poll(async () => {
         const busyCount = await busyTabs.count();
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const onInsights = /\/agenda\/insights(?:[/?#]|$)/.test(page.url());
+        const onDashboard = /\/dashboard(?:[/?#]|$)/.test(page.url());
         return (
-          (busyCount === 1 && insightsBusy === "true" && settingsBusy === "false") ||
-          (busyCount === 0 && onInsights)
+          (busyCount === 1 && dashboardBusy === "true" && settingsBusy === "false") ||
+          (busyCount === 0 && onDashboard)
         );
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })
       .toBe(true);
@@ -123,11 +123,11 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await signInMobileAgenda(page);
 
-    const insightsTab = page.getByTestId("userbar-tab-insights");
+    const dashboardTab = page.getByTestId("userbar-tab-dashboard");
     const settingsTab = page.getByTestId("userbar-tab-settings");
     const busyTabs = page.locator('[data-testid^="userbar-tab-"][aria-busy="true"]');
 
-    await insightsTab.click({ noWaitAfter: true });
+    await dashboardTab.click({ noWaitAfter: true });
     await settingsTab.click({ noWaitAfter: true });
 
     await expect
@@ -136,10 +136,10 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
         if (busyCount > 1) return "too-many";
 
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
-        const onSettings = /\/agenda\/settings(?:[/?#]|$)/.test(page.url());
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
+        const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
 
-        if (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") {
+        if (busyCount === 1 && settingsBusy === "true" && dashboardBusy === "false") {
           return "ok-pending";
         }
         if (busyCount === 0 && onSettings) return "ok-landed";
@@ -151,10 +151,10 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
       .poll(async () => {
         const busyCount = await busyTabs.count();
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
-        const onSettings = /\/agenda\/settings(?:[/?#]|$)/.test(page.url());
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
+        const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
         return (
-          (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") ||
+          (busyCount === 1 && settingsBusy === "true" && dashboardBusy === "false") ||
           (busyCount === 0 && onSettings)
         );
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })

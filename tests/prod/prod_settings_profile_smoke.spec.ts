@@ -25,12 +25,12 @@ test.describe("Prod smoke: settings and public profile link", () => {
     }
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
 
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
     await expect(page.getByText("Settings", { exact: true }).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole("button", { name: /Save settings/i })).toBeVisible();
+    await expect(page.getByTestId("settings-sidebar")).toBeVisible();
     await expect(page.getByRole("link", { name: /View public profile/i })).toBeVisible();
 
     const publicProfileLink = page.getByRole("link", { name: /View public profile/i });

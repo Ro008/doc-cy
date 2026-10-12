@@ -1,5 +1,11 @@
-import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
-import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { compareClinicOrder } from "@/lib/clinic-order";
+import {
+  locationScheduleColumns,
+  locationWeeklySchedule,
+  sanitizeClinicLabel,
+  type DoctorLocationRow,
+} from "@/lib/doctor-locations";
+import { DAY_NAMES, type WeeklySchedule } from "@/lib/doctor-settings";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
@@ -65,32 +71,58 @@ export type SettingsClinicInput = {
   breakStart?: string;
   breakEnd?: string;
   slotDurationMinutes?: number;
+  /** This clinic's booking limits (user, 2026-10-11); a save without them keeps them. */
+  bookingHorizonDays?: unknown;
+  minimumNoticeHours?: unknown;
+  patientCancelNoticeHours?: unknown;
   [ignored: string]: unknown;
 };
 
-type OwnedClinic = { id: string; is_primary?: boolean | null; sort_order?: number | null };
+export type ClinicLimitsPatch = {
+  bookingHorizonDays?: number;
+  minimumNoticeHours?: number;
+  patientCancelNoticeHours?: number;
+};
 
-function primaryOf(owned: readonly OwnedClinic[]): OwnedClinic | null {
-  return (
-    [...owned].sort(
-      (a, b) =>
-        Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
-        (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
-    )[0] ?? null
-  );
+const LIMIT_KEYS = ["bookingHorizonDays", "minimumNoticeHours", "patientCancelNoticeHours"] as const;
+
+/** The limits a clinic was sent with, as whole numbers; null when it carries none. */
+function clinicLimitsPatch(input: SettingsClinicInput): ClinicLimitsPatch | null {
+  const limits: ClinicLimitsPatch = {};
+  for (const key of LIMIT_KEYS) {
+    const raw = input[key];
+    const value = typeof raw === "string" && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : raw;
+    if (typeof value === "number" && Number.isInteger(value)) limits[key] = value;
+  }
+  return Object.keys(limits).length > 0 ? limits : null;
 }
 
+type OwnedClinic = { id: string; sort_order?: number | null; created_at?: string | null };
+
+/** Her first clinic (there is no "primary clinic": sort_order, then the date she joined). */
+function primaryOf(owned: readonly OwnedClinic[]): OwnedClinic | null {
+  return [...owned].sort(compareClinicOrder)[0] ?? null;
+}
+
+export type SettingsSaveTarget = {
+  locationId: string;
+  settings: ClinicSettingsPatch;
+  /** This clinic's booking limits, when the page sent them. */
+  limits: ClinicLimitsPatch | null;
+};
+
 /**
- * What a settings save writes: for each clinic the professional owns, its hours and name.
- * A first entry without an id means the primary clinic (single-clinic pages); ids the
- * professional doesn't own are skipped. The bookings pause has its own toggle and route.
+ * What a settings save writes: for each clinic the professional owns, its hours, name
+ * and booking limits. A first entry without an id means the primary clinic
+ * (single-clinic pages); ids the professional doesn't own are skipped. The bookings
+ * pause has its own toggle and route.
  */
 export function settingsSaveTargets(
   inputs: readonly SettingsClinicInput[],
   owned: readonly OwnedClinic[],
-): Array<{ locationId: string; settings: ClinicSettingsPatch }> {
+): SettingsSaveTarget[] {
   const ownedIds = new Set(owned.map((row) => row.id));
-  const targets: Array<{ locationId: string; settings: ClinicSettingsPatch }> = [];
+  const targets: SettingsSaveTarget[] = [];
   inputs.forEach((input, index) => {
     const id = String(input?.id ?? "").trim();
     const locationId = ownedIds.has(id) ? id : !id && index === 0 ? primaryOf(owned)?.id : undefined;
@@ -111,9 +143,43 @@ export function settingsSaveTargets(
     });
     const patch: Record<string, unknown> = { ...schedule };
     if (typeof input.label === "string") patch.label = sanitizeClinicLabel(input.label);
-    targets.push({ locationId, settings: clinicSettingsPatch(patch) });
+    targets.push({ locationId, settings: clinicSettingsPatch(patch), limits: clinicLimitsPatch(input) });
   });
   return targets;
+}
+
+/**
+ * True when the hours a save carries for a clinic are the ones it already has. A save
+ * sends every clinic, and the page writes a week its own way (times with seconds, a
+ * break on each day), so both sides go through the same columns before they are
+ * compared: only a real change reaches the database and is recorded.
+ */
+export function clinicHoursUnchanged(next: ClinicSettingsPatch, current: DoctorLocationRow): boolean {
+  const { pause_online_bookings: _pause, ...stored } = locationScheduleColumns({
+    weeklySchedule: locationWeeklySchedule(current),
+    slotDurationMinutes: current.slot_duration_minutes,
+  });
+  return (
+    weekAsText(next.weekly_schedule, next.break_start, next.break_end) ===
+      weekAsText(stored.weekly_schedule, stored.break_start, stored.break_end) &&
+    Number(next.slot_duration_minutes) === stored.slot_duration_minutes
+  );
+}
+
+/** A week reduced to what it means: each day open or not, its hours, and its break if open. */
+function weekAsText(week: unknown, clinicBreakStart: unknown, clinicBreakEnd: unknown): string {
+  const days = (week ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  return JSON.stringify(
+    DAY_NAMES.map((name) => {
+      const day = days[name] ?? {};
+      const enabled = Boolean(day.enabled);
+      // A day saved without its own break follows the clinic's one break.
+      const ownBreak = "break_start" in day || "break_end" in day;
+      const breakStart = enabled ? (ownBreak ? day.break_start : clinicBreakStart) : null;
+      const breakEnd = enabled ? (ownBreak ? day.break_end : clinicBreakEnd) : null;
+      return [enabled, day.start_time ?? null, day.end_time ?? null, breakStart ?? null, breakEnd ?? null];
+    }),
+  );
 }
 
 /** Prefilled "contact us" message from the read-only clinics on the settings page. */

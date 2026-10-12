@@ -60,7 +60,6 @@ describe("agenda clinics", () => {
   it("names each clinic after the clinic itself, not the link label", () => {
     const base = {
       professional_id: "p",
-      is_primary: true,
       sort_order: 0,
       pause_online_bookings: false,
       weekly_schedule: null,
@@ -70,7 +69,7 @@ describe("agenda clinics", () => {
     };
     const clinics = locationsToAgendaClinics([
       { ...base, id: "l1", clinic_id: "c1", clinic_name: "Evangelismos", label: "Old label" },
-      { ...base, id: "l2", clinic_id: "c2", clinic_name: null, label: "Coast", is_primary: false, sort_order: 1 },
+      { ...base, id: "l2", clinic_id: "c2", clinic_name: null, label: "Coast", sort_order: 1 },
     ] as never);
     assert.deepEqual(
       clinics.map((c) => [c.id, c.clinicId, c.name]),

@@ -21,7 +21,6 @@ import type { DoctorLocationRow } from "../../lib/doctor-locations";
 function loc(partial: Partial<DoctorLocationRow> & { id: string }): DoctorLocationRow {
   return {
     doctor_id: "doc-1",
-    is_primary: false,
     sort_order: 0,
     label: null,
     district: "Nicosia",
@@ -55,6 +54,15 @@ describe("doctor locations", () => {
     assert.equal(clinicDefaultName(1, 2), "Clinic 2");
     assert.equal(clinicDisplayName("  ", 0, 2), "Clinic 1");
     assert.equal(clinicDisplayName("Evangelismos", 0, 2), "Evangelismos");
+    // DocCy's clinic names are shown whole (the old 40-character cap was for typed labels).
+    assert.equal(
+      clinicDisplayName("WellClub - Wellness Family Experience clinic", 0, 2),
+      "WellClub - Wellness Family Experience clinic",
+    );
+    assert.equal(
+      clinicTitleOrFallback("WellClub - Wellness Family Experience clinic", "Clinic 1"),
+      "WellClub - Wellness Family Experience clinic",
+    );
     assert.equal(sanitizeClinicLabel("   "), null);
     assert.equal(clinicTitleOrFallback(null, "Κλινική 1"), "Κλινική 1");
     assert.equal(clinicTitleOrFallback("Makarios", "Κλινική 1"), "Makarios");
@@ -90,30 +98,28 @@ describe("doctor locations", () => {
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/dashboard/SettingsForm.tsx"),
       "utf8",
     );
-    assert.equal(settingsForm.includes("workplace-settings-frame"), true);
-    assert.equal(settingsForm.includes("workplaceAccent"), true);
-    assert.equal(settingsForm.includes("Hours for ${activeWorkplaceLabel}"), true);
-    assert.equal(settingsForm.includes('id="clinicName"'), true);
-    // D4 (user, 2026-09-30): clinics are read-only in settings until the clinic requests.
-    assert.equal(settingsForm.includes("Add clinic"), false);
+    // Settings redesign (B1): one card per clinic, the hours editor opens inside it.
+    assert.equal(settingsForm.includes("<ClinicCard"), true);
+    assert.equal(settingsForm.includes("agendaClinicEventColor"), true);
+    // One name everywhere, DocCy's (user, 2026-10-01): no clinic name field.
+    assert.equal(settingsForm.includes('id="clinicName"'), false);
+    // D4 (user, 2026-09-30): clinics are curated by DocCy, never an address field. Joining
+    // a DocCy clinic and leaving one are immediate (user, 2026-10-11); a new clinic and a
+    // change to one are requests.
+    assert.equal(settingsForm.includes("/api/clinic-requests"), true);
+    assert.equal(settingsForm.includes('fetch("/api/professional-clinics"'), true);
+    assert.equal(settingsForm.includes("Leave clinic"), true);
+    assert.equal(settingsForm.includes("Remove clinic"), false);
     assert.equal(settingsForm.includes("Remove this clinic"), false);
     assert.equal(settingsForm.includes("ClinicAddressAutocomplete"), false);
-    assert.equal(settingsForm.includes("Contact us to change your clinics"), true);
+    assert.equal(settingsForm.includes("ClinicChangeRequestDialog"), true);
     assert.equal(settingsForm.includes("Add workplace"), false);
-    assert.equal(settingsForm.includes('aria-label="Clinics"'), true);
     assert.equal(settingsForm.includes('id="district"'), false);
     assert.equal(settingsForm.includes("Select district"), false);
     assert.equal(settingsForm.includes("settings-clinic-district"), false);
     assert.equal(settingsForm.includes("District not detected"), false);
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
-    assert.equal(
-      settingsForm.indexOf('role="tablist"') <
-        settingsForm.indexOf("workplace-settings-frame"),
-      true,
-    );
-    assert.equal(settingsForm.includes("overflow-x-auto px-1"), false);
-    assert.equal(settingsForm.includes("TIME_INPUT_CLASS"), true);
-    assert.equal(settingsForm.includes("[overflow-anchor:none]"), true);
+    assert.equal(settingsForm.includes("ClinicHoursEditor"), true);
     assert.equal(settingsForm.includes("workplaceTabScrollYRef"), true);
     const picker = fs.readFileSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/DoctorProfileClinicPicker.tsx"),
@@ -130,10 +136,10 @@ describe("doctor locations", () => {
     assert.equal(profilePage.includes('aria-label="Workplaces"'), false);
   });
 
-  it("keeps the primary workplace first", () => {
+  it("orders workplaces by sort_order", () => {
     const sorted = sortDoctorLocations([
-      loc({ id: "b", is_primary: false, sort_order: 1 }),
-      loc({ id: "a", is_primary: true, sort_order: 0 }),
+      loc({ id: "b", sort_order: 1 }),
+      loc({ id: "a", sort_order: 0 }),
     ]);
     assert.equal(sorted[0]?.id, "a");
     assert.equal(sorted[1]?.id, "b");

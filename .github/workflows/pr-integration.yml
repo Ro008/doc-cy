@@ -137,6 +137,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-pr-booking-report
+          retention-days: 7
           path: |
             playwright-report
             test-results
@@ -215,6 +216,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-pr-account-report
+          retention-days: 7
           path: |
             playwright-report
             test-results
@@ -287,6 +289,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-pr-finder-report
+          retention-days: 7
           path: |
             playwright-report
             test-results
