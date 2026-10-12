@@ -58,7 +58,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const header = page.getByTestId("pro-sticky-header");
     await expect(header).toBeVisible();
     const tabs = header.getByRole("navigation", { name: "Doctor sections" }).getByRole("link");
-    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Settings", "Insights"]);
+    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Settings"]);
     await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("aria-current", "page");
     await expect(header.getByTestId("userbar-nav-agenda")).not.toHaveAttribute("aria-current", "page");
   });
@@ -100,16 +100,13 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(panel).toBeHidden({ timeout: 10_000 });
   });
 
-  test("desktop: nav tabs reach agenda, settings and insights", async ({ page }) => {
+  test("desktop: nav tabs reach agenda and settings; Insights is hidden for now", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
 
     const header = page.getByTestId("pro-sticky-header");
-    await header.getByTestId("userbar-nav-insights").click();
-    await expect(page).toHaveURL(/\/agenda\/insights(?:[/?#]|$)/, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "Practice insights" })).toBeVisible();
-    await expect(header.getByTestId("userbar-nav-insights")).toHaveAttribute("aria-current", "page");
+    await expect(header.getByTestId("userbar-nav-insights")).toHaveCount(0);
 
     await header.getByTestId("userbar-nav-settings").click();
     await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 15_000 });
@@ -157,7 +154,6 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
       "userbar-tab-dashboard",
       "userbar-tab-agenda",
       "userbar-tab-settings",
-      "userbar-tab-insights",
       "userbar-tab-more",
     ]);
     await expect(page.getByTestId("userbar-tab-dashboard")).toHaveAttribute("aria-current", "page");
@@ -200,32 +196,32 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await waitForHydration(page);
 
     const header = page.getByTestId("pro-sticky-header");
-    const insights = header.getByTestId("userbar-nav-insights");
+    const settings = header.getByTestId("userbar-nav-settings");
     const pill = header.getByTestId("userbar-nav-pill");
-    const widthBefore = (await insights.boundingBox())!.width;
+    const widthBefore = (await settings.boundingBox())!.width;
 
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
-    await page.route("**/agenda/insights**", async (route) => {
+    await page.route("**/settings**", async (route) => {
       await released;
       await route.continue();
     });
 
-    await insights.click({ noWaitAfter: true });
-    await expect(insights).toHaveAttribute("data-selected", "true");
+    await settings.click({ noWaitAfter: true });
+    await expect(settings).toHaveAttribute("data-selected", "true");
     await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("data-selected", "false");
-    await expect(insights).toHaveAttribute("aria-busy", "true");
+    await expect(settings).toHaveAttribute("aria-busy", "true");
     await expect
       .poll(async () => {
-        const [p, t] = [await pill.boundingBox(), await insights.boundingBox()];
+        const [p, t] = [await pill.boundingBox(), await settings.boundingBox()];
         return p && t ? Math.abs(p.x - t.x) < 2 && Math.abs(p.width - t.width) < 2 : false;
       }, { timeout: 3_000 })
       .toBe(true);
-    expect(Math.abs((await insights.boundingBox())!.width - widthBefore)).toBeLessThan(1);
+    expect(Math.abs((await settings.boundingBox())!.width - widthBefore)).toBeLessThan(1);
 
     release();
-    await expect(page).toHaveURL(/\/agenda\/insights(?:[/?#]|$)/, { timeout: 20_000 });
-    await expect(insights).toHaveAttribute("aria-current", "page");
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(settings).toHaveAttribute("aria-current", "page");
   });
 
   test("the Dashboard tab shows how many requests are waiting, on every page", async ({ page }) => {

@@ -10,14 +10,26 @@ export type DoctorNavTab = {
   href: string;
 };
 
-/** Top-level doctor pages, in navigation order (desktop header and mobile tab bar). */
-export const DOCTOR_NAV_TABS: readonly DoctorNavTab[] = [
+/**
+ * Insights is hidden for now (user, 2026-10-12): with few appointments it shows zeros,
+ * and some of its numbers need rework. Its page and code stay; while this is false no
+ * tab names it and /agenda/insights lands on the Dashboard. Set it to true to bring
+ * the tab and the page back.
+ */
+export const INSIGHTS_ENABLED: boolean = false;
+
+const ALL_DOCTOR_NAV_TABS: readonly DoctorNavTab[] = [
   { id: "dashboard", label: "Dashboard", href: DOCTOR_HOME_PATH },
   { id: "agenda", label: "Agenda", href: "/agenda" },
   // Settings is its own page, not under the agenda (settings redesign, 2026-09-30).
   { id: "settings", label: "Settings", href: "/settings" },
   { id: "insights", label: "Insights", href: "/agenda/insights" },
 ];
+
+/** Top-level doctor pages, in navigation order (desktop header and mobile tab bar). */
+export const DOCTOR_NAV_TABS: readonly DoctorNavTab[] = ALL_DOCTOR_NAV_TABS.filter(
+  (tab) => tab.id !== "insights" || INSIGHTS_ENABLED,
+);
 
 function normalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";

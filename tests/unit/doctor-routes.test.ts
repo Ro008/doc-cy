@@ -6,6 +6,7 @@ import {
   logoHomeHref,
   showSectionsInAccountMenu,
   DOCTOR_NAV_TABS,
+  INSIGHTS_ENABLED,
   activeDoctorNavTab,
   isDoctorProductPath,
   pendingBadgeLabel,
@@ -35,7 +36,10 @@ describe("postLoginDestination", () => {
 });
 
 describe("DOCTOR_NAV_TABS", () => {
-  it("lists dashboard, agenda, settings and insights in that order", () => {
+  // Insights is hidden until there are enough appointments and traffic to make it
+  // worth reading (user, 2026-10-12). Its page and code stay; INSIGHTS_ENABLED brings it back.
+  it("lists dashboard, agenda and settings in that order: Insights is hidden for now", () => {
+    assert.equal(INSIGHTS_ENABLED, false);
     assert.deepEqual(
       DOCTOR_NAV_TABS.map((tab) => [tab.id, tab.label, tab.href]),
       [
@@ -43,7 +47,6 @@ describe("DOCTOR_NAV_TABS", () => {
         ["agenda", "Agenda", "/agenda"],
         // Settings is its own page, not under the agenda (settings redesign, 2026-09-30).
         ["settings", "Settings", "/settings"],
-        ["insights", "Insights", "/agenda/insights"],
       ],
     );
   });
@@ -111,7 +114,9 @@ describe("selectedDoctorNavTab", () => {
   });
 
   it("jumps to the tab being opened before the page arrives", () => {
-    assert.equal(selectedDoctorNavTab("/dashboard", "/agenda/insights"), "insights");
+    assert.equal(selectedDoctorNavTab("/dashboard", "/settings"), "settings");
+    // A hidden page is no tab to jump to.
+    assert.equal(selectedDoctorNavTab("/dashboard", "/agenda/insights"), "dashboard");
     assert.equal(selectedDoctorNavTab("/agenda", "/dashboard"), "dashboard");
   });
 
