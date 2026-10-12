@@ -34,7 +34,7 @@ async function signInAndOpenDashboard(page: import("@playwright/test").Page) {
 }
 
 test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
-  test("desktop: greeting, requests, today and the four nav tabs", async ({ page }) => {
+  test("desktop: greeting, requests, today and the five nav tabs", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
@@ -58,7 +58,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const header = page.getByTestId("pro-sticky-header");
     await expect(header).toBeVisible();
     const tabs = header.getByRole("navigation", { name: "Doctor sections" }).getByRole("link");
-    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Settings", "Insights"]);
+    await expect(tabs).toHaveText(["Dashboard", "Agenda", "Visits", "Settings", "Insights"]);
     await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("aria-current", "page");
     await expect(header.getByTestId("userbar-nav-agenda")).not.toHaveAttribute("aria-current", "page");
   });
@@ -156,6 +156,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     expect(order).toEqual([
       "userbar-tab-dashboard",
       "userbar-tab-agenda",
+      "userbar-tab-visits",
       "userbar-tab-settings",
       "userbar-tab-insights",
       "userbar-tab-more",
@@ -263,6 +264,20 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await waitForHydration(page);
 
     const fade = page.getByTestId("dashboard-scroll-fade");
+    // The page settles after hydration (data arrives, placeholders go): measure once its height
+    // has stopped changing, or a transient height decides "scrollable" and the fade is rightly off.
+    let lastHeight = -1;
+    await expect
+      .poll(
+        async () => {
+          const h = await page.evaluate(() => document.documentElement.scrollHeight);
+          const settled = h === lastHeight;
+          lastHeight = h;
+          return settled;
+        },
+        { intervals: [700], timeout: 15_000 },
+      )
+      .toBe(true);
     const scrollable = await page.evaluate(
       () => document.documentElement.scrollHeight > window.innerHeight + 16,
     );

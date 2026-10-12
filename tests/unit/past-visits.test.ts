@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  PAST_VISITS_MAX_PAGE,
   PAST_VISITS_PAGE_SIZE,
   isPastVisit,
   parsePastVisitsParams,
@@ -9,6 +10,7 @@ import {
   pastVisitsHref,
   pastVisitsPageRange,
   pastVisitsSearchFilter,
+  patientVisitsHref,
 } from "../../lib/past-visits";
 
 /**
@@ -48,6 +50,8 @@ describe("parsePastVisitsParams", () => {
       clinicId: null,
       service: null,
       attendance: "all",
+      notes: "all",
+      patientId: null,
       page: 1,
     });
   });
@@ -61,6 +65,8 @@ describe("parsePastVisitsParams", () => {
         clinic: "0b1c8d52-6f0e-4d2a-8f3c-2f7d9a1b3c4d",
         service: " Check-up ",
         attendance: "no_show",
+        notes: "missing",
+        patient: "7d9a2f6e-1c3b-4a8e-9f10-2b4c6d8e0a12",
         page: "3",
       }),
       {
@@ -70,6 +76,8 @@ describe("parsePastVisitsParams", () => {
         clinicId: "0b1c8d52-6f0e-4d2a-8f3c-2f7d9a1b3c4d",
         service: "Check-up",
         attendance: "no_show",
+        notes: "missing",
+        patientId: "7d9a2f6e-1c3b-4a8e-9f10-2b4c6d8e0a12",
         page: 3,
       },
     );
@@ -85,8 +93,12 @@ describe("parsePastVisitsParams", () => {
       to: "2026-02-31",
       clinic: "not-a-uuid",
       attendance: "weird",
+      notes: "nope",
+      patient: "maria@example.com",
       page: "-4",
     });
+    assert.equal(p.patientId, null);
+    assert.equal(p.notes, "all");
     assert.equal(p.from, null);
     assert.equal(p.to, null);
     assert.equal(p.clinicId, null);
@@ -190,5 +202,59 @@ describe("pastVisitsHref", () => {
 
   it("encodes the text", () => {
     assert.equal(pastVisitsHref(parsePastVisitsParams({ q: "a&b c" })), "/agenda/visits?q=a%26b+c");
+  });
+});
+
+describe("visits without notes", () => {
+  it("is a filter in the URL, left out when off", () => {
+    const q = parsePastVisitsParams({ notes: "missing" });
+    assert.equal(q.notes, "missing");
+    assert.equal(pastVisitsHref(q), "/agenda/visits?notes=missing");
+    assert.equal(pastVisitsHref(q, { notes: "all" }), "/agenda/visits");
+  });
+});
+
+describe("page cap", () => {
+  it("never goes past the last page a doctor could reasonably reach", () => {
+    assert.equal(parsePastVisitsParams({ page: "99999999999" }).page, PAST_VISITS_MAX_PAGE);
+    assert.equal(parsePastVisitsParams({ page: String(PAST_VISITS_MAX_PAGE) }).page, PAST_VISITS_MAX_PAGE);
+    assert.equal(parsePastVisitsParams({ page: "2" }).page, 2);
+  });
+});
+
+/**
+ * The link to a patient's visits carries only the id of one of her visits, resolved on the
+ * server: no email or phone ever sits in the URL (user, 2026-10-12).
+ */
+describe("patientVisitsHref", () => {
+  const id = "7d9a2f6e-1c3b-4a8e-9f10-2b4c6d8e0a12";
+
+  it("is the tab with the visit's id", () => {
+    assert.equal(
+      patientVisitsHref({ id, patient_email: "Maria@Example.com", patient_phone: "+357 99 444 555" }),
+      `/agenda/visits?patient=${id}`,
+    );
+  });
+
+  it("never puts the email or the phone in the URL", () => {
+    const href = patientVisitsHref({ id, patient_email: "maria@example.com", patient_phone: "+35799444555" })!;
+    assert.equal(href.includes("maria"), false);
+    assert.equal(href.includes("357"), false);
+    assert.equal(href.includes("%40"), false);
+  });
+
+  it("works with the phone alone", () => {
+    assert.equal(patientVisitsHref({ id, patient_email: null, patient_phone: "99 444 555" }), `/agenda/visits?patient=${id}`);
+  });
+
+  it("is null when there is nothing to match on", () => {
+    assert.equal(patientVisitsHref({ id, patient_email: " ", patient_phone: "12" }), null);
+    assert.equal(patientVisitsHref({ id, patient_email: null, patient_phone: null }), null);
+  });
+
+  it("is kept in the URL together with the other filters, and dropped to clear", () => {
+    const q = parsePastVisitsParams({ patient: id, attendance: "no_show" });
+    assert.equal(pastVisitsHref(q), `/agenda/visits?attendance=no_show&patient=${id}`);
+    assert.equal(pastVisitsHref(q, { patientId: null }), "/agenda/visits?attendance=no_show");
   });
 });

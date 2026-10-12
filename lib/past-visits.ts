@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
+import { previousVisitsOrFilter } from "@/lib/previous-visits";
 
 /**
  * "Visits" tab (user, 2026-10-09): her past visits with the patient's details, the reason,
@@ -10,6 +11,8 @@ import { CY_TZ } from "@/lib/appointments";
  */
 export const PAST_VISITS_PATH = "/agenda/visits";
 export const PAST_VISITS_PAGE_SIZE = 20;
+/** 10,000 visits: far past any real practice, so a hostile `page` never reaches the database. */
+export const PAST_VISITS_MAX_PAGE = 500;
 const SEARCH_MAX = 100;
 
 export const PAST_VISIT_SELECT =
@@ -43,6 +46,13 @@ export type PastVisitsQuery = {
   /** Exact service name (the copy stored on the visit). */
   service: string | null;
   attendance: PastVisitsAttendance;
+  /** "missing": only visits she hasn't written notes for yet. */
+  notes: "all" | "missing";
+  /**
+   * Only the visits of the patient of this visit of hers (matched on its email or phone, on the
+   * server). An id, never the email or phone itself: those would sit in the URL.
+   */
+  patientId: string | null;
   page: number;
 };
 
@@ -86,7 +96,9 @@ export function parsePastVisitsParams(params: RawParams): PastVisitsQuery {
     clinicId: UUID.test(clinic) ? clinic : null,
     service: first(params.service).slice(0, 200) || null,
     attendance: attendance === "attended" || attendance === "no_show" ? attendance : "all",
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
+    notes: first(params.notes) === "missing" ? "missing" : "all",
+    patientId: UUID.test(first(params.patient)) ? first(params.patient) : null,
+    page: Number.isFinite(page) && page >= 1 ? Math.min(page, PAST_VISITS_MAX_PAGE) : 1,
   };
 }
 
@@ -146,6 +158,8 @@ export function pastVisitsHref(query: PastVisitsQuery, overrides: Partial<PastVi
   if (q.clinicId) params.set("clinic", q.clinicId);
   if (q.service) params.set("service", q.service);
   if (q.attendance !== "all") params.set("attendance", q.attendance);
+  if (q.notes === "missing") params.set("notes", "missing");
+  if (q.patientId) params.set("patient", q.patientId);
   if (q.page > 1) params.set("page", String(q.page));
   const qs = params.toString();
   return qs ? `${PAST_VISITS_PATH}?${qs}` : PAST_VISITS_PATH;
@@ -154,11 +168,34 @@ export function pastVisitsHref(query: PastVisitsQuery, overrides: Partial<PastVi
 export async function loadPastVisits(
   supabase: SupabaseClient,
   input: { professionalId: string; query: PastVisitsQuery; now?: Date },
-): Promise<{ rows: PastVisitRow[]; total: number; failed: boolean }> {
+): Promise<{
+  rows: PastVisitRow[];
+  total: number;
+  failed: boolean;
+  patientName: string | null;
+  /** The page actually served: the first one when the asked page doesn't exist. */
+  page: number;
+}> {
   const { query } = input;
   const now = input.now ?? new Date();
   const { fromIso, toIso } = pastVisitsDateBounds(query.from, query.to);
   const range = pastVisitsPageRange(query.page);
+
+  // The patient filter: look the visit up (hers only) and match on its email or phone.
+  let patientFilter: string | null = null;
+  let patientName: string | null = null;
+  if (query.patientId) {
+    const { data: who } = await supabase
+      .from("appointments")
+      .select("patient_name, patient_email, patient_phone")
+      .eq("id", query.patientId)
+      .eq("professional_id", input.professionalId)
+      .maybeSingle();
+    patientFilter = who ? previousVisitsOrFilter({ email: who.patient_email, phone: who.patient_phone }) : null;
+    // Not hers, or nothing to match on: no visits (and nothing said about why).
+    if (!patientFilter) return { rows: [], total: 0, failed: false, patientName: null, page: query.page };
+    patientName = String(who?.patient_name ?? "").trim() || null;
+  }
 
   let req = supabase
     .from("appointments")
@@ -173,6 +210,8 @@ export async function loadPastVisits(
   if (query.attendance === "no_show") req = req.eq("attendance", "no_show");
   // Attendance is filled in by a job after the visit, so "attended" also means not marked yet.
   if (query.attendance === "attended") req = req.or("attendance.is.null,attendance.neq.no_show");
+  if (query.notes === "missing") req = req.is("professional_notes", null);
+  if (patientFilter) req = req.or(patientFilter);
   const search = pastVisitsSearchFilter(query.q);
   if (search) req = req.or(search);
 
@@ -180,8 +219,53 @@ export async function loadPastVisits(
     .order("appointment_datetime", { ascending: false })
     .range(range.from, range.to);
   if (error) {
-    console.error("[DocCy] loadPastVisits failed", error);
-    return { rows: [], total: 0, failed: true };
+    // PGRST103: the page is past the last one (visits were removed, or a made-up number).
+    if (error.code === "PGRST103" && query.page > 1) {
+      return loadPastVisits(supabase, { ...input, query: { ...query, page: 1 } });
+    }
+    console.error("[DocCy] loadPastVisits failed", error.code ?? "unknown");
+    return { rows: [], total: 0, failed: true, patientName, page: query.page };
   }
-  return { rows: (data ?? []) as PastVisitRow[], total: count ?? 0, failed: false };
+  return { rows: (data ?? []) as PastVisitRow[], total: count ?? 0, failed: false, patientName, page: query.page };
+}
+
+/**
+ * The tab showing this patient's visits. The link carries the id of the visit, not the patient's
+ * email or phone (those would end up in the URL: browser history, server logs, analytics); the
+ * server looks the visit up and matches on its email or phone. A likely match, like the previous
+ * visits, since there is no patient record yet.
+ *
+ * PATIENT-ACCOUNTS: when patients get accounts (a `patients` table and `appointments.patient_id`),
+ * this becomes exact: link with `?patient=<patient id>`, filter `loadPastVisits` by `patient_id`, and drop
+ * the email/phone matching. Same change as lib/previous-visits.ts; `grep -rn PATIENT-ACCOUNTS`.
+ */
+export function patientVisitsHref(row: {
+  id: string;
+  patient_email: string | null;
+  patient_phone: string | null;
+}): string | null {
+  const hasEmail = String(row.patient_email ?? "").includes("@");
+  const hasPhone = String(row.patient_phone ?? "").replace(/\D/g, "").length >= 8;
+  if (!hasEmail && !hasPhone) return null;
+  return pastVisitsHref(parsePastVisitsParams({}), { patientId: row.id });
+}
+
+/** How many of her past visits have no notes yet (every filter ignored). */
+export async function countPastVisitsWithoutNotes(
+  supabase: SupabaseClient,
+  professionalId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("professional_id", professionalId)
+    .eq("status", "CONFIRMED")
+    .lte("appointment_datetime", now.toISOString())
+    .is("professional_notes", null);
+  if (error) {
+    console.error("[DocCy] countPastVisitsWithoutNotes failed", error);
+    return 0;
+  }
+  return count ?? 0;
 }
