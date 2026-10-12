@@ -1457,7 +1457,8 @@ export function SettingsForm({
       className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
     >
       Your DocCy access has ended, so online bookings are switched off. Patients can still call your
-      clinic&apos;s phone from your profile.{" "}
+      clinic&apos;s phone from your profile. You can still answer the requests and handle the visits
+      you already have.{" "}
       <a
         href={settingsSectionHref("plan")}
         data-settings-section="plan"
@@ -1465,7 +1466,7 @@ export function SettingsForm({
           event.preventDefault();
           selectSection("plan");
         }}
-        className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
+        className="whitespace-nowrap font-semibold text-amber-300 underline decoration-amber-300 underline-offset-2 hover:text-amber-200"
       >
         See your plan
       </a>
