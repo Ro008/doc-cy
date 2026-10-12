@@ -2586,6 +2586,19 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await page.goto("/settings?section=account");
     await expect(page).toHaveURL(/\/login/, { timeout: 30_000 });
 
+    // A sign-in token carries its time in whole seconds, and a session counts as ended when
+    // that time is before the moment she was signed out. She needs the emailed link to sign
+    // in again, so never within the same second; this test can (CI, local database), and
+    // would then be sent back to the login page for ever. Wait for the next second.
+    const ended = await admin
+      .from("professionals")
+      .select("auth_session_revoked_after")
+      .eq("id", seeded!.professionalId)
+      .single();
+    const endedMs = Date.parse(String(ended.data?.auth_session_revoked_after ?? ""));
+    expect(Number.isFinite(endedMs)).toBe(true);
+    await expect.poll(() => Date.now(), { timeout: 10_000 }).toBeGreaterThanOrEqual(Math.ceil(endedMs / 1000) * 1000 + 250);
+
     // Settings then shows the new address, with nothing left waiting.
     await openSettings(page, { ...seeded!, email: newEmail }, "account");
     await expect(page.getByTestId("settings-account-email")).toHaveText(newEmail);
