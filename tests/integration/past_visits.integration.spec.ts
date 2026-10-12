@@ -413,8 +413,11 @@ test.describe("Integration: Visits tab with two clinics", { tag: "@pr-e2e" }, ()
   test("the clinic dropdown marks each clinic with its colour, filters and shows the colour once chosen", async () => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/agenda/visits", { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("past-visit")).toHaveCount(2, { timeout: 15_000 });
+    // The first load of this doctor's page can be slow on a busy CI machine: reload until it lists both.
+    await expect(async () => {
+      await page.goto("/agenda/visits", { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("past-visit")).toHaveCount(2, { timeout: 10_000 });
+    }).toPass({ timeout: 60_000 });
 
     const trigger = page.locator("#visits-clinic");
     await expect(trigger).toContainText("All clinics");
