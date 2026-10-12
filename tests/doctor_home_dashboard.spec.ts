@@ -118,7 +118,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/, { timeout: 15_000 });
   });
 
-  test("desktop: the user menu keeps the extras, not the tab pages", async ({ page }) => {
+  test("desktop: the user menu is about her account, not the tab pages or shortcuts", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
@@ -131,11 +131,29 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
       await expect(menu).toBeVisible();
     }).toPass({ timeout: 15_000 });
 
-    await expect(menu.getByTestId("userbar-link-manual-booking")).toBeVisible();
-    await expect(menu.getByTestId("userbar-link-promote")).toBeVisible();
+    const items = await menu
+      .locator('[role="menuitem"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
+    expect(items.filter((id) => id !== "userbar-link-public-profile")).toEqual([
+      "userbar-link-account",
+      "userbar-link-plan",
+      "userbar-action-support",
+      "userbar-action-logout",
+    ]);
+    await expect(menu.getByTestId("userbar-link-account")).toHaveText("Account");
+    await expect(menu.getByTestId("userbar-link-plan")).toHaveText("Plan & billing");
+    await expect(menu.getByTestId("userbar-action-logout")).toHaveText("Log out");
+    await expect(menu.getByRole("separator")).toHaveCount(1);
+    // Manual booking stays on the Dashboard and the Agenda; Promote is a Settings section.
+    await expect(menu.getByTestId("userbar-link-manual-booking")).toHaveCount(0);
+    await expect(menu.getByTestId("userbar-link-promote")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-agenda")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-insights")).toHaveCount(0);
     await expect(menu.getByTestId("userbar-link-settings")).toHaveCount(0);
+
+    await menu.getByTestId("userbar-link-account").click();
+    await expect(page).toHaveURL(/\/settings\?section=account/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible({ timeout: 20_000 });
   });
 
   test("mobile: bottom tabs start with Dashboard and it is active", async ({ page }) => {
@@ -161,7 +179,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("button", { name: "Add manual booking" })).toBeVisible();
   });
 
-  test("mobile: More menu shows the account, manual booking first and logout last", async ({ page }) => {
+  test("mobile: More menu shows the account, the same items as on desktop, log out last", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await signInAndOpenDashboard(page);
@@ -178,11 +196,10 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const items = await menu
       .locator('[role="menuitem"]')
       .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
-    expect(items[0]).toBe("userbar-mobile-more-link-manual-booking");
     expect(items[items.length - 1]).toBe("userbar-mobile-more-action-logout");
     expect(items.filter((id) => id !== "userbar-mobile-more-link-public-profile")).toEqual([
-      "userbar-mobile-more-link-manual-booking",
-      "userbar-mobile-more-link-promote",
+      "userbar-mobile-more-link-account",
+      "userbar-mobile-more-link-plan",
       "userbar-mobile-more-action-support",
       "userbar-mobile-more-action-logout",
     ]);

@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
@@ -16,6 +15,7 @@ import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider"
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { PRO_CHROME_HYDRATED_ATTR, PRO_MOBILE_MORE_OPEN_ATTR } from "@/lib/pro-session-hint";
 import {
+  accountMenuItems,
   logoHomeHref,
   showSectionsInAccountMenu,
   DOCTOR_NAV_TABS,
@@ -26,15 +26,12 @@ import {
 } from "@/lib/doctor-routes";
 import {
   BarChart3,
-  CalendarPlus,
   CalendarDays,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
-  Megaphone,
   MoreHorizontal,
   Settings,
-  UserCircle,
   UserRound,
 } from "lucide-react";
 
@@ -121,7 +118,7 @@ function AccountHeader({
 }) {
   return (
     <div data-testid={testId} className="flex items-center gap-3 px-3 py-2.5">
-      <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
+      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-ink-800">
         <UserAvatar
           url={avatarUrl ?? null}
           isPrivate={avatarIsPrivate}
@@ -130,8 +127,11 @@ function AccountHeader({
         />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-ink-50">{name ?? "Logged in"}</p>
-        <p className="truncate text-[11px] text-ink-400">{email ?? ""}</p>
+        {/* A long name wraps to a second line instead of being cut. */}
+        <p className="line-clamp-2 break-words text-xs font-medium leading-snug text-ink-50">{name ?? "Logged in"}</p>
+        <p className="truncate text-[11px] text-ink-400" title={email ?? undefined}>
+          {email ?? ""}
+        </p>
       </div>
     </div>
   );
@@ -301,6 +301,12 @@ export function UserBar() {
     "relative font-semibold text-clinical-300 before:absolute before:top-0 before:h-0.5 before:w-8 before:rounded-full before:bg-clinical-400";
 
   const useStickyDesktopChrome = isDoctorProductPath(pathname);
+  const menuItems = accountMenuItems({
+    applicant: supportOnly,
+    insidePrivateSpace: useStickyDesktopChrome,
+    hasPublicProfile: Boolean(publicProfilePath),
+    onOwnProfile: isPublicProfileActive,
+  });
 
   const desktopUserMenu = (
     <>
@@ -361,56 +367,14 @@ export function UserBar() {
               ))}
             </div>
           ) : null}
-          {supportOnly ? null : (
-          <>
-          <UserMenuNavLink
-            href="/agenda?manual=1"
-            title={MANUAL_BOOKING_HINT}
-            data-testid="userbar-link-manual-booking"
-            className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
-            icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
-          >
-            {MANUAL_BOOKING_LABEL}
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/settings?section=promote"
-            data-testid="userbar-link-promote"
-            icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            Promote Your Practice
-          </UserMenuNavLink>
-          </>
-          )}
-          <button
-            type="button"
-            onClick={handleOpenSupport}
-            data-testid="userbar-action-support"
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink-100 transition hover:bg-ink-800/90 active:scale-[0.99] active:bg-ink-800/90"
-            role="menuitem"
-          >
-            <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
-            Support
-          </button>
-          {slug && !supportOnly ? (
-            <UserMenuNavLink
-              href={publicProfilePath!}
-              data-testid="userbar-link-public-profile"
-              icon={<UserCircle className="h-4 w-4 text-clinical-300" aria-hidden />}
-            >
-              View Public Profile
-            </UserMenuNavLink>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isSigningOut}
-            data-testid="userbar-action-logout"
-            className="mt-0.5 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-200 transition hover:bg-red-500/15 disabled:opacity-70"
-            role="menuitem"
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-            {isSigningOut ? "Logging out..." : "Logout"}
-          </button>
+          <UserBarMoreMenuItems
+            items={menuItems}
+            publicProfilePath={publicProfilePath}
+            isSigningOut={isSigningOut}
+            onLogout={handleLogout}
+            onSupport={handleOpenSupport}
+            testIdPrefix="userbar"
+          />
         </div>
       ) : null}
     </>
@@ -483,6 +447,7 @@ export function UserBar() {
               data-testid="userbar-mobile-more-account"
             />
             <UserBarMoreMenuItems
+              items={menuItems}
               publicProfilePath={publicProfilePath}
               isSigningOut={isSigningOut}
               onLogout={handleLogout}

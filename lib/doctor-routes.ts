@@ -105,3 +105,38 @@ export function showSectionsInAccountMenu({
 }): boolean {
   return !applicant && !headerHasTabs;
 }
+
+export type AccountMenuItemId =
+  | "manual-booking"
+  | "account"
+  | "plan"
+  | "public-profile"
+  | "support"
+  | "logout";
+
+/**
+ * What the account menu lists, in order: the photo menu on desktop and "More" on a
+ * phone (user, 2026-10-12). It is about her account: no "Promote" shortcut (a Settings
+ * section). Manual booking is offered only outside her private space (finder, public
+ * pages), where nothing else leads to it; inside, the Dashboard and the Agenda have
+ * the button. Applicants get Support and Log out only (user, 2026-09-28).
+ */
+export function accountMenuItems({
+  applicant,
+  insidePrivateSpace,
+  hasPublicProfile,
+  onOwnProfile,
+}: {
+  applicant: boolean;
+  insidePrivateSpace: boolean;
+  hasPublicProfile: boolean;
+  onOwnProfile: boolean;
+}): AccountMenuItemId[] {
+  if (applicant) return ["support", "logout"];
+  const items: AccountMenuItemId[] = [];
+  if (!insidePrivateSpace) items.push("manual-booking");
+  items.push("account", "plan");
+  if (hasPublicProfile && !onOwnProfile) items.push("public-profile");
+  items.push("support", "logout");
+  return items;
+}

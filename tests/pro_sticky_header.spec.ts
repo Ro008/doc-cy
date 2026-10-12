@@ -48,7 +48,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     }).toPass({ timeout: 15_000 });
 
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await expect(stickyHeader.getByTestId("userbar-link-manual-booking")).toBeVisible();
+    await expect(stickyHeader.getByTestId("userbar-link-account")).toBeVisible();
 
     await expect(async () => {
       await toggle.click();

@@ -5,6 +5,7 @@ import {
   DOCTOR_HOME_PATH,
   logoHomeHref,
   showSectionsInAccountMenu,
+  accountMenuItems,
   DOCTOR_NAV_TABS,
   INSIGHTS_ENABLED,
   activeDoctorNavTab,
@@ -168,5 +169,46 @@ describe("showSectionsInAccountMenu", () => {
 
   it("never for applicants", () => {
     assert.equal(showSectionsInAccountMenu({ applicant: true, headerHasTabs: false }), false);
+  });
+});
+
+// The account menu (photo, top right; "More" on a phone) is for account things
+// (user, 2026-10-12): no "Promote" shortcut, and manual booking only outside her
+// private space, where nothing else leads to it.
+describe("accountMenuItems", () => {
+  const base = { applicant: false, insidePrivateSpace: true, hasPublicProfile: true, onOwnProfile: false };
+
+  it("inside her private space: her account, her profile, support, log out", () => {
+    assert.deepEqual(accountMenuItems(base), ["account", "plan", "public-profile", "support", "logout"]);
+  });
+
+  it("on the finder and public pages: manual booking comes first", () => {
+    assert.deepEqual(accountMenuItems({ ...base, insidePrivateSpace: false }), [
+      "manual-booking",
+      "account",
+      "plan",
+      "public-profile",
+      "support",
+      "logout",
+    ]);
+  });
+
+  it("on her own public profile: no link to the page she is on", () => {
+    assert.deepEqual(accountMenuItems({ ...base, insidePrivateSpace: false, onOwnProfile: true }), [
+      "manual-booking",
+      "account",
+      "plan",
+      "support",
+      "logout",
+    ]);
+  });
+
+  it("without a public profile: no link to it", () => {
+    assert.deepEqual(accountMenuItems({ ...base, hasPublicProfile: false }), ["account", "plan", "support", "logout"]);
+  });
+
+  it("an applicant gets support and log out only", () => {
+    assert.deepEqual(accountMenuItems({ ...base, applicant: true }), ["support", "logout"]);
+    assert.deepEqual(accountMenuItems({ ...base, applicant: true, insidePrivateSpace: false }), ["support", "logout"]);
   });
 });
