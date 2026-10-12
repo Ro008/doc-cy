@@ -1133,7 +1133,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(pro?.bio ?? "").not.toBe("A bio I have not saved");
   });
 
-  test("Plan & billing shows the free period and nothing to pay, with no price and no tier", async ({ page }) => {
+  test("Plan & billing shows the free period, the price she registered with, and nothing to pay", async ({ page }) => {
     test.setTimeout(120_000);
     const until = new Date(Date.now() + 100 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await admin
@@ -1151,15 +1151,15 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(terms).toContainText("Free, forever");
     await expect(terms).toContainText("Free until");
     await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
+    // Her price is the one she registered with (here a Founding Member's), and it is hers to keep.
+    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month, your Founding Member price");
     await expect(page.getByTestId("settings-plan-note")).toContainText(
-      "After your free period, online booking continues with a paid subscription.",
+      "After your free period, online booking continues at the price shown above. It is the price from when you registered, and it stays yours if DocCy’s prices change later.",
     );
     await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing changes without notice");
-    // No price and no tier until the subscription work, even for a Founding Member.
-    await expect(card).not.toContainText("€");
-    await expect(card).not.toContainText(/month/i);
+    // No tier badge on this tab.
     await expect(card.getByTestId("founding-member-badge")).toHaveCount(0);
-    await expect(card.getByText(/Standard|Founding Member/)).toHaveCount(0);
+    await expect(card.getByText("Standard")).toHaveCount(0);
     await expect(page.getByTestId("settings-plan-payment")).toHaveCount(0);
     await expect(page.getByText(/coming soon/i)).toHaveCount(0);
 
@@ -1173,6 +1173,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByTestId("settings-plan-days-left")).toHaveCount(0);
     await expect(page.getByTestId("settings-plan-note")).toContainText("Nothing to pay today");
     await expect(page.getByTestId("settings-plan-note")).not.toContainText("After your free period");
+    await expect(page.getByTestId("settings-plan-price")).toHaveText("€19/month, your Founding Member price");
     await expect(async () => {
       await page.getByTestId("settings-plan-contact").click();
       await expect(page.getByRole("dialog", { name: /How can we help you/i })).toBeVisible({ timeout: 3_000 });

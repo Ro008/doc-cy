@@ -281,6 +281,7 @@ export default async function AgendaSettingsPage({
     .maybeSingle();
   const plan = planSummary({
     proAccessUntil: (accessRow as { pro_access_until?: string | null } | null)?.pro_access_until ?? null,
+    isFounder: isFoundingMember,
   });
 
   const locationRows = await loadDoctorLocations(doctor.id);

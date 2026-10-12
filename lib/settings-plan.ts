@@ -10,16 +10,23 @@ import { computeTrialDaysRemaining } from "@/lib/trial-period";
  *   the trial months); after it, booking pauses and the public profile stays.
  * There are no payments yet ("no credit card required" to sign up), so the tab says
  * there is nothing to pay today: no payment form, no "coming soon" placeholder.
- * User, 2026-10-12: no price and no tier here until the subscription work (Stripe,
- * the Founders' Club) is done, and free periods may be extended meanwhile. The
- * countdown stays, and the note says plainly that online booking is paid afterwards,
- * so nobody takes it for free forever or feels charged for something that was free.
+ * User, 2026-10-12: the countdown stays, and the note says plainly that online
+ * booking is paid afterwards, so nobody takes it for free forever or feels charged
+ * for something that was free. Free periods may be extended meanwhile.
+ * The price is shown: these prices are firm, and a professional keeps the price from
+ * when she registered; a later change is for new sign-ups only. Today that price
+ * follows from `subscription_tier` (founder €19, everyone else €49). Nothing stores
+ * a price per professional yet: BEFORE these prices change, the subscription work
+ * must record each professional's own price, or this line would show the new one.
+ * No tier badge on the tab.
  */
 
+export const FOUNDER_PRICE = "€19/month, your Founding Member price";
+export const STANDARD_PRICE = "€49/month";
 export const ENDING_SOON_DAYS = 30;
 
 export const PLAN_NOTE =
-  "Nothing to pay today, and no card on file. After your free period, online booking continues with a paid subscription. Nothing changes without notice: we’ll contact you well before it ends, with the price and how to continue. Your public profile stays free either way.";
+  "Nothing to pay today, and no card on file. After your free period, online booking continues at the price shown above. It is the price from when you registered, and it stays yours if DocCy’s prices change later. Nothing changes without notice: we’ll contact you well before your free period ends, with how to continue. Your public profile stays free either way.";
 
 export const PLAN_NOTE_ENDED =
   "Nothing to pay today, and no card on file. Your public profile stays free either way.";
@@ -31,15 +38,19 @@ export type PlanSummary = {
   /** e.g. "15 March 2027", on the Cyprus calendar. */
   endsOn: string | null;
   daysLeft: number | null;
+  /** The price she registered with, hers to keep. */
+  priceAfter: string;
 };
 
 export function planSummary(input: {
   proAccessUntil: string | Date | null | undefined;
+  isFounder: boolean;
   now?: Date;
 }): PlanSummary {
+  const priceAfter = input.isFounder ? FOUNDER_PRICE : STANDARD_PRICE;
   const until = input.proAccessUntil ? new Date(input.proAccessUntil) : null;
   if (!until || !Number.isFinite(until.getTime())) {
-    return { state: "none", endsOn: null, daysLeft: null };
+    return { state: "none", endsOn: null, daysLeft: null, priceAfter };
   }
   const daysLeft = Math.max(0, computeTrialDaysRemaining(until, input.now ?? new Date()));
   const state: PlanState = daysLeft <= 0 ? "ended" : daysLeft <= ENDING_SOON_DAYS ? "ending_soon" : "free";
@@ -47,5 +58,6 @@ export function planSummary(input: {
     state,
     endsOn: format(utcToZonedTime(until, CY_TZ), "d MMMM yyyy"),
     daysLeft,
+    priceAfter,
   };
 }

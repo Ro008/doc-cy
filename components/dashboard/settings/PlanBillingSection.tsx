@@ -13,19 +13,20 @@ import { PLAN_NOTE, PLAN_NOTE_ENDED, type PlanSummary } from "@/lib/settings-pla
 /**
  * Settings → Plan & billing (user, 2026-10-01): the free period with its countdown,
  * her terms, and that there is nothing to pay today. Read-only: there are no payments
- * yet. One card, no price and no tier (user, 2026-10-12): those come with the
- * subscription work.
+ * yet. One card (user, 2026-10-12), with the price she registered with and no tier
+ * badge.
  */
 export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
   const ended = plan.state === "ended";
   const endingSoon = plan.state === "ending_soon";
 
-  const terms: Array<[string, string]> = [
+  const terms: Array<[string, string, string?]> = [
     ["Public profile", "Free, forever"],
     [
       "Online booking",
       plan.endsOn ? (ended ? `Free period ended on ${plan.endsOn}` : `Free until ${plan.endsOn}`) : "Free during your trial",
     ],
+    [ended ? "Your price for online booking" : "Your price after the free period", plan.priceAfter, "settings-plan-price"],
   ];
 
   return (
@@ -79,12 +80,12 @@ export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
         )}
 
         <dl className="mt-5 divide-y divide-slate-800 border-t border-slate-800 pt-4" data-testid="settings-plan-terms">
-          {terms.map(([label, value]) => (
+          {terms.map(([label, value, testId]) => (
             <div key={label} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
               <dt className="text-sm text-slate-400">{label}</dt>
               <dd className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
                 <Check className="h-4 w-4 text-clinical-300" aria-hidden />
-                {value}
+                <span data-testid={testId}>{value}</span>
               </dd>
             </div>
           ))}
