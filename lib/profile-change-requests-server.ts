@@ -1,3 +1,4 @@
+import { removePhotosAfterApproval, storageRemover } from "@/lib/photo-cleanup";
 import { tooOftenRefusal } from "@/lib/request-frequency";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -752,6 +753,8 @@ export async function approvePhotoChangeRequest(
   }
   const pro = request.professional;
   const photoPath = text(request.details.photo_path);
+  // The photo this one replaces: deleted once the new one is live.
+  const { data: live } = await service.from("professionals").select("avatar_url").eq("id", pro.id).maybeSingle();
 
   let avatarPath: string;
   try {
@@ -781,6 +784,11 @@ export async function approvePhotoChangeRequest(
     console.error("[DocCy] photo change approve failed", error);
     return { ok: false, ...profileChangeDbErrorMessage(error, "decide") };
   }
+  await removePhotosAfterApproval(storageRemover(service), {
+    waitingPaths: [photoPath],
+    replacedAvatar: text(live?.avatar_url),
+    newAvatar: avatarPath,
+  });
 
   await sendRegistrationDecisionEmail(
     pro.email,
