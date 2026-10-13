@@ -5,7 +5,7 @@
 //   (--cards picks <dir>/<name>-intro-<cut>.png and <dir>/outro-<cut>.png, made by cards.mjs)
 //
 // Reads  <out>/raw/**/video.webm + <out>/<name>.<project>.json   (written by the spec)
-// Writes <out>/<name>-tutorial.mp4 and <out>/<name>-reel.mp4
+// Writes <out>/<name>-tutorial.mp4, and <out>/<name>-reel.mp4 when the reel was recorded
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -37,7 +37,12 @@ for (const [project, label, size] of [
   ["tutorial", "tutorial", "1280:720"],
   ["reel", "reel", "1080:1920"],
 ]) {
-  const { startOffsetSec } = JSON.parse(fs.readFileSync(path.join(outDir, `${name}.${project}.json`), "utf8"));
+  const timing = path.join(outDir, `${name}.${project}.json`);
+  if (!fs.existsSync(timing)) {
+    console.log(`skipped the ${label} cut: nothing recorded for it (the reel needs TUTORIAL_REEL=1)`);
+    continue;
+  }
+  const { startOffsetSec } = JSON.parse(fs.readFileSync(timing, "utf8"));
   const src = findRaw(project);
   const out = path.join(outDir, `${name}-${label}.mp4`);
   const cardsDir = arg("--cards");

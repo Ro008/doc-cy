@@ -16,8 +16,8 @@ Order follows the doctor's journey. `[x]` = video published, `[ ]` = to record.
 - [x] **Your dashboard in 20 seconds** (`dashboard`), youtu.be/4K0T_DNT3PY
 
 ### 2. Requests
-- [ ] **Accept, suggest other times or decline a request** (`handle-requests`)
-- [ ] **Answer a request that has no time that suits you** (`suggest-other-times`), if it needs its own video
+- [ ] **Accept or decline a request** (`accept-or-decline`), with the email the patient gets after each
+- [ ] **Suggest other times** (`suggest-other-times`), with the email the patient gets
 
 ### 3. Agenda
 - [ ] **Add a booking made by phone** (`manual-booking`)
@@ -32,7 +32,7 @@ Order follows the doctor's journey. `[x]` = video published, `[ ]` = to record.
 - [ ] **Share your booking link and QR code** (`share-booking-link`)
 - [ ] **Personalise your public page** (`public-page`), after `feat/profile-redesign` merges
 
-**First three for the PR:** `dashboard`, `handle-requests`, `manual-booking`.
+**First three for the PR:** `dashboard`, `accept-or-decline`, `suggest-other-times`.
 
 ## Conventions
 
@@ -45,4 +45,6 @@ Order follows the doctor's journey. `[x]` = video published, `[ ]` = to record.
 - **Upload flow:** record, compose with the title and closing cards, upload to the DocCy channel
   (public, "not made for kids"), copy the id from `youtu.be/<id>`, add the article to
   `lib/help-manual.ts` with its poster in `public/help/`.
-- **Reels** (9:16) of the same flows go to Instagram; they are not part of this page.
+- **Show what the patient gets.** Where a video says "your patient is notified", cut to the real
+  email (`scripts/tutorial-videos/demo-emails.ts`).
+- **Reels** (9:16) for Instagram are paused (2026-10-13): the videos go to this manual only.

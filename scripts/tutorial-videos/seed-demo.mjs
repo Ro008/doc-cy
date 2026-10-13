@@ -79,7 +79,6 @@ must(
   await admin.from("professional_clinics").insert({
     professional_id: proId,
     clinic_id: clinicId,
-    is_primary: true,
     sort_order: 0,
     label: DEMO.clinic,
     pause_online_bookings: false,

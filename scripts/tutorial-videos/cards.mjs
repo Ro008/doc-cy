@@ -3,7 +3,7 @@
 //
 //   node scripts/tutorial-videos/cards.mjs <name> "<Title>" "<subtitle>" [--emoji 🩺]
 //
-// Writes <out>/cards/<name>-intro-{tutorial,reel}.png and outro-{tutorial,reel}.png
+// Writes <out>/cards/<name>-intro-tutorial.png and outro-tutorial.png (and the -reel ones with --reel)
 
 import fs from "node:fs";
 import path from "node:path";
@@ -43,7 +43,9 @@ const html = (kind, reel) => `<!doctype html><meta charset="utf-8"><style>
 }`;
 
 const browser = await chromium.launch();
-for (const [label, w, h, reel] of [["tutorial", 1280, 720, false], ["reel", 1080, 1920, true]]) {
+// The vertical cut (Instagram) is paused: pass --reel to make its cards too.
+const formats = [["tutorial", 1280, 720, false], ...(process.argv.includes("--reel") ? [["reel", 1080, 1920, true]] : [])];
+for (const [label, w, h, reel] of formats) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   for (const kind of ["intro", "outro"]) {
     await page.setContent(html(kind, reel));

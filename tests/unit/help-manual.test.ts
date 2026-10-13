@@ -18,7 +18,7 @@ const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * Anchors that have been published: /help#<slug> may already be in someone's chat or email.
  * Never remove or rename one here; only append when an article is published.
  */
-const PUBLISHED_SLUGS = ["dashboard"];
+const PUBLISHED_SLUGS = ["dashboard", "accept-or-decline", "suggest-other-times"];
 
 describe("HELP_PATH", () => {
   it("is the manual's page", () => {

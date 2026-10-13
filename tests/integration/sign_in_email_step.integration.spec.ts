@@ -110,6 +110,42 @@ test.describe("Integration: sign-in with an emailed link", { tag: "@pr-e2e" }, (
     await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 30_000 });
   });
 
+  // A shared help link such as /help#dashboard: the fragment never reaches the server, so the login page
+  // carries it (the browser keeps it across the middleware's redirect) to where she lands after signing in.
+  test("a shared #anchor survives the sign-in with the code", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/help#dashboard", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/login\?.*next=%2Fhelp/, { timeout: 20_000 });
+    expect(new URL(page.url()).hash).toBe("#dashboard");
+
+    const submit = page.getByRole("button", { name: /^Sign in$/i });
+    await expect(submit).toBeEnabled({ timeout: 20_000 });
+    await page.locator('input[name="email"]').fill(professional!.email);
+    await page.locator('input[name="password"]').fill(professional!.password);
+    const signInRequest = page.waitForRequest((r) => r.url().endsWith("/api/auth/sign-in") && r.method() === "POST");
+    await submit.click();
+    // The emailed link is built from this value: it carries the anchor too.
+    expect(JSON.parse((await signInRequest).postData() ?? "{}").next).toBe("/help#dashboard");
+    await expect(page.getByRole("heading", { name: /Check your email/i })).toBeVisible({ timeout: 20_000 });
+
+    const { code } = await freshLink(admin, professional!.email);
+    await page.getByLabel(/Code from the email/i).fill(code);
+    await page.getByRole("button", { name: /^Continue$/i }).click();
+    await expect(page).toHaveURL(/\/help#dashboard$/, { timeout: 30_000 });
+    await expect(page.locator("article#dashboard")).toBeInViewport({ timeout: 20_000 });
+  });
+
+  test("a shared #anchor survives the sign-in with the emailed link", async ({ page, context }) => {
+    test.setTimeout(90_000);
+    await context.clearCookies();
+    const { tokenHash } = await freshLink(admin, professional!.email);
+    // What the app puts in the email for next=/help#dashboard (URLSearchParams encodes the #).
+    const link = `/auth/sign-in-link?token_hash=${encodeURIComponent(tokenHash)}&next=${encodeURIComponent("/help#dashboard")}`;
+    await page.goto(link, { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/help#dashboard$/, { timeout: 30_000 });
+    await expect(page.locator("article#dashboard")).toBeInViewport({ timeout: 20_000 });
+  });
+
   test("a session from the password alone reaches no professional page or API", async ({ page }) => {
     test.setTimeout(90_000);
     // Straight through Supabase's API, skipping DocCy's sign-in page.

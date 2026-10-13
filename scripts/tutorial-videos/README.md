@@ -1,14 +1,16 @@
 # Tutorial videos
 
 Playwright scripts that record the how-to videos for the help manual (`/help`, plan in
-`docs/help-manual.md`) and the Instagram reels, always against a **throwaway local stack with a
-demo account**, never against production or real patients.
+`docs/help-manual.md`), always against a **throwaway local stack with a demo account**, never against
+production or real patients.
 
-Each spec records two cuts of the same flow: `tutorial` (16:9, desktop) and `reel` (9:16, phone).
+Each spec records the `tutorial` cut (16:9, desktop). The vertical `reel` cut for Instagram is paused
+for now: `TUTORIAL_REEL=1` records it again (and `cards.mjs --reel` makes its cards).
 Captions, a spotlight on what is being explained, a cursor and a progress bar are drawn inside the
 page (`helpers.ts`), so the video needs no editing. `compose.mjs` trims the login, adds the title and
-closing cards (`cards.mjs`) and writes the MP4s. The MP4s are never committed: they go to the
-DocCy YouTube channel and Instagram.
+closing cards (`cards.mjs`) and writes the MP4. The MP4s are never committed: they go to the DocCy
+YouTube channel. When a video says "your patient is notified", it cuts to the email the patient gets,
+built with the app's own builders from the demo data (`demo-emails.ts`), never drawn by hand.
 
 ## Recording
 
@@ -25,13 +27,15 @@ DocCy YouTube channel and Instagram.
 6. Compose: `FFMPEG_PATH=<ffmpeg> node scripts/tutorial-videos/compose.mjs <name> --cards <out dir>/cards`.
    `ffmpeg` is not a dependency of the repo; any build with libx264 works (e.g. `ffmpeg-static`).
 
-Then upload the 16:9 cut to YouTube, put the id in `lib/help-manual.ts` and a poster frame in
-`public/help/`. The 9:16 cut is the Instagram reel.
+Then upload the video to YouTube, put the id in `lib/help-manual.ts` and a poster frame in
+`public/help/`.
 
 ## Files
 
 - `seed-demo.mjs`: demo doctor, clinic, schedule, fictional patients and requests (local only).
 - `helpers.ts`: caption, spotlight, cursor, progress bar and click helpers.
 - `dashboard-tour.spec.ts`: video "Your dashboard in 20 seconds".
+- `accept-or-decline.spec.ts`, `suggest-other-times.spec.ts`: the two videos on answering a request.
+- `demo-emails.ts`: the patient emails shown in those videos.
 - `demo-data.ts`: ids the specs share with the seed.
 - `cards.mjs`, `compose.mjs`: title and closing cards, trimming and encoding.

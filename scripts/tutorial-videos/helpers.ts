@@ -161,3 +161,61 @@ export async function glideClick(page: Page, target: Locator, reel: boolean) {
     await page.mouse.click(x, y);
   }
 }
+
+export type DemoEmail = { from: string; to: string; subject: string; html: string };
+
+/**
+ * Shows the email a patient receives, as a window over the page: the real HTML the app builds
+ * (lib/send-patient-*-email.ts), with its sender, recipient and subject above it. Scrolls the
+ * message down a little so the button at the end is seen too. Call hideEmail() to take it away.
+ */
+export async function showEmail(page: Page, email: DemoEmail, holdMs = 0) {
+  await page.evaluate((e) => {
+    document.getElementById("tv-email")?.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "tv-email";
+    wrap.style.cssText =
+      "position:fixed;inset:0;z-index:2147483644;display:flex;justify-content:center;align-items:flex-start;" +
+      "padding-top:24px;background:rgba(3,10,25,.72);opacity:0;transition:opacity .3s ease";
+    const card = document.createElement("div");
+    card.style.cssText =
+      "width:min(720px,92vw);height:min(536px,calc(100vh - 150px));background:#fff;border-radius:16px;overflow:hidden;" +
+      "box-shadow:0 24px 70px rgba(0,0,0,.6);display:flex;flex-direction:column;font-family:'Segoe UI',system-ui,sans-serif";
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const head = document.createElement("div");
+    head.style.cssText = "padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;font-size:14px;line-height:1.55";
+    head.innerHTML =
+      `<div style="font-size:17px;font-weight:700;margin-bottom:6px">${esc(e.subject)}</div>` +
+      `<div><span style="color:#64748b">From</span> ${esc(e.from)}</div>` +
+      `<div><span style="color:#64748b">To</span> ${esc(e.to)}</div>`;
+    const frame = document.createElement("iframe");
+    frame.id = "tv-email-frame";
+    frame.style.cssText = "flex:1;width:100%;border:0;background:#fff";
+    frame.srcdoc = e.html;
+    card.append(head, frame);
+    wrap.append(card);
+    document.documentElement.appendChild(wrap);
+    void wrap.offsetWidth;
+    wrap.style.opacity = "1";
+  }, email);
+  await page.waitForTimeout(holdMs);
+}
+
+/** Scrolls the open email down (smoothly) and waits while it moves. */
+export async function scrollEmail(page: Page, by = 380, holdMs = 1200) {
+  await page.evaluate((px) => {
+    const frame = document.getElementById("tv-email-frame") as HTMLIFrameElement | null;
+    frame?.contentWindow?.scrollBy({ top: px, behavior: "smooth" });
+  }, by);
+  await page.waitForTimeout(holdMs);
+}
+
+export async function hideEmail(page: Page) {
+  await page.evaluate(() => {
+    const wrap = document.getElementById("tv-email");
+    if (!wrap) return;
+    wrap.style.opacity = "0";
+    setTimeout(() => wrap.remove(), 320);
+  });
+  await page.waitForTimeout(350);
+}

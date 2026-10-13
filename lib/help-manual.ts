@@ -62,6 +62,44 @@ export const HELP_MANUAL: readonly HelpSection[] = [
       },
     ],
   },
+  {
+    id: "requests",
+    title: "Booking requests",
+    articles: [
+      {
+        slug: "accept-or-decline",
+        title: "Accept or decline a booking request",
+        summary: "Answer in one tap, and see what your patient gets by email.",
+        steps: [
+          "Open Dashboard. Every request waiting for you is under \"Needs your answer\".",
+          "Press Accept to confirm it. The visit goes to your agenda and your patient gets a confirmation email.",
+          "Press Decline if you cannot take it. Write a short message saying why.",
+          "Press Decline & notify. Your patient gets your message by email, with a link to book another time.",
+        ],
+        video: {
+          youtubeId: "mulwC9xfQzg",
+          durationLabel: "0:35",
+          poster: "/help/accept-or-decline.jpg",
+        },
+      },
+      {
+        slug: "suggest-other-times",
+        title: "Suggest other times for a booking request",
+        summary: "When the time asked for does not work, offer other times in one step.",
+        steps: [
+          "Open Dashboard and find the request under \"Needs your answer\".",
+          "Press Suggest other times. Your next free times are already picked for you.",
+          "Press Send proposal to patient. Your patient gets an email to choose one of the times.",
+          "They have 24 hours to choose. You do not have to do anything else.",
+        ],
+        video: {
+          youtubeId: "BesF1rwIc8Y",
+          durationLabel: "0:26",
+          poster: "/help/suggest-other-times.jpg",
+        },
+      },
+    ],
+  },
 ];
 
 export const HELP_ARTICLES: readonly HelpArticle[] = HELP_MANUAL.flatMap((section) => section.articles);
