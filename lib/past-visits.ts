@@ -16,9 +16,10 @@ export const PAST_VISITS_MAX_PAGE = 500;
 const SEARCH_MAX = 100;
 
 export const PAST_VISIT_SELECT =
-  "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, is_new_patient, reason, service_name, appointment_datetime, duration_minutes, attendance, clinic_id, professional_notes";
+  "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, is_new_patient, reason, service_name, appointment_datetime, duration_minutes, attendance, clinic_id, professional_notes, booking_source";
 
 export type PastVisitRow = {
+  booking_source?: string | null;
   id: string;
   patient_name: string | null;
   patient_email: string | null;

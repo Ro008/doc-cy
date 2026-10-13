@@ -113,13 +113,14 @@ test.describe("Integration: Visits tab", { tag: "@pr-e2e" }, () => {
     await open();
     await card("old").getByRole("button").first().click();
     const details = card("old").getByTestId("past-visit-details");
-    await expect(details).toContainText(`Zed old ${nonce}`);
+    // Everything is on the card; the first button opens the notes box (user, 2026-10-13).
+    await expect(card("old").getByTestId("past-visit-patient")).toHaveText(`Zed old ${nonce}`);
+    await expect(card("old").getByTestId("past-visit-reason")).toHaveText("Reason old");
+    await expect(card("old")).toContainText("Echocardiogram");
     await expect(details).toContainText("zed-old-");
     await expect(details).toContainText("+357 97 333 444");
     await expect(details).toContainText("Female");
-    await expect(details).toContainText("born 4 May 1990");
-    await expect(details).toContainText("Reason old");
-    await expect(details).toContainText("Echocardiogram");
+    await expect(details).toContainText(/\d+ years/);
     await expect(details.getByLabel("Your notes")).toHaveValue("Mentioned chest tightness.");
   });
 
@@ -241,7 +242,8 @@ test.describe("Integration: Visits tab", { tag: "@pr-e2e" }, () => {
     const chip = page.getByTestId("visits-missing-notes");
     await expect(chip.locator("xpath=..")).toContainText("Without notes");
     await expect(chip.locator("xpath=..")).toContainText("2");
-    await expect(card("mid").getByTestId("past-visit-notes-preview")).toContainText("Add notes");
+    await expect(card("mid").getByTestId("past-visit-notes-preview")).toContainText("No notes yet.");
+    await expect(card("mid").getByTestId("past-visit-notes-edit")).toHaveText("Add notes");
     await expect(card("old").getByTestId("past-visit-notes-preview")).toContainText("Mentioned chest tightness.");
 
     await chip.locator("xpath=..").click();
@@ -251,6 +253,57 @@ test.describe("Integration: Visits tab", { tag: "@pr-e2e" }, () => {
     // Unchecking shows everything again.
     await page.getByTestId("visits-missing-notes").locator("xpath=..").click();
     await expect(page.getByTestId("past-visit")).toHaveCount(3);
+  });
+
+  test("the Without notes number follows the notes she saves, without a reload", async () => {
+    test.setTimeout(120_000);
+    await open();
+    const count = page.getByTestId("visits-missing-notes-count");
+    await expect(count).toHaveText("2");
+    await card("new").getByTestId("past-visit-notes-edit").click();
+    await card("new").getByLabel("Your notes").fill("Follow-up booked.");
+    await card("new").getByRole("button", { name: "Save notes" }).click();
+    await expect(count).toHaveText("1", { timeout: 15_000 });
+    // Clearing them counts the visit again.
+    await card("new").getByLabel("Your notes").fill("");
+    await card("new").getByRole("button", { name: "Save notes" }).click();
+    await expect(count).toHaveText("2", { timeout: 15_000 });
+  });
+
+  test("with notes typed and not saved, a filter or a link asks before leaving", async () => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await open();
+    await card("mid").getByTestId("past-visit-notes-edit").click();
+    await card("mid").getByLabel("Your notes").fill("Half a thought");
+
+    // A filter: staying keeps the text and puts the filter back.
+    await page.getByText("No-shows", { exact: true }).click();
+    const prompt = page.getByTestId("visits-unsaved-prompt");
+    await expect(prompt).toBeVisible();
+    await prompt.getByRole("button", { name: "Keep editing" }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(page).not.toHaveURL(/attendance=/);
+    await expect(card("mid").getByLabel("Your notes")).toHaveValue("Half a thought");
+    await expect(page.getByRole("radio", { name: "All", exact: true })).toBeChecked();
+
+    // A link in the top bar: leaving drops the text and goes there.
+    await page.getByTestId("userbar-nav-agenda").click();
+    await expect(prompt).toBeVisible();
+    await expect(page).toHaveURL(/\/agenda\/visits/);
+    await prompt.getByRole("button", { name: "Leave without saving" }).click();
+    await expect(page).toHaveURL(/\/agenda(?:[?#]|$)/, { timeout: 20_000 });
+    expect((await admin.from("appointments").select("professional_notes").eq("id", ids.mid).single()).data!.professional_notes).toBeNull();
+  });
+
+  test("the top bar's Visits tab shows every visit again after opening a filtered address", async () => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await open("?attendance=no_show");
+    await expect(page.getByTestId("past-visit")).toHaveCount(1);
+    await page.getByTestId("userbar-nav-visits").click();
+    await expect(page).toHaveURL(/\/agenda\/visits$/, { timeout: 20_000 });
+    await expect(page.getByTestId("past-visit")).toHaveCount(3, { timeout: 20_000 });
   });
 
   test("a visit links to all visits with that patient, without the email or phone in the URL", async () => {
@@ -270,7 +323,9 @@ test.describe("Integration: Visits tab", { tag: "@pr-e2e" }, () => {
     // Searching within the patient keeps the filter.
     await page.getByLabel("Search", { exact: true }).fill("chest");
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`patient=${ids.old}`), { timeout: 15_000 });
+    // The search moves inside the app: wait for its URL before going on.
+    await expect(page).toHaveURL(/q=chest/, { timeout: 15_000 });
+    await expect(page).toHaveURL(new RegExp(`patient=${ids.old}`));
     await expect(card("old")).toHaveCount(1);
     // "Show all visits" drops only the patient filter: the search stays.
     await page.getByRole("link", { name: "Show all visits" }).click();
@@ -320,7 +375,8 @@ test.describe("Integration: Visits tab", { tag: "@pr-e2e" }, () => {
     await open();
     const headings = page.getByTestId("past-visits-month");
     await expect(headings.first()).toBeVisible({ timeout: 15_000 });
-    await expect(headings.first()).toContainText(/\d+ visits?/);
+    // No count beside the month: a month can run over two pages (user, 2026-10-13).
+    await expect(headings.first()).toHaveText(/^[a-z]+ \d{4}$/i);
   });
 
   test("a soft fade hides the cut-off edge while more visits sit below, and goes at the bottom", async () => {
@@ -449,6 +505,8 @@ test.describe("Integration: Visits tab with two clinics", { tag: "@pr-e2e" }, ()
     // The keyboard works too: ArrowUp to "All clinics" and Enter.
     await page.locator("#visits-clinic").focus();
     await page.keyboard.press("ArrowDown");
+    // The results have only just arrived inside the app: let the list open before the next key.
+    await expect(list).toBeVisible();
     await page.keyboard.press("Home");
     await page.keyboard.press("Enter");
     await expect(page).not.toHaveURL(/clinic=[0-9a-f]/, { timeout: 15_000 });

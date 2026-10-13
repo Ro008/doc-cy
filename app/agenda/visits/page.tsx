@@ -7,11 +7,13 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { formatInTimeZone } from "date-fns-tz";
 import { ScrollFade } from "@/components/navigation/ScrollFade";
 import { VisitsFilters } from "@/components/visits/VisitsFilters";
+import { VisitsFreshness } from "@/components/visits/VisitsFreshness";
+import { VisitsLink } from "@/components/visits/VisitsLink";
 import { CY_TZ } from "@/lib/appointments";
-import { PastVisitsList, type VisitClinicInfo } from "@/components/visits/PastVisitsList";
-import { locationsToAgendaClinics } from "@/lib/agenda-clinics";
+import { PastVisitsList } from "@/components/visits/PastVisitsList";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { agendaClinicEventColor } from "@/lib/doctor-locations";
+import { loadPastVisitFacetRows, loadVisitClinicNames } from "@/lib/past-visit-facets";
+import { pastVisitFacets, patientVisitCounts, visitClinicMap } from "@/lib/past-visits-view";
 import {
   PAST_VISITS_PAGE_SIZE,
   countPastVisitsWithoutNotes,
@@ -38,27 +40,33 @@ export default async function PastVisitsPage({
   const doctor = doctorRes.data;
 
   const query = parsePastVisitsParams(searchParams ?? {});
-  const [{ rows, total, failed, patientName, page }, missingNotesCount, locations, servicesRes] = await Promise.all([
+  const [{ rows, total, failed, patientName, page }, missingNotesCount, locations, facetRows] = await Promise.all([
     loadPastVisits(supabase, { professionalId: doctor.id, query }),
     countPastVisitsWithoutNotes(supabase, doctor.id),
     loadDoctorLocations(doctor.id),
-    supabase.from("professional_services").select("name").eq("professional_id", doctor.id).order("name"),
+    loadPastVisitFacetRows(supabase, doctor.id),
   ]);
 
-  const clinics = locationsToAgendaClinics(locations).filter((c) => c.clinicId);
-  const multiClinic = clinics.length > 1;
-  const clinicInfo: Record<string, VisitClinicInfo> = multiClinic
-    ? Object.fromEntries(
-        clinics.map((c, i) => [c.clinicId as string, { name: c.name, swatch: agendaClinicEventColor(i).swatch }]),
-      )
-    : {};
-
-  const serviceNames = Array.from(
-    new Set([
-      ...((servicesRes.data ?? []) as { name: string | null }[]).map((s) => s.name?.trim() ?? "").filter(Boolean),
-      ...(query.service ? [query.service] : []),
-    ]),
+  // The clinics and services of her visits, not the ones she has today: a visit keeps showing
+  // where it took place after she leaves that clinic (user, 2026-10-13).
+  const facets = pastVisitFacets(facetRows);
+  const currentClinicIds = locations.map((l) => l.clinic_id).filter((id): id is string => Boolean(id));
+  const clinicInfo = visitClinicMap(
+    await loadVisitClinicNames([...facets.clinicIds, ...rows.map((r) => r.clinic_id ?? "")]),
+    currentClinicIds,
   );
+  // Her current clinics first, in her order; then the ones she has left, by name.
+  const clinicOptions = Object.entries(clinicInfo)
+    .map(([clinicId, info]) => ({ clinicId, ...info }))
+    .sort((a, b) => {
+      const ai = currentClinicIds.indexOf(a.clinicId);
+      const bi = currentClinicIds.indexOf(b.clinicId);
+      if (ai >= 0 || bi >= 0) return (ai >= 0 ? ai : Infinity) - (bi >= 0 ? bi : Infinity);
+      return a.name.localeCompare(b.name);
+    });
+  const visitCounts = patientVisitCounts(rows, facetRows);
+
+  const serviceNames = Array.from(new Set([...facets.serviceNames, ...(query.service ? [query.service] : [])]));
 
   const filtered = Boolean(
     query.q || query.from || query.to || query.clinicId || query.service || query.attendance !== "all" || query.notes !== "all" || query.patientId,
@@ -71,15 +79,17 @@ export default async function PastVisitsPage({
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 pb-28 pt-6 sm:px-6 lg:pb-12 lg:pt-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-28 pt-6 sm:px-6 lg:pb-12 lg:pt-8">
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">Visits</h1>
           <p className="max-w-2xl text-sm leading-relaxed text-slate-400">
-            Your past visits, newest first. Open one to see the patient&apos;s details and edit your private notes.
+            Your past visits, newest first, with the patient&apos;s details and your private notes.
           </p>
         </header>
 
+        <VisitsFreshness href={pastVisitsHref(query)} />
         <VisitsFilters
+          key={pastVisitsHref(query)}
           action={PAST_VISITS_PATH}
           q={query.q}
           from={query.from}
@@ -90,16 +100,22 @@ export default async function PastVisitsPage({
           notes={query.notes}
           patientId={query.patientId}
           missingNotesCount={missingNotesCount}
+          loadedAt={Date.now()}
           serviceNames={serviceNames}
-          clinics={clinics.map((c, i) => ({
-            clinicId: c.clinicId as string,
-            name: c.name,
-            swatch: agendaClinicEventColor(i).swatch,
+          clinics={clinicOptions.map((c) => ({
+            clinicId: c.clinicId,
+            name: c.former ? `${c.name} (left)` : c.name,
+            swatch: c.swatch,
           }))}
           todayKey={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
           filtered={filtered}
         />
 
+        {/* Dimmed while a filter's results load (the filters form is the `peer`). */}
+        <div
+          data-testid="past-visits-results"
+          className="flex flex-col gap-6 transition-opacity duration-200 peer-aria-busy:opacity-50"
+        >
         {query.patientId ? (
           <p
             data-testid="past-visits-patient-banner"
@@ -109,9 +125,9 @@ export default async function PastVisitsPage({
               Visits with <strong className="font-semibold">{patientName ?? "this patient"}</strong>
               <span className="text-clinical-200/70"> (matched on email or phone)</span>
             </span>
-            <a href={pastVisitsHref(query, { patientId: null, page: 1 })} className="text-clinical-200 underline-offset-2 hover:underline">
+            <VisitsLink href={pastVisitsHref(query, { patientId: null, page: 1 })} className="text-clinical-200 underline-offset-2 hover:underline">
               Show all visits
-            </a>
+            </VisitsLink>
           </p>
         ) : null}
 
@@ -129,13 +145,18 @@ export default async function PastVisitsPage({
               {total} {total === 1 ? "visit" : "visits"}
               {filtered ? " found" : ""}
             </p>
-            <PastVisitsList visits={rows} clinics={clinicInfo} />
+            <PastVisitsList
+              visits={rows}
+              clinics={clinicInfo}
+              showClinicColours={clinicOptions.length > 1}
+              patientVisitCounts={visitCounts}
+            />
             {pages > 1 ? (
               <nav aria-label="Pages" className="flex items-center justify-between gap-3 text-sm">
                 {page > 1 ? (
-                  <a href={pastVisitsHref(query, { page: page - 1 })} className="text-clinical-200 hover:underline">
+                  <VisitsLink href={pastVisitsHref(query, { page: page - 1 })} className="text-clinical-200 hover:underline">
                     ← Newer
-                  </a>
+                  </VisitsLink>
                 ) : (
                   <span />
                 )}
@@ -143,9 +164,9 @@ export default async function PastVisitsPage({
                   Page {Math.min(page, pages)} of {pages}
                 </span>
                 {page < pages ? (
-                  <a href={pastVisitsHref(query, { page: page + 1 })} className="text-clinical-200 hover:underline">
+                  <VisitsLink href={pastVisitsHref(query, { page: page + 1 })} className="text-clinical-200 hover:underline">
                     Older →
-                  </a>
+                  </VisitsLink>
                 ) : (
                   <span />
                 )}
@@ -153,6 +174,7 @@ export default async function PastVisitsPage({
             ) : null}
           </>
         )}
+        </div>
       </div>
       <ScrollFade testId="visits-scroll-fade" />
     </main>

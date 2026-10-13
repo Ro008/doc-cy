@@ -193,7 +193,7 @@ export function ReviewSkeleton() {
 
 export function VisitsSkeleton() {
   return (
-    <SkeletonPage label="visits" maxWidth="max-w-4xl">
+    <SkeletonPage label="visits" maxWidth="max-w-6xl">
       <div className="space-y-3">
         <Bone className="h-8 w-40" />
         <Bone className="h-4 w-96 max-w-full" />

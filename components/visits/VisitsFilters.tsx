@@ -1,11 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { DayPicker, type DateRange } from "react-day-picker";
 import { enGB } from "date-fns/locale";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MapPin, PencilLine, Search, Stethoscope, X } from "lucide-react";
 import "react-day-picker/dist/style.css";
 import { PillSelect } from "@/components/visits/PillSelect";
+import { resetMissingNotesChanges, useMissingNotesChange } from "@/components/visits/missing-notes-count";
+import { leaveVisits } from "@/components/visits/unsaved-notes";
+import { VisitsLink, pushVisitsHref } from "@/components/visits/VisitsLink";
 import {
   activeRangePreset,
   dateToDayKey,
@@ -25,9 +29,13 @@ const PILL =
   "inline-flex h-10 items-center gap-2 rounded-full border border-slate-700/80 bg-ink-900/70 px-3.5 text-sm text-slate-200 transition hover:border-clinical-500/50 hover:bg-ink-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
 
 /**
- * The Visits tab's search panel (user, 2026-10-12). Still a plain GET form (the URL carries the
- * filters), now with a branded date-range calendar with shortcuts, a segmented attendance
- * control and pill selects. Changing a filter other than the text searches right away.
+ * The Visits tab's search panel (user, 2026-10-12). A GET form (the URL carries the filters)
+ * with a branded date-range calendar with shortcuts, a segmented attendance control and pill
+ * selects. Changing a filter other than the text searches right away.
+ *
+ * Submitting moves to the new URL inside the app instead of loading the document again
+ * (user, 2026-10-13): a full load redraws the top bar with no tab selected for a moment. The
+ * page gives this form a `key` from the URL, so it starts again from the new filters.
  */
 export function VisitsFilters({
   action,
@@ -40,6 +48,7 @@ export function VisitsFilters({
   notes,
   patientId,
   missingNotesCount,
+  loadedAt,
   serviceNames,
   clinics,
   todayKey,
@@ -57,6 +66,8 @@ export function VisitsFilters({
   patientId: string | null;
   /** All her past visits without notes, whatever the filters. */
   missingNotesCount: number;
+  /** When the server counted it: a new load drops the changes made on the page since the last. */
+  loadedAt: number;
   serviceNames: string[];
   clinics: { clinicId: string; name: string; swatch: string }[];
   /** Today in Cyprus, YYYY-MM-DD. */
@@ -72,7 +83,38 @@ export function VisitsFilters({
   const submitNext = React.useRef(false);
   const today = React.useMemo(() => dayKeyToDate(todayKey), [todayKey]);
 
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+
   const submit = React.useCallback(() => formRef.current?.requestSubmit(), []);
+
+  // The server's count, moved by the notes she saved or cleared on the page since.
+  const missingChange = useMissingNotesChange();
+  React.useEffect(() => resetMissingNotesChanges(), [loadedAt]);
+  const missingNotes = Math.max(0, missingNotesCount + missingChange);
+
+  // She chose to keep editing her unsaved notes: the filters go back to what the list shows.
+  const [resetKey, setResetKey] = React.useState(0);
+  function restoreFilters() {
+    setAtt(attendance);
+    setRange({ from, to });
+    setResetKey((k) => k + 1);
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    for (const [name, value] of new FormData(e.currentTarget)) {
+      const text = typeof value === "string" ? value.trim() : "";
+      if (text && !(name === "attendance" && text === "all")) params.set(name, text);
+    }
+    const qs = params.toString();
+    // With notes typed and not saved, she is asked first (components/visits/unsaved-notes).
+    leaveVisits(
+      () => startTransition(() => pushVisitsHref(router, qs ? `${action}?${qs}` : action)),
+      restoreFilters,
+    );
+  }
 
   // The hidden from/to inputs update on render; search once they have.
   React.useEffect(() => {
@@ -119,11 +161,24 @@ export function VisitsFilters({
       ref={formRef}
       method="get"
       action={action}
+      onSubmit={onSubmit}
       role="search"
       aria-label="Search visits"
+      aria-busy={pending}
       data-testid="past-visits-search"
-      className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-slate-900/80 to-ink-900/70 p-4 shadow-xl shadow-black/20 sm:p-5"
+      className="peer relative rounded-3xl border border-slate-700/70 bg-slate-900/70 p-4 shadow-xl shadow-black/20 sm:p-5"
     >
+      {/* While the results load: a light sliding along the panel's lower edge; the page dims the
+          old results through `peer-aria-busy` (user, 2026-10-13). */}
+      {pending ? (
+        <span
+          aria-hidden
+          data-testid="visits-loading-bar"
+          className="pointer-events-none absolute inset-x-6 bottom-0 h-0.5 overflow-hidden rounded-full"
+        >
+          <span className="visits-loading-slide absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-clinical-400 to-transparent" />
+        </span>
+      ) : null}
       <input type="hidden" name="from" value={range.from ?? ""} />
       <input type="hidden" name="to" value={range.to ?? ""} />
       {patientId ? <input type="hidden" name="patient" value={patientId} /> : null}
@@ -152,7 +207,7 @@ export function VisitsFilters({
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div key={resetKey} className="mt-3 flex flex-wrap items-center gap-2">
         <div className="relative" ref={popRef}>
           <button
             type="button"
@@ -237,10 +292,10 @@ export function VisitsFilters({
           ) : null}
         </div>
 
-        <fieldset className="inline-flex h-10 items-center rounded-full border border-slate-700/80 bg-ink-900/70 p-1">
+        <fieldset className="inline-flex h-10 items-stretch overflow-hidden rounded-full border border-slate-700/80 bg-ink-900/70">
           <legend className="sr-only">Attendance</legend>
           {ATTENDANCE.map((o) => (
-            <label key={o.value} className="cursor-pointer">
+            <label key={o.value} className="flex cursor-pointer">
               <input
                 type="radio"
                 name="attendance"
@@ -252,14 +307,14 @@ export function VisitsFilters({
                 }}
                 className="peer sr-only"
               />
-              <span className="inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-400 transition peer-checked:bg-clinical-500 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-clinical-300 hover:text-slate-200 peer-checked:hover:text-white">
+              <span className="inline-flex items-center px-3.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white peer-checked:bg-clinical-500/20 peer-checked:text-clinical-200 peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-clinical-400/70">
                 {o.label}
               </span>
             </label>
           ))}
         </fieldset>
 
-        {missingNotesCount > 0 || notes === "missing" ? (
+        {missingNotes > 0 || notes === "missing" ? (
           <label className="cursor-pointer">
             <input
               type="checkbox"
@@ -275,8 +330,11 @@ export function VisitsFilters({
             >
               <PencilLine aria-hidden className="h-4 w-4 text-slate-500" />
               Without notes
-              <span className="rounded-full bg-clinical-500/20 px-1.5 text-xs font-semibold text-clinical-200">
-                {missingNotesCount}
+              <span
+                data-testid="visits-missing-notes-count"
+                className="rounded-full bg-clinical-500/20 px-1.5 text-xs font-semibold text-clinical-200"
+              >
+                {missingNotes}
               </span>
             </span>
           </label>
@@ -309,13 +367,13 @@ export function VisitsFilters({
         ) : null}
 
         {filtered ? (
-          <a
+          <VisitsLink
             href={action}
             className="inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm text-slate-400 transition hover:text-slate-100"
           >
             <X aria-hidden className="h-4 w-4" />
             Clear filters
-          </a>
+          </VisitsLink>
         ) : null}
       </div>
     </form>

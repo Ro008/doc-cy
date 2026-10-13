@@ -686,3 +686,13 @@ button {
   .settings-backdrop-out { animation: none; }
   .settings-collapse { transition: none; }
 }
+
+/* Visits tab: the light that slides along the filter panel while results load. */
+@keyframes visits-loading-slide {
+  from { left: -35%; }
+  to { left: 100%; }
+}
+.visits-loading-slide { animation: visits-loading-slide 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .visits-loading-slide { animation: none; left: 0; width: 100%; opacity: 0.6; }
+}
