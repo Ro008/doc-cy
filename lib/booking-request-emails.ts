@@ -1,0 +1,253 @@
+import { format } from "date-fns";
+import { enUS } from "date-fns/locale";
+
+import { appointmentToCyprusDate } from "@/lib/appointments";
+import { BOOKING_CONFIRM_LINK_MINUTES } from "@/lib/appointment-link-token";
+import {
+  EMAIL_HEADING,
+  EMAIL_LINK_ACCENT,
+  EMAIL_PRIMARY_BTN,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_TEXT_MUTED,
+  emailFallbackLink,
+} from "@/lib/email-brand";
+import { patientClinicBlockHtml, patientClinicBlockText, type PatientEmailClinic } from "@/lib/patient-email-clinic";
+import { professionalFirstName } from "@/lib/professional-name";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
+import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml, sendResendEmail } from "@/lib/resend";
+
+/**
+ * The two emails of an online booking request (user, 2026-10-02/03):
+ * 1. To the patient right after submitting: confirm with the link (30 min). Nothing
+ *    reaches the professional until they do.
+ * 2. To the professional once the patient confirmed: the new request, linking straight
+ *    to its review page. The patient gets no further email at that point; the confirm
+ *    page itself says "Request sent".
+ */
+
+/** Name, address, Maps pin, phone and profile link of a clinic (see patient-email-clinic.ts). */
+export type EmailClinic = PatientEmailClinic;
+export type BuiltEmail = { subject: string; text: string; html: string };
+
+function whenLabels(iso: string): { date: string; time: string } {
+  const cy = appointmentToCyprusDate(iso);
+  return { date: format(cy, "EEEE, d MMMM yyyy", { locale: enUS }), time: format(cy, "HH:mm") };
+}
+
+function firstName(full: string): string {
+  return String(full ?? "").trim().split(/\s+/)[0] || "there";
+}
+
+function clinicText(clinic: EmailClinic): string {
+  return clinic.address ? `${clinic.name}, ${clinic.address}` : clinic.name;
+}
+
+/**
+ * "Name, address" with the whole address as our own Maps link in the light accent: the
+ * clinic's pin (user, 2026-10-05), else an address search. Left bare, Gmail links part
+ * of the address as a text search in its default blue, unreadable on the navy card.
+ */
+export function clinicHtml(clinic: EmailClinic): string {
+  const name = escapeHtml(clinic.name);
+  const address = clinic.address?.trim();
+  if (!address) return name;
+  const maps =
+    String(clinic.mapsUrl ?? "").trim() ||
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `${name}, <a href="${escapeHtml(maps)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(address)}</a>`;
+}
+
+const P = `margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};`;
+const MUTED = `margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};`;
+
+export function buildBookingConfirmLinkEmail(opts: {
+  patientName: string;
+  professionalName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  confirmUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const hi = firstName(opts.patientName);
+  const minutes = BOOKING_CONFIRM_LINK_MINUTES;
+
+  const subject = `Confirm your appointment request with ${pro}`;
+  const text =
+    `Hi ${hi},\n\n` +
+    `Please confirm your appointment request with ${pro} for ${date} at ${time} (Cyprus time).\n\n` +
+    `${patientClinicBlockText(opts.clinic)}\n` +
+    `Confirm your request:\n${opts.confirmUrl}\n\n` +
+    `This link works once and for ${minutes} minutes. Your request is not sent to ${pro} until you confirm.\n` +
+    `If you didn't ask for this, you can ignore this email.\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Confirm your request</h2>
+    <p style="${P}">Hi ${escapeHtml(hi)},</p>
+    <p style="${P}">
+      Please confirm your appointment request with <strong>${escapeHtml(pro)}</strong> for
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time).
+    </p>
+    ${patientClinicBlockHtml(opts.clinic)}
+    <a href="${escapeHtml(opts.confirmUrl)}" style="${EMAIL_PRIMARY_BTN}">Confirm my request</a>
+    <p style="${P}">This link works once and for ${minutes} minutes. Your request is not sent to ${escapeHtml(pro)} until you confirm.</p>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.confirmUrl)}</p>
+    <p style="${MUTED}">If you didn't ask for this, you can ignore this email.</p>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+export function buildProfessionalNewRequestEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  appointmentIso: string;
+  reason: string;
+  isNewPatient: boolean;
+  clinic: EmailClinic;
+  reviewUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const visit = opts.isNewPatient ? "First visit with you" : "Returning patient";
+
+  const subject = `New appointment request: ${opts.patientName}`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `You have a new appointment request from ${opts.patientName} for ${date} at ${time} (Cyprus time).\n\n` +
+    `Clinic: ${clinicText(opts.clinic)}\n` +
+    `${visit}\n` +
+    `Reason: ${opts.reason}\n\n` +
+    `Review it in DocCy (accept, decline or suggest other times):\n${opts.reviewUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">New appointment request</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      You have a new request from <strong>${escapeHtml(opts.patientName)}</strong> for
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time).
+    </p>
+    <p style="${P}"><strong>Clinic:</strong> ${clinicHtml(opts.clinic)}<br />${escapeHtml(visit)}</p>
+    <p style="${P}"><strong>Reason:</strong> ${escapeHtml(opts.reason)}</p>
+    <a href="${escapeHtml(opts.reviewUrl)}" style="${EMAIL_PRIMARY_BTN}">Review the request</a>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.reviewUrl)}</p>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+/** To the professional when the patient cancels from the emailed link (user, 2026-10-04). */
+export function buildProfessionalPatientCancelledEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  cancelReason: string | null;
+  agendaUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const reason = String(opts.cancelReason ?? "").trim();
+
+  const subject = `Cancelled by the patient: ${opts.patientName}, ${date} ${time}`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} cancelled their visit on ${date} at ${time} (Cyprus time), at ${clinicText(opts.clinic)}.\n` +
+    `The time is free again in your agenda.\n\n` +
+    (reason ? `Their message:\n${reason}\n\n` : "") +
+    `Your agenda:\n${opts.agendaUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Visit cancelled by the patient</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> cancelled their visit on
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time),
+      at ${clinicHtml(opts.clinic)}. The time is free again in your agenda.
+    </p>
+    ${reason ? `<p style="${P}"><strong>Their message:</strong> ${escapeHtml(reason)}</p>` : ""}
+    <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+/** To the professional when the patient picks one of her proposed times (user, 2026-10-04). */
+export function buildProfessionalPatientChoseEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  agendaUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const subject = `${opts.patientName} chose ${date} at ${time}`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} chose one of the times you proposed. The visit is confirmed for ${date} at ${time} (Cyprus time), at ${clinicText(opts.clinic)}.\n` +
+    `The other times you held are free again.\n\n` +
+    `Your agenda:\n${opts.agendaUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">The patient chose a time</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> chose one of the times you proposed. The visit is confirmed for
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time), at ${clinicHtml(opts.clinic)}.
+      The other times you held are free again.
+    </p>
+    <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+/** To the professional when the patient declines her proposed times (user, 2026-10-04). */
+export function buildProfessionalPatientDeclinedProposalEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  message: string | null;
+}): BuiltEmail {
+  const pro = professionalFirstName(opts.professionalName);
+  const message = String(opts.message ?? "").trim();
+  const subject = `${opts.patientName} declined the times you proposed`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} declined the times you proposed, so the request is closed. The times you held are free again.\n\n` +
+    (message ? `Their message:\n${message}\n\n` : "") +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Proposed times declined</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> declined the times you proposed, so the request is closed.
+      The times you held are free again.
+    </p>
+    ${message ? `<p style="${P}"><strong>Their message:</strong> ${escapeHtml(message)}</p>` : ""}
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+/** RESEND_TO_OVERRIDE redirects every email outside production. */
+export function emailRecipient(to: string | null | undefined): string | null {
+  const override = process.env.RESEND_TO_OVERRIDE?.trim();
+  if (override && process.env.NODE_ENV !== "production") return override;
+  const address = String(to ?? "").trim();
+  return address || null;
+}
+
+export async function sendBuiltEmail(to: string | null | undefined, email: BuiltEmail): Promise<void> {
+  const recipient = emailRecipient(to);
+  // Test domains (@integration.test, …) never reach Resend.
+  if (!recipient || isUndeliverableTestEmail(recipient)) return;
+  await sendResendEmail({ to: recipient, subject: email.subject, text: email.text, html: email.html });
+}

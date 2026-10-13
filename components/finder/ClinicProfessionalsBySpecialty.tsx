@@ -7,7 +7,6 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import {
   clinicRosterSpecialtyKeys,
   filterClinicRosterBySpecialty,
-  splitClinicRosterByFinderVisibility,
   uniqueClinicRosterProfessionals,
 } from "@/lib/clinic-roster";
 import type { ClinicLandingProfessional } from "@/lib/load-clinic-by-slug";
@@ -100,63 +99,17 @@ function BookableProfessionalCard({
   );
 }
 
-/**
- * Inpatient-only row: informational, not a destination.
- * Dense list pattern (directory “also on staff”) — no hover, links, or card chrome that
- * competes with bookable profile cards above.
- */
-function InpatientProfessionalRow({ pro }: { pro: ClinicLandingProfessional }) {
-  const specialtyLabels = (
-    pro.specialties.length > 0 ? pro.specialties : [pro.specialty]
-  )
-    .map((s) => String(s ?? "").trim())
-    .filter(Boolean);
-
-  return (
-    <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
-      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-ink-200 bg-ink-100">
-        <img
-          src={pro.photoUrl}
-          alt=""
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="truncate text-sm font-medium text-ink-800">{pro.displayName}</p>
-          {pro.isGesy ? <GesyProviderBadge size="xs" language="en" /> : null}
-        </div>
-        {specialtyLabels.length > 0 ? (
-          <p className="mt-0.5 truncate text-xs text-ink-500">
-            {specialtyLabels.join(" · ")}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Clinic roster: bookable professionals first (interactive cards), then inpatient-only
- * as a secondary informational list — different job, so different pattern.
- */
+/** Clinic roster: one card per professional, filterable by specialty. */
 export function ClinicProfessionalsBySpecialty({
   professionals,
 }: {
   professionals: ClinicLandingProfessional[];
 }) {
-  const uniqueProfessionals = useMemo(
+  const bookable = useMemo(
     () => uniqueClinicRosterProfessionals(professionals),
     [professionals],
   );
 
-  const { bookable, inpatientOnly } = useMemo(
-    () => splitClinicRosterByFinderVisibility(uniqueProfessionals),
-    [uniqueProfessionals],
-  );
-
-  // Specialty filters apply only to bookable people (the actionable list).
   const specialtyChips = useMemo(
     () => buildSpecialtyChipCounts(bookable),
     [bookable],
@@ -169,7 +122,7 @@ export function ClinicProfessionalsBySpecialty({
     [activeSpecialty, bookable],
   );
 
-  if (uniqueProfessionals.length === 0) {
+  if (bookable.length === 0) {
     return (
       <p className="mt-3 text-sm text-ink-500">
         No professionals linked to this clinic yet.
@@ -182,10 +135,6 @@ export function ClinicProfessionalsBySpecialty({
       ? "1 professional"
       : `${visibleBookable.length} professionals`;
 
-  const inpatientCountLabel =
-    inpatientOnly.length === 1
-      ? "1 professional"
-      : `${inpatientOnly.length} professionals`;
 
   return (
     <div className="mt-4 space-y-8">
@@ -245,34 +194,6 @@ export function ClinicProfessionalsBySpecialty({
             ))}
           </ul>
         </div>
-      ) : null}
-
-      {inpatientOnly.length > 0 ? (
-        <section aria-labelledby="clinic-inpatient-heading">
-          <div className="mb-3 border-b border-ink-200 pb-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3
-                id="clinic-inpatient-heading"
-                className="text-sm font-bold tracking-wide text-ink-900"
-              >
-                Inpatient services
-              </h3>
-              <p className="shrink-0 text-xs font-medium text-ink-500">{inpatientCountLabel}</p>
-            </div>
-            <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-ink-500">
-              Hospital inpatient care at this clinic. These professionals do not have a public
-              DocCy profile or online booking.
-            </p>
-          </div>
-
-          <ul className="overflow-hidden rounded-2xl border border-ink-200 bg-ink-50/60 divide-y divide-ink-200">
-            {inpatientOnly.map((pro) => (
-              <li key={pro.id}>
-                <InpatientProfessionalRow pro={pro} />
-              </li>
-            ))}
-          </ul>
-        </section>
       ) : null}
     </div>
   );

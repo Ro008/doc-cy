@@ -51,7 +51,7 @@ Use `fetchAll*` (or DB-side aggregation) whenever the set **can grow past ~1000*
 - Finder/clinics list enrichment (votes, clinic links, district→clinic membership)
 - `app/sitemap.ts` URL generation
 - Internal founder analytics (`website_visits`, appointment chart series)
-- Agenda / practice insights / monthly digest appointment history
+- Agenda / practice insights appointment history
 - Slug “taken” sets (`loadTakenPublicSlugs`, import/backfill scripts)
 
 ## When a plain `.select()` is OK

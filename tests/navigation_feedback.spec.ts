@@ -36,7 +36,7 @@ async function signInDesktopAgenda(page: import("@playwright/test").Page) {
   await exposeSupabaseAuthCookiesToClient(page);
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
-  await expect(page.locator("main header h1").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("agenda-page")).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
@@ -45,7 +45,7 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     await signInMobileAgenda(page);
 
     await expect(
-      page.locator('button.fixed:has-text("+ Add Manual Booking")'),
+      page.locator('button.fixed:has-text("Add manual booking")'),
     ).toHaveCount(0);
   });
 
@@ -74,54 +74,46 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
   });
 
-  test("desktop user menu keeps a single loading spinner when switching targets", async ({ page }) => {
+  test("desktop nav tabs keep a single loading spinner when switching targets", async ({ page }) => {
     test.setTimeout(120_000);
     await signInDesktopAgenda(page);
 
     const stickyHeader = page.getByTestId("pro-sticky-header");
     await expect(stickyHeader).toBeVisible();
-    const toggle = stickyHeader.getByTestId("userbar-toggle");
-    const menu = stickyHeader.getByTestId("userbar-menu");
 
-    await expect(async () => {
-      await toggle.click();
-      await expect(menu).toBeVisible();
-    }).toPass({ timeout: 15_000 });
+    const settingsTab = stickyHeader.getByTestId("userbar-nav-settings");
+    const dashboardTab = stickyHeader.getByTestId("userbar-nav-dashboard");
+    const busyTabs = stickyHeader.locator('[data-testid^="userbar-nav-"][aria-busy="true"]');
 
-    const settingsLink = menu.getByTestId("userbar-link-settings");
-    const agendaLink = menu.getByTestId("userbar-link-agenda");
-
-    await settingsLink.click({ noWaitAfter: true });
-    await agendaLink.click({ noWaitAfter: true });
-
-    const busyMenuItems = menu.locator('[role="menuitem"][aria-busy="true"]');
+    await settingsTab.click({ noWaitAfter: true });
+    await dashboardTab.click({ noWaitAfter: true });
 
     await expect
       .poll(async () => {
-        const busyCount = await busyMenuItems.count();
+        const busyCount = await busyTabs.count();
         if (busyCount > 1) return "too-many";
 
-        const agendaBusy = await agendaLink.getAttribute("aria-busy");
-        const settingsBusy = await settingsLink.getAttribute("aria-busy");
-        const onAgenda = /\/agenda(?:[/?#]|$)/.test(page.url()) && !page.url().includes("/settings");
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
+        const settingsBusy = await settingsTab.getAttribute("aria-busy");
+        const onDashboard = /\/dashboard(?:[/?#]|$)/.test(page.url());
 
-        if (busyCount === 1 && agendaBusy === "true" && settingsBusy === "false") {
+        if (busyCount === 1 && dashboardBusy === "true" && settingsBusy === "false") {
           return "ok-pending";
         }
-        if (busyCount === 0 && onAgenda) return "ok-landed";
+        if (busyCount === 0 && onDashboard) return "ok-landed";
         return "waiting";
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })
       .not.toBe("too-many");
 
     await expect
       .poll(async () => {
-        const busyCount = await busyMenuItems.count();
-        const agendaBusy = await agendaLink.getAttribute("aria-busy");
-        const settingsBusy = await settingsLink.getAttribute("aria-busy");
-        const onAgenda = /\/agenda(?:[/?#]|$)/.test(page.url()) && !page.url().includes("/settings");
+        const busyCount = await busyTabs.count();
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
+        const settingsBusy = await settingsTab.getAttribute("aria-busy");
+        const onDashboard = /\/dashboard(?:[/?#]|$)/.test(page.url());
         return (
-          (busyCount === 1 && agendaBusy === "true" && settingsBusy === "false") ||
-          (busyCount === 0 && onAgenda)
+          (busyCount === 1 && dashboardBusy === "true" && settingsBusy === "false") ||
+          (busyCount === 0 && onDashboard)
         );
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })
       .toBe(true);
@@ -131,11 +123,11 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await signInMobileAgenda(page);
 
-    const insightsTab = page.getByTestId("userbar-tab-insights");
+    const dashboardTab = page.getByTestId("userbar-tab-dashboard");
     const settingsTab = page.getByTestId("userbar-tab-settings");
     const busyTabs = page.locator('[data-testid^="userbar-tab-"][aria-busy="true"]');
 
-    await insightsTab.click({ noWaitAfter: true });
+    await dashboardTab.click({ noWaitAfter: true });
     await settingsTab.click({ noWaitAfter: true });
 
     await expect
@@ -144,10 +136,10 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
         if (busyCount > 1) return "too-many";
 
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
         const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
 
-        if (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") {
+        if (busyCount === 1 && settingsBusy === "true" && dashboardBusy === "false") {
           return "ok-pending";
         }
         if (busyCount === 0 && onSettings) return "ok-landed";
@@ -159,10 +151,10 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
       .poll(async () => {
         const busyCount = await busyTabs.count();
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
-        const insightsBusy = await insightsTab.getAttribute("aria-busy");
+        const dashboardBusy = await dashboardTab.getAttribute("aria-busy");
         const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
         return (
-          (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") ||
+          (busyCount === 1 && settingsBusy === "true" && dashboardBusy === "false") ||
           (busyCount === 0 && onSettings)
         );
       }, { timeout: 12_000, intervals: [25, 50, 100, 150] })

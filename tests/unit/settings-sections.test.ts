@@ -11,11 +11,16 @@ import {
 } from "../../lib/settings-sections";
 
 describe("settings sections (sidebar)", () => {
-  it("lists the sidebar sections in order", () => {
+  it("lists the sidebar sections in order: the practice first, account admin last (user, 2026-10-09)", () => {
     assert.deepEqual(
       SETTINGS_SECTIONS.map((s) => s.id),
-      ["availability", "clinics", "services", "profile", "contact", "notifications", "promote", "plan", "account"],
+      ["profile", "clinics", "services", "notifications", "promote", "plan", "account"],
     );
+  });
+
+  it("starts the account group (Plan & billing, Account) after Promote", () => {
+    const grouped = SETTINGS_SECTIONS.filter((s) => "group" in s && s.group === "account").map((s) => s.id);
+    assert.deepEqual(grouped, ["plan", "account"]);
   });
 
   it("gives promoting the practice its own section, apart from Account", () => {
@@ -29,17 +34,29 @@ describe("settings sections (sidebar)", () => {
     }
   });
 
-  it("opens Availability when no section is asked for", () => {
-    assert.equal(DEFAULT_SETTINGS_SECTION, "availability");
-    assert.equal(parseSettingsSection(undefined), "availability");
-    assert.equal(parseSettingsSection(null), "availability");
-    assert.equal(parseSettingsSection(""), "availability");
+  it("opens Profile when no section is asked for", () => {
+    assert.equal(DEFAULT_SETTINGS_SECTION, "profile");
+    assert.equal(parseSettingsSection(undefined), "profile");
+    assert.equal(parseSettingsSection(null), "profile");
+    assert.equal(parseSettingsSection(""), "profile");
+  });
+
+  it("has no Availability section; its old links open Clinics, which shows the same per clinic (user, 2026-10-09)", () => {
+    assert.equal(SETTINGS_SECTIONS.some((s) => (s.id as string) === "availability"), false);
+    assert.equal(parseSettingsSection("availability"), "clinics");
+    assert.equal(legacySettingsRedirect({ section: "availability" }), "/settings?section=clinics");
+  });
+
+  it("has no Contact & phone section; each clinic card holds its phone and the mobile is in Account (user, 2026-10-10)", () => {
+    assert.equal(SETTINGS_SECTIONS.some((s) => (s.id as string) === "contact"), false);
+    assert.equal(parseSettingsSection("contact"), "clinics");
+    assert.equal(legacySettingsRedirect({ section: "contact" }), "/settings?section=clinics");
   });
 
   it("reads a known section from the URL", () => {
     assert.equal(parseSettingsSection("clinics"), "clinics");
     assert.equal(parseSettingsSection("profile"), "profile");
-    assert.equal(parseSettingsSection(" Contact "), "contact");
+    assert.equal(parseSettingsSection(" Services "), "services");
   });
 
   it("uses the first value when the param repeats", () => {
@@ -47,8 +64,8 @@ describe("settings sections (sidebar)", () => {
   });
 
   it("falls back to the default for an unknown section", () => {
-    assert.equal(parseSettingsSection("billing"), "availability");
-    assert.equal(parseSettingsSection("__proto__"), "availability");
+    assert.equal(parseSettingsSection("billing"), "profile");
+    assert.equal(parseSettingsSection("__proto__"), "profile");
   });
 
   it("lives at /settings, not under the agenda", () => {
@@ -56,15 +73,15 @@ describe("settings sections (sidebar)", () => {
   });
 
   it("links each section; the default one has no query", () => {
-    assert.equal(settingsSectionHref("availability"), "/settings");
+    assert.equal(settingsSectionHref("profile"), "/settings");
     assert.equal(settingsSectionHref("clinics"), "/settings?section=clinics");
     assert.equal(settingsSectionHref("account"), "/settings?section=account");
   });
 
   it("sends the old /agenda/settings links to the same section", () => {
     assert.equal(legacySettingsRedirect({}), "/settings");
-    assert.equal(legacySettingsRedirect({ section: "clinics" }), "/settings?section=clinics");
-    assert.equal(legacySettingsRedirect({ section: ["profile", "x"] }), "/settings?section=profile");
+    assert.equal(legacySettingsRedirect({ section: "services" }), "/settings?section=services");
+    assert.equal(legacySettingsRedirect({ section: ["plan", "x"] }), "/settings?section=plan");
     assert.equal(legacySettingsRedirect({ section: "nope" }), "/settings");
   });
 });

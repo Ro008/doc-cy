@@ -2,18 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { promoteBookingNotice } from "@/lib/promote-booking-notice";
 import { createPortal } from "react-dom";
-import { Clock, ExternalLink, Lock, Save, Trash2, X } from "lucide-react";
+import { Clock, ExternalLink, Lock, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
+import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DEFAULT_BOOKING_HORIZON_DAYS,
-  DAY_NAMES,
   DEFAULT_MIN_NOTICE_HOURS,
   MIN_NOTICE_OPTIONS_HOURS,
-  type DayKey,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
 import {
@@ -38,17 +38,25 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
+import { clinicHoursProblems } from "@/lib/clinic-hours-check";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
-import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
-import { type SpecialtyChangeRequestKind } from "@/lib/doctor-specialty-change-request";
+import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import {
   SPECIALTY_LICENSE_HELP,
   pendingSpecialtyChip,
+  type SpecialtyChangeRequestKind,
   validateAddSpecialtyRequest,
   type AddSpecialtyErrors,
 } from "@/lib/settings-specialty-request";
-import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
-import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_GHOST_BUTTON_CLASS,
+  SETTINGS_INLINE_LINK_CLASS,
+  SETTINGS_LINK_CLASS,
+  SETTINGS_PRIMARY_BUTTON_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 import {
   applySaveGroup,
   buildSettingsSavePayload,
@@ -70,7 +78,12 @@ import {
   clinicsAfterRemoval,
 } from "@/lib/settings-removal-rules";
 import { AddClinicDialog, type NewClinic } from "@/components/dashboard/settings/AddClinicDialog";
-import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
+import {
+  type DeniedClinicRequest,
+  type PendingClinicAddRequest,
+  type PendingClinicDetailsRequest,
+} from "@/lib/clinic-requests";
+import { LEAVE_CLINIC_LOSES, leaveClinicNotes, type ClinicUpcomingCounts } from "@/lib/settings-leave-clinic";
 import {
   clinicBookingStatus,
   summarizeClinicBreak,
@@ -80,21 +93,90 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
+import { ClinicRequestNotice } from "@/components/dashboard/settings/ClinicRequestNotice";
+import { ClinicHoursEditor } from "@/components/dashboard/settings/ClinicHoursEditor";
+import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
+import { PatientAgesCard } from "@/components/dashboard/settings/PatientAgesCard";
+import { ProfileNameField } from "@/components/dashboard/settings/ProfileNameField";
+import { ProfilePhotoControls, type PendingPhotoChange } from "@/components/dashboard/settings/ProfilePhotoControls";
+import { useDismissibleDenial } from "@/components/dashboard/settings/useDismissibleDenial";
+import {
+  profileChangeRequestDate,
+  type DeniedProfileChange,
+  type ProfileChangeState,
+} from "@/lib/profile-change-requests";
+import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
+import { ServicesCard } from "@/components/dashboard/settings/ServicesCard";
+import { parseSavedServices } from "@/lib/settings-services";
+import type { PatientAges, SavedQualification } from "@/lib/settings-profile-details";
+import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
+import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
+import {
+  accountLimitsFor,
+  applyLimitsToAllClinics,
+  clinicsShareLimits,
+  initialClinicLimits,
+  setClinicLimit,
+  type ClinicLimits,
+  type ClinicLimitsById,
+} from "@/lib/settings-clinic-limits";
 import {
   ClinicChangeRequestDialog,
-  type PendingClinicChange,
 } from "@/components/dashboard/settings/ClinicChangeRequestDialog";
 import {
   SettingsDialog,
   dialogDangerButtonClass,
   dialogSecondaryButtonClass,
 } from "@/components/dashboard/settings/SettingsDialog";
+import { formatInTimeZone } from "date-fns-tz";
+import {
+  cyprusTodayKey,
+  holidayBannerText,
+  holidayDatesProblem,
+  holidayState,
+  holidayVisitNotes,
+  type HolidayVisitCounts,
+} from "@/lib/holiday-mode";
+
+import {
+  ACCESS_ENDED_SWITCH_NOTE,
+  APPLY_SLOT_NOTE,
+  APPLY_WEEK_NOTE,
+  HOURS_VISIT_REASON_LABEL,
+  applyToAllCopy,
+  hoursVisitNotes,
+  type HoursVisitReason,
+} from "@/lib/clinic-hours-visits";
+
+/** One clinic's visits that a change of hours would leave outside them. */
+type ClinicHoursCheckRow = {
+  locationId: string;
+  clinicName: string;
+  confirmed: number;
+  open: number;
+  visits: Array<{ id: string; at: string; patientName: string; open: boolean; reason: HoursVisitReason }>;
+};
+
+/** The dialog before hours are saved for one clinic, or copied to all of them. */
+type HoursDialogState = {
+  kind: "save" | "week" | "slot";
+  sourceId: string;
+  /** null while the visits are being checked. */
+  checks: ClinicHoursCheckRow[] | null;
+};
+
+/** A visit or open request inside the holiday dates she is about to save. */
+type HolidayVisitRow = { id: string; at: string; patientName: string; clinicName: string; open: boolean };
 
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
+  /** Her open name change request, or her latest denial (`loadProfileChangeStates`). */
+  nameChange?: ProfileChangeState | null;
+  /** The same for her photo; `pendingPhotoUrl` shows the photo she sent. */
+  photoChange?: (ProfileChangeState & { pendingPhotoUrl: string | null }) | null;
   avatarUrl?: string | null;
   /** Shown in directory & public profile */
   specialty: string;
@@ -102,9 +184,12 @@ export type DoctorSettingsFormData = {
   specialtyOptions: string[];
   /** Approved specialty labels (flat). */
   specialties?: string[];
-  /** false = custom “Other” text pending founder approval */
-  isSpecialtyApproved?: boolean;
-  /** Pending specialty change request (settings lock queue). */
+  /** "Patients I see" and her qualifications, as saved (`loadProfileDetails`). */
+  patientAges?: PatientAges | null;
+  qualifications?: SavedQualification[];
+  /** Her latest specialty request, when founders denied it (`loadProfileChangeStates`). */
+  specialtyDenied?: DeniedProfileChange | null;
+  /** Her open request to add a specialty (`loadProfileChangeStates`). */
   pendingSpecialtyChange?: {
     requestKind: SpecialtyChangeRequestKind;
     fromSpecialty: string | null;
@@ -116,8 +201,11 @@ export type DoctorSettingsFormData = {
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
+  /** Her personal mobile (Account, its own card and route). */
   mobileNumber?: string;
-  /** The phones patients see, one per clinic; read-only here (clinics are curated). */
+  /** Patients see the personal mobile on her profile (off by default). */
+  showMobileOnProfile?: boolean;
+  /** The phones patients see, one per clinic, on the clinic cards. */
   clinicPhones?: SettingsClinicPhone[];
   district: string;
   clinicAddress: string;
@@ -133,32 +221,30 @@ export type DoctorSettingsFormData = {
   saturday: boolean;
   sunday: boolean;
   weeklySchedule: WeeklySchedule;
-  breakEnabled: boolean;
-  breakStart: string;
-  breakEnd: string;
   slotDurationMinutes: number;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  /** Until how many hours before the visit patients can cancel online (12 / 24 / 48). */
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
   pauseOnlineBookings: boolean;
+  /** Pro access has ended: online booking switches are off and disabled. */
+  accessEnded?: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
-  /**
-   * Clinic change requests waiting for DocCy, by location id. Loaded by the backend
-   * once GET support exists (docs/handoff/settings-redesign.md); empty until then.
-   */
-  pendingClinicChanges?: Record<string, PendingClinicChange>;
-  /** Clinics asked for and not yet approved by DocCy (same contract; empty until loaded). */
-  pendingClinicAdds?: PendingClinicAdd[];
+  /** Her new-clinic request: the one waiting for DocCy, or her latest denial. */
+  clinicAddRequest?: { pending: PendingClinicAddRequest | null; denied: DeniedClinicRequest | null } | null;
+  /** By location id: her open request to change that clinic's details, or her latest denial. */
+  clinicChangeRequests?: Record<
+    string,
+    { pending: PendingClinicDetailsRequest | null; denied: DeniedClinicRequest | null }
+  >;
 };
-
-export type PendingClinicAdd = { clinic: NewClinic; createdAt: string };
 
 export type DoctorWorkplaceFormData = {
   id: string;
-  isPrimary: boolean;
   label?: string | null;
   district: string;
   clinicAddress: string;
@@ -167,10 +253,12 @@ export type DoctorWorkplaceFormData = {
   clinicLongitude?: number | null;
   clinicPlaceId?: string | null;
   weeklySchedule: WeeklySchedule;
-  breakEnabled: boolean;
-  breakStart: string;
-  breakEnd: string;
   slotDurationMinutes: number;
+  /**
+   * This clinic's booking limits. EXPECTED missing until Livio stores them per clinic
+   * (lib/settings-clinic-limits); the form falls back to the account values.
+   */
+  bookingLimits?: ClinicLimits | null;
   pauseOnlineBookings: boolean;
 };
 
@@ -260,26 +348,6 @@ async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
   return blob;
 }
 
-function timeToInputValue(t: string | null | undefined): string {
-  if (!t) return "09:00";
-  const parts = String(t).split(":");
-  const h = parts[0]?.padStart(2, "0") ?? "09";
-  const m = parts[1]?.padStart(2, "0") ?? "00";
-  return `${h}:${m}`;
-}
-
-const DAY_LABELS: Record<DayKey, string> = {
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-  sunday: "Sunday",
-};
-
-const TIME_INPUT_CLASS =
-  "mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-125";
 
 function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkplaceFormData[] {
   if (initial.locations && initial.locations.length > 0) {
@@ -288,7 +356,6 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
   return [
     {
       id: "primary",
-      isPrimary: true,
       label: "",
       district: initial.district,
       clinicAddress: initial.clinicAddress,
@@ -297,9 +364,6 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
       clinicLongitude: initial.clinicLongitude,
       clinicPlaceId: initial.clinicPlaceId,
       weeklySchedule: initial.weeklySchedule,
-      breakEnabled: initial.breakEnabled,
-      breakStart: initial.breakStart,
-      breakEnd: initial.breakEnd,
       slotDurationMinutes: initial.slotDurationMinutes,
       pauseOnlineBookings: initial.pauseOnlineBookings,
     },
@@ -321,10 +385,6 @@ function resolveInitialClinicLocation(initial: DoctorSettingsFormData): ClinicLo
     district: initial.district || primary?.district || "",
     town: initial.clinicTown ?? primary?.clinicTown ?? null,
   });
-}
-
-function cyprusTodayKey(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(new Date());
 }
 
 const SECTION_CARD_CLASS = SETTINGS_CARD_CLASS;
@@ -374,7 +434,7 @@ export function SettingsForm({
   const [specialtyToRemove, setSpecialtyToRemove] = React.useState<string | null>(null);
   const [specialtyRemoving, setSpecialtyRemoving] = React.useState(false);
 
-  /** Removing a specialty is instant (contract: DELETE /api/doctor-specialties). */
+  /** Removing a specialty is instant and recorded (DELETE /api/professional-specialties). */
   async function handleRemoveSpecialty(label: string): Promise<boolean> {
     const check = canRemoveSpecialty(lockedSpecialties, label);
     if (check.ok === false) {
@@ -383,16 +443,14 @@ export function SettingsForm({
     }
     setSpecialtyRemoving(true);
     try {
-      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialties (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
-      const res = await fetch("/api/doctor-specialties", {
+      const res = await fetch("/api/professional-specialties", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ specialty: check.specialty }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("removeSpecialty", res.status, data, "Could not remove the specialty."));
+        toast.error(typeof data?.message === "string" ? data.message : "Could not remove the specialty.");
         return false;
       }
       const next = Array.isArray(data?.specialties)
@@ -409,12 +467,14 @@ export function SettingsForm({
       setSpecialtyRemoving(false);
     }
   }
-  const specialtyFromMaster =
-    (initial.isSpecialtyApproved ?? true) !== false &&
-    isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
-  const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
+  const specialtyFromMaster = isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
     () => initial.pendingSpecialtyChange ?? null,
+  );
+  // Her latest specialty request, if founders denied it: shown until she dismisses it.
+  const [specialtyDenied, dismissSpecialtyDenied, clearSpecialtyDenied] = useDismissibleDenial(
+    "specialty",
+    initial.specialtyDenied ?? null,
   );
   // One request only: add a specialty (removing is instant with the chip's ✕).
   const [specialtyFormOpen, setSpecialtyFormOpen] = React.useState(false);
@@ -446,9 +506,6 @@ export function SettingsForm({
   );
   const [bio, setBio] = React.useState(() => (initial.bio ?? "").trim());
 
-  const [mobileNumber, setMobileNumber] = React.useState(
-    initial.mobileNumber ?? ""
-  );
   const [district, setDistrict] = React.useState(initial.district ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
     resolveInitialClinicLocation(initial),
@@ -459,15 +516,6 @@ export function SettingsForm({
   const firstWorkplace = initialWorkplacesFromForm(initial)[0];
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     () => firstWorkplace?.weeklySchedule ?? initial.weeklySchedule,
-  );
-  const [breakEnabled, setBreakEnabled] = React.useState(
-    () => firstWorkplace?.breakEnabled ?? initial.breakEnabled,
-  );
-  const [breakStart, setBreakStart] = React.useState(() =>
-    timeToInputValue(firstWorkplace?.breakStart ?? initial.breakStart),
-  );
-  const [breakEnd, setBreakEnd] = React.useState(() =>
-    timeToInputValue(firstWorkplace?.breakEnd ?? initial.breakEnd),
   );
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
     () => firstWorkplace?.slotDurationMinutes ?? initial.slotDurationMinutes,
@@ -482,15 +530,47 @@ export function SettingsForm({
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
   /** The clinic card whose hours editor is open (it is also the active workplace). */
   const [editingWorkplaceId, setEditingWorkplaceId] = React.useState<string | null>(null);
+  /** With several clinics, the one card that is open (null: all folded). */
+  const [openClinicId, setOpenClinicId] = React.useState<string | null>(
+    () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
+  );
   const [workplaceToRemove, setWorkplaceToRemove] = React.useState<string | null>(null);
+  /** Confirmed visits and open requests at the clinic she is about to leave (null while loading). */
+  const [leaveCounts, setLeaveCounts] = React.useState<ClinicUpcomingCounts | null>(null);
+  React.useEffect(() => {
+    setLeaveCounts(null);
+    if (!workplaceToRemove) return;
+    let cancelled = false;
+    fetch(`/api/professional-clinics/${encodeURIComponent(workplaceToRemove)}/upcoming`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setLeaveCounts({ confirmed: Number(data?.confirmed) || 0, open: Number(data?.open) || 0 });
+      })
+      .catch(() => {
+        if (!cancelled) setLeaveCounts({ confirmed: 0, open: 0 });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workplaceToRemove]);
+  /** The clinic she joined in this visit: its card says what to do next. */
+  const [joinedClinicId, setJoinedClinicId] = React.useState<string | null>(null);
+  const [joinedClinicPhones, setJoinedClinicPhones] = React.useState<SettingsClinicPhone[]>([]);
   const [changeRequestFor, setChangeRequestFor] = React.useState<string | null>(null);
   const [addClinicOpen, setAddClinicOpen] = React.useState(false);
-  const [pendingClinicAdds, setPendingClinicAdds] = React.useState<PendingClinicAdd[]>(
-    () => initial.pendingClinicAdds ?? [],
+  const [pendingClinicAdd, setPendingClinicAdd] = React.useState<PendingClinicAddRequest | null>(
+    () => initial.clinicAddRequest?.pending ?? null,
   );
   const [pendingClinicChanges, setPendingClinicChanges] = React.useState<
-    Record<string, PendingClinicChange>
-  >(() => initial.pendingClinicChanges ?? {});
+    Record<string, PendingClinicDetailsRequest>
+  >(() =>
+    Object.fromEntries(
+      Object.entries(initial.clinicChangeRequests ?? {}).flatMap(([id, state]) =>
+        state.pending ? [[id, state.pending]] : [],
+      ),
+    ),
+  );
 
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
@@ -498,6 +578,20 @@ export function SettingsForm({
   const [minimumNoticeHours, setMinimumNoticeHours] = React.useState(
     initial.minimumNoticeHours
   );
+  const [patientCancelNoticeHours, setPatientCancelNoticeHours] = React.useState(
+    initial.patientCancelNoticeHours
+  );
+  // Booking limits per clinic (user, 2026-10-09); see lib/settings-clinic-limits.
+  const accountLimits: ClinicLimits = {
+    bookingHorizonDays: initial.bookingHorizonDays,
+    minimumNoticeHours: initial.minimumNoticeHours,
+    patientCancelNoticeHours: initial.patientCancelNoticeHours,
+  };
+  const [initialLimits] = React.useState(() =>
+    initialClinicLimits(initialWorkplacesFromForm(initial), accountLimits),
+  );
+  const [clinicLimits, setClinicLimits] = React.useState<ClinicLimitsById>(initialLimits);
+  const [savedClinicLimits, setSavedClinicLimits] = React.useState<ClinicLimitsById>(initialLimits);
   const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
     initial.holidayModeEnabled
   );
@@ -513,17 +607,24 @@ export function SettingsForm({
   const [holidayEndInput, setHolidayEndInput] = React.useState(
     formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate)
   );
-  const [services, setServices] = React.useState<DoctorServiceItem[]>(
-    Array.isArray(initial.services) ? initial.services : []
-  );
-  const [serviceName, setServiceName] = React.useState("");
-  const [servicePrice, setServicePrice] = React.useState("");
-  const [serviceSubmitting, setServiceSubmitting] = React.useState(false);
-  const [deletingServiceId, setDeletingServiceId] = React.useState<string | null>(null);
+  /** Visits inside the holiday dates she is about to save: shown before saving (nothing is cancelled). */
+  const [holidayWarning, setHolidayWarning] = React.useState<
+    (HolidayVisitCounts & { visits: HolidayVisitRow[] }) | null
+  >(null);
+  const [holidayChecking, setHolidayChecking] = React.useState(false);
+  /** Hours about to be saved for a clinic, or copied to all: she confirms first when visits are affected. */
+  const [hoursDialog, setHoursDialog] = React.useState<HoursDialogState | null>(null);
+  const [hoursChecking, setHoursChecking] = React.useState(false);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [avatarCropping, setAvatarCropping] = React.useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
     initial.avatarUrl?.trim() ? initial.avatarUrl : null
+  );
+  // A new photo waits for a founder: the live one stays until then.
+  const [photoPending, setPhotoPending] = React.useState<PendingPhotoChange | null>(
+    initial.photoChange?.pending
+      ? { createdAt: initial.photoChange.pending.createdAt, photoUrl: initial.photoChange.pendingPhotoUrl }
+      : null,
   );
   const [avatarSourceUrl, setAvatarSourceUrl] = React.useState<string | null>(null);
   const [avatarCrop, setAvatarCrop] = React.useState({ x: 0, y: 0 });
@@ -536,7 +637,6 @@ export function SettingsForm({
     const current = workplaces.find((row) => row.id === activeWorkplaceId);
     return {
       id: activeWorkplaceId,
-      isPrimary: current?.isPrimary ?? workplaces.length <= 1,
       label: String(current?.label ?? "").trim(),
       // The address is read-only here: keep the clinic's own.
       district: current?.district ?? "",
@@ -546,17 +646,11 @@ export function SettingsForm({
       clinicLongitude: current?.clinicLongitude ?? null,
       clinicPlaceId: current?.clinicPlaceId ?? null,
       weeklySchedule,
-      breakEnabled,
-      breakStart,
-      breakEnd,
       slotDurationMinutes,
       pauseOnlineBookings: Boolean(current?.pauseOnlineBookings),
     };
   }, [
     activeWorkplaceId,
-    breakEnabled,
-    breakEnd,
-    breakStart,
     slotDurationMinutes,
     weeklySchedule,
     workplaces,
@@ -576,9 +670,6 @@ export function SettingsForm({
       }),
     );
     setWeeklySchedule(row.weeklySchedule);
-    setBreakEnabled(row.breakEnabled);
-    setBreakStart(timeToInputValue(row.breakStart));
-    setBreakEnd(timeToInputValue(row.breakEnd));
     setSlotDurationMinutes(row.slotDurationMinutes);
   }, []);
 
@@ -605,7 +696,7 @@ export function SettingsForm({
   }, [activeWorkplaceId]);
 
   function openAddClinic() {
-    if (workplaces.length + pendingClinicAdds.length >= MAX_DOCTOR_LOCATIONS) {
+    if (workplaces.length >= MAX_DOCTOR_LOCATIONS) {
       toast.error(`You can have up to ${MAX_DOCTOR_LOCATIONS} clinics.`);
       return;
     }
@@ -613,35 +704,111 @@ export function SettingsForm({
   }
 
   /**
-   * Clinics are curated by DocCy, so adding one is a request (contract:
-   * POST /api/clinic-requests, docs/handoff/settings-redesign.md): `{ clinicId }` to
-   * join a DocCy clinic, else `{ name, phone, location }` for a new one. It shows as a
-   * pending card until DocCy approves it.
+   * A clinic DocCy already has is joined at once (user, 2026-10-11): its card appears,
+   * open on its hours, with online booking off until she switches it on.
    */
-  async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
+  async function joinClinic(clinicId: string): Promise<boolean> {
     try {
-      // EXPECTED TO FAIL until Livio builds POST /api/clinic-requests (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
-      const res = await fetch("/api/clinic-requests", {
+      const res = await fetch("/api/professional-clinics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "add", clinic }),
+        body: JSON.stringify({ clinicId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("addClinic", res.status, data, "Could not send the request."));
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not add the clinic.");
         return false;
       }
-      setPendingClinicAdds((prev) => [
+      const joined = data?.location as DoctorWorkplaceFormData | null | undefined;
+      if (!joined?.id) {
+        // Joined, but the card did not come back: reload to show it.
+        window.location.reload();
+        return true;
+      }
+      const captured = captureActiveWorkplace();
+      setWorkplaces((prev) => [...prev.map((row) => (row.id === captured.id ? captured : row)), joined]);
+      setSavedSnapshot((prev) => ({
         ...prev,
-        { clinic, createdAt: String(data?.request?.createdAt ?? new Date().toISOString()) },
-      ]);
-      toast.success("Request sent. We’ll email you once the clinic is added.");
+        workplaces: [
+          ...prev.workplaces,
+          { ...joined, weeklySchedule: joined.weeklySchedule, slotDurationMinutes: joined.slotDurationMinutes },
+        ] as typeof prev.workplaces,
+      }));
+      if (data?.phone) setJoinedClinicPhones((prev) => [...prev, data.phone as SettingsClinicPhone]);
+      setJoinedClinicId(joined.id);
+      setOpenClinicId(joined.id);
+      applyWorkplaceToForm(joined);
+      setEditingWorkplaceId(joined.id);
+      toast.success("Clinic added. Check your hours, then switch online booking on.");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not add the clinic.");
+      return false;
+    }
+  }
+
+  /**
+   * A clinic DocCy does not have yet is a request (user, 2026-10-11): founders check
+   * it first. It shows as a waiting card she can withdraw; one waits at a time.
+   */
+  async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
+    if (clinic.clinicId) return joinClinic(clinic.clinicId);
+    try {
+      const res = await fetch("/api/clinic-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinic }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not send the request.");
+        return false;
+      }
+      setPendingClinicAdd({
+        id: String(data?.request?.id ?? ""),
+        createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
+        name: String(data?.request?.name ?? clinic.name),
+        address: String(data?.request?.address ?? clinic.location.address),
+      });
+      toast.success("Request sent. We’ll email you once DocCy has checked the clinic.");
       return true;
     } catch (err) {
       console.error(err);
       toast.error("Could not send the request.");
       return false;
+    }
+  }
+
+  /** Withdraws her waiting new-clinic request, or her open details request for one clinic. */
+  async function withdrawClinicRequest(locationId: string | null): Promise<void> {
+    try {
+      const res = await fetch(
+        locationId
+          ? `/api/clinic-change-requests?locationId=${encodeURIComponent(locationId)}`
+          : "/api/clinic-requests",
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          typeof data?.message === "string" && data.message ? data.message : "Could not withdraw the request.",
+        );
+        return;
+      }
+      if (locationId) {
+        setPendingClinicChanges((prev) => {
+          const next = { ...prev };
+          delete next[locationId];
+          return next;
+        });
+      } else {
+        setPendingClinicAdd(null);
+      }
+      toast.success("Request withdrawn.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not withdraw the request.");
     }
   }
 
@@ -653,16 +820,14 @@ export function SettingsForm({
     }
     setWorkplaceBusy(true);
     try {
-      // Contract (docs/handoff/settings-redesign.md): the professional leaves the clinic.
-      // EXPECTED TO FAIL until Livio builds DELETE /api/professional-clinics (backend pending, see
-      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
+      // She leaves at once, no founder (user, 2026-10-11); visits there are kept.
       const res = await fetch(
         `/api/professional-clinics?locationId=${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage("removeClinic", res.status, data, "Could not remove clinic."));
+        toast.error(typeof data?.message === "string" && data.message ? data.message : "Could not leave the clinic.");
         return false;
       }
       const captured = captureActiveWorkplace();
@@ -677,15 +842,21 @@ export function SettingsForm({
         ...prev,
         workplaces: prev.workplaces.filter((row) => row.id !== id),
       }));
+      setPendingClinicChanges((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       if (editingWorkplaceId === id) setEditingWorkplaceId(null);
+      if (openClinicId === id) setOpenClinicId(remaining[0]?.id ?? null);
       if (activeWorkplaceId === id && remaining[0]) {
         applyWorkplaceToForm(remaining[0]);
       }
-      toast.success("Clinic removed.");
+      toast.success("You left the clinic.");
       return true;
     } catch (err) {
       console.error(err);
-      toast.error("Could not remove clinic.");
+      toast.error("Could not leave the clinic.");
       return false;
     } finally {
       setWorkplaceBusy(false);
@@ -699,9 +870,9 @@ export function SettingsForm({
         specialtyFromMaster,
         bio,
         languages,
-        mobileNumber,
         bookingHorizonDays,
         minimumNoticeHours,
+        patientCancelNoticeHours,
         holidayModeEnabled,
         holidayStartInput,
         holidayEndInput,
@@ -714,9 +885,6 @@ export function SettingsForm({
           clinicLongitude: row.clinicLongitude ?? null,
           clinicPlaceId: row.clinicPlaceId ?? null,
           weeklySchedule: row.weeklySchedule,
-          breakEnabled: row.breakEnabled,
-          breakStart: row.breakStart,
-          breakEnd: row.breakEnd,
           slotDurationMinutes: row.slotDurationMinutes,
         })),
       }),
@@ -725,9 +893,9 @@ export function SettingsForm({
       specialtyFromMaster,
       bio,
       languages,
-      mobileNumber,
       bookingHorizonDays,
       minimumNoticeHours,
+      patientCancelNoticeHours,
       holidayModeEnabled,
       holidayStartInput,
       holidayEndInput,
@@ -739,14 +907,12 @@ export function SettingsForm({
     const specialty = (initial.specialty ?? "").trim();
     return buildSettingsDirtySnapshot({
       specialty,
-      specialtyFromMaster:
-        (initial.isSpecialtyApproved ?? true) !== false &&
-        isCatalogueSpecialty(initial.specialtyOptions, specialty),
+      specialtyFromMaster: isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
-      mobileNumber: initial.mobileNumber ?? "",
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
+      patientCancelNoticeHours: initial.patientCancelNoticeHours,
       holidayModeEnabled: initial.holidayModeEnabled,
       holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
       holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
@@ -759,9 +925,6 @@ export function SettingsForm({
         clinicLongitude: row.clinicLongitude ?? null,
         clinicPlaceId: row.clinicPlaceId ?? null,
         weeklySchedule: row.weeklySchedule,
-        breakEnabled: row.breakEnabled,
-        breakStart: row.breakStart,
-        breakEnd: row.breakEnd,
         slotDurationMinutes: row.slotDurationMinutes,
       })),
     });
@@ -832,23 +995,21 @@ export function SettingsForm({
     setAvatarUploading(true);
     try {
       const form = new FormData();
-      form.set("doctorId", initial.doctorId);
-      form.set(
-        "avatarFile",
-        new File([blob], "profile-photo.jpg", { type: "image/jpeg" })
-      );
-      const res = await fetch("/api/doctor-avatar", { method: "POST", body: form });
+      form.set("photo", new File([blob], "profile-photo.jpg", { type: "image/jpeg" }));
+      const res = await fetch("/api/photo-change-requests", { method: "POST", body: form });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((payload.message as string) || "Could not upload photo.");
+        toast.error((payload.message as string) || "Could not send the photo.");
         return;
       }
-      const nextUrl = String(payload.publicUrl ?? "").trim();
-      if (nextUrl) setAvatarPreviewUrl(nextUrl);
-      toast.success("Profile photo updated.");
+      setPhotoPending({
+        createdAt: String(payload?.request?.createdAt ?? new Date().toISOString()),
+        photoUrl: typeof payload?.request?.photoUrl === "string" ? payload.request.photoUrl : null,
+      });
+      toast.success("Photo sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not upload photo.");
+      toast.error("Could not send the photo.");
     } finally {
       setAvatarUploading(false);
       setAvatarCropOpen(false);
@@ -877,82 +1038,6 @@ export function SettingsForm({
     }
   }
 
-  async function handleAddService() {
-    const name = serviceName.trim();
-    const price = servicePrice.trim();
-    if (!name) {
-      toast.error("Service name is required.");
-      return;
-    }
-    setServiceSubmitting(true);
-    try {
-      const addOnce = async () => {
-        const res = await fetch("/api/doctor-services", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            doctorId: initial.doctorId,
-            name,
-            price: price || null,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        return { res, data };
-      };
-
-      let { res, data } = await addOnce();
-      // Occasionally the first request can race with auth/session propagation.
-      if (!res.ok && [401, 403, 500].includes(res.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const retry = await addOnce();
-        res = retry.res;
-        data = retry.data;
-      }
-
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not add service.");
-        return;
-      }
-
-      const newService = data.service as DoctorServiceItem | undefined;
-      if (newService) setServices((prev) => [...prev, newService]);
-      setServiceName("");
-      setServicePrice("");
-      toast.success("Service added.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not add service.");
-    } finally {
-      setServiceSubmitting(false);
-    }
-  }
-
-  async function handleDeleteService(serviceId: string) {
-    setDeletingServiceId(serviceId);
-    try {
-      const res = await fetch("/api/doctor-services", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctorId: initial.doctorId,
-          serviceId,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not delete service.");
-        return;
-      }
-      setServices((prev) => prev.filter((s) => s.id !== serviceId));
-      toast.success("Service removed.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not delete service.");
-    } finally {
-      setDeletingServiceId(null);
-    }
-  }
-
   // Nothing saves the whole page any more: Enter in a field must not submit.
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -970,6 +1055,7 @@ export function SettingsForm({
     group: SaveGroup,
     successText: string,
     override: Partial<SettingsDirtySnapshot> = {},
+    limitsToSend: ClinicLimitsById = savedClinicLimits,
   ): Promise<boolean> {
     const current = { ...buildCurrentDirtySnapshot(), ...override };
     const next = applySaveGroup(savedSnapshot, current, group);
@@ -984,7 +1070,7 @@ export function SettingsForm({
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next)),
+        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next, limitsToSend)),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -992,6 +1078,7 @@ export function SettingsForm({
         return false;
       }
       setSavedSnapshot(next);
+      if (limitsToSend !== savedClinicLimits) setSavedClinicLimits(limitsToSend);
       if (group.kind === "holiday") {
         setHolidayStartDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayStartInput) : null);
         setHolidayEndDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayEndInput) : null);
@@ -1008,9 +1095,190 @@ export function SettingsForm({
     }
   }
 
+  // A clinic joined just now is not in the state yet: it comes with its own limits.
+  const clinicLimitsOf = (id: string): ClinicLimits =>
+    clinicLimits[id] ?? liveWorkplaces.find((row) => row.id === id)?.bookingLimits ?? accountLimits;
+
+  /** Saves new booking limits per clinic, `changedId` being the clinic the doctor touched. */
+  async function saveClinicLimits(next: ClinicLimitsById, changedId: string, successText: string) {
+    const ids = liveWorkplaces.map((row) => row.id);
+    const filled: ClinicLimitsById = Object.fromEntries(
+      ids.map((id) => [id, next[id] ?? clinicLimitsOf(id)]),
+    );
+    const account = accountLimitsFor(filled, changedId, accountLimits);
+    const previous = clinicLimits;
+    setClinicLimits(filled);
+    setBookingHorizonDays(account.bookingHorizonDays);
+    setMinimumNoticeHours(account.minimumNoticeHours);
+    setPatientCancelNoticeHours(account.patientCancelNoticeHours);
+    const ok = await saveGroup({ kind: "limits" }, successText, account, filled);
+    if (!ok) {
+      setClinicLimits(previous);
+      setBookingHorizonDays(savedSnapshot.bookingHorizonDays);
+      setMinimumNoticeHours(savedSnapshot.minimumNoticeHours);
+      setPatientCancelNoticeHours(savedSnapshot.patientCancelNoticeHours);
+    }
+  }
+
   const currentSnapshot = buildCurrentDirtySnapshot();
   const groupDirty = (group: SaveGroup) => saveGroupHasChanges(savedSnapshot, currentSnapshot, group);
   const holidayDirty = groupDirty({ kind: "holiday" });
+
+  /**
+   * The clinics where the given week would leave confirmed visits or open requests
+   * outside her hours (user, 2026-10-11). Only a warning: a failed check stops nothing.
+   */
+  async function checkHoursVisits(
+    targets: Array<{ locationId: string; weeklySchedule: WeeklySchedule }>,
+  ): Promise<ClinicHoursCheckRow[]> {
+    try {
+      const res = await fetch("/api/professional-clinics/hours-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinics: targets.filter((target) => target.locationId !== "primary") }),
+      });
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      const rows: ClinicHoursCheckRow[] = Array.isArray(data?.clinics) ? data.clinics : [];
+      return rows.filter((row) => row.confirmed + row.open > 0);
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  async function saveClinicHoursNow(id: string): Promise<boolean> {
+    const index = liveWorkplaces.findIndex((row) => row.id === id);
+    const name = index >= 0 ? workplaceName(liveWorkplaces[index]!, index) : "this clinic";
+    const saved = await saveGroup({ kind: "clinic", id }, `Hours saved for ${name}.`);
+    if (saved) setEditingWorkplaceId(null);
+    return saved;
+  }
+
+  /** "Save hours": saved at once, unless visits would fall outside the new hours. */
+  async function requestClinicHoursSave(id: string) {
+    const draft = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === id);
+    if (!draft) return;
+    setHoursChecking(true);
+    const checks = await checkHoursVisits([{ locationId: id, weeklySchedule: draft.weeklySchedule }]);
+    setHoursChecking(false);
+    if (checks.length > 0) {
+      setHoursDialog({ kind: "save", sourceId: id, checks });
+      return;
+    }
+    await saveClinicHoursNow(id);
+  }
+
+  /** "Apply to all my clinics" for the week or the slot length: always asks first. */
+  function openApplyToAll(kind: "week" | "slot", sourceId: string) {
+    const source = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId);
+    if (!source) return;
+    // A slot length moves no visit: only the week is checked against her visits.
+    setHoursDialog({ kind, sourceId, checks: kind === "week" ? null : [] });
+    if (kind !== "week") return;
+    void checkHoursVisits(
+      liveWorkplaces.map((row) => ({ locationId: row.id, weeklySchedule: source.weeklySchedule })),
+    ).then((checks) =>
+      setHoursDialog((open) => (open && open.kind === "week" && open.sourceId === sourceId ? { ...open, checks } : open)),
+    );
+  }
+
+  /** Copies the week or the slot length of one clinic to all of them and saves at once. */
+  async function applyToAllNow(kind: "week" | "slot", sourceId: string, doneText: string): Promise<boolean> {
+    const source = buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId);
+    if (!source) return false;
+    const patch =
+      kind === "week"
+        ? { weeklySchedule: source.weeklySchedule }
+        : { slotDurationMinutes: source.slotDurationMinutes };
+    // The last saved settings with only this copied: nothing else half-edited goes out.
+    const next: SettingsDirtySnapshot = {
+      ...savedSnapshot,
+      workplaces: savedSnapshot.workplaces.map((row) => ({ ...row, ...patch })),
+    };
+    const invalid = validateSettingsToSave(next);
+    if (invalid) {
+      toast.error(invalid);
+      return false;
+    }
+    setSavingGroup("apply-all");
+    try {
+      const res = await fetch("/api/doctor-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next, savedClinicLimits)),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not save. Please try again.", { id: "apply-all" });
+        return false;
+      }
+      setSavedSnapshot(next);
+      setWorkplaces((prev) => prev.map((row) => ({ ...row, ...patch })));
+      toast.success(doneText, { id: "apply-all" });
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not save. Please try again.", { id: "apply-all" });
+      return false;
+    } finally {
+      setSavingGroup(null);
+    }
+  }
+
+  /** The holiday as last saved (lib/holiday-mode). */
+  const savedHoliday = {
+    enabled: savedSnapshot.holidayModeEnabled,
+    start: holidayStartDate,
+    end: holidayEndDate,
+  };
+
+  function saveHolidayDates() {
+    const start = parseDDMMYYYYToISO(holidayStartInput);
+    const startsLater = Boolean(start && start > cyprusTodayKey());
+    return saveGroup(
+      { kind: "holiday" },
+      startsLater
+        ? `Holiday saved. It starts on ${holidayStartInput.trim()}.`
+        : savedSnapshot.holidayModeEnabled
+          ? "Holiday dates saved."
+          : "Holiday mode is on.",
+    );
+  }
+
+  /**
+   * "Turn on holiday mode" / "Save dates" (user, 2026-10-11): the dates are checked, and
+   * when confirmed visits or open requests fall inside them she is told first. Nothing is
+   * ever cancelled.
+   */
+  async function requestHolidaySave() {
+    const start = parseDDMMYYYYToISO(holidayStartInput);
+    const end = parseDDMMYYYYToISO(holidayEndInput);
+    const problem = holidayDatesProblem({ start, end }, savedHoliday, cyprusTodayKey());
+    if (problem || !start || !end) {
+      toast.error(problem ?? "Pick both holiday dates.", { id: "holiday" });
+      return;
+    }
+    setHolidayChecking(true);
+    try {
+      const res = await fetch(
+        `/api/professional-holiday/visits?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+        { cache: "no-store" },
+      );
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      const confirmed = Number(data?.confirmed) || 0;
+      const open = Number(data?.open) || 0;
+      if (confirmed + open > 0) {
+        setHolidayWarning({ confirmed, open, visits: Array.isArray(data?.visits) ? data.visits : [] });
+        return;
+      }
+    } catch (err) {
+      // The warning is a courtesy: a failed check does not stop the save.
+      console.error(err);
+    } finally {
+      setHolidayChecking(false);
+    }
+    await saveHolidayDates();
+  }
 
   function revertHoliday() {
     setHolidayModeEnabled(savedSnapshot.holidayModeEnabled);
@@ -1026,9 +1294,6 @@ export function SettingsForm({
     const reverted: DoctorWorkplaceFormData = {
       ...draft,
       weeklySchedule: saved.weeklySchedule,
-      breakEnabled: saved.breakEnabled,
-      breakStart: saved.breakStart,
-      breakEnd: saved.breakEnd,
       slotDurationMinutes: saved.slotDurationMinutes,
     };
     setWorkplaces((prev) => prev.map((row) => (row.id === id ? reverted : row)));
@@ -1075,62 +1340,57 @@ export function SettingsForm({
     const { request } = validated;
     setSpecialtyChangeBusy(true);
     try {
-      const res = await fetch("/api/doctor-specialty-change-request", {
+      const res = await fetch("/api/specialty-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data.message as string) || "Could not submit specialty request.");
+        toast.error(typeof data?.message === "string" ? data.message : "Could not send the request.");
         return;
       }
       setPendingSpecialtyChange({
         requestKind: request.requestKind,
         fromSpecialty: null,
-        toSpecialty: request.toSpecialty,
+        toSpecialty: String(data?.request?.specialty ?? request.toSpecialty),
         licenseNumber: request.licenseNumber,
-        createdAt: new Date().toISOString(),
+        createdAt: String(data?.request?.createdAt ?? new Date().toISOString()),
       });
+      clearSpecialtyDenied();
       resetSpecialtyRequestForm();
-      toast.success("Request sent. We’ll review it and update your profile.");
+      toast.success("Request sent. We’ll email you once DocCy has reviewed it.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not submit specialty request.");
+      toast.error("Could not send the request.");
     } finally {
       setSpecialtyChangeBusy(false);
     }
   }
 
-  /** Withdraws the pending request (contract: DELETE /api/doctor-specialty-change-request). */
+  /** Withdraws the pending request (DELETE /api/specialty-requests). */
   async function cancelSpecialtyRequest() {
     setSpecialtyCancelBusy(true);
     try {
-      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialty-change-request
-      // (backend pending, see lib/settings-backend-pending.ts): the doctor sees a message saying so.
-      const res = await fetch("/api/doctor-specialty-change-request", { method: "DELETE" });
+      const res = await fetch("/api/specialty-requests", { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(
-          settingsActionErrorMessage("cancelSpecialtyRequest", res.status, data, "Could not cancel the request."),
-        );
+        toast.error(typeof data?.message === "string" ? data.message : "Could not withdraw the request.");
         return;
       }
       setPendingSpecialtyChange(null);
-      toast.success("Request cancelled.");
+      toast.success("Request withdrawn. Your specialties stay as they are.");
     } catch (err) {
       console.error(err);
-      toast.error("Could not cancel the request.");
+      toast.error("Could not withdraw the request.");
     } finally {
       setSpecialtyCancelBusy(false);
     }
   }
 
-  const days = DAY_NAMES.map((key) => ({
-    key,
-    label: DAY_LABELS[key],
-    value: weeklySchedule[key].enabled,
-  }));
+  // The clinic being edited: each open day's hours and break must make sense.
+  const hoursProblems = clinicHoursProblems({ weeklySchedule });
+  const hoursHaveProblems = Object.keys(hoursProblems.days).length > 0;
   const activeWorkplaceIndex = Math.max(
     0,
     workplaces.findIndex((row) => row.id === activeWorkplaceId),
@@ -1142,17 +1402,17 @@ export function SettingsForm({
   );
   const liveWorkplaces = workplacesForSave();
   const todayKey = cyprusTodayKey();
-  const holidayActive =
-    holidayModeEnabled &&
-    Boolean(holidayStartDate && holidayEndDate) &&
-    todayKey >= String(holidayStartDate) &&
-    todayKey <= String(holidayEndDate);
+  // From the saved dates: a holiday being typed is not on yet, a finished one is off.
+  const holidayNow = holidayState(savedHoliday, todayKey);
+  const holidayActive = holidayNow.kind === "active";
+  const holidayBanner = holidayBannerText(holidayNow);
   const workplaceName = (row: DoctorWorkplaceFormData, index: number) =>
     clinicDisplayName(row.label, index, liveWorkplaces.length);
   const savedAddressOf = (id: string) =>
     savedSnapshot.workplaces.find((row) => row.id === id)?.clinicAddress ?? "";
-  const phoneOf = (id: string) =>
-    (initial.clinicPhones ?? []).find((clinic) => clinic.locationId === id)?.phone ?? "";
+  const clinicPhoneOf = (id: string) =>
+    [...(initial.clinicPhones ?? []), ...joinedClinicPhones].find((clinic) => clinic.locationId === id);
+  const phoneOf = (id: string) => clinicPhoneOf(id)?.phone ?? "";
   const setWorkplacePaused = (id: string, paused: boolean) =>
     setWorkplaces((prev) =>
       prev.map((row) => (row.id === id ? { ...row, pauseOnlineBookings: paused } : row)),
@@ -1193,17 +1453,40 @@ export function SettingsForm({
     </div>
   );
 
+  // Pro access has ended (master, 2026-10): bookings are off at every clinic.
+  const accessEndedNotice = initial.accessEnded ? (
+    <AccessEndedBanner
+      testId="settings-access-ended"
+      onSeePlan={(event) => {
+        event.preventDefault();
+        selectSection("plan");
+      }}
+    />
+  ) : null;
+
   // See the result of an edit where patients see it (user, 2026-10-01).
+  // It opens in a new tab, so this tab says so (user, 2026-10-09: no sign it worked).
+  const [previewOpening, setPreviewOpening] = React.useState(false);
   const previewProfileLink = publicProfileHref ? (
     <a
       href={publicProfileHref}
       target="_blank"
       rel="noopener noreferrer"
       data-testid="settings-preview-profile"
-      className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+      aria-busy={previewOpening}
+      onClick={() => {
+        if (previewOpening) return;
+        setPreviewOpening(true);
+        window.setTimeout(() => {
+          setPreviewOpening(false);
+          toast.success("Your public profile opened in a new tab.", { id: "preview-profile" });
+        }, 900);
+      }}
+      className={SETTINGS_SECONDARY_BUTTON_CLASS}
     >
-      <ExternalLink className="h-4 w-4" aria-hidden />
-      Preview profile
+      <BusyLabel busy={previewOpening} busyText="Opening…" icon={<ExternalLink className="h-4 w-4" aria-hidden />}>
+        Preview profile
+      </BusyLabel>
     </a>
   ) : null;
 
@@ -1220,6 +1503,7 @@ export function SettingsForm({
         <SettingsSwitch
           tone="amber"
           label="Holiday mode"
+          busy={savingGroup === "holiday"}
           checked={holidayModeEnabled}
           onChange={(enabled) => {
             setHolidayModeEnabled(enabled);
@@ -1238,10 +1522,11 @@ export function SettingsForm({
         />
       </div>
       <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-        Pauses online booking at every clinic between the dates you pick.
+        Pauses online booking at every clinic between the dates you pick. Visits already
+        booked stay, and you can still add visits yourself.
       </p>
       {holidayModeEnabled ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <fieldset disabled={savingGroup === "holiday"} className="mt-3 grid min-w-0 grid-cols-2 gap-2">
           <label htmlFor="holidayStart" className="text-[11px] font-semibold text-slate-300">
             From
             <input
@@ -1271,148 +1556,62 @@ export function SettingsForm({
             <button
               type="button"
               data-testid="settings-holiday-save"
-              disabled={savingGroup === "holiday"}
-              onClick={() =>
-                void saveGroup(
-                  { kind: "holiday" },
-                  savedSnapshot.holidayModeEnabled ? "Holiday dates saved." : "Holiday mode is on.",
-                )
-              }
-              className="inline-flex h-9 items-center rounded-xl bg-amber-300 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-amber-200 disabled:opacity-60"
+              disabled={savingGroup === "holiday" || holidayChecking}
+              aria-busy={savingGroup === "holiday" || holidayChecking}
+              onClick={() => void requestHolidaySave()}
+              className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
             >
-              {savingGroup === "holiday"
-                ? "Saving…"
-                : savedSnapshot.holidayModeEnabled
-                  ? "Save dates"
-                  : "Turn on holiday mode"}
+              <BusyLabel
+                busy={savingGroup === "holiday" || holidayChecking}
+                busyText={holidayChecking ? "Checking…" : "Saving…"}
+              >
+                {savedSnapshot.holidayModeEnabled ? "Save dates" : "Turn on holiday mode"}
+              </BusyLabel>
             </button>
             <button
               type="button"
               onClick={revertHoliday}
-              className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              className={SETTINGS_GHOST_BUTTON_CLASS}
             >
               Cancel
             </button>
           </div>
           ) : null}
-        </div>
+        </fieldset>
       ) : null}
     </div>
   );
 
   // No name field: patients see DocCy's name for the clinic everywhere (user,
-  // 2026-10-01); a rename goes through "Request a change" so DocCy can check that a
+  // 2026-10-01); a rename goes through "Request a change to clinic details" so DocCy can check that a
   // shared clinic is not renamed by one of its doctors.
   const workplaceEditor = (row: DoctorWorkplaceFormData) => (
-    <div className="space-y-5">
+    <fieldset
+      disabled={savingGroup === `clinic:${row.id}`}
+      aria-busy={savingGroup === `clinic:${row.id}`}
+      className="min-w-0 space-y-5"
+    >
       <p className="text-xs text-slate-400" data-testid="settings-clinic-name-note">
         The clinic name and address are DocCy&apos;s, the same for every doctor there. To
-        change them, use Request a change.
+        change them, use Request a change to clinic details.
       </p>
 
-      <div>
-        <p className={SECTION_EYEBROW_CLASS}>Working hours</p>
-        <div className="mt-2 divide-y divide-slate-800">
-          {days.map(({ key, label, value }) => (
-            <div key={key} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-              <label className="flex w-36 cursor-pointer items-center gap-2.5">
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) =>
-                    setWeeklySchedule((prev) => ({
-                      ...prev,
-                      [key]: { ...prev[key], enabled: e.target.checked },
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-                />
-                <span className={`text-sm ${value ? "text-slate-100" : "text-slate-500"}`}>{label}</span>
-              </label>
-              {value ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <label htmlFor={`${key}-start`} className="sr-only">
-                    {label} start time
-                  </label>
-                  <input
-                    id={`${key}-start`}
-                    type="time"
-                    value={timeToInputValue(weeklySchedule[key].start_time)}
-                    onChange={(e) =>
-                      setWeeklySchedule((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], start_time: `${e.target.value}:00` },
-                      }))
-                    }
-                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-                  />
-                  <span aria-hidden>–</span>
-                  <label htmlFor={`${key}-end`} className="sr-only">
-                    {label} end time
-                  </label>
-                  <input
-                    id={`${key}-end`}
-                    type="time"
-                    value={timeToInputValue(weeklySchedule[key].end_time)}
-                    onChange={(e) =>
-                      setWeeklySchedule((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], end_time: `${e.target.value}:00` },
-                      }))
-                    }
-                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-                  />
-                </div>
-              ) : (
-                <span className="text-sm text-slate-500">Closed</span>
-              )}
-            </div>
-          ))}
+      <ClinicHoursEditor schedule={weeklySchedule} onChange={setWeeklySchedule} problems={hoursProblems} />
+      {liveWorkplaces.length > 1 ? (
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <p className="text-xs leading-relaxed text-slate-400">{APPLY_WEEK_NOTE}</p>
+          <button
+            type="button"
+            data-testid="settings-clinic-apply-week"
+            disabled={hoursHaveProblems || savingGroup != null}
+            onClick={() => openApplyToAll("week", row.id)}
+            className={`self-start whitespace-nowrap sm:self-auto ${SETTINGS_LINK_CLASS}`}
+          >
+            Apply these hours to all my clinics
+          </button>
         </div>
-      </div>
+      ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <p className={SECTION_EYEBROW_CLASS}>Daily break</p>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-              <input
-                type="checkbox"
-                checked={breakEnabled}
-                onChange={(e) => setBreakEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-              />
-              <span>Add a daily break</span>
-            </label>
-          </div>
-          {breakEnabled ? (
-            <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
-              <label htmlFor="breakStart" className="sr-only">
-                Break start
-              </label>
-              <input
-                id="breakStart"
-                type="time"
-                value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
-                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-              />
-              <span aria-hidden>–</span>
-              <label htmlFor="breakEnd" className="sr-only">
-                Break end
-              </label>
-              <input
-                id="breakEnd"
-                type="time"
-                value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
-                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
-              />
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>
-          )}
-        </div>
         <div>
           <p id="slotDurationLabel" className={SECTION_EYEBROW_CLASS}>
             Slot length
@@ -1438,21 +1637,42 @@ export function SettingsForm({
               );
             })}
           </div>
+          {liveWorkplaces.length > 1 ? (
+            <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <p className="text-xs leading-relaxed text-slate-400">{APPLY_SLOT_NOTE}</p>
+              <button
+                type="button"
+                data-testid="settings-clinic-apply-slot"
+                disabled={savingGroup != null}
+                onClick={() => openApplyToAll("slot", row.id)}
+                className={`self-start whitespace-nowrap sm:self-auto ${SETTINGS_LINK_CLASS}`}
+              >
+                Apply this slot length to all my clinics
+              </button>
+            </div>
+          ) : null}
         </div>
-      </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
         <button
           type="button"
           data-testid="settings-clinic-hours-save"
-          disabled={!groupDirty({ kind: "clinic", id: row.id }) || savingGroup === `clinic:${row.id}`}
-          onClick={async () => {
-            const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);
-            if (saved) setEditingWorkplaceId(null);
-          }}
-          className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={
+            !groupDirty({ kind: "clinic", id: row.id }) ||
+            hoursHaveProblems ||
+            hoursChecking ||
+            savingGroup === `clinic:${row.id}`
+          }
+          aria-busy={hoursChecking || savingGroup === `clinic:${row.id}`}
+          onClick={() => void requestClinicHoursSave(row.id)}
+          className={SETTINGS_PRIMARY_BUTTON_CLASS}
         >
-          <Save className="mr-2 h-4 w-4" aria-hidden />
-          {savingGroup === `clinic:${row.id}` ? "Saving…" : "Save hours"}
+          <BusyLabel
+            busy={hoursChecking || savingGroup === `clinic:${row.id}`}
+            busyText={hoursChecking ? "Checking…" : "Saving…"}
+            icon={<Save className="h-4 w-4" aria-hidden />}
+          >
+            Save hours
+          </BusyLabel>
         </button>
         <button
           type="button"
@@ -1460,129 +1680,12 @@ export function SettingsForm({
             revertClinicHours(row.id);
             setEditingWorkplaceId(null);
           }}
-          className="inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-50"
+          className={SETTINGS_GHOST_BUTTON_CLASS}
         >
           Cancel
         </button>
       </div>
-    </div>
-  );
-
-  const availabilitySection = (
-    <div className="space-y-5">
-      {sectionTitle("Availability", "When patients can book you online, across every clinic.")}
-      {holidayActive ? (
-        <div
-          role="status"
-          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
-        >
-          Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
-        </div>
-      ) : null}
-      {isDesktop ? null : holidayCard}
-      {/* A status summary only: each clinic's switch lives on its card in Clinics. */}
-      <section className={SECTION_CARD_CLASS} data-testid="settings-availability-clinics">
-        <p className={SECTION_EYEBROW_CLASS}>Online booking by clinic</p>
-        <ul className="mt-3 divide-y divide-slate-800">
-          {liveWorkplaces.map((row, index) => {
-            const status = clinicBookingStatus({
-              pauseOnlineBookings: row.pauseOnlineBookings,
-              holidayActive,
-            });
-            return (
-              <li key={row.id} className="flex items-center gap-3 py-3">
-                <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${agendaClinicEventColor(index).swatch}`}
-                  aria-hidden
-                />
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
-                  {workplaceName(row, index)}
-                </p>
-                <p className={`text-xs ${status.kind === "taking" ? "text-wellness-200" : "text-amber-200"}`}>
-                  {status.label}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-2 text-xs text-slate-400">
-          Turn online booking on or off for a clinic on its card in{" "}
-          <a
-            href={settingsSectionHref("clinics")}
-            data-settings-section="clinics"
-            onClick={(event) => {
-              event.preventDefault();
-              selectSection("clinics");
-            }}
-            className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
-          >
-            Clinics
-          </a>
-          . While a clinic is paused, patients see its phone number instead of your calendar.
-        </p>
-      </section>
-      <section className={SECTION_CARD_CLASS}>
-        <p className={SECTION_EYEBROW_CLASS}>Booking limits · all clinics</p>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="bookingHorizonDays" className="text-sm font-semibold text-slate-100">
-              How far ahead
-            </label>
-            <p className="mt-0.5 text-xs text-slate-400">How far in advance patients can book.</p>
-            <select
-              id="bookingHorizonDays"
-              value={bookingHorizonDays}
-              onChange={(e) => {
-                const picked = Number(e.target.value);
-                const next = BOOKING_HORIZON_OPTIONS_DAYS.includes(
-                  picked as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number],
-                )
-                  ? picked
-                  : DEFAULT_BOOKING_HORIZON_DAYS;
-                setBookingHorizonDays(next);
-                void saveGroup({ kind: "limits" }, "Booking limits saved.", { bookingHorizonDays: next });
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={14}>2 weeks</option>
-              <option value={30}>1 month</option>
-              <option value={90}>3 months</option>
-              <option value={180}>6 months</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="minimumNoticeHours" className="text-sm font-semibold text-slate-100">
-              Minimum notice
-            </label>
-            <p className="mt-0.5 text-xs text-slate-400">Slots closer than this are hidden.</p>
-            <select
-              id="minimumNoticeHours"
-              value={minimumNoticeHours}
-              onChange={(e) => {
-                const picked = Number(e.target.value);
-                const next = MIN_NOTICE_OPTIONS_HOURS.includes(
-                  picked as (typeof MIN_NOTICE_OPTIONS_HOURS)[number],
-                )
-                  ? picked
-                  : DEFAULT_MIN_NOTICE_HOURS;
-                setMinimumNoticeHours(next);
-                void saveGroup({ kind: "limits" }, "Booking limits saved.", { minimumNoticeHours: next });
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={1}>1 hour</option>
-              <option value={2}>2 hours</option>
-              <option value={4}>4 hours</option>
-              <option value={12}>12 hours</option>
-              <option value={24}>24 hours (1 day)</option>
-              <option value={48}>2 days</option>
-              <option value={72}>3 days</option>
-              <option value={168}>1 week</option>
-            </select>
-          </div>
-        </div>
-      </section>
-    </div>
+    </fieldset>
   );
 
   const clinicsSection = (
@@ -1594,11 +1697,23 @@ export function SettingsForm({
           type="button"
           onClick={openAddClinic}
           disabled={workplaceBusy || liveWorkplaces.length >= MAX_DOCTOR_LOCATIONS}
-          className="inline-flex h-11 items-center rounded-2xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 shadow-md shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${SETTINGS_PRIMARY_BUTTON_CLASS} shadow-md shadow-clinical-500/20`}
         >
           + Add clinic
         </button>,
       )}
+      {holidayBanner ? (
+        <div
+          role="status"
+          data-testid="settings-holiday-banner"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+        >
+          {holidayBanner}
+        </div>
+      ) : null}
+      {accessEndedNotice}
+      {/* Wide screens show holiday mode in the sidebar; phones show it here. */}
+      {isDesktop ? null : holidayCard}
       {liveWorkplaces.map((row, index) => {
         const name = workplaceName(row, index);
         const removal = canRemoveClinic(liveWorkplaces, row.id);
@@ -1608,24 +1723,42 @@ export function SettingsForm({
           <ClinicCard
             key={row.id}
             name={name}
+            collapsible={liveWorkplaces.length > 1}
+            open={openClinicId === row.id}
+            onToggleOpen={() => setOpenClinicId((current) => (current === row.id ? null : row.id))}
             swatchClass={agendaClinicEventColor(index).swatch}
-            status={clinicBookingStatus({ pauseOnlineBookings: row.pauseOnlineBookings, holidayActive })}
+            status={clinicBookingStatus({
+              pauseOnlineBookings: row.pauseOnlineBookings,
+              holidayActive,
+              accessEnded: Boolean(initial.accessEnded),
+            })}
+            statusNote={initial.accessEnded ? ACCESS_ENDED_SWITCH_NOTE : null}
             bookingSwitch={
               <ClinicBookingSwitch
                 clinicName={name}
                 locationId={row.id === "primary" ? null : row.id}
                 paused={row.pauseOnlineBookings}
                 onPausedChange={(paused) => setWorkplacePaused(row.id, paused)}
+                accessEnded={Boolean(initial.accessEnded)}
               />
             }
             address={row.clinicAddress.trim() || savedAddress}
             phone={phoneOf(row.id)}
+            requestKey={row.id}
             pendingChange={pendingClinicChanges[row.id] ?? null}
+            // A new request replaces the denial of the one before.
+            deniedChange={pendingClinicChanges[row.id] ? null : initial.clinicChangeRequests?.[row.id]?.denied ?? null}
+            onWithdrawChange={() => withdrawClinicRequest(row.id)}
+            notice={
+              joinedClinicId === row.id && row.pauseOnlineBookings
+                ? "Set your hours to take online bookings: check the week below, save it, then switch online booking on."
+                : null
+            }
             onRequestChange={row.id === "primary" ? null : () => setChangeRequestFor(row.id)}
             summary={{
               days: summarizeClinicDays(row.weeklySchedule),
               hours: summarizeClinicHours(row.weeklySchedule),
-              breakTime: summarizeClinicBreak(row),
+              breakTime: summarizeClinicBreak(row.weeklySchedule),
               slot: `${row.slotDurationMinutes} min`,
             }}
             editing={editing}
@@ -1639,34 +1772,80 @@ export function SettingsForm({
               setEditingWorkplaceId(row.id);
             }}
             editor={row.id === activeWorkplaceId ? workplaceEditor(row) : null}
+            limits={
+              <ClinicBookingLimits
+                clinicId={row.id}
+                limits={clinicLimitsOf(row.id)}
+                onChange={(patch) =>
+                  void saveClinicLimits(
+                    setClinicLimit(clinicLimits, row.id, patch),
+                    row.id,
+                    `Booking limits saved for ${name}.`,
+                  )
+                }
+                clinicCount={liveWorkplaces.length}
+                sharedByAll={clinicsShareLimits(
+                  Object.fromEntries(liveWorkplaces.map((w) => [w.id, clinicLimitsOf(w.id)])),
+                )}
+                onApplyToAll={() =>
+                  void saveClinicLimits(
+                    applyLimitsToAllClinics(
+                      Object.fromEntries(liveWorkplaces.map((w) => [w.id, clinicLimitsOf(w.id)])),
+                      row.id,
+                    ),
+                    row.id,
+                    `${name}'s booking limits now apply to all ${liveWorkplaces.length} of your clinics.`,
+                  )
+                }
+                busy={savingGroup === "limits"}
+              />
+            }
             removal={removal.ok === false ? { ok: false, message: removal.message } : { ok: true }}
             onRemove={() => setWorkplaceToRemove(row.id)}
             busy={workplaceBusy}
           />
         );
       })}
-      {pendingClinicAdds.map((pending, index) => (
+      {pendingClinicAdd || initial.clinicAddRequest?.denied ? (
         <section
-          key={`pending-${index}`}
           data-testid="settings-clinic-pending"
-          className="rounded-3xl border border-dashed border-amber-400/50 bg-amber-500/[0.04] p-5 sm:p-6"
+          className={`rounded-3xl p-5 sm:p-6 ${
+            pendingClinicAdd
+              ? "border border-dashed border-amber-400/50 bg-amber-500/[0.04]"
+              : "border border-slate-800 bg-slate-900/40"
+          }`}
         >
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-50">
-              {pending.clinic.name || pending.clinic.location.address}
-            </h2>
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-              Request in review
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-slate-300">{pending.clinic.location.address}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            Requested{" "}
-            {new Date(pending.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-            . You can set its hours once DocCy adds it.
-          </p>
+          {pendingClinicAdd ? (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-50">
+                  {pendingClinicAdd.name || pendingClinicAdd.address}
+                </h2>
+                <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                  New clinic · waiting for DocCy
+                </span>
+              </div>
+              <p className="mb-3 mt-2 text-sm text-slate-300">{pendingClinicAdd.address}</p>
+            </>
+          ) : null}
+          <ClinicRequestNotice
+            storageKind="clinic-add"
+            testId="settings-clinic-add"
+            pending={
+              pendingClinicAdd
+                ? { createdAt: pendingClinicAdd.createdAt, summary: "you set its hours once it is added" }
+                : null
+            }
+            denied={initial.clinicAddRequest?.denied ?? null}
+            deniedWhat={
+              initial.clinicAddRequest?.denied?.name
+                ? `request to add ${initial.clinicAddRequest.denied.name}`
+                : "request to add a clinic"
+            }
+            onWithdraw={() => withdrawClinicRequest(null)}
+          />
         </section>
-      ))}
+      ) : null}
     </div>
   );
 
@@ -1677,59 +1856,38 @@ export function SettingsForm({
         "Treatments on your public profile. Prices are in euros (€) and the same at every clinic.",
         previewProfileLink,
       )}
-      <section className={SECTION_CARD_CLASS}>
-        <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-          <input
-            type="text"
-            value={serviceName}
-            onChange={(e) => setServiceName(e.target.value)}
-            placeholder="Treatment name (e.g. Facial laser)"
-            aria-label="Treatment name"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <input
-            type="text"
-            value={servicePrice}
-            onChange={(e) => setServicePrice(e.target.value)}
-            placeholder="e.g. 120 or From 80"
-            aria-label="Price"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <button
-            type="button"
-            onClick={handleAddService}
-            disabled={serviceSubmitting}
-            className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
-          >
-            {serviceSubmitting ? "Adding..." : "Add"}
-          </button>
-        </div>
-        {services.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-800">
-            {services.map((service) => (
-              <li key={service.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
-                  {service.price ? <p className="text-xs text-slate-400">{service.price}</p> : null}
-                </div>
-                <button
-                  type="button"
-                  disabled={deletingServiceId === service.id}
-                  onClick={() => handleDeleteService(service.id)}
-                  aria-label={`Delete ${service.name}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-slate-400">
-            Add what you offer so patients know what to book you for.
-          </p>
-        )}
+      {/* Why list services (user, 2026-10-09). */}
+      <section
+        className="rounded-3xl border border-clinical-400/20 bg-clinical-500/[0.06] p-5 sm:p-6"
+        data-testid="settings-services-why"
+      >
+        <p className="text-sm font-semibold text-slate-100">What are services?</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-300">
+          The treatments and consultations you offer, each with its price. They appear on your public profile, so
+          patients see them before they book.
+        </p>
+        <ul className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+          <li>
+            <span className="block font-semibold text-slate-100">Patients know you can help</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              Your specialty says what you are; your services say exactly what you treat.
+            </span>
+          </li>
+          <li>
+            <span className="block font-semibold text-slate-100">No surprises on price</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              Knowing the cost up front makes patients more confident to book.
+            </span>
+          </li>
+          <li>
+            <span className="block font-semibold text-slate-100">Fewer calls to your clinic</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              &ldquo;Do you do this?&rdquo; and &ldquo;How much is it?&rdquo; are answered on your profile.
+            </span>
+          </li>
+        </ul>
       </section>
+      <ServicesCard initial={parseSavedServices(initial.services)} />
     </div>
   );
 
@@ -1755,7 +1913,7 @@ export function SettingsForm({
                       type="button"
                       aria-label={`Remove ${label}`}
                       onClick={() => setSpecialtyToRemove(label)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition hover:bg-rose-500/15 hover:text-rose-200"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/15 hover:text-slate-50"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -1775,12 +1933,13 @@ export function SettingsForm({
                 <span className="text-xs font-medium text-amber-200/80">{pendingChip.status}</span>
                 <button
                   type="button"
-                  aria-label={`Cancel the request for ${pendingChip.label}`}
+                  aria-label={`Withdraw the request for ${pendingChip.label}`}
                   disabled={specialtyCancelBusy}
+                  aria-busy={specialtyCancelBusy}
                   onClick={() => void cancelSpecialtyRequest()}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-50 disabled:opacity-50"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-50 disabled:opacity-50 aria-busy:cursor-progress aria-busy:opacity-100"
                 >
-                  <X className="h-3.5 w-3.5" aria-hidden />
+                  {specialtyCancelBusy ? <BusySpinner className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" aria-hidden />}
                 </button>
               </li>
             ) : null}
@@ -1788,23 +1947,41 @@ export function SettingsForm({
         ) : (
           <p className="text-sm font-medium text-slate-100">Not set</p>
         )}
-        {specialtyUnderReview ? (
-          <p className="mt-2 text-xs text-amber-200/90">
-            {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public profile until approved.
-          </p>
-        ) : null}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-slate-400">
         {pendingChip
-          ? "DocCy is checking your request. You can add another specialty once it’s reviewed."
+          ? `Request sent on ${profileChangeRequestDate(pendingSpecialtyChange?.createdAt ?? "")} · waiting for DocCy’s approval. Withdraw it with ✕. You can add another specialty once it’s decided.`
           : lockedSpecialties.length > 1
             ? "Remove a specialty with ✕. Adding one needs a quick check by DocCy."
             : `${LAST_SPECIALTY_MESSAGE} To switch it, add the new one; once it’s approved, remove the old one.`}
       </p>
-      {pendingChip ? null : specialtyFormOpen ? (
+      {specialtyDenied && !pendingChip ? (
         <div
+          data-testid="settings-specialty-change-denied"
+          className="mt-3 flex items-start gap-3 rounded-2xl border border-red-400/25 bg-red-500/[0.06] px-3.5 py-2.5 text-sm text-red-100"
+        >
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold">
+              Your request to add {specialtyDenied.name ?? "a specialty"} was not approved
+            </span>
+            <span className="text-red-100/80"> on {profileChangeRequestDate(specialtyDenied.decidedAt)}.</span>
+            <span className="mt-0.5 block text-red-100/90">Reason: {specialtyDenied.reason}</span>
+          </p>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={dismissSpecialtyDenied}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-200/80 transition hover:bg-white/5 hover:text-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+      {pendingChip ? null : specialtyFormOpen ? (
+        <fieldset
+          disabled={specialtyChangeBusy}
           data-testid="settings-specialty-change-form"
-          className="mt-3 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
         >
           <div>
             <p className={SECTION_EYEBROW_CLASS}>
@@ -1872,27 +2049,30 @@ export function SettingsForm({
               type="button"
               data-testid="settings-specialty-change-submit"
               disabled={specialtyChangeBusy}
+              aria-busy={specialtyChangeBusy}
               onClick={() => void submitSpecialtyChangeRequest()}
-              className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className={SETTINGS_PRIMARY_BUTTON_CLASS}
             >
-              {specialtyChangeBusy ? "Sending…" : "Send request"}
+              <BusyLabel busy={specialtyChangeBusy} busyText="Sending…">
+                Send request
+              </BusyLabel>
             </button>
             <button
               type="button"
               disabled={specialtyChangeBusy}
               onClick={resetSpecialtyRequestForm}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
+              className={SETTINGS_GHOST_BUTTON_CLASS}
             >
               Cancel
             </button>
           </div>
-        </div>
+        </fieldset>
       ) : (
         <button
           type="button"
           data-testid="settings-specialty-change-request"
           onClick={() => setSpecialtyFormOpen(true)}
-          className="mt-3 text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
+          className={`mt-3 ${SETTINGS_LINK_CLASS}`}
         >
           + Add a specialty
         </button>
@@ -1908,9 +2088,9 @@ export function SettingsForm({
         previewProfileLink,
       )}
       <section className={SECTION_CARD_CLASS}>
-        <p className={SECTION_EYEBROW_CLASS}>Profile photo</p>
-        <div className="mt-3 flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
+        <p className={SECTION_EYEBROW_CLASS}>Name and photo</p>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
             {avatarPreviewUrl ? (
               <img src={avatarPreviewUrl} alt="Profile preview" className="h-full w-full object-cover" />
             ) : (
@@ -1919,6 +2099,11 @@ export function SettingsForm({
               </div>
             )}
           </div>
+          <ProfileNameField
+            name={initial.doctorName}
+            initialPending={initial.nameChange?.pending ?? null}
+            initialDenied={initial.nameChange?.denied ?? null}
+          />
           <input
             ref={avatarFileInputRef}
             type="file"
@@ -1928,17 +2113,21 @@ export function SettingsForm({
             onChange={onPickAvatarFile}
             disabled={avatarUploading}
           />
-          <button
-            type="button"
-            onClick={() => avatarFileInputRef.current?.click()}
-            disabled={avatarUploading}
-            className="inline-flex h-10 items-center rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {avatarUploading ? "Uploading..." : "Upload new photo"}
-          </button>
+          <ProfilePhotoControls
+            hasPhoto={Boolean(avatarPreviewUrl)}
+            uploading={avatarUploading}
+            onPickFile={() => avatarFileInputRef.current?.click()}
+            pending={photoPending}
+            onPendingChange={setPhotoPending}
+            initialDenied={initial.photoChange?.denied ?? null}
+            onRemoved={() => setAvatarPreviewUrl(null)}
+          />
         </div>
       </section>
       {specialtiesCard}
+      {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
+      {profileExtra}
+      <PatientAgesCard initialValue={initial.patientAges ?? null} />
       <section className={SECTION_CARD_CLASS}>
         <label htmlFor="settings-bio" className={SECTION_EYEBROW_CLASS}>
           How you help patients
@@ -1954,6 +2143,8 @@ export function SettingsForm({
           value={bio}
           maxLength={BIO_MAX_CHARS}
           onChange={(e) => setBio(e.target.value)}
+          readOnly={savingGroup === "bio"}
+          aria-busy={savingGroup === "bio"}
           placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
           className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
         />
@@ -1964,15 +2155,19 @@ export function SettingsForm({
                 type="button"
                 data-testid="settings-bio-save"
                 disabled={savingGroup === "bio"}
+                aria-busy={savingGroup === "bio"}
                 onClick={() => void saveGroup({ kind: "bio" }, "Bio saved.")}
-                className="inline-flex h-9 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+                className={SETTINGS_PRIMARY_BUTTON_CLASS}
               >
-                {savingGroup === "bio" ? "Saving…" : "Save bio"}
+                <BusyLabel busy={savingGroup === "bio"} busyText="Saving…">
+                  Save bio
+                </BusyLabel>
               </button>
               <button
                 type="button"
+                disabled={savingGroup === "bio"}
                 onClick={() => setBio(savedSnapshot.bio)}
-                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className={SETTINGS_GHOST_BUTTON_CLASS}
               >
                 Cancel
               </button>
@@ -1982,51 +2177,72 @@ export function SettingsForm({
             {bio.trim().length}/{BIO_MAX_CHARS}
           </p>
         </div>
-        <p className={`${SECTION_EYEBROW_CLASS} mt-4`}>
-          Languages <span className="text-red-300">*</span>
-        </p>
-        <LanguageMultiSelect
-          id="settings-languages"
-          selected={languages}
-          onSelectedChange={changeLanguages}
-          variant="settings"
-        />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className={SECTION_EYEBROW_CLASS}>
+            Languages <span className="text-red-300">*</span>
+          </p>
+          <SavingNote busy={savingGroup === "languages"} />
+        </div>
+        <fieldset disabled={savingGroup === "languages"} className="min-w-0">
+          <LanguageMultiSelect
+            id="settings-languages"
+            selected={languages}
+            onSelectedChange={changeLanguages}
+            variant="settings"
+          />
+        </fieldset>
         {languagesError ? (
           <p className="mt-1.5 text-xs font-medium text-red-300" role="alert">
             {languagesError}
           </p>
         ) : null}
       </section>
-      {profileExtra}
-    </div>
-  );
-
-  const contactSection = (
-    <div className="space-y-5">
-      {sectionTitle("Contact & phone", "How DocCy and your patients reach you.")}
-      <PhoneNumbersSettings
-        mobileNumber={mobileNumber}
-        onMobileNumberChange={setMobileNumber}
-        mobileDirty={groupDirty({ kind: "mobile" })}
-        mobileSaving={savingGroup === "mobile"}
-        onSaveMobile={() => void saveGroup({ kind: "mobile" }, "Mobile saved.")}
-        onCancelMobile={() => setMobileNumber(savedSnapshot.mobileNumber)}
-        clinicPhones={initial.clinicPhones ?? []}
-        onOpenClinics={() => selectSection("clinics")}
-      />
+      <QualificationsCard initial={initial.qualifications ?? []} />
     </div>
   );
 
   const accountSection = (
     <div className="space-y-5">
-      {sectionTitle("Account", "How you sign in to DocCy.")}
+      {sectionTitle("Account", "How you sign in and how DocCy reaches you.")}
       {account}
+      <PersonalMobileCard
+        initialMobile={initial.mobileNumber ?? ""}
+        initialShowOnProfile={Boolean(initial.showMobileOnProfile)}
+      />
     </div>
   );
+
+  // A sign or link is only worth sharing while patients who follow it can book.
+  const promoteNotice = promoteBookingNotice({
+    accessEnded: Boolean(initial.accessEnded),
+    holidayActive,
+    holidayEnd: formatISOToDDMMYYYYOrEmpty(holidayEndDate),
+    clinics: liveWorkplaces.map((row) => ({ paused: row.pauseOnlineBookings })),
+  });
 
   const promoteSection = (
     <div className="space-y-5">
       {sectionTitle("Promote", "Bring patients to your booking page: your QR, a printable sign and ready-made scripts.")}
+      {promoteNotice ? (
+        <div
+          role="status"
+          data-testid="promote-booking-notice"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+        >
+          {promoteNotice.text}{" "}
+          <a
+            href={settingsSectionHref(promoteNotice.section)}
+            data-settings-section={promoteNotice.section}
+            onClick={(event) => {
+              event.preventDefault();
+              selectSection(promoteNotice.section);
+            }}
+            className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
+          >
+            {promoteNotice.linkLabel}
+          </a>
+        </div>
+      ) : null}
       {promote}
     </div>
   );
@@ -2046,11 +2262,9 @@ export function SettingsForm({
   );
 
   const sections: Record<SettingsSectionId, React.ReactNode> = {
-    availability: availabilitySection,
     clinics: clinicsSection,
     services: servicesSection,
     profile: profileSection,
-    contact: contactSection,
     notifications: notificationsSection,
     promote: promoteSection,
     plan: planSection,
@@ -2070,8 +2284,6 @@ export function SettingsForm({
               <span className="text-xs tabular-nums text-clinical-300">{liveWorkplaces.length}</span>
             </span>
           ),
-          availability: unsavedSections.includes("availability") ? unsavedDot : null,
-          contact: unsavedSections.includes("contact") ? unsavedDot : null,
           profile: unsavedSections.includes("profile") ? (
             unsavedDot
           ) : pendingSpecialtyChange ? (
@@ -2091,11 +2303,170 @@ export function SettingsForm({
 
       </div>
 
+      {hoursDialog
+        ? (() => {
+            const { kind, sourceId, checks } = hoursDialog;
+            const sourceIndex = liveWorkplaces.findIndex((row) => row.id === sourceId);
+            const sourceName = sourceIndex >= 0 ? workplaceName(liveWorkplaces[sourceIndex]!, sourceIndex) : "this clinic";
+            const otherNames = liveWorkplaces
+              .map((row, index) => ({ id: row.id, name: workplaceName(row, index) }))
+              .filter((row) => row.id !== sourceId)
+              .map((row) => row.name);
+            const sourceSlot =
+              buildCurrentDirtySnapshot().workplaces.find((row) => row.id === sourceId)?.slotDurationMinutes ?? 30;
+            const copy =
+              kind === "save"
+                ? {
+                    title: "You have visits outside these hours",
+                    description:
+                      "The new hours stop new bookings at those times. Nothing is cancelled: you decide what to do with each one in your agenda.",
+                    confirm: "Save hours",
+                    done: "",
+                  }
+                : applyToAllCopy(kind, sourceName, otherNames, sourceSlot);
+            const saving = savingGroup === "apply-all" || savingGroup === `clinic:${sourceId}`;
+            const flagged = (checks ?? []).filter((row) => row.confirmed + row.open > 0);
+            return (
+              <SettingsDialog
+                title={copy.title}
+                description={copy.description}
+                onClose={() => setHoursDialog(null)}
+                busy={saving}
+                footer={(close) => (
+                  <>
+                    <button type="button" onClick={close} disabled={saving} className={dialogSecondaryButtonClass}>
+                      Go back
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="settings-hours-confirm"
+                      disabled={saving || checks == null}
+                      aria-busy={saving}
+                      onClick={async () => {
+                        const ok =
+                          kind === "save"
+                            ? await saveClinicHoursNow(sourceId)
+                            : await applyToAllNow(kind, sourceId, copy.done);
+                        if (ok) close();
+                      }}
+                      className={SETTINGS_PRIMARY_BUTTON_CLASS}
+                    >
+                      <BusyLabel busy={saving} busyText="Saving…">
+                        {copy.confirm}
+                      </BusyLabel>
+                    </button>
+                  </>
+                )}
+              >
+                {checks == null ? (
+                  <p className="text-sm text-slate-400">Checking your visits…</p>
+                ) : flagged.length > 0 ? (
+                  <div
+                    className="space-y-3 rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+                    data-testid="settings-hours-visits"
+                  >
+                    {flagged.map((clinic) => (
+                      <div key={clinic.locationId}>
+                        {kind === "save" ? null : <p className="font-semibold">{clinic.clinicName}</p>}
+                        <ul className="space-y-1.5">
+                          {hoursVisitNotes(clinic).map((note) => (
+                            <li key={note}>{note}</li>
+                          ))}
+                        </ul>
+                        <ul className="mt-2 space-y-1 text-xs text-amber-50/90">
+                          {clinic.visits.map((visit) => (
+                            <li key={visit.id}>
+                              {formatInTimeZone(new Date(visit.at), "Europe/Nicosia", "EEE d MMM, HH:mm")} ·{" "}
+                              {visit.patientName} · {HOURS_VISIT_REASON_LABEL[visit.reason]}
+                              {visit.open ? " · waiting for your answer" : ""}
+                            </li>
+                          ))}
+                          {clinic.confirmed + clinic.open > clinic.visits.length ? (
+                            <li>and {clinic.confirmed + clinic.open - clinic.visits.length} more</li>
+                          ) : null}
+                        </ul>
+                      </div>
+                    ))}
+                    <a href="/agenda" className={`inline-block ${SETTINGS_LINK_CLASS}`}>
+                      Open my agenda
+                    </a>
+                  </div>
+                ) : null}
+              </SettingsDialog>
+            );
+          })()
+        : null}
+
+      {holidayWarning ? (
+        <SettingsDialog
+          title="You have visits in these dates"
+          description="Holiday mode only stops new online bookings. Nothing is cancelled: you decide what to do with each one in your agenda."
+          onClose={() => setHolidayWarning(null)}
+          busy={savingGroup === "holiday"}
+          footer={(close) => (
+            <>
+              <button
+                type="button"
+                onClick={close}
+                disabled={savingGroup === "holiday"}
+                className={dialogSecondaryButtonClass}
+              >
+                Go back
+              </button>
+              <button
+                type="button"
+                data-testid="settings-holiday-confirm"
+                onClick={async () => {
+                  if (await saveHolidayDates()) close();
+                }}
+                disabled={savingGroup === "holiday"}
+                aria-busy={savingGroup === "holiday"}
+                className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
+              >
+                <BusyLabel busy={savingGroup === "holiday"} busyText="Saving…">
+                  {savedSnapshot.holidayModeEnabled ? "Save dates" : "Turn on holiday mode"}
+                </BusyLabel>
+              </button>
+            </>
+          )}
+        >
+          <div
+            className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+            data-testid="settings-holiday-visits"
+          >
+            <ul className="space-y-1.5">
+              {holidayVisitNotes(holidayWarning).map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+            <ul className="mt-3 space-y-1 text-xs text-amber-50/90">
+              {holidayWarning.visits.map((visit) => (
+                <li key={visit.id}>
+                  {formatInTimeZone(new Date(visit.at), "Europe/Nicosia", "EEE d MMM, HH:mm")} · {visit.patientName}
+                  {visit.clinicName ? ` · ${visit.clinicName}` : ""}
+                  {visit.open ? " · waiting for your answer" : ""}
+                </li>
+              ))}
+              {holidayWarning.confirmed + holidayWarning.open > holidayWarning.visits.length ? (
+                <li>and {holidayWarning.confirmed + holidayWarning.open - holidayWarning.visits.length} more</li>
+              ) : null}
+            </ul>
+            <a
+              href={`/agenda?date=${encodeURIComponent(parseDDMMYYYYToISO(holidayStartInput) ?? "")}`}
+              className={`mt-2 inline-block ${SETTINGS_LINK_CLASS}`}
+            >
+              Open my agenda
+            </a>
+          </div>
+        </SettingsDialog>
+      ) : null}
+
       {workplaceToRemove ? (
         <SettingsDialog
-          title={`Remove ${removeDialogName}?`}
-          description="Patients won’t find you at this clinic any more. A clinic with upcoming or requested appointments can’t be removed until you move or cancel them."
+          title={`Leave ${removeDialogName}?`}
+          description={LEAVE_CLINIC_LOSES}
           onClose={() => setWorkplaceToRemove(null)}
+          busy={workplaceBusy}
           footer={(close) => (
             <>
               <button
@@ -2104,21 +2475,42 @@ export function SettingsForm({
                 disabled={workplaceBusy}
                 className={dialogSecondaryButtonClass}
               >
-                Keep clinic
+                Stay at this clinic
               </button>
               <button
                 type="button"
                 onClick={async () => {
                   if (await handleRemoveWorkplace(workplaceToRemove)) close();
                 }}
-                disabled={workplaceBusy}
+                disabled={workplaceBusy || leaveCounts == null}
+                aria-busy={workplaceBusy}
                 className={dialogDangerButtonClass}
               >
-                {workplaceBusy ? "Removing…" : "Remove clinic"}
+                <BusyLabel busy={workplaceBusy} busyText="Leaving…">
+                  Leave clinic
+                </BusyLabel>
               </button>
             </>
           )}
-        />
+        >
+          {leaveCounts == null ? (
+            <p className="text-sm text-slate-400">Checking your visits at this clinic…</p>
+          ) : leaveClinicNotes(leaveCounts).length > 0 ? (
+            <div
+              className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-3.5 py-3 text-sm text-amber-100"
+              data-testid="settings-leave-clinic-visits"
+            >
+              <ul className="space-y-1.5">
+                {leaveClinicNotes(leaveCounts).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+              <a href="/agenda" className={`mt-2 inline-block ${SETTINGS_LINK_CLASS}`}>
+                Open my agenda
+              </a>
+            </div>
+          ) : null}
+        </SettingsDialog>
       ) : null}
 
       {changeRequestRow ? (
@@ -2126,13 +2518,13 @@ export function SettingsForm({
           clinicName={workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow))}
           locationId={changeRequestRow.id}
           current={{
-            clinicId: null,
             name:
               String(changeRequestRow.label ?? "").trim() ||
               workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow)),
             phone: phoneOf(changeRequestRow.id),
             location: savedLocationOf(changeRequestRow.id),
           }}
+          otherProfessionals={clinicPhoneOf(changeRequestRow.id)?.otherProfessionals ?? 0}
           onClose={() => setChangeRequestFor(null)}
           onSent={(pending) =>
             setPendingClinicChanges((prev) => ({ ...prev, [changeRequestRow.id]: pending }))
@@ -2141,7 +2533,12 @@ export function SettingsForm({
       ) : null}
 
       {addClinicOpen ? (
-        <AddClinicDialog onClose={() => setAddClinicOpen(false)} onAdd={handleAddWorkplace} />
+        <AddClinicDialog
+          onClose={() => setAddClinicOpen(false)}
+          onAdd={handleAddWorkplace}
+          takenClinicIds={[...(initial.clinicPhones ?? []), ...joinedClinicPhones].map((clinic) => clinic.clinicId)}
+          newClinicWaiting={Boolean(pendingClinicAdd)}
+        />
       ) : null}
 
       {specialtyToRemove ? (
@@ -2149,6 +2546,7 @@ export function SettingsForm({
           title={`Remove ${specialtyToRemove}?`}
           description="It comes off your profile and Health Finder right away. To add it back later, you’ll need to request it again."
           onClose={() => setSpecialtyToRemove(null)}
+          busy={specialtyRemoving}
           footer={(close) => (
             <>
               <button
@@ -2165,9 +2563,12 @@ export function SettingsForm({
                   if (await handleRemoveSpecialty(specialtyToRemove)) close();
                 }}
                 disabled={specialtyRemoving}
+                aria-busy={specialtyRemoving}
                 className={dialogDangerButtonClass}
               >
-                {specialtyRemoving ? "Removing…" : "Remove"}
+                <BusyLabel busy={specialtyRemoving} busyText="Removing…">
+                  Remove
+                </BusyLabel>
               </button>
             </>
           )}
@@ -2217,7 +2618,8 @@ export function SettingsForm({
                   <button
                     type="button"
                     onClick={closeAvatarCropModal}
-                    className="rounded-xl border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
+                    disabled={avatarUploading || avatarCropping}
+                    className={SETTINGS_GHOST_BUTTON_CLASS}
                   >
                     Cancel
                   </button>
@@ -2225,9 +2627,12 @@ export function SettingsForm({
                     type="button"
                     onClick={onConfirmAvatarCrop}
                     disabled={avatarUploading || avatarCropping}
-                    className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
+                    aria-busy={avatarUploading || avatarCropping}
+                    className={SETTINGS_PRIMARY_BUTTON_CLASS}
                   >
-                    {avatarCropping ? "Processing..." : avatarUploading ? "Uploading..." : "Confirm crop"}
+                    <BusyLabel busy={avatarUploading || avatarCropping} busyText={avatarCropping ? "Preparing…" : "Uploading…"}>
+                      Confirm crop
+                    </BusyLabel>
                   </button>
                 </div>
               </div>

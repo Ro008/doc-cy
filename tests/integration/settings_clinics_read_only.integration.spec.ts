@@ -44,8 +44,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
       nonce,
       name: `Read Only Clinics ${nonce}`,
       specialty: "Cardiologist",
-      is_specialty_approved: true,
-      status: "verified",
     });
     const opened = await openPrimaryClinicForBookings(admin, doctor.doctorId, nonce);
     clinicId = opened.clinicId;
@@ -66,30 +64,26 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
 
     // Settings redesign (B1): one card per clinic, the address read-only with
-    // "Request a change" (clinic changes go by request to DocCy).
+    // "Request a change to clinic details" (clinic changes go by request to DocCy).
     const cards = page.getByTestId("settings-clinic-card");
     // One clinic link: one card.
     await expect(cards).toHaveCount(1, { timeout: 20_000 });
     await expect(cards.first()).toContainText(clinicAddress);
-    await expect(cards.first().getByRole("button", { name: "Request a change" })).toBeVisible();
+    await expect(cards.first().getByRole("button", { name: "Request a change to clinic details" })).toBeVisible();
 
     // Hours only: the name is DocCy's too, changed by request (user, 2026-10-01).
-    await cards.first().getByRole("button", { name: "Edit hours" }).click();
-    await expect(page.getByTestId("settings-clinic-name-note")).toBeVisible();
+    // A click before hydration does nothing: retry until the editor opens.
+    await expect(async () => {
+      await cards.first().getByRole("button", { name: "Edit hours" }).click();
+      await expect(page.getByTestId("settings-clinic-name-note")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("#clinicName")).toHaveCount(0);
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
-    // The last clinic cannot be removed.
-    await expect(cards.first().getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
+    // She cannot leave her last clinic.
+    await expect(cards.first().getByRole("button", { name: "Leave clinic" })).toHaveCount(0);
   });
 
   test("saving settings keeps the address and saves the hours", async ({ page }) => {
-    const before = await admin
-      .from("professionals")
-      .select("district, clinic_address, latitude, longitude, clinic_place_id")
-      .eq("id", doctor!.doctorId)
-      .single();
-    if (before.error) throw new Error(`before: ${before.error.message}`);
-
     await loginDoctorUi(page, doctor!.email, doctor!.password);
     const res = await page.request.post("/api/doctor-settings", {
       data: {
@@ -150,14 +144,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     if (clinic.error) throw new Error(`clinic: ${clinic.error.message}`);
     expect(clinic.data).toEqual({ address: clinicAddress, district: "Nicosia" });
 
-    const after = await admin
-      .from("professionals")
-      .select("district, clinic_address, latitude, longitude, clinic_place_id")
-      .eq("id", doctor!.doctorId)
-      .single();
-    if (after.error) throw new Error(`after: ${after.error.message}`);
-    expect(after.data).toEqual(before.data);
-
     // The unknown location id is ignored: it creates nothing.
     const unknown = await admin
       .from("professional_clinics")
@@ -184,6 +170,90 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
       .eq("id", locationId)
       .single();
     expect(join.data?.slot_duration_minutes).toBe(40);
+  });
+
+  // An open day ends after it starts, and so does the break (user, 2026-10-10): the
+  // form refuses it, and so does the route. Nothing of the save is kept.
+  test("a save with a day or a break that ends before it starts is refused", async ({ page }) => {
+    await loginDoctorUi(page, doctor!.email, doctor!.password);
+    const hours = async () =>
+      (
+        await admin
+          .from("professional_clinics")
+          .select("weekly_schedule, break_start, break_end, slot_duration_minutes")
+          .eq("id", locationId)
+          .single()
+      ).data;
+    const before = await hours();
+    const day = (enabled: boolean, start_time = "09:00", end_time = "17:00") => ({ enabled, start_time, end_time });
+    const week = {
+      monday: day(true),
+      tuesday: day(true),
+      wednesday: day(true),
+      thursday: day(true),
+      friday: day(true),
+      saturday: day(false),
+      sunday: day(false),
+    };
+    const post = (location: Record<string, unknown>) =>
+      page.request.post("/api/doctor-settings", {
+        data: {
+          doctorId: doctor!.doctorId,
+          languages: ["English"],
+          bio: "Must not be saved either",
+          locations: [{ id: locationId, slotDurationMinutes: 20, ...location }],
+        },
+        timeout: 30_000,
+      });
+
+    const wrongDay = await post({ weeklySchedule: { ...week, tuesday: day(true, "14:00", "09:00") } });
+    expect(wrongDay.status(), await wrongDay.text()).toBe(400);
+    expect((await wrongDay.json()).message).toBe("Tuesday must end after 14:00.");
+
+    const wrongBreak = await post({ weeklySchedule: week, breakEnabled: true, breakStart: "14:00", breakEnd: "13:00" });
+    expect(wrongBreak.status(), await wrongBreak.text()).toBe(400);
+    expect((await wrongBreak.json()).message).toBe("The break must end after 14:00.");
+
+    // Times go by quarter hours (user, 2026-10-10).
+    const oddMinutes = await post({ weeklySchedule: { ...week, monday: day(true, "09:00", "17:02") } });
+    expect(oddMinutes.status(), await oddMinutes.text()).toBe(400);
+    expect((await oddMinutes.json()).message).toBe(
+      "Monday must start and end on a quarter hour (:00, :15, :30 or :45).",
+    );
+
+    expect(await hours()).toEqual(before);
+    const pro = await admin.from("professionals").select("bio").eq("id", doctor!.doctorId).single();
+    expect(pro.data?.bio ?? "").not.toBe("Must not be saved either");
+
+    // A day's own break sits inside that day's hours (user, 2026-10-10).
+    const withBreak = (start: string, end: string, break_start: string | null, break_end: string | null) => ({
+      ...day(true, start, end),
+      break_start,
+      break_end,
+    });
+    const breakOutside = await post({ weeklySchedule: { ...week, friday: withBreak("09:00", "13:00", "13:00", "14:00") } });
+    expect(breakOutside.status(), await breakOutside.text()).toBe(400);
+    expect((await breakOutside.json()).message).toBe("Friday's break must be within its hours (09:00 – 13:00).");
+    expect(await hours()).toEqual(before);
+
+    // A closed day's times do not matter.
+    const closedDay = await post({ weeklySchedule: { ...week, saturday: day(false, "17:00", "09:00") } });
+    expect(closedDay.status(), await closedDay.text()).toBe(200);
+
+    // Each day keeps its own break; the clinic's one break is cleared.
+    const perDay = await post({
+      weeklySchedule: {
+        ...week,
+        monday: withBreak("09:00", "17:00", "13:00", "14:00"),
+        friday: withBreak("09:00", "13:00", null, null),
+      },
+    });
+    expect(perDay.status(), await perDay.text()).toBe(200);
+    const saved = await hours();
+    expect(saved?.weekly_schedule?.monday).toMatchObject({ break_start: "13:00:00", break_end: "14:00:00" });
+    expect(saved?.weekly_schedule?.friday).toMatchObject({ break_start: null, break_end: null });
+    expect(saved?.weekly_schedule?.tuesday).toMatchObject({ break_start: null, break_end: null });
+    expect(saved).toMatchObject({ break_start: null, break_end: null });
   });
 
   test("the old clinic route is gone", async ({ page }) => {

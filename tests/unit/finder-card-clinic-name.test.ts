@@ -36,7 +36,7 @@ describe("finder card clinic name", () => {
     // rendered location resolve to exactly one clinic. Matching on address instead
     // would be guesswork, and the work plan forbids treating addresses as identity.
     assert.equal(loader.includes('.from("professional_clinics")'), true);
-    assert.equal(loader.includes("id, professional_id, is_primary, clinics ("), true);
+    assert.equal(loader.includes("id, professional_id, sort_order, created_at, clinics ("), true);
     assert.equal(loader.includes("byLocationId"), true);
     // The join-row lookup now happens inside clinicForRenderedLocation, which also
     // refuses a fallback clinic that sits at a different address (see

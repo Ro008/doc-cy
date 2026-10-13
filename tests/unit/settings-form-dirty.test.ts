@@ -39,9 +39,9 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
-    mobileNumber: "+35799111222",
     bookingHorizonDays: 60,
     minimumNoticeHours: 24,
+    patientCancelNoticeHours: 24,
     holidayModeEnabled: false,
     holidayStartInput: "",
     holidayEndInput: "",
@@ -50,6 +50,12 @@ function baseSnapshotInput() {
 }
 
 describe("settings-form-dirty", () => {
+  it("flags a changed patient cancellation deadline (user, 2026-10-08)", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const current = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), patientCancelNoticeHours: 12 });
+    assert.equal(settingsFormHasUnsavedChanges(current, saved), true);
+  });
+
   it("treats identical snapshots as saved", () => {
     const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
     const current = buildSettingsDirtySnapshot(baseSnapshotInput());
@@ -101,13 +107,9 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 
-  it("detects mobile number edits", () => {
-    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
-    const changed = buildSettingsDirtySnapshot({
-      ...baseSnapshotInput(),
-      mobileNumber: "+35799111333",
-    });
-    assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
+  it("has no mobile: Account's mobile card saves itself (2026-10-09)", () => {
+    const snapshot = buildSettingsDirtySnapshot(baseSnapshotInput());
+    assert.equal("mobileNumber" in snapshot, false);
   });
 
   it("detects bio edits", () => {
@@ -143,25 +145,27 @@ describe("unsavedSettingsSections", () => {
     const changed = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
       bio: "New bio.",
-      mobileNumber: "+35799000000",
-      minimumNoticeHours: 48,
+      holidayModeEnabled: true,
       workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
     });
     assert.deepEqual(unsavedSettingsSections(changed, saved()), [
-      "availability",
       "clinics",
       "profile",
-      "contact",
     ]);
   });
 
-  it("puts holiday dates under Availability", () => {
+  it("puts booking limits under Clinics, where each clinic sets them (2026-10-09)", () => {
+    const changed = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), minimumNoticeHours: 48 });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
+  });
+
+  it("puts holiday dates under Clinics, now that there is no Availability section", () => {
     const changed = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
       holidayModeEnabled: true,
       holidayStartInput: "01/08/2026",
     });
-    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["availability"]);
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
   });
 
   it("counts languages as Profile, ignoring their order", () => {

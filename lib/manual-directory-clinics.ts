@@ -16,7 +16,8 @@ export type ManualClinicJoinClinic = {
 
 export type ManualClinicJoinLink = {
   clinic_id?: string | null;
-  is_primary?: boolean | null;
+  sort_order?: number | null;
+  created_at?: string | null;
   clinics?: ManualClinicJoinClinic | null;
 };
 
@@ -24,7 +25,6 @@ export type ManualClinicRef = {
   id: string | null;
   name: string;
   slug: string;
-  isPrimary: boolean;
   address: string | null;
   addressMapsLink: string | null;
   district: string | null;
@@ -34,17 +34,12 @@ export type ManualClinicRef = {
 
 /**
  * Build ordered clinic refs from `professional_clinics` join rows.
- * Primary first; skips archived / incomplete; dedupes by clinic id then slug.
+ * In the professional's clinic order; skips archived / incomplete; dedupes by clinic id then slug.
  */
 export function buildManualDirectoryClinicRefs(
   links: readonly ManualClinicJoinLink[],
 ): ManualClinicRef[] {
-  const sorted = [...links].sort((a, b) => {
-    const ap = Boolean(a.is_primary);
-    const bp = Boolean(b.is_primary);
-    if (ap === bp) return 0;
-    return ap ? -1 : 1;
-  });
+  const sorted = [...links].sort(compareClinicOrder);
 
   const out: ManualClinicRef[] = [];
   const seenIds = new Set<string>();
@@ -71,17 +66,11 @@ export function buildManualDirectoryClinicRefs(
       id: clinicId || null,
       name,
       slug,
-      isPrimary: Boolean(link.is_primary),
       address: String(clinic.address ?? "").trim() || null,
       addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
       district: String(clinic.district ?? "").trim() || null,
       hasPhone: Boolean(String(clinic.phone ?? "").trim()),
     });
-  }
-
-  // Ensure exactly one primary when we have clinics (first wins if none flagged).
-  if (out.length > 0 && !out.some((c) => c.isPrimary)) {
-    out[0] = { ...out[0]!, isPrimary: true };
   }
 
   return out;
@@ -111,4 +100,5 @@ export function professionalMatchesDistrictFilter(input: {
     if (String(d ?? "").trim().toLowerCase() === active) return true;
   }
   return false;
-}
+}import { compareClinicOrder } from "@/lib/clinic-order";
+

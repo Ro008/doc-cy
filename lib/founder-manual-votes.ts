@@ -1,9 +1,10 @@
-/** One row from the `founder_manual_vote_stats` SQL aggregate. */
-export type ManualVoteStatRow = {
-  professional_id: string;
-  vote_count: number | string | null;
-  last_at: string | null;
-};
+import type { UserEventStatRow } from "@/lib/user-events";
+
+/**
+ * One row from `founder_user_event_stats('request_online_appointment', …)`: a vote counts
+ * once per visitor.
+ */
+export type ManualVoteStatRow = UserEventStatRow;
 
 export type ProfessionalDirectoryMeta = {
   name?: string | null;
@@ -23,7 +24,7 @@ export function buildManualVoteDashboardRows(
   return stats.map((row) => {
     const id = String(row.professional_id ?? "");
     const meta = metaById.get(id);
-    const count = Number(row.vote_count);
+    const count = Number(row.visitor_count);
     return {
       manualId: id,
       name: meta?.name?.trim() || id.slice(0, 8),

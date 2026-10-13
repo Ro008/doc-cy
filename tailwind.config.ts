@@ -16,6 +16,50 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
+      // Doctor dashboard motion; always paired with `motion-safe:` at call sites.
+      keyframes: {
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        pop: {
+          "0%": { transform: "scale(0.6)" },
+          "60%": { transform: "scale(1.18)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "check-in": {
+          "0%": { opacity: "0", transform: "scale(0.4) rotate(-20deg)" },
+          "70%": { opacity: "1", transform: "scale(1.1) rotate(4deg)" },
+          "100%": { opacity: "1", transform: "scale(1) rotate(0)" },
+        },
+        blink: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.35" },
+        },
+        shimmer: {
+          from: { backgroundPosition: "100% 0" },
+          to: { backgroundPosition: "-100% 0" },
+        },
+        // Noticeable but calm, drawn inside the chip (agenda columns clip overflow).
+        spotlight: {
+          "0%, 100%": {
+            boxShadow: "inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 0 0 0 rgba(125, 217, 223, 0)",
+            filter: "brightness(1)",
+          },
+          "50%": {
+            boxShadow: "inset 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px 2px rgba(125, 217, 223, 0.55)",
+            filter: "brightness(1.15)",
+          },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        pop: "pop 360ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "check-in": "check-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        blink: "blink 1.6s ease-in-out infinite",
+        shimmer: "shimmer 1.4s linear infinite",
+        spotlight: "spotlight 1.6s ease-in-out 1",
+      },
       colors: {
         // Doccy Teal scale — primary CTAs, accents, focus rings
         clinical: {

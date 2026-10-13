@@ -71,7 +71,7 @@ describe("form specialties come from the catalogue", () => {
     assert.deepEqual(validateSpecialtySubmission("sexology", true, FORM_CATALOGUE), {
       ok: true,
       specialty: "Sexology",
-      is_specialty_approved: true,
+      from_catalogue: true,
     });
     assert.equal(validateSpecialtySubmission("Dentistry", true, FORM_CATALOGUE).ok, false);
     // Other text that names a catalogue specialty (even by a legacy spelling) is refused.
@@ -80,7 +80,7 @@ describe("form specialties come from the catalogue", () => {
     assert.deepEqual(validateSpecialtySubmission("Reiki", false, FORM_CATALOGUE), {
       ok: true,
       specialty: "Reiki",
-      is_specialty_approved: false,
+      from_catalogue: false,
     });
   });
 });

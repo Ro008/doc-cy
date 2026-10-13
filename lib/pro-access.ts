@@ -5,7 +5,7 @@ import { CY_TZ } from "@/lib/appointments";
 
 /**
  * `professionals.pro_access_until`: the paid-tier entitlement (online bookings today).
- * Access lasts while the date is in the future, so nothing has to switch it off when a
+ * Access lasts until that moment (inclusive), so nothing has to switch it off when a
  * trial or subscription ends. Approving a registration sets it to the approval time
  * plus the trial months; a payment will push it forward.
  *
@@ -42,7 +42,8 @@ export function hasProAccess(
   if (!proAccessUntil) return false;
   const until = proAccessUntil instanceof Date ? proAccessUntil : new Date(proAccessUntil);
   const time = until.getTime();
-  return Number.isFinite(time) && time > now.getTime();
+  // Access lasts while now <= pro_access_until (user, 2026-10-02).
+  return Number.isFinite(time) && time >= now.getTime();
 }
 
 /** A whole number of months from 0 to MAX_TRIAL_MONTHS, or null. */

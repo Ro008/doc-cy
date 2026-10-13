@@ -3,12 +3,12 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
+import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
 
 export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy: boolean }) {
   const [acceptsGesy, setAcceptsGesy] = React.useState(initialAcceptsGesy);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const switchId = React.useId();
 
   React.useEffect(() => {
     setAcceptsGesy(initialAcceptsGesy);
@@ -27,14 +27,14 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = (data?.message as string) || "Failed to update GESY setting.";
+        const message = (data?.message as string) || "Could not save your GeSY choice.";
         setError(message);
         toast.error(message);
         setAcceptsGesy(previous);
         return;
       }
       toast.success(
-        next ? "GESY badge enabled on your profile." : "GESY badge hidden from your profile.",
+        next ? "The GeSY badge now shows on your profile." : "The GeSY badge no longer shows on your profile.",
       );
     } catch (e) {
       console.error(e);
@@ -47,39 +47,21 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
     }
   }
 
-  const track = acceptsGesy ? "bg-clinical-500/90" : "bg-slate-600";
-
   return (
     <div className={SETTINGS_CARD_CLASS}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <label htmlFor={switchId} className="text-sm font-semibold text-slate-100">
-            Accepts GESY patients
-          </label>
+          <p className="text-sm font-semibold text-slate-100">I see GeSY patients</p>
           <p className="mt-0.5 text-xs text-slate-400">
-            Display a GESY badge on your profile to help patients find you faster.
+            Shows the GeSY badge on your profile, so patients know before they book.
           </p>
         </div>
-        <button
-          id={switchId}
-          type="button"
-          role="switch"
-          aria-checked={acceptsGesy}
-          aria-busy={saving}
-          disabled={saving}
-          onClick={() => void setAcceptsGesyRemote(!acceptsGesy)}
-          className={`relative mt-0.5 h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:opacity-50 ${track}`}
-        >
-          <span
-            className={`absolute left-0.5 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
-              acceptsGesy ? "translate-x-[1.125rem]" : "translate-x-0"
-            }`}
-            aria-hidden
-          />
-          <span className="sr-only">
-            {acceptsGesy ? "Stop accepting GESY patients" : "Accept GESY patients"}
-          </span>
-        </button>
+        <SettingsSwitch
+          label="I see GeSY patients"
+          checked={acceptsGesy}
+          busy={saving}
+          onChange={(next) => void setAcceptsGesyRemote(next)}
+        />
       </div>
       {error ? (
         <p className="mt-2 text-xs text-red-200" role="alert">

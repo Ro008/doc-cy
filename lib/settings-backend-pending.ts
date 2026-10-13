@@ -1,24 +1,16 @@
 /**
- * TEMPORARY (remove once Livio ships these endpoints; docs/handoff/settings-redesign.md).
+ * TEMPORARY (remove once Livio ships the endpoint; docs/handoff/settings-redesign.md).
  *
- * Settings calls a few endpoints the backend does not have yet: we build the frontend
- * first and Livio implements the contract. Until then the route is missing (404/405),
- * and the doctor sees that the failure is expected and what it is waiting for,
+ * Settings › Notifications calls an endpoint the backend does not have yet: the frontend
+ * came first and Livio implements the contract. Until then the route is missing (404/405),
+ * and the professional sees that the failure is expected and what it is waiting for,
  * instead of a generic error that looks like a bug.
  */
 
 export const BACKEND_PENDING = {
-  removeSpecialty: { what: "removing a specialty", endpoint: "DELETE /api/doctor-specialties" },
-  addClinic: { what: "adding a clinic", endpoint: "POST /api/clinic-requests" },
-  removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
-  clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
   notificationSettings: {
     what: "saving notification settings",
     endpoint: "PUT /api/doctor-notification-settings",
-  },
-  cancelSpecialtyRequest: {
-    what: "cancelling a specialty request",
-    endpoint: "DELETE /api/doctor-specialty-change-request",
   },
 } as const;
 

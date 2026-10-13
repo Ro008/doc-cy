@@ -1,5 +1,6 @@
 "use client";
 
+import { SETTINGS_PRIMARY_BUTTON_CLASS, SETTINGS_SECONDARY_BUTTON_CLASS } from "@/components/dashboard/settings/styles";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -17,6 +18,7 @@ export function SettingsDialog({
   children,
   footer,
   wide = false,
+  busy = false,
 }: {
   title: string;
   description?: React.ReactNode;
@@ -24,6 +26,8 @@ export function SettingsDialog({
   children?: React.ReactNode;
   footer: React.ReactNode | ((close: () => void) => React.ReactNode);
   wide?: boolean;
+  /** Waiting for the server: Esc and the backdrop do not close it, and its fields are locked. */
+  busy?: boolean;
 }) {
   const titleId = React.useId();
   const panelRef = React.useRef<HTMLDivElement | null>(null);
@@ -34,6 +38,8 @@ export function SettingsDialog({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  const busyRef = React.useRef(busy);
+  busyRef.current = busy;
   const leavingRef = React.useRef(false);
   const close = React.useCallback(() => {
     if (leavingRef.current) return;
@@ -53,7 +59,8 @@ export function SettingsDialog({
     const first = panelRef.current?.querySelector<HTMLElement>("input, textarea, select, button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      // While busy only the dialog's own buttons close it (e.g. after a successful send).
+      if (e.key === "Escape" && !busyRef.current) close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -66,7 +73,7 @@ export function SettingsDialog({
         leaving ? "settings-backdrop-out" : "settings-backdrop-in"
       }`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget && !busyRef.current) close();
       }}
     >
       <div
@@ -74,6 +81,7 @@ export function SettingsDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-busy={busy}
         className={`my-auto w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-slate-700/70 bg-[#0B1A30] p-6 shadow-xl shadow-black/40 ${
           leaving ? "settings-dialog-out" : "settings-dialog-in"
         }`}
@@ -84,7 +92,11 @@ export function SettingsDialog({
         {description ? (
           <div className="mt-2 text-sm leading-relaxed text-slate-300">{description}</div>
         ) : null}
-        {children ? <div className="mt-4">{children}</div> : null}
+        {children ? (
+          <fieldset disabled={busy} className="mt-4 min-w-0 disabled:opacity-80">
+            {children}
+          </fieldset>
+        ) : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           {typeof footer === "function" ? footer(close) : footer}
         </div>
@@ -94,11 +106,9 @@ export function SettingsDialog({
   );
 }
 
-export const dialogSecondaryButtonClass =
-  "inline-flex h-10 items-center rounded-xl border border-white/20 px-4 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60";
+export const dialogSecondaryButtonClass = SETTINGS_SECONDARY_BUTTON_CLASS;
 
-export const dialogPrimaryButtonClass =
-  "inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60";
+export const dialogPrimaryButtonClass = SETTINGS_PRIMARY_BUTTON_CLASS;
 
 export const dialogDangerButtonClass =
   "inline-flex h-10 items-center rounded-xl bg-rose-600 px-4 text-sm font-semibold text-rose-50 transition hover:bg-rose-500 disabled:opacity-60";

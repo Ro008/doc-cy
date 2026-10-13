@@ -251,13 +251,12 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     const { data: pro } = await admin
       .from("professionals")
-      .select("name, slug, status, is_registered, auth_user_id, avatar_url, pro_access_until, gender, is_gesy")
+      .select("name, slug, is_registered, auth_user_id, avatar_url, pro_access_until, gender, is_gesy")
       .eq("id", body.professionalId)
       .single();
     expect(pro).toMatchObject({
       name: `Review ${lastName} Fixed`,
       slug: body.slug,
-      status: "verified",
       is_registered: true,
       auth_user_id: seeded.authUserId,
       gender: "female",
@@ -271,7 +270,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     const { data: links } = await admin
       .from("professional_clinics")
-      .select("clinic_id, is_primary")
+      .select("clinic_id")
       .eq("professional_id", body.professionalId)
       .order("sort_order");
     expect(links?.map((l) => l.clinic_id)[0]).toBe(clinic.id);
@@ -291,7 +290,11 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
     const clinicCards = page.getByTestId("settings-clinic-card");
     await expect(clinicCards).toHaveCount(2, { timeout: 20_000 });
-    await expect(clinicCards.nth(1)).toContainText(/5 Review Street/);
+    // With two clinics the second card is folded: open it to read its address.
+    await expect(async () => {
+      await clinicCards.nth(1).locator("h2 button").click();
+      await expect(clinicCards.nth(1)).toContainText(/5 Review Street/, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
     // Deciding twice is refused.
     const again = await request.post(url, {
@@ -306,6 +309,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const nonce = Date.now().toString(36).replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
     const listing = await createQaClaimDirectoryClone(admin, nonce);
     cleanup.professionals.push(listing.id);
+    cleanup.clinics.push(listing.clinicId);
     const seeded = await seedRequest(admin, cleanup, {
       lastName: `Claimer ${nonce}`,
       clinicId: clinic.id,

@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  buildNonLiveDoctorMetaTitle,
   buildRegisteredProfileMetaDescription,
+  buildRegisteredProfileMetaTitle,
   buildShareImageMetadata,
-  buildVerifiedRegisteredMetaTitle,
   formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
   resolveShareAvatarUrl,
@@ -30,14 +29,13 @@ describe("normalizeDistrictForSeoTitle", () => {
 });
 
 describe("registered profile share metadata", () => {
-  it("builds verified title and description without inventing Dr.", () => {
-    const title = buildVerifiedRegisteredMetaTitle({
+  it("builds title and description without inventing Dr.", () => {
+    const title = buildRegisteredProfileMetaTitle({
       doctorName: "Karina Miño",
       specialty: "Psychology · Sexology",
       districtLabel: "Paphos",
     });
     const description = buildRegisteredProfileMetaDescription({
-      status: "verified",
       doctorName: "Karina Miño",
       specialtyForSeo: "Psychology · Sexology",
       cityLabel: "Paphos",
@@ -56,7 +54,7 @@ describe("registered profile share metadata", () => {
   });
 
   it("keeps Dr. only when already stored on the name", () => {
-    const title = buildVerifiedRegisteredMetaTitle({
+    const title = buildRegisteredProfileMetaTitle({
       doctorName: "Dr. Maria Costa",
       specialty: "Dermatology",
       districtLabel: "Nicosia",
@@ -64,18 +62,6 @@ describe("registered profile share metadata", () => {
     assert.equal(
       title,
       "Book Online with Dr. Maria Costa | Dermatology in Nicosia | DocCy",
-    );
-  });
-
-  it("builds non-live title without a booking promise or forced Dr.", () => {
-    const title = buildNonLiveDoctorMetaTitle({
-      doctorName: "Anna Papadopoulos",
-      specialty: "Physiotherapy",
-      districtLabel: "Limassol",
-    });
-    assert.equal(
-      title,
-      "Anna Papadopoulos | Physiotherapy in Limassol | Profile & Contact | DocCy",
     );
   });
 

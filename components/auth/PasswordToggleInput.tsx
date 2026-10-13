@@ -5,6 +5,10 @@ import { Check, Copy, Eye, EyeOff } from "lucide-react";
 
 type PasswordToggleInputProps = {
   name: string;
+  /** For a <label htmlFor>. */
+  id?: string;
+  /** Replaces the default input styling (the eye button still gets its padding). */
+  inputClassName?: string;
   required?: boolean;
   minLength?: number;
   maxLength?: number;
@@ -22,6 +26,8 @@ type PasswordToggleInputProps = {
 
 export function PasswordToggleInput({
   name,
+  id,
+  inputClassName,
   required,
   minLength,
   maxLength,
@@ -48,9 +54,10 @@ export function PasswordToggleInput({
   }, []);
 
   const inputClass =
-    tone === "light"
+    inputClassName ??
+    (tone === "light"
       ? "w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 shadow-sm outline-none transition placeholder:text-ink-400 focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/25"
-      : "w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40";
+      : "w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40");
 
   const toggleClass =
     tone === "light"
@@ -90,6 +97,7 @@ export function PasswordToggleInput({
     <div className="relative mt-1">
       <input
         ref={inputRef}
+        id={id}
         name={name}
         type={showPassword ? "text" : "password"}
         placeholder={placeholder}

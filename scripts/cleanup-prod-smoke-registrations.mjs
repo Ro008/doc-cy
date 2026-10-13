@@ -30,28 +30,6 @@ async function listAllAuthUsers(admin) {
   return all;
 }
 
-async function listAllLicensePaths(admin, emailPrefix) {
-  const folder = `licenses/${emailPrefix}`;
-  const out = [];
-  let offset = 0;
-  const limit = 100;
-  for (;;) {
-    const { data, error } = await admin.storage.from("doctor-verifications").list(folder, {
-      limit,
-      offset,
-      sortBy: { column: "name", order: "asc" },
-    });
-    if (error) break;
-    const chunk = (data ?? [])
-      .filter((f) => f.name && !f.name.endsWith("/"))
-      .map((f) => `${folder}/${f.name}`);
-    out.push(...chunk);
-    if ((data ?? []).length < limit) break;
-    offset += limit;
-  }
-  return out;
-}
-
 async function main() {
   loadEnv();
 
@@ -65,7 +43,7 @@ async function main() {
 
   const { data: byDomain, error: domainErr } = await admin
     .from("professionals")
-    .select("id,auth_user_id,email,license_file_url,name")
+    .select("id,auth_user_id,email,name")
     .ilike("email", `%${TEST_EMAIL_DOMAIN}`);
   if (domainErr) {
     throw new Error(`Failed loading doctors by test domain: ${domainErr.message}`);
@@ -73,7 +51,7 @@ async function main() {
 
   const { data: byName, error: nameErr } = await admin
     .from("professionals")
-    .select("id,auth_user_id,email,license_file_url,name")
+    .select("id,auth_user_id,email,name")
     .ilike("name", `${TEST_NAME_PREFIX}%`);
   if (nameErr) {
     throw new Error(`Failed loading doctors by test name prefix: ${nameErr.message}`);
@@ -110,27 +88,6 @@ async function main() {
     const { error: authDelErr } = await admin.auth.admin.deleteUser(id);
     if (authDelErr && !String(authDelErr.message ?? "").toLowerCase().includes("not found")) {
       throw new Error(`Failed deleting auth user ${id}: ${authDelErr.message}`);
-    }
-  }
-
-  const explicitLicensePaths = doctors
-    .map((d) => (d.license_file_url ? String(d.license_file_url) : ""))
-    .filter(Boolean);
-  if (explicitLicensePaths.length > 0) {
-    await admin.storage.from("doctor-verifications").remove(explicitLicensePaths);
-  }
-
-  const emailPrefixes = new Set();
-  for (const d of doctors) {
-    const email = String(d.email ?? "").toLowerCase().trim();
-    if (!email) continue;
-    emailPrefixes.add(email.replace(/[^a-z0-9._-]/g, "-").slice(0, 80));
-  }
-
-  for (const prefix of emailPrefixes) {
-    const extraPaths = await listAllLicensePaths(admin, prefix);
-    if (extraPaths.length > 0) {
-      await admin.storage.from("doctor-verifications").remove(extraPaths);
     }
   }
 

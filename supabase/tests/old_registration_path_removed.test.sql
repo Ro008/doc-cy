@@ -43,11 +43,12 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- 4. The finder's state index is back, without the dropped column.
+  -- 4. The finder's state index is back, without the dropped column (and, since
+  --    Point E2, without finder_visible too).
   select indexdef into v_def from pg_indexes
   where schemaname = 'public' and indexname = 'professionals_finder_state_idx';
-  if v_def is null or v_def not like '%(is_archived, finder_visible, is_registered)' then
-    raise exception 'FAIL: professionals_finder_state_idx should be (is_archived, finder_visible, is_registered), got %', v_def;
+  if v_def is null or v_def not like '%(is_archived, is_registered)' then
+    raise exception 'FAIL: professionals_finder_state_idx should be (is_archived, is_registered), got %', v_def;
   end if;
   v_checks := v_checks + 1;
 
@@ -62,8 +63,8 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'old-path-' || v_u || '@integration.test', now(), now());
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
-  values (v_u, 'Old Path Check', 'old-path-check-' || v_u, true, 'verified', true)
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
+  values (v_u, 'Old Path Check', 'old-path-check-' || v_u, true, true)
   returning id into v_pro;
   select pro_access_until into v_until from public.professionals where id = v_pro;
   if v_until is not null then
@@ -72,12 +73,12 @@ begin
   v_checks := v_checks + 1;
 
   -- 7. Since D4 the registration location trigger is gone (with doctor_locations); the
-  --    professional still gets paused settings (doctor_locations_dropped.test.sql).
+  --    professional still gets settings (doctor_locations_dropped.test.sql).
   if exists (select 1 from pg_trigger where tgname = 'professionals_create_primary_location') then
     raise exception 'FAIL: professionals_create_primary_location should be gone since D4';
   end if;
-  if not exists (select 1 from public.professional_settings where professional_id = v_pro and pause_online_bookings) then
-    raise exception 'FAIL: a directly inserted registered professional should get paused settings';
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
+    raise exception 'FAIL: a directly inserted registered professional should get settings';
   end if;
   v_checks := v_checks + 1;
 

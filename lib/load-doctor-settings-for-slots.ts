@@ -1,16 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  buildWeeklyScheduleFromSettings,
   settingsToWeeklySlots,
   type DoctorSettingsRow,
   type WeeklySlotFromSettings,
 } from "@/lib/doctor-settings";
-
-const SETTINGS_SELECT_FULL =
-  "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes";
-
-const SETTINGS_SELECT_FALLBACK =
-  "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import {
+  clinicSlotMinutes,
+  loadProfessionalAccountSettings,
+  settingsAtClinic,
+} from "@/lib/professional-account-settings";
 
 export type DoctorSettingsForSlots = {
   settings: DoctorSettingsRow;
@@ -18,92 +17,31 @@ export type DoctorSettingsForSlots = {
   fallbackSlotDurationMinutes: number;
 };
 
-function isWeeklyScheduleColumnError(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    String(error.message ?? "").toLowerCase().includes("weekly_schedule") ||
-    error.code === "42703"
-  );
-}
-
-function toDoctorSettingsForSlots(raw: DoctorSettingsRow): DoctorSettingsForSlots {
-  const settings: DoctorSettingsRow = {
-    ...raw,
-    weekly_schedule: raw.weekly_schedule ?? null,
-  };
-  buildWeeklyScheduleFromSettings(settings);
-  const weeklySlots = settingsToWeeklySlots(settings);
-  const fallbackSlotDurationMinutes =
-    Number(settings.slot_duration_minutes) > 0
-      ? Number(settings.slot_duration_minutes)
-      : 30;
-
-  return { settings, weeklySlots, fallbackSlotDurationMinutes };
-}
-
+/**
+ * Bookable schedule of a professional at one clinic: that clinic link's hours, break, slot
+ * length and pause, with the account's holiday, horizon and notice (Point E6). Without a
+ * location id it is the primary clinic. Null when the professional has no clinic.
+ */
 export async function loadDoctorSettingsForSlots(
   supabase: SupabaseClient,
-  doctorId: string
+  doctorId: string,
+  locationId?: string | null,
 ): Promise<DoctorSettingsForSlots | null> {
-  let res = await supabase
-    .from("professional_settings")
-    .select(SETTINGS_SELECT_FULL)
-    .eq("professional_id", doctorId)
-    .maybeSingle();
-
-  if (isWeeklyScheduleColumnError(res.error)) {
-    res = await supabase
-      .from("professional_settings")
-      .select(SETTINGS_SELECT_FALLBACK)
-      .eq("professional_id", doctorId)
-      .maybeSingle();
-  }
-
-  if (res.error || !res.data) {
+  const [{ settings: account, error }, locations] = await Promise.all([
+    loadProfessionalAccountSettings(supabase, doctorId),
+    loadDoctorLocations(doctorId),
+  ]);
+  if (error) {
+    console.error("[DocCy] professional_settings lookup failed:", error);
     return null;
   }
 
-  return toDoctorSettingsForSlots(res.data as DoctorSettingsRow);
-}
+  const settings = settingsAtClinic(account, locations, locationId);
+  if (!settings) return null;
 
-/** One PostgREST round-trip for finder cards instead of N settings lookups. */
-export async function loadDoctorSettingsForSlotsByDoctorIds(
-  supabase: SupabaseClient,
-  doctorIds: readonly string[],
-): Promise<Map<string, DoctorSettingsForSlots>> {
-  const uniqueIds = Array.from(new Set(doctorIds.filter(Boolean)));
-  const byId = new Map<string, DoctorSettingsForSlots>();
-  if (uniqueIds.length === 0) return byId;
-
-  let rows: unknown[] | null = null;
-  let error: { code?: string; message?: string } | null = null;
-
-  const fullRes = await supabase
-    .from("professional_settings")
-    .select(SETTINGS_SELECT_FULL)
-    .in("professional_id", uniqueIds);
-  error = fullRes.error;
-  rows = fullRes.data as unknown[] | null;
-
-  if (isWeeklyScheduleColumnError(error)) {
-    const fallbackRes = await supabase
-      .from("professional_settings")
-      .select(SETTINGS_SELECT_FALLBACK)
-      .in("professional_id", uniqueIds);
-    error = fallbackRes.error;
-    rows = fallbackRes.data as unknown[] | null;
-  }
-
-  if (error) {
-    console.error("[DocCy] batch professional_settings lookup failed:", error);
-    return byId;
-  }
-
-  for (const row of rows ?? []) {
-    const id = String((row as { professional_id?: string }).professional_id ?? "").trim();
-    if (!id) continue;
-    byId.set(id, toDoctorSettingsForSlots(row as DoctorSettingsRow));
-  }
-
-  return byId;
+  return {
+    settings,
+    weeklySlots: settingsToWeeklySlots(settings),
+    fallbackSlotDurationMinutes: clinicSlotMinutes(locations, locationId),
+  };
 }

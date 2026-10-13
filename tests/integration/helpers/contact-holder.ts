@@ -25,7 +25,6 @@ export async function seedRealContactHolder(
       is_registered: false,
       is_test_profile: false,
       is_archived: true,
-      finder_visible: false,
     })
     .select("id")
     .single();

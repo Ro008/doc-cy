@@ -7,7 +7,6 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW,
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
-  DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   DOCCY_SUPPORT_QUERY_APPLICATION_REVIEW,
   emitOpenFeedback,
   subscribeOpenFeedback,
@@ -26,13 +25,11 @@ type Subject =
   | "Something isn't working"
   | "General Question"
   | "Founding Member Inquiry"
-  | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING
   | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST
   | typeof DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW;
 
 const LOCKED_FEEDBACK_SUBJECTS: readonly Subject[] = [
   "Founding Member Inquiry",
-  DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
   DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW,
 ];
@@ -99,8 +96,6 @@ export function FeedbackWidget() {
       const next = detail?.subject;
       if (next === "Founding Member Inquiry") {
         setSubject("Founding Member Inquiry");
-      } else if (next === DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING) {
-        setSubject(DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING);
       } else if (next === DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST) {
         setSubject(DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST);
       } else if (next === DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW) {

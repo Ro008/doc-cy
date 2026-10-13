@@ -1,3 +1,4 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -9,12 +10,14 @@ export type SettingsClinicPhone = {
   name: string;
   /** Display format (+357 XX XXXXXX); "" when the clinic has no phone yet. */
   phone: string;
+  /** How many other professionals work at the clinic (a change to it touches them too). */
+  otherProfessionals: number;
 };
 
 type JoinRow = {
   id?: string | null;
-  is_primary?: boolean | null;
   sort_order?: number | null;
+  created_at?: string | null;
   clinics?:
     | { id?: string | null; name?: string | null; phone?: string | null; is_archived?: boolean | null }
     | { id?: string | null; name?: string | null; phone?: string | null; is_archived?: boolean | null }[]
@@ -22,9 +25,10 @@ type JoinRow = {
 };
 
 /**
- * The clinic phones a professional's settings page shows read-only (user, 2026-09-29):
- * the public Call buttons show `clinics.phone`, and clinics are admin-curated, so a
- * professional asks us to change one. Primary clinic first, archived clinics left out.
+ * The clinic phones on a professional's clinic cards in Settings (user, 2026-09-29 and
+ * 2026-10-10): the public Call buttons show `clinics.phone`, and clinics are
+ * admin-curated, so she asks DocCy to change one. In her clinic order, archived
+ * clinics left out.
  */
 export async function loadSettingsClinicPhones(
   professionalId: string,
@@ -33,16 +37,13 @@ export async function loadSettingsClinicPhones(
   if (!supabase || !professionalId) return [];
   const { data, error } = await supabase
     .from("professional_clinics")
-    .select("id, is_primary, sort_order, clinics ( id, name, phone, is_archived )")
+    .select("id, sort_order, created_at, clinics ( id, name, phone, is_archived )")
     .eq("professional_id", professionalId);
   if (error) {
     console.error("[DocCy] settings clinic phones load failed:", error.message);
     return [];
   }
-  const rows = [...((data ?? []) as unknown as JoinRow[])].sort((a, b) => {
-    if (Boolean(a.is_primary) !== Boolean(b.is_primary)) return a.is_primary ? -1 : 1;
-    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-  });
+  const rows = [...((data ?? []) as unknown as JoinRow[])].sort(compareClinicOrder);
   const out: SettingsClinicPhone[] = [];
   for (const row of rows) {
     const clinic = Array.isArray(row.clinics) ? row.clinics[0] : row.clinics;
@@ -55,7 +56,22 @@ export async function loadSettingsClinicPhones(
       locationId: String(row.id ?? "").trim(),
       name: String(clinic.name ?? "").trim(),
       phone: phone ? formatCyprusPhoneDisplay(phone) : "",
+      otherProfessionals: 0,
     });
+  }
+  if (out.length > 0) {
+    const { data: links } = await supabase
+      .from("professional_clinics")
+      .select("clinic_id, professional_id")
+      .in(
+        "clinic_id",
+        out.map((entry) => entry.clinicId),
+      )
+      .neq("professional_id", professionalId);
+    for (const link of (links ?? []) as { clinic_id: string }[]) {
+      const entry = out.find((candidate) => candidate.clinicId === String(link.clinic_id));
+      if (entry) entry.otherProfessionals += 1;
+    }
   }
   return out;
 }

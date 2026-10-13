@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
 import { finderResultsPath } from "@/lib/finder-public-path";
 import { normalizeDistrictForSeoTitle } from "@/lib/doctor-seo-formatting";
 
@@ -29,11 +28,7 @@ export function FinderSpecialtyLink({
   children,
 }: FinderSpecialtyLinkProps) {
   const label = specialty.trim();
-  if (
-    !label ||
-    label === "Specialty not set" ||
-    label === PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL
-  ) {
+  if (!label || label === "Specialty not set") {
     return <span className={className}>{children ?? label}</span>;
   }
 

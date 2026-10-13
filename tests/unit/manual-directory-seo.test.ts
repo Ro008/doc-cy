@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { resolveClinicSlugRedirect } from "../../lib/load-clinic-by-slug";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
   resolveCanonicalManualDirectorySlug,
@@ -20,7 +21,6 @@ import {
 type AliasRow = {
   slug: string;
   name: string;
-  finder_visible?: boolean;
 };
 
 function mockManualDirectorySlugClient(opts: {
@@ -86,7 +86,7 @@ describe("manual-directory-slug", () => {
   it("redirects a retired name-only slug only when the person is unique", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
       ]),
       "vera-politou-paphos",
     );
@@ -95,8 +95,8 @@ describe("manual-directory-slug", () => {
   it("does not collapse two people with the same name onto one URL", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
-        { slug: "vera-politou-nicosia", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
+        { slug: "vera-politou-nicosia", name: "Vera Politou" },
       ]),
       null,
     );
@@ -105,30 +105,13 @@ describe("manual-directory-slug", () => {
   it("does not treat a longer different name as the same professional", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("maria", [
-        { slug: "maria-papadopoulos-nicosia", name: "Maria Papadopoulos", finder_visible: true },
+        { slug: "maria-papadopoulos-nicosia", name: "Maria Papadopoulos" },
       ]),
       null,
     );
   });
 
-  it("does not redirect when a same-name hidden listing makes the target ambiguous", () => {
-    assert.equal(
-      pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: false },
-        { slug: "vera-politou-limassol", name: "Vera Politou", finder_visible: true },
-      ]),
-      null,
-    );
-  });
 
-  it("does not redirect a unique name that is hidden from the finder", () => {
-    assert.equal(
-      pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: false },
-      ]),
-      null,
-    );
-  });
 });
 
 describe("resolveCanonicalManualDirectorySlug", () => {
@@ -150,7 +133,6 @@ describe("resolveCanonicalManualDirectorySlug", () => {
         {
           slug: "vera-politou-paphos",
           name: "Vera Politou",
-          finder_visible: true,
         },
       ],
     });
@@ -164,8 +146,8 @@ describe("resolveCanonicalManualDirectorySlug", () => {
     const supabase = mockManualDirectorySlugClient({
       exactSlug: null,
       aliasRows: [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
-        { slug: "vera-politou-nicosia", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
+        { slug: "vera-politou-nicosia", name: "Vera Politou" },
       ],
     });
     assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera-politou"), null);
@@ -175,7 +157,7 @@ describe("resolveCanonicalManualDirectorySlug", () => {
     const supabase = mockManualDirectorySlugClient({
       exactSlug: null,
       aliasRows: [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
       ],
     });
     assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera_politou"), null);
@@ -285,5 +267,43 @@ describe("resolveAbsorbedProfessionalSlugRedirect", () => {
     } as unknown as SupabaseClient;
 
     assert.equal(await resolveAbsorbedProfessionalSlugRedirect(supabase, "unknown-slug"), null);
+  });
+});
+
+// User, 2026-10-12: a clinic's web address follows its name; the old one forwards.
+describe("resolveClinicSlugRedirect", () => {
+  function db(redirect: unknown, clinic: unknown, asked: string[] = []) {
+    return {
+      from(table: string) {
+        const result = table === "clinic_slug_redirects" ? redirect : clinic;
+        const chain = {
+          select: () => chain,
+          eq: (column: string, value: unknown) => {
+            asked.push(`${table}.${column}=${String(value)}`);
+            return chain;
+          },
+          maybeSingle: async () => ({ data: result, error: null }),
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+  }
+
+  it("gives the clinic's current address for an old one", async () => {
+    const asked: string[] = [];
+    const supabase = db({ clinic_id: "c1" }, { slug: "new-name-clinic" }, asked);
+    assert.equal(await resolveClinicSlugRedirect(supabase, " Old-Name-Clinic "), "new-name-clinic");
+    assert.deepEqual(asked, [
+      "clinic_slug_redirects.slug=old-name-clinic",
+      "clinics.id=c1",
+      "clinics.is_archived=false",
+    ]);
+  });
+
+  it("gives nothing for an unknown address, an archived clinic, or an address that forwards to itself", async () => {
+    assert.equal(await resolveClinicSlugRedirect(db(null, null), "unknown"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, null), "old"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, { slug: "old" }), "old"), null);
+    assert.equal(await resolveClinicSlugRedirect(db({ clinic_id: "c1" }, { slug: "x" }), ""), null);
   });
 });

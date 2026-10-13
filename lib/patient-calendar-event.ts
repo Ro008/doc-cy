@@ -1,3 +1,4 @@
+import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 
 /** Minimal appointment shape for shared calendar copy (datetime reserved for future use). */
 export type PatientCalendarAppointment = {
@@ -12,6 +13,10 @@ export type PatientCalendarDoctor = {
   specialty?: string | null;
   phone?: string | null;
   clinic_address?: string | null;
+  /** The clinic's name, shown in the location and the description. */
+  clinic_name?: string | null;
+  /** Link to the clinic's Google Maps pin (`clinicMapsUrl`). */
+  maps_url?: string | null;
 };
 
 export type PatientCalendarEventDetails = {
@@ -50,12 +55,6 @@ export function doctorDisplayNameForCalendar(
   return cleaned || "Professional";
 }
 
-/** Label for the calendar title: the stored specialty; fallback General Practice. */
-export function specialtyLabelForCalendar(specialty: string | null | undefined): string {
-  const s = String(specialty ?? "").trim();
-  return s || "General Practice";
-}
-
 /**
  * Unified title, description, and location for patient calendar links (success page, Resend, .ics).
  */
@@ -65,9 +64,8 @@ export function getCalendarEventDetails(
   visit?: PatientCalendarVisitReason | null,
   options?: PatientCalendarEventOptions | null
 ): PatientCalendarEventDetails {
-  const specialty = specialtyLabelForCalendar(doctor.specialty);
   const doctorLabel = doctorDisplayNameForCalendar(doctor.name);
-  const title = `🩺 ${specialty}: ${doctorLabel}`;
+  const title = `🩺 Doctor appointment: ${doctorLabel}`;
 
   const includeDirect = Boolean(options?.includeDirectClinicContact);
   const contactLine = includeDirect
@@ -90,14 +88,28 @@ export function getCalendarEventDetails(
     visitLines.push("");
   }
 
+  const clinicName = String(doctor.clinic_name ?? "").trim();
+  const address = String(doctor.clinic_address ?? "").trim();
+  const mapsUrl = String(doctor.maps_url ?? "").trim();
+  const phone = formatCyprusPhoneDisplay(doctor.phone);
+  const clinicLines: string[] = [];
+  if (clinicName) clinicLines.push(`Clinic: ${clinicName}`);
+  if (address) clinicLines.push(`Address: ${address}`);
+  if (mapsUrl) clinicLines.push(`Map: ${mapsUrl}`);
+  if (phone) clinicLines.push(`Phone: ${phone}`);
+  if (clinicLines.length > 0) {
+    clinicLines.push("");
+  }
+
   const description = [
     ...visitLines,
-    includeDirect ? "Confirmed via DocCy." : "Request managed via DocCy.",
+    ...clinicLines,
+    includeDirect ? "Confirmed via mydoccy.com" : "Request managed via mydoccy.com",
     "",
     contactLine,
   ].join("\n");
 
-  const location = String(doctor.clinic_address ?? "").trim();
+  const location = [clinicName, address].filter(Boolean).join(", ");
 
   return { title, description, location };
 }

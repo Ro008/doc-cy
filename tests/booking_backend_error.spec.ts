@@ -12,7 +12,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 
@@ -41,7 +41,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
+    const calendar = page.locator(".rdp-light");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -75,6 +75,9 @@ test.describe("Booking backend errors @booking-creates", () => {
     ).toBeHidden({ timeout: 3000 });
 
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await page.getByRole("radio", { name: /This is my first visit/i }).check();
+    await page.getByRole("radio", { name: /Prefer not to say/i }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
 
     // Force backend error by intercepting the booking request.
     // Using an appointmentLocal outside typical working hours ensures:
@@ -114,12 +117,12 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
-    await expect(errorBox).toContainText(
-      "Requested time is outside the professional's booking horizon."
-    );
+    // Plain words instead of the server's technical message, and back to the calendar.
+    await expect(errorBox).toContainText("That time is no longer available.");
+    await expect(page.getByRole("button", { name: /Send booking request/i })).toHaveCount(0);
 
-    // Should not navigate to the success page
-    await expect(page.getByRole("heading", { name: /Request pending/i })).toHaveCount(0);
+    // Nothing was sent: no "Check your email" card.
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 
   test("shows not accepting public bookings inline", async ({ page }) => {
@@ -127,37 +130,24 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const supabase = createTestDataClient();
 
-    // Pick a non-verified professional (pending/rejected) to force backend 403.
-    const { data: pending } = await supabase
+    // An unregistered directory listing takes no online bookings: the backend answers 403.
+    const { data: listings } = await supabase
       .from("professionals")
-      .select("id,status")
-      .eq("status", "pending")
+      .select("id")
+      .eq("is_registered", false)
+      .eq("is_archived", false)
       .limit(5);
 
-    const pendingDoctorId =
-      pending?.find((d) => typeof d?.id === "string")?.id ?? null;
-
     const nonVerifiedDoctorId =
-      pendingDoctorId ??
-      (
-        await supabase
-          .from("professionals")
-          .select("id,status")
-          .eq("status", "rejected")
-          .limit(5)
-      ).data?.find((d) => typeof d?.id === "string")?.id ??
-      null;
+      listings?.find((d) => typeof d?.id === "string")?.id ?? null;
 
-    test.skip(
-      !nonVerifiedDoctorId,
-      "No pending/rejected doctors found in Supabase seed."
-    );
+    test.skip(!nonVerifiedDoctorId, "No unregistered listing found in Supabase seed.");
 
-    // Pick a verified doctor whose calendar is visible so we can reach the booking form UI.
+    // Pick a registered professional whose calendar is visible so we can reach the booking form UI.
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 
@@ -184,7 +174,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
+    const calendar = page.locator(".rdp-light");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -219,6 +209,9 @@ test.describe("Booking backend errors @booking-creates", () => {
     ).toBeHidden({ timeout: 3000 });
 
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await page.getByRole("radio", { name: /This is my first visit/i }).check();
+    await page.getByRole("radio", { name: /Prefer not to say/i }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
 
     // Force backend: override doctorId to a pending/rejected professional.
     await page.route("**/api/appointments", async (route) => {
@@ -258,9 +251,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       "This professional is not accepting public bookings yet."
     );
 
-    await expect(
-      page.getByRole("heading", { name: /Request pending/i })
-    ).toHaveCount(0);
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 });
 

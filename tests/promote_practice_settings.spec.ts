@@ -49,25 +49,6 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
     ).toHaveCount(0);
   });
 
-  test("website Contact Support opens feedback with locked topic and prefilled message", async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-
-    const websiteBlock = page.getByTestId("promote-website-script");
-    await websiteBlock.scrollIntoViewIfNeeded();
-    await websiteBlock.getByText("Website booking button").click();
-    await websiteBlock.getByRole("button", { name: "Contact Support" }).click();
-
-    const dialog = page.getByRole("dialog", { name: /How can we help you/i });
-    await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByText("Help with website booking button")).toBeVisible();
-
-    const message = dialog.getByRole("textbox", { name: /message/i });
-    await expect(message).toHaveValue(/booking page|σύνδεσμος κρατήσεων/i);
-    await expect(message).toHaveValue(/DocCy/i);
-  });
-
   test("mobile settings tab reaches promote scripts section", async ({ page }) => {
     test.setTimeout(120_000);
 

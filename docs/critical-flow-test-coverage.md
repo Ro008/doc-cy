@@ -48,7 +48,8 @@ Living document: update when workflows or specs change.
 | Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case; no WhatsApp share CTA; see **Optional UI fields** in `ci-test-policy.md` |
 | Race / concurrency | `appointments_race_condition.integration.spec.ts` | — | |
 | Reschedule slot free | `needs_reschedule_slot_free.integration.spec.ts` | — | |
-| Doctor proposes reschedule (CONFIRMED → NEEDS_RESCHEDULE) | `propose_reschedule_confirmed.integration.spec.ts` | — | API: alternative-slots + propose-reschedule |
+| Professional proposes 1-3 times for a request (REQUESTED → NEEDS_RESCHEDULE; confirmed visits refused) | `propose_times.integration.spec.ts` | — | API: propose-reschedule |
+| Appointment flow (email-confirmed request, manual rules, decline, accept + cancel link, patient / professional cancel) | `online_booking_confirm`, `manual_booking_rules`, `decline_request`, `accept_request`, `patient_cancel`, `professional_cancel` (integration) | — | Seed their own professional; run locally against Testing |
 | Reschedule email content | `reschedule_email_content.integration.spec.ts` | — | |
 | Trial period logic | — | — | **Gap** (spec removed; was referenced in workflows) |
 
@@ -56,7 +57,7 @@ Living document: update when workflows or specs change.
 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
-| Doctor onboarding (register → founder alert → approve → doctor email → agenda) | `doctor_onboarding_pipeline.integration.spec.ts` (`@pr-e2e`) + `doctor_onboarding_emails.integration.spec.ts` (`@pr-email`) + `pending_registration_origin_actions.integration.spec.ts` (`@pr-e2e`, twin absorb/keep_both + Unclaimed/Auto-matched/Claimed labels) | `doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts` (`@local-register`) via `npm run test:e2e:register` when a PR is opened (Cursor agent). Agenda login covered on PR integration. | PR uses `createTestDoctor` as post-registration DB state. Live `/register` + Resend (including claim from a QA clone public profile) is a **local gate run by the agent on PR open**, not GitHub CI. Claim e2e asserts `directory_claim_source = card_link`. Email copy on PR; Resend send on verify is runtime best-effort. `doctor_account_access.integration.spec.ts` covers reject/edge cases. |
+| Doctor onboarding (register → founder alert → approve → doctor email → agenda) | `doctor_onboarding_pipeline.integration.spec.ts` (`@pr-e2e`) + `doctor_onboarding_emails.integration.spec.ts` (`@pr-email`) + `pending_registration_origin_actions.integration.spec.ts` (`@pr-e2e`, twin absorb/keep_both + Unclaimed/Auto-matched/Claimed labels) | `doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts` (`@local-register`) via `npm run test:e2e:register` when a PR is opened (Cursor agent). Agenda login covered on PR integration. | PR uses `createTestDoctor` as post-registration DB state. Live `/register` + Resend (including claim from a QA clone public profile) is a **local gate run by the agent on PR open**, not GitHub CI. Email copy on PR; Resend send on verify is runtime best-effort. `doctor_account_access.integration.spec.ts` covers reject/edge cases. |
 | Sign-out / sessions | — | `auth_signout_other_sessions`, `auth_session_revocation_logic` | Integration specs, not in PR list |
 | Password login (UI) | — | `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) | PR non-blocking; `/login` form → agenda |
 

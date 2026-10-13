@@ -18,7 +18,6 @@ function joinRow(partial: Partial<ProfessionalClinicJoinRow> = {}): Professional
   return {
     id: "join-1",
     professional_id: "pro-1",
-    is_primary: true,
     sort_order: 0,
     label: "Evenings",
     pause_online_bookings: false,
@@ -46,6 +45,7 @@ function joinRow(partial: Partial<ProfessionalClinicJoinRow> = {}): Professional
       latitude: 35.17,
       longitude: 33.36,
       clinic_place_id: "place-1",
+      address_maps_link: "https://www.google.com/maps?q=35.17,33.36",
       is_archived: false,
     },
     ...partial,
@@ -64,10 +64,13 @@ describe("professional clinic locations", () => {
     const location = professionalClinicRowToLocation(joinRow());
     assert.deepEqual(location, {
       // The join-row id IS the location id (Stage 1 invariant), so ?location=<uuid>
-      // links and appointments.location_id keep resolving.
+      // links keep resolving.
       id: "join-1",
       doctor_id: "pro-1",
-      is_primary: true,
+      // The clinic itself: appointments.clinic_id, and the name every screen shows
+      // (never the join-row label; user 2026-10-03).
+      clinic_id: "clinic-1",
+      clinic_name: "Evangelismos",
       sort_order: 0,
       // One name everywhere: DocCy's, never the professional's own label (user, 2026-10-01).
       label: "Evangelismos",
@@ -77,7 +80,10 @@ describe("professional clinic locations", () => {
       latitude: 35.17,
       longitude: 33.36,
       clinic_place_id: "place-1",
+      // The clinic's own Maps pin, linked from booking emails (user 2026-10-05).
+      clinic_maps_link: "https://www.google.com/maps?q=35.17,33.36",
       pause_online_bookings: false,
+      pause_notice_dismissed_at: null,
       monday: true,
       tuesday: false,
       wednesday: true,
@@ -91,6 +97,10 @@ describe("professional clinic locations", () => {
       break_start: "13:00:00",
       break_end: "14:00:00",
       slot_duration_minutes: 45,
+      // The table's defaults for a row read without its limits.
+      booking_horizon_days: 90,
+      minimum_notice_hours: 2,
+      patient_cancel_notice_hours: 12,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-02T10:00:00Z",
     });
@@ -124,7 +134,6 @@ describe("professional clinic locations", () => {
         break_start: null,
         break_end: null,
         slot_duration_minutes: null,
-        is_primary: null,
         sort_order: null,
       }),
     );
@@ -132,7 +141,7 @@ describe("professional clinic locations", () => {
     assert.equal(location.end_time, "17:00:00");
     assert.equal(location.slot_duration_minutes, 30);
     assert.equal(location.pause_online_bookings, true, "never open bookings by accident");
-    assert.equal(location.is_primary, false);
+    assert.equal("is_primary" in location, false);
     assert.equal(location.sort_order, 0);
     assert.equal(location.monday, false);
     assert.equal(location.label, "Evangelismos");

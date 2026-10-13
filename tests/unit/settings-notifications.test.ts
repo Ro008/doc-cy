@@ -58,9 +58,10 @@ describe("validateExtraEmail", () => {
 });
 
 describe("Notifications section", () => {
-  it("sits after Contact & phone", () => {
+  it("sits after Services & prices, before Promote (Contact & phone is gone since #279)", () => {
     const ids = SETTINGS_SECTIONS.map((s) => s.id);
-    assert.equal(ids.indexOf("notifications"), ids.indexOf("contact") + 1);
+    assert.equal(ids.indexOf("notifications"), ids.indexOf("services") + 1);
+    assert.equal(ids.indexOf("promote"), ids.indexOf("notifications") + 1);
   });
 
   it("says saving waits for Livio's endpoint", () => {

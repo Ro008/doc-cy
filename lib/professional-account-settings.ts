@@ -1,0 +1,118 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  ACCOUNT_SETTINGS_FALLBACK,
+  locationToSettingsRow,
+  sortDoctorLocations,
+  type DoctorLocationRow,
+} from "@/lib/doctor-locations";
+import type { DoctorSettingsRow } from "@/lib/doctor-settings";
+
+/**
+ * `professional_settings` holds professional-level settings only (Point E6, user
+ * 2026-10-01): the holiday. The schedule (days, hours, break, slot length, pause) and,
+ * since 2026-10-11, the booking limits (how far ahead, minimum notice, cancellation
+ * deadline) live on each clinic link (`professional_clinics`), so a schedule is always
+ * "this professional at this clinic": `settingsAtClinic`.
+ */
+export const PROFESSIONAL_ACCOUNT_SETTINGS_SELECT =
+  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date";
+
+export type ProfessionalAccountSettings = Pick<
+  DoctorSettingsRow,
+  "professional_id" | "holiday_mode_enabled" | "holiday_start_date" | "holiday_end_date"
+>;
+
+const DEFAULT_SLOT_MINUTES = 30;
+
+/** The appointment's clinic when it is still linked, else the primary clinic. */
+export function clinicForAppointment(
+  locations: readonly DoctorLocationRow[],
+  locationId?: string | null,
+): DoctorLocationRow | null {
+  const id = String(locationId ?? "").trim();
+  const requested = id ? locations.find((row) => row.id === id) : undefined;
+  return requested ?? sortDoctorLocations(locations)[0] ?? null;
+}
+
+/**
+ * Her clinic link (`professional_clinics.id`, where the schedule lives) for an appointment's
+ * clinic (`appointments.clinic_id` = `clinics.id`); null if she isn't linked to it.
+ */
+export function linkIdForClinic(
+  locations: readonly Pick<DoctorLocationRow, "id" | "clinic_id">[],
+  clinicId: string | null | undefined,
+): string | null {
+  const id = String(clinicId ?? "").trim();
+  if (!id) return null;
+  return locations.find((row) => row.clinic_id === id)?.id ?? null;
+}
+
+/**
+ * True when the request was made at a clinic she no longer works at (user, 2026-10-11):
+ * she can still accept or decline it, but not suggest other times, because her hours
+ * there are gone. A request without a clinic (old rows) is not one of these.
+ */
+export function requestClinicLeft(
+  locations: readonly Pick<DoctorLocationRow, "id" | "clinic_id">[],
+  clinicId: string | null | undefined,
+): boolean {
+  const id = String(clinicId ?? "").trim();
+  return Boolean(id) && linkIdForClinic(locations, id) === null;
+}
+
+export { LEFT_CLINIC_PROPOSAL_MESSAGE } from "@/lib/clinic-hours-visits";
+
+/** The clinic's schedule merged with the account settings; null without a clinic. */
+export function settingsAtClinic(
+  account: Omit<ProfessionalAccountSettings, "professional_id"> | null | undefined,
+  locations: readonly DoctorLocationRow[],
+  locationId?: string | null,
+): DoctorSettingsRow | null {
+  const clinic = clinicForAppointment(locations, locationId);
+  if (!clinic) return null;
+  return locationToSettingsRow(clinic, account ?? ACCOUNT_SETTINGS_FALLBACK);
+}
+
+/** Slot length for an appointment: its clinic's, else the primary clinic's, else 30. */
+export function clinicSlotMinutes(
+  locations: readonly DoctorLocationRow[],
+  locationId?: string | null,
+): number {
+  const minutes = Number(clinicForAppointment(locations, locationId)?.slot_duration_minutes);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_SLOT_MINUTES;
+}
+
+export async function loadProfessionalAccountSettings(
+  supabase: SupabaseClient,
+  professionalId: string,
+): Promise<{ settings: ProfessionalAccountSettings | null; error: unknown }> {
+  const { data, error } = await supabase
+    .from("professional_settings")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+    .eq("professional_id", professionalId)
+    .maybeSingle();
+  return { settings: (data as ProfessionalAccountSettings | null) ?? null, error };
+}
+
+/** One round-trip for many professionals (finder cards). */
+export async function loadProfessionalAccountSettingsByIds(
+  supabase: SupabaseClient,
+  professionalIds: readonly string[],
+): Promise<Map<string, ProfessionalAccountSettings>> {
+  const uniqueIds = Array.from(new Set(professionalIds.filter(Boolean)));
+  const byId = new Map<string, ProfessionalAccountSettings>();
+  if (uniqueIds.length === 0) return byId;
+
+  const { data, error } = await supabase
+    .from("professional_settings")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+    .in("professional_id", uniqueIds);
+  if (error) {
+    console.error("[DocCy] batch professional_settings lookup failed:", error);
+    return byId;
+  }
+  for (const row of (data ?? []) as ProfessionalAccountSettings[]) {
+    if (row.professional_id) byId.set(String(row.professional_id), row);
+  }
+  return byId;
+}

@@ -1,5 +1,6 @@
 // lib/doctor-settings.ts
-// Converts professional_settings rows into the weekly slot shape used by BookingSection.
+// Converts a schedule (a clinic link's, merged with the account settings: see
+// locationToSettingsRow) into the weekly slot shape used by BookingSection.
 // day_of_week: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
 
 export type DayKey =
@@ -15,10 +16,22 @@ export type DayScheduleEntry = {
   enabled: boolean;
   start_time: string; // "HH:mm:00"
   end_time: string; // "HH:mm:00"
+  /**
+   * The day's own break (user, 2026-10-10), "HH:mm:00", null for none. A schedule saved
+   * before that has no break keys on its days: they follow the clinic's one break
+   * (`break_start` / `break_end` on the clinic link). See `dayBreakTimes`.
+   */
+  break_start?: string | null;
+  break_end?: string | null;
 };
 
 export type WeeklySchedule = Record<DayKey, DayScheduleEntry>;
 
+/**
+ * A bookable schedule: one clinic link's hours, break, slot length and pause merged with the
+ * account settings (`locationToSettingsRow`). Not a table row: since Point E6
+ * professional_settings holds only the account fields.
+ */
 export type DoctorSettingsRow = {
   professional_id: string;
   monday: boolean;
@@ -34,8 +47,6 @@ export type DoctorSettingsRow = {
   break_start: string | null;
   break_end: string | null;
   pause_online_bookings: boolean;
-  show_phone_public: boolean;
-  public_phone_source?: "mobile" | "directory" | null;
   holiday_mode_enabled: boolean;
   holiday_start_date: string | null; // "YYYY-MM-DD"
   holiday_end_date: string | null; // "YYYY-MM-DD"
@@ -66,6 +77,9 @@ export type WeeklySlotFromSettings = {
   start_time: string;
   end_time: string;
   duration: number;
+  /** That day's break ("HH:mm:00"), null for none. */
+  break_start?: string | null;
+  break_end?: string | null;
 };
 
 export const DAY_NAMES: DayKey[] = [
@@ -102,6 +116,28 @@ export function toFullTime(t: string): string {
   return n.includes(":") && n.split(":").length === 2 ? `${n}:00` : `${n}:00`;
 }
 
+/** Whether a day carries its own break (even "none"), instead of following the clinic's one break. */
+export function dayHasOwnBreak(day: Partial<DayScheduleEntry> | null | undefined): boolean {
+  return Boolean(day) && Object.prototype.hasOwnProperty.call(day, "break_start");
+}
+
+/**
+ * One day's break as "HH:mm", or null: the day's own when it has break keys, else the
+ * clinic's one break (schedules saved before breaks were per day).
+ */
+export function dayBreakTimes(
+  day: Partial<DayScheduleEntry> | null | undefined,
+  clinicBreakStart?: string | null,
+  clinicBreakEnd?: string | null,
+): { start: string; end: string } | null {
+  const own = dayHasOwnBreak(day);
+  const start = own ? day?.break_start : clinicBreakStart;
+  const end = own ? day?.break_end : clinicBreakEnd;
+  if (!start || !end) return null;
+  return { start: normalizeTime(String(start)), end: normalizeTime(String(end)) };
+}
+
+/** Every day with its hours and its effective break (its own, or the clinic's one break). */
 export function buildWeeklyScheduleFromSettings(
   settings: DoctorSettingsRow
 ): WeeklySchedule {
@@ -113,18 +149,21 @@ export function buildWeeklyScheduleFromSettings(
   for (const dayName of DAY_NAMES) {
     const legacyEnabled = Boolean((settings as Record<string, unknown>)[dayName]);
     const dayRaw = (raw as Record<string, Partial<DayScheduleEntry>>)[dayName] ?? {};
+    const dayBreak = dayBreakTimes(dayRaw, settings.break_start, settings.break_end);
     schedule[dayName] = {
       enabled:
         typeof dayRaw.enabled === "boolean" ? dayRaw.enabled : legacyEnabled,
       start_time: dayRaw.start_time ? toFullTime(dayRaw.start_time) : legacyStart,
       end_time: dayRaw.end_time ? toFullTime(dayRaw.end_time) : legacyEnd,
+      break_start: dayBreak ? `${dayBreak.start}:00` : null,
+      break_end: dayBreak ? `${dayBreak.end}:00` : null,
     };
   }
   return schedule;
 }
 
 /**
- * Build the weeklySlots array expected by BookingSection from a professional_settings row.
+ * Build the weeklySlots array expected by BookingSection from a clinic's merged settings row.
  * Only includes days that are enabled (Mon–Sun).
  */
 export function settingsToWeeklySlots(
@@ -145,6 +184,8 @@ export function settingsToWeeklySlots(
       start_time: dayConfig.start_time,
       end_time: dayConfig.end_time,
       duration,
+      break_start: dayConfig.break_start ?? null,
+      break_end: dayConfig.break_end ?? null,
     });
   }
 

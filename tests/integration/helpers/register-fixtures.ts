@@ -73,13 +73,11 @@ export async function seedRegisterFixtures(admin: SupabaseClient): Promise<Regis
         name,
         slug: `anna-fixture-${token}`,
         email: `${token}@integration.test`,
-        district: "Nicosia",
         gender: "female",
         is_gesy: true,
         is_registered: false,
         is_archived: false,
         is_test_profile: true,
-        finder_visible: false,
       })
       .select("id")
       .single();
@@ -91,7 +89,6 @@ export async function seedRegisterFixtures(admin: SupabaseClient): Promise<Regis
       [seeds[0]!, seeds[2]!].map((seed, i) => ({
         professional_id: listingId,
         clinic_id: idByName.get(seed.name),
-        is_primary: i === 0,
         sort_order: i,
       })),
     );

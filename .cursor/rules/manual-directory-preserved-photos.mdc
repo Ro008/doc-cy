@@ -4,6 +4,4 @@ GeSY full-directory rebuild (2026-08): the previous curated finder photo roster 
 
 ## How to add photos later
 
-- Assets: `public/finder/manual-photos/*.png`
-- Map: `lib/finder-manual-photos.ts` — key = normalized `directory_manual.address_maps_link`
-- Prefer linking by Maps URL (stable across name edits), not by person name alone
+The maps-link photo map (`lib/finder-manual-photos.ts`) was removed in Point E5 (2026-10-01): it was empty, and listings no longer carry a Maps link of their own (it lives on their clinics). To bring curated photos back, key them by professional id (or upload an avatar) rather than by a Maps URL.

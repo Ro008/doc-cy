@@ -6,7 +6,7 @@ export const CY_TZ = "Europe/Nicosia";
 
 export type AppointmentRow = {
   id: string;
-  doctor_id: string;
+  professional_id: string;
   patient_name: string;
   patient_phone: string;
   patient_email: string | null;
@@ -38,9 +38,9 @@ export async function getAppointmentsForDate(
   const { data, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_phone, patient_email, appointment_datetime, status, reason, created_at"
+      "id, professional_id, patient_name, patient_phone, patient_email, appointment_datetime, status, reason, created_at"
     )
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .gte("appointment_datetime", dayStartUtc.toISOString())
     .lte("appointment_datetime", dayEndUtc.toISOString())
     .order("appointment_datetime", { ascending: true });

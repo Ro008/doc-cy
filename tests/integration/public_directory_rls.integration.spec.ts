@@ -40,12 +40,12 @@ test.describe("Integration: public directory RLS hardening", () => {
 
     const anon = createClient(supabaseUrl, anonKey);
 
-    const doctorsDump = await anon.from("professionals").select("email, phone").limit(1);
+    const doctorsDump = await anon.from("professionals").select("email, mobile_number").limit(1);
     expect(isDeniedOrEmpty(doctorsDump)).toBe(true);
 
     const manualDump = await anon
       .from("professionals")
-      .select("email, ghs_code, gender, name, phone")
+      .select("email, ghs_code, gender, name, mobile_number")
       .eq("is_registered", false)
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);
@@ -81,18 +81,21 @@ test.describe("Integration: public directory RLS hardening", () => {
     });
     expect(requestSubmit.error?.code).toBe("42501");
 
-    // SECURITY DEFINER RPCs that must not be callable with the anon key. Expect a
-    // permission error, not just an empty result: a random id would return nothing
-    // even if the grant came back.
+    // RPCs that must not be callable with the anon key. Expect a permission error, not
+    // just an empty result: a random id would return nothing even if the grant came back.
     const anyId = "00000000-0000-0000-0000-000000000000";
-    const occupiedRpc = await anon.rpc("public_doctor_occupied_datetimes", {
-      p_doctor_id: anyId,
+    const occupiedRpc = await anon.rpc("public_professionals_occupied_datetimes", {
+      p_professional_ids: [anyId],
       p_from: new Date().toISOString(),
       p_to: new Date(Date.now() + 86_400_000).toISOString(),
     });
     expect(occupiedRpc.error?.code).toBe("42501");
-    const ownerRpc = await anon.rpc("is_doctor_owner", { p_doctor_id: anyId });
+    const ownerRpc = await anon.rpc("is_professional_owner", { p_professional_id: anyId });
     expect(ownerRpc.error?.code).toBe("42501");
+    const activeCountRpc = await anon.rpc("founder_active_professional_count", {
+      p_since: new Date().toISOString(),
+    });
+    expect(activeCountRpc.error?.code).toBe("42501");
 
     const professionalsPublicDump = await anon
       .from("professionals_public")

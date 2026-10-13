@@ -12,7 +12,7 @@ import {
 
 /**
  * One save rule for settings (user, 2026-10-01): small controls save at once, bigger
- * editors (a clinic's hours, the bio, the mobile, holiday dates) have their own Save.
+ * editors (a clinic's hours, the bio, holiday dates) have their own Save.
  * The API replaces everything it is sent, so each save sends the last saved settings
  * with only that block changed: nothing else half-edited goes out with it.
  */
@@ -51,9 +51,9 @@ function snapshot(patch: Partial<Parameters<typeof buildSettingsDirtySnapshot>[0
     specialtyFromMaster: true,
     bio: "Skin doctor.",
     languages: ["English", "Greek"],
-    mobileNumber: "+35799111222",
     bookingHorizonDays: 30,
     minimumNoticeHours: 24,
+    patientCancelNoticeHours: 12,
     holidayModeEnabled: false,
     holidayStartInput: "",
     holidayEndInput: "",
@@ -87,7 +87,7 @@ describe("applySaveGroup", () => {
     assert.equal(next.bookingHorizonDays, 30);
   });
 
-  it("takes the bio, the languages, the mobile or holiday mode alone", () => {
+  it("takes the bio, the languages or holiday mode alone", () => {
     assert.equal(applySaveGroup(saved, current, { kind: "bio" }).bio, "Half-written new bio");
     assert.equal(applySaveGroup(saved, current, { kind: "bio" }).bookingHorizonDays, 30);
     const holiday = applySaveGroup(
@@ -147,6 +147,20 @@ describe("validateSettingsToSave", () => {
       null,
     );
   });
+
+  it("refuses a clinic whose open day ends before it starts", () => {
+    const wrong = { ...clinic("b", "10:00", 45), label: "Paphos room" };
+    wrong.weeklySchedule = { ...wrong.weeklySchedule, tuesday: day(true, "10:00", "09:00") };
+    assert.equal(
+      validateSettingsToSave(snapshot({ workplaces: [clinic("a", "09:00", 30), wrong] })),
+      "Tuesday must end after 10:00.",
+    );
+  });
+
+  it("refuses a clinic whose break ends before it starts", () => {
+    const wrong = { ...clinic("a", "09:00", 30), breakStart: "14:00", breakEnd: "13:00" };
+    assert.equal(validateSettingsToSave(snapshot({ workplaces: [wrong] })), "The break must end after 14:00.");
+  });
 });
 
 describe("buildSettingsSavePayload", () => {
@@ -156,11 +170,13 @@ describe("buildSettingsSavePayload", () => {
       snapshot({ holidayModeEnabled: true, holidayStartInput: "01/12/2026", holidayEndInput: "10/12/2026" }),
     );
     assert.equal(payload.doctorId, "doc-1");
-    assert.equal(payload.doctorPhone, "+35799111222");
+    // The mobile has its own route (POST /api/professional-mobile), never this one.
+    assert.equal("doctorPhone" in payload, false);
     assert.equal(payload.bio, "Skin doctor.");
     assert.deepEqual(payload.languages, ["English", "Greek"]);
     assert.equal(payload.bookingHorizonDays, 30);
     assert.equal(payload.minimumNoticeHours, 24);
+    assert.equal(payload.patientCancelNoticeHours, 12);
     assert.equal(payload.holidayModeEnabled, true);
     assert.equal(payload.holidayStartDate, "2026-12-01");
     assert.equal(payload.holidayEndDate, "2026-12-10");

@@ -11,10 +11,8 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
-
-/** Hosted logo so Gmail can load it even when the reset was requested on localhost. */
-const DOCCY_EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo.png";
 
 export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
   subject: string;
@@ -32,7 +30,6 @@ export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
 
   const html = `
 ${EMAIL_SHELL_OPEN}
-    <img src="${DOCCY_EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Reset your DocCy password</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We received a request to choose a new password for your DocCy practitioner account.
@@ -41,7 +38,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">
       This link expires shortly and can only be used once. If you did not ask for a new password, ignore this email — your current password stays the same.
     </p>
-    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${escapeHtml(resetUrl)}</p>
+    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${emailFallbackLink(resetUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
 

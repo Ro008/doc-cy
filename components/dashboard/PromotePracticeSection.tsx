@@ -2,25 +2,44 @@
 
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, Printer, QrCode } from "lucide-react";
+import { Check, Copy, Download, MessageCircle, Printer, QrCode, Send } from "lucide-react";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
-import { buildPublicProfileUrl } from "@/lib/promote-practice-script-templates";
+import {
+  buildPublicProfileUrl,
+  buildShareMessage,
+  buildTelegramShareUrl,
+  buildViberShareUrl,
+  buildWhatsAppShareUrl,
+  parsePromoteLanguage,
+  type PromoteLanguage,
+} from "@/lib/promote-practice-script-templates";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { PromotePracticeScripts } from "@/components/dashboard/PromotePracticeScripts";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
   SETTINGS_SECONDARY_BUTTON_CLASS,
+  SETTINGS_SMALL_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import { shortBookingLink } from "@/lib/settings-account";
-import { buildBookingSignHtml } from "@/lib/booking-sign";
+import { buildBookingSignHtml, signSpecialties } from "@/lib/booking-sign";
 
 type Props = {
   slug: string | null | undefined;
   doctorName: string;
-  /** The profile's approved specialty, printed under the name on the sign. */
-  specialty?: string | null;
+  /** The profile's approved specialties; she ticks the ones printed on the sign. */
+  specialties?: readonly string[];
   localeLike?: string | null;
 };
+
+/** Remembered in this browser only: a convenience, nothing depends on it. */
+const LANGUAGE_STORAGE_KEY = "doccy:promote-language";
+const SIGN_LEFT_OFF_STORAGE_KEY = "doccy:promote-sign-left-off";
+const NO_SPECIALTIES: readonly string[] = [];
+const LANGUAGES: { id: PromoteLanguage; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "el", label: "Ελληνικά" },
+];
 
 /** Waits for the sign's logo, QR and font, so the print never comes out half drawn. */
 function whenSignReady(doc: Document, maxMs = 3000): Promise<void> {
@@ -40,19 +59,61 @@ function whenSignReady(doc: Document, maxMs = 3000): Promise<void> {
 export function PromotePracticeSection({
   slug,
   doctorName,
-  specialty,
+  specialties = NO_SPECIALTIES,
   localeLike,
 }: Props) {
   const copy = React.useMemo(
     () => resolvePromotePracticeCopy(localeLike),
     [localeLike]
   );
+  // The sign and the scripts are for her patients, so she picks their language
+  // (user, 2026-10-11); the tab itself stays in the app's language.
+  const [language, setLanguage] = React.useState<PromoteLanguage>(() => parsePromoteLanguage(localeLike));
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (saved) setLanguage(parsePromoteLanguage(saved));
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit.
+    }
+  }, []);
+  function chooseLanguage(next: PromoteLanguage) {
+    setLanguage(next);
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+    } catch {
+      // See above.
+    }
+  }
+  // The specialties she unticked for the sign. Kept as the ones left off, so a
+  // specialty approved later shows without her doing anything.
+  const [leftOff, setLeftOff] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    try {
+      const saved: unknown = JSON.parse(window.localStorage.getItem(SIGN_LEFT_OFF_STORAGE_KEY) ?? "[]");
+      if (Array.isArray(saved)) setLeftOff(saved.filter((value): value is string => typeof value === "string"));
+    } catch {
+      // Blocked or unreadable storage: every specialty shows.
+    }
+  }, []);
+  function toggleSpecialty(name: string, shown: boolean) {
+    const next = shown ? leftOff.filter((value) => value !== name) : [...leftOff, name];
+    setLeftOff(next);
+    try {
+      window.localStorage.setItem(SIGN_LEFT_OFF_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // See above.
+    }
+  }
+  const shownOnSign = React.useMemo(() => signSpecialties(specialties, leftOff), [specialties, leftOff]);
+  const signCopy = React.useMemo(() => resolvePromotePracticeCopy(language), [language]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const profileBookingUrl = slug ? buildPublicProfileUrl(slug) : "";
   const bookingUrl = slug
     ? `${profileBookingUrl}?utm_source=doctor_qr&utm_medium=profile_card&ref=doctor_profile_qr`
     : "";
 
+  const shareMessage = buildShareMessage(language, doctorName, profileBookingUrl);
   const [linkCopied, setLinkCopied] = React.useState(false);
   // The plain profile link (no QR tracking), for websites, emails and messages.
   async function copyLink() {
@@ -89,11 +150,11 @@ export function PromotePracticeSection({
 
     const html = buildBookingSignHtml({
       doctorName,
-      specialty: specialty ?? "",
+      specialties: shownOnSign,
       qrDataUrl: dataUrl,
       logoUrl: `${window.location.origin}/brand/doccy-logo.png`,
       shortLink: shortBookingLink(profileBookingUrl),
-      copy,
+      copy: signCopy,
     });
 
     const iframe = document.createElement("iframe");
@@ -148,7 +209,7 @@ export function PromotePracticeSection({
         window.setTimeout(triggerPrint, 50);
       });
     });
-  }, [slug, bookingUrl, profileBookingUrl, doctorName, specialty, copy]);
+  }, [slug, bookingUrl, profileBookingUrl, doctorName, shownOnSign, copy, signCopy]);
 
   if (!slug?.trim()) {
     return (
@@ -164,6 +225,59 @@ export function PromotePracticeSection({
 
   return (
     <div className="space-y-5">
+      <div
+        role="group"
+        aria-label={copy.languageLabel}
+        data-testid="promote-language"
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
+        <p className="text-sm text-slate-300">{copy.languageLabel}</p>
+        <div className="inline-flex rounded-xl border border-slate-700 bg-slate-950/40 p-1">
+          {LANGUAGES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={language === option.id}
+              onClick={() => chooseLanguage(option.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                language === option.id
+                  ? "bg-clinical-500 text-slate-950"
+                  : "text-slate-300 hover:text-slate-100"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {specialties.length > 1 ? (
+        <div
+          role="group"
+          aria-label={copy.signSpecialtiesLabel}
+          data-testid="promote-sign-specialties"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <p className="text-sm text-slate-300">{copy.signSpecialtiesLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {specialties.map((name) => (
+              <label
+                key={name}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+              >
+                <input
+                  type="checkbox"
+                  checked={!leftOff.includes(name)}
+                  onChange={(event) => toggleSpecialty(name, event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-500 bg-slate-900 accent-clinical-500"
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <section className={SETTINGS_CARD_CLASS} data-testid="promote-booking-link">
         <h2 className={SETTINGS_EYEBROW_CLASS}>{copy.bookingLinkLabel}</h2>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -171,9 +285,38 @@ export function PromotePracticeSection({
             {shortBookingLink(profileBookingUrl)}
           </p>
           <button type="button" onClick={() => void copyLink()} className={SETTINGS_SECONDARY_BUTTON_CLASS}>
-            <Copy className="h-4 w-4" aria-hidden />
+            {linkCopied ? (
+              <Check className="h-4 w-4 text-clinical-300" aria-hidden />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden />
+            )}
             {linkCopied ? copy.copiedButton : copy.copyLinkButton}
           </button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="promote-share">
+          <span className="text-xs text-slate-400">{copy.shareLabel}</span>
+          <a
+            href={buildWhatsAppShareUrl(shareMessage)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}
+          >
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            WhatsApp
+          </a>
+          <a href={buildViberShareUrl(shareMessage)} className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}>
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            Viber
+          </a>
+          <a
+            href={buildTelegramShareUrl(language, doctorName, profileBookingUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}
+          >
+            <Send className="h-3.5 w-3.5" aria-hidden />
+            Telegram
+          </a>
         </div>
 
         <div className="mt-5 flex flex-col items-center gap-5 rounded-2xl bg-white p-5 sm:flex-row sm:items-center">
@@ -214,10 +357,10 @@ export function PromotePracticeSection({
 
       {profileBookingUrl && slug ? (
         <PromotePracticeScripts
-          slug={slug}
           doctorName={doctorName}
           bookingUrl={profileBookingUrl}
-          localeLike={localeLike}
+          siteHost={shortBookingLink(getPublicBookingBaseUrl())}
+          localeLike={language}
           copy={copy}
         />
       ) : null}

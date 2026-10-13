@@ -1,3 +1,5 @@
+import type { UserEventStatRow } from "@/lib/user-events";
+
 export const CALL_TO_BOOK_SOURCES = ["finder_card", "professional_profile_page"] as const;
 
 export type CallToBookSource = (typeof CALL_TO_BOOK_SOURCES)[number];
@@ -81,14 +83,8 @@ export function aggregateCallToBookClicks(events: readonly CallToBookClickEvent[
   };
 }
 
-/** One row from the `founder_call_to_book_stats` SQL aggregate. */
-export type CallToBookStatRow = {
-  professional_id: string;
-  click_count: number | string | null;
-  finder_count: number | string | null;
-  profile_count: number | string | null;
-  last_at: string | null;
-};
+/** One row from `founder_user_event_stats('show_phone_number', …)`: every click counts. */
+export type CallToBookStatRow = UserEventStatRow;
 
 /** Totals across every stat row — the database already grouped by professional, so this is a plain sum. */
 export function sumCallToBookStats(
@@ -98,7 +94,7 @@ export function sumCallToBookStats(
   let finderCount = 0;
   let professionalProfileCount = 0;
   for (const row of stats) {
-    total += Number(row.click_count) || 0;
+    total += Number(row.event_count) || 0;
     finderCount += Number(row.finder_count) || 0;
     professionalProfileCount += Number(row.profile_count) || 0;
   }
@@ -122,7 +118,7 @@ export function buildCallToBookDashboardRows(
       name: meta?.name?.trim() || id.slice(0, 8),
       district: meta?.district ?? null,
       specialty: meta?.specialty ?? null,
-      count: Number(row.click_count) || 0,
+      count: Number(row.event_count) || 0,
       finderCount: Number(row.finder_count) || 0,
       professionalProfileCount: Number(row.profile_count) || 0,
       lastAt: String(row.last_at ?? ""),

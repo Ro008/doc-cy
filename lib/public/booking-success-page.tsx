@@ -10,8 +10,9 @@ import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { linkIdForClinic, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
@@ -64,7 +65,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, status, visit_type, reason, location_id",
+      "id, professional_id, appointment_datetime, status, reason, clinic_id",
     )
     .eq("id", appointmentId)
     .single();
@@ -77,18 +78,16 @@ export default async function BookingSuccessPage({
     redirect(bookingProfilePath(params));
   }
 
-  const [doctorResult, settingsResult] = await Promise.all([
+  const [doctorResult, locations] = await Promise.all([
     supabase
       .from("professionals")
-      .select("id, name, slug, phone")
-      .eq("id", appointment.doctor_id)
+      .select("id, name, slug")
+      .eq("id", appointment.professional_id)
       .single(),
-    supabase
-      .from("professional_settings")
-      .select("slot_duration_minutes")
-      .eq("professional_id", appointment.doctor_id)
-      .single(),
+    loadDoctorLocations(appointment.professional_id as string),
   ]);
+  const clinicId = (appointment as { clinic_id?: string | null }).clinic_id ?? null;
+  const locationId = linkIdForClinic(locations, clinicId);
 
   if (doctorResult.error || !doctorResult.data) {
     redirect(bookingProfilePath(params));
@@ -103,9 +102,8 @@ export default async function BookingSuccessPage({
     );
   }
 
-  const durationMinutes =
-    (settingsResult.data as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // The slot length of the appointment's clinic (Point E6: it lives on the clinic link).
+  const durationMinutes = clinicSlotMinutes(locations, locationId);
 
   const startUtc = new Date(appointment.appointment_datetime as string);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -114,18 +112,11 @@ export default async function BookingSuccessPage({
   const dateLabel = format(startCy, "dd/MM/yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
-  const apptRow = appointment as {
-    visit_type?: string | null;
-    reason?: string | null;
-  };
+  const apptRow = appointment as { reason?: string | null };
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
-  const locations = await loadDoctorLocations(appointment.doctor_id as string);
-  const clinic = appointmentClinicCopy({
-    locations,
-    locationId: (appointment as { location_id?: string | null }).location_id,
-  });
+  const clinic = appointmentClinicCopy({ locations, clinicId });
 
   const cal = getCalendarEventDetails(
     {
@@ -135,12 +126,13 @@ export default async function BookingSuccessPage({
     {
       name: doctor.name,
       specialty: specialtyName,
-      phone: doctor.phone,
+      phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
+      clinic_name: clinic.clinicName,
       clinic_address: clinic.address,
+      maps_url: clinic.mapsUrl,
     },
     {
       reason: apptRow.reason,
-      visitType: apptRow.visit_type,
     },
     { includeDirectClinicContact: confirmed }
   );

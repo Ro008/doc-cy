@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { normalizeCyprusClinicPhone } from "../../lib/clinic-phone";
+import { formatCyprusClinicPhoneInput, normalizeCyprusClinicPhone } from "../../lib/clinic-phone";
 
 /**
  * A new clinic proposed at registration needs its phone: the public Call button
@@ -31,5 +31,31 @@ describe("normalizeCyprusClinicPhone", () => {
     ]) {
       assert.equal(normalizeCyprusClinicPhone(value), null, value);
     }
+  });
+});
+
+/**
+ * Settings → Clinics: the phone field on a clinic card shows the 8 national digits
+ * grouped the Cypriot way while she types; "+357" sits in front of the field.
+ */
+describe("formatCyprusClinicPhoneInput", () => {
+  it("groups the digits as 2 + 6, landline or mobile", () => {
+    assert.equal(formatCyprusClinicPhoneInput("25123456"), "25 123456");
+    assert.equal(formatCyprusClinicPhoneInput("99123456"), "99 123456");
+    assert.equal(formatCyprusClinicPhoneInput("25-12 34 56"), "25 123456");
+  });
+
+  it("works part-way through typing", () => {
+    assert.equal(formatCyprusClinicPhoneInput(""), "");
+    assert.equal(formatCyprusClinicPhoneInput("2"), "2");
+    assert.equal(formatCyprusClinicPhoneInput("25"), "25");
+    assert.equal(formatCyprusClinicPhoneInput("251"), "25 1");
+  });
+
+  it("drops a pasted country code and anything past 8 digits", () => {
+    assert.equal(formatCyprusClinicPhoneInput("+357 25 123456"), "25 123456");
+    assert.equal(formatCyprusClinicPhoneInput("0035725123456"), "25 123456");
+    assert.equal(formatCyprusClinicPhoneInput("35725123456"), "25 123456");
+    assert.equal(formatCyprusClinicPhoneInput("251234567"), "25 123456");
   });
 });

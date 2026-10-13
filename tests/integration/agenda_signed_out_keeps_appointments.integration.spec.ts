@@ -56,9 +56,7 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
       admin,
       nonce,
       name: `Lapse Doctor ${nonce.slice(-4)}`,
-      specialty: "Cardiology",
-      is_specialty_approved: true,
-      status: "verified",
+      specialty: "Cardiology",
     });
 
     // The next weekday, 10:00 Cyprus time: always in the future and inside the
@@ -69,7 +67,7 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
     dayKey = format(day, "yyyy-MM-dd");
     patientName = `Lapse Patient ${nonce.slice(-5)}`;
     const inserted = await admin.from("appointments").insert({
-      doctor_id: fixture.doctorId,
+      professional_id: fixture.doctorId,
       patient_name: patientName,
       patient_email: `signed-out-${nonce}@integration.test`,
       patient_phone: "99123456",
@@ -82,7 +80,7 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
 
   test.afterAll(async () => {
     if (!fixture) return;
-    await admin.from("appointments").delete().eq("doctor_id", fixture.doctorId);
+    await admin.from("appointments").delete().eq("professional_id", fixture.doctorId);
     await deleteTestDoctor(fixture);
   });
 

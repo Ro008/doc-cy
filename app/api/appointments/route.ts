@@ -1,559 +1,199 @@
 // app/api/appointments/route.ts
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase-service";
-import { CY_TZ } from "@/lib/appointments";
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
-import { addDays, addHours, addMinutes, format } from "date-fns";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+
+import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
+import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import {
-  candidateOverlapsAnyBlockingInterval,
-  explainCandidateOverlap,
-} from "@/lib/appointment-overlap";
-import {
-  fetchBlockingAppointments,
-  toBlockingRows,
-} from "@/lib/appointment-blocking-query";
-import { enUS } from "date-fns/locale";
-import { appointmentToCyprusDate } from "@/lib/appointments";
-import {
-  buildWeeklyScheduleFromSettings,
-  isDateInHolidayRange,
-  isTimeWithinSettings,
-  normalizeMinimumNoticeHours,
-  type DoctorSettingsRow,
-} from "@/lib/doctor-settings";
-import {
-  sendResendEmail,
-  AUTOMATED_EMAIL_FOOTER_TEXT,
-  automatedEmailFooterHtml,
-  escapeHtml,
-} from "@/lib/resend";
-import type { DoctorRow } from "@/lib/doctors";
-import { parseIsNewPatient } from "@/lib/patient-visit-status";
-import {
-  normalizeAppointmentReason,
-} from "@/lib/visit-types";
-import { professionalFirstName } from "@/lib/professional-name";
-import {
-  EMAIL_CAL_GOOGLE_BTN,
-  EMAIL_HEADING,
-  EMAIL_SECTION_LABEL,
-  EMAIL_SHELL_CLOSE,
-  EMAIL_SHELL_OPEN,
-  EMAIL_TEXT,
-  EMAIL_TEXT_MUTED,
-} from "@/lib/email-brand";
-import {
-  appointmentClinicCopy,
-  formatAppointmentClinicEmailHtml,
-  formatAppointmentClinicEmailText,
-} from "@/lib/appointment-clinic-copy";
+  bookingLimitRefusal,
+  countOpenRequestsWithProfessional,
+  countRecentDrafts,
+  createAppointmentDraft,
+} from "@/lib/appointment-drafts";
+import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
+import { bookingViewerMode, loadBookingAccountKind, PROFESSIONAL_SIGNED_IN_CODE } from "@/lib/booking-viewer";
+import { buildBookingConfirmLinkEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
+import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
+import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
-import { appointmentRequestSentQuery } from "@/lib/appointment-links";
-import { locationToSettingsRow } from "@/lib/doctor-locations";
-import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
-import { locationHasClinic } from "@/lib/professional-clinic-locations";
-import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { resolveRequestedService } from "@/lib/requested-service";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 
-const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
-const DASHBOARD_LINK_STYLE = EMAIL_CAL_GOOGLE_BTN;
-
+/**
+ * A patient submits the online booking form (user, 2026-10-02).
+ *
+ * This creates a draft, not an appointment: the patient gets an email with a 30-minute,
+ * single-use link, and only confirming it (POST /api/booking/confirm) creates the
+ * REQUESTED appointment and tells the professional. A draft holds no time.
+ *
+ * 202 { status: "check_email" } on success. 403 `professional_signed_in` when a
+ * professional (or applicant) is signed in: they can't book, with anyone (user, 2026-10-06).
+ */
 export async function POST(req: NextRequest) {
   const limited = enforcePublicApiRateLimit(req, "appointments", {
-    body: {
-      message: "Too many booking attempts. Please try again later.",
-    },
+    body: { message: "Too many booking attempts. Please try again later." },
   });
   if (limited) return limited;
 
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json(
-      {
-        message:
-          "Server is not configured for booking (missing SUPABASE_SERVICE_ROLE_KEY).",
-      },
-      { status: 503 }
+      { message: "Server is not configured for booking (missing SUPABASE_SERVICE_ROLE_KEY)." },
+      { status: 503 },
     );
   }
-
-  let body: unknown;
-
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { message: "Invalid JSON body." },
-      { status: 400 }
-    );
-  }
-
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
 
   const {
-    doctorId: rawDoctorId,
-    doctorSlug,
-    patientName,
-    patientEmail,
-    patientPhone,
-    appointmentLocal,
-    reason: rawReason,
-    isNewPatient: rawIsNewPatient,
-    locationId: rawLocationId,
-  } = body as {
-    doctorId?: string;
-    doctorSlug?: string;
-    patientName?: string;
-    patientEmail?: string;
-    patientPhone?: string;
-    appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
-    reason?: string;
-    isNewPatient?: unknown;
-    locationId?: string;
-  };
+    data: { user },
+  } = await createRouteHandlerClient({ cookies }).auth.getUser();
+  if (user) {
+    const kind = await loadBookingAccountKind(supabase, user.id).catch((err) => {
+      console.error("[DocCy] booking: account kind", err);
+      return null;
+    });
+    if (bookingViewerMode(kind, false) !== "patient") {
+      return NextResponse.json(
+        {
+          code: PROFESSIONAL_SIGNED_IN_CODE,
+          message: "You're signed in as a professional. To book a visit as a patient, sign out first.",
+        },
+        { status: 403 },
+      );
+    }
+  }
 
-  let doctorId = rawDoctorId;
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
+  }
 
-  // Allow tests/clients to pass doctorSlug instead of doctorId (MVP convenience)
-  if (!doctorId && doctorSlug) {
-    const { data: doctor, error: doctorError } = await supabase
+  let professionalId = String(body.doctorId ?? "").trim();
+  // Tests and clients may pass the profile slug instead of the id.
+  const slug = String(body.doctorSlug ?? "").trim();
+  if (!professionalId && slug) {
+    const { data } = await supabase
       .from("professionals")
       .select("id")
-      .eq("slug", doctorSlug)
+      .eq("slug", slug)
       .eq("is_registered", true)
-      .single();
-
-    if (doctorError || !doctor) {
-      return NextResponse.json(
-        { message: "Professional not found for provided slug." },
-        { status: 400 }
-      );
+      .maybeSingle();
+    if (!data) {
+      return NextResponse.json({ message: "Professional not found for provided slug." }, { status: 400 });
     }
-    doctorId = doctor.id as string;
+    professionalId = String((data as { id: string }).id);
+  }
+  const appointmentLocal = String(body.appointmentLocal ?? "").trim();
+  if (!professionalId || !appointmentLocal) {
+    return NextResponse.json({ message: "Missing required fields." }, { status: 400 });
   }
 
-  if (
-    !doctorId ||
-    !patientName ||
-    !patientEmail ||
-    !patientPhone ||
-    !appointmentLocal
-  ) {
-    return NextResponse.json(
-      { message: "Missing required fields." },
-      { status: 400 }
-    );
-  }
+  const parsed = parseBookingPatientFields(body, "online");
+  if (!parsed.ok) return NextResponse.json({ message: parsed.message }, { status: 400 });
+  const fields = parsed.fields;
+  const patientEmail = fields.patientEmail!;
 
-  const reason = normalizeAppointmentReason(rawReason);
-  if (!reason) {
-    return NextResponse.json(
-      { message: "Please tell us briefly why you need this visit." },
-      { status: 400 }
-    );
-  }
-
-  const isNewPatient = parseIsNewPatient(rawIsNewPatient);
-  if (isNewPatient === null) {
-    return NextResponse.json(
-      { message: "Please tell us if this is your first visit with this professional." },
-      { status: 400 }
-    );
-  }
-
-  const { data: doctorGate, error: doctorGateError } = await supabase
-    .from("professionals")
-    .select("id, status")
-    .eq("id", doctorId)
-    .single();
-
-  if (doctorGateError || !doctorGate) {
-    return NextResponse.json({ message: "Professional not found." }, { status: 400 });
-  }
-  if ((doctorGate as { status?: string }).status !== "verified") {
-    return NextResponse.json(
-      { message: "This professional is not accepting public bookings yet." },
-      { status: 403 }
-    );
-  }
-
-  // Interpret appointmentLocal as local Europe/Nicosia time and convert to UTC
-  let appointmentUtc: Date;
+  // Optional: one of her services (user, 2026-10-04).
+  let professionalServiceId: string | null = null;
   try {
-    appointmentUtc = zonedTimeToUtc(appointmentLocal, CY_TZ);
-  } catch {
-    return NextResponse.json(
-      { message: "Invalid appointmentLocal value." },
-      { status: 400 }
-    );
+    const requested = await resolveRequestedService(supabase, professionalId, body.professionalServiceId);
+    if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
+    professionalServiceId = requested.service?.id ?? null;
+  } catch (err) {
+    console.error("[DocCy] booking service check", err);
+    return NextResponse.json({ message: "Error checking your request." }, { status: 500 });
   }
 
-  if (Number.isNaN(appointmentUtc.getTime())) {
-    return NextResponse.json(
-      { message: "Invalid appointmentLocal value." },
-      { status: 400 }
-    );
+  const slot = await checkOnlineBookingSlot(supabase, {
+    professionalId,
+    appointmentLocal,
+    locationId: typeof body.locationId === "string" ? body.locationId : null,
+  });
+  if (!slot.ok) {
+    const out: Record<string, unknown> = { message: slot.message, code: slot.code };
+    if (slot.debug !== undefined) out.debug = slot.debug;
+    return NextResponse.json(out, { status: slot.status });
   }
 
-  // Verify requested time against professional_settings (working days + hours)
-  const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
-  const dayOfWeek = cyLocal.getDay(); // 0-6
-  const hours = cyLocal.getHours();
-  const minutes = cyLocal.getMinutes();
-  const hhmmss = `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:00`;
-
-  const { data: settings, error: settingsError } = await supabase
-    .from("professional_settings")
-    .select("*")
-    .eq("professional_id", doctorId)
-    .single();
-
-  if (settingsError || !settings) {
-    if ((settingsError as { code?: string })?.code === "PGRST116") {
-      return NextResponse.json(
-        { message: "Professional has not set availability yet." },
-        { status: 400 }
-      );
-    }
-    console.error(settingsError);
-    return NextResponse.json(
-      { message: "Error checking availability." },
-      { status: 500 }
-    );
-  }
-
-  const locations = await loadDoctorLocations(doctorId);
-  const requestedLocationId = String(rawLocationId ?? "").trim();
-  const bookingLocation =
-    (requestedLocationId
-      ? locations.find((row) => row.id === requestedLocationId)
-      : null) ??
-    (locations.length === 1 ? locations[0] : null) ??
-    primaryDoctorLocation(locations);
-
-  if (locations.length > 1 && !bookingLocation) {
-    return NextResponse.json(
-      { message: "Please choose a clinic for this appointment." },
-      { status: 400 },
-    );
-  }
-
-  // Every appointment is at a clinic (every professional has one, user 2026-09-29): no
-  // clinic, or one with no address, leaves nowhere to send the patient and no clinic
-  // link for the appointment to reference.
-  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
-    return NextResponse.json(
-      { message: "Bookings temporarily unavailable" },
-      { status: 403 }
-    );
-  }
-
-  const locationSettings = bookingLocation
-    ? locationToSettingsRow(bookingLocation, settings as DoctorSettingsRow)
-    : (settings as DoctorSettingsRow);
-
-  const pauseOnlineBookings = Boolean(locationSettings.pause_online_bookings);
-  if (pauseOnlineBookings) {
-    return NextResponse.json(
-      { message: "Bookings temporarily unavailable" },
-      { status: 403 }
-    );
-  }
-
-  const appointmentDateKey = format(cyLocal, "yyyy-MM-dd");
-  if (isDateInHolidayRange(locationSettings, appointmentDateKey)) {
-    return NextResponse.json(
-      { message: "Bookings temporarily unavailable" },
-      { status: 403 }
-    );
-  }
-
-  const horizonDays = Number(locationSettings.booking_horizon_days ?? 90);
-  const maxHorizonDays = [14, 30, 90, 180].includes(horizonDays)
-    ? horizonDays
-    : 90;
-  const todayCyprus = utcToZonedTime(new Date(), CY_TZ);
-  const maxDateKey = format(addDays(todayCyprus, maxHorizonDays), "yyyy-MM-dd");
-  if (appointmentDateKey > maxDateKey) {
-    return NextResponse.json(
-      { message: "Requested time is outside the professional's booking horizon." },
-      { status: 400 }
-    );
-  }
-
-  const minimumNoticeHours = normalizeMinimumNoticeHours(
-    locationSettings.minimum_notice_hours,
-  );
-  const minimumNoticeCutoffUtc = addHours(new Date(), minimumNoticeHours);
-  if (appointmentUtc.getTime() < minimumNoticeCutoffUtc.getTime()) {
-    return NextResponse.json(
-      { message: "Requested time does not meet the minimum notice period." },
-      { status: 400 }
-    );
-  }
-
-  const withinSlot = isTimeWithinSettings(
-    locationSettings,
-    dayOfWeek,
-    hhmmss
-  );
-
-  if (!withinSlot) {
-    return NextResponse.json(
-      { message: "Requested time is outside the professional's availability." },
-      { status: 400 }
-    );
-  }
-
-  const settingsRow = locationSettings;
-  const slotDurationMinutes = Number(settingsRow.slot_duration_minutes ?? 30);
-  const slotDuration =
-    Number.isFinite(slotDurationMinutes) && slotDurationMinutes > 0
-      ? slotDurationMinutes
-      : 30;
-
-  const weeklySchedule = buildWeeklyScheduleFromSettings(settingsRow);
-  const dayKeyByDow = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ] as const;
-  const dayKey = dayKeyByDow[dayOfWeek];
-  const dayStartRaw = weeklySchedule[dayKey]?.start_time ?? "09:00:00";
-  const [dayStartHour, dayStartMinute] = dayStartRaw.split(":").map(Number);
-  const dayStartMinutesFromMidnight = dayStartHour * 60 + dayStartMinute;
-  const requestedMinutesFromMidnight = hours * 60 + minutes;
-
-  // Enforce slot grid alignment server-side (protects against malformed clients/tests).
-  const minutesSinceDayStart =
-    requestedMinutesFromMidnight - dayStartMinutesFromMidnight;
-  if (minutesSinceDayStart % slotDuration !== 0) {
-    return NextResponse.json(
-      { message: "Requested time is not aligned with the professional's slot duration." },
-      { status: 400 }
-    );
-  }
-
-  const requestedStartIso = appointmentUtc.toISOString();
-  const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
-    supabase,
-    doctorId,
-    bookingLocation?.id ?? null,
-  );
-
-  if (existingError) {
-    console.error(existingError);
-    return NextResponse.json(
-      { message: "Error checking existing appointments." },
-      { status: 500 }
-    );
-  }
-
-  // Overlap: REQUESTED/CONFIRMED use appointment_datetime + duration; NEEDS_RESCHEDULE uses
-  // proposed_slots only (original datetime must stay bookable). Matches public_professionals_occupied_datetimes.
-  const taken = candidateOverlapsAnyBlockingInterval(
-    requestedStartIso,
-    slotDuration,
-    null,
-    toBlockingRows(blockingRaw),
-    slotDuration
-  );
-
-  if (taken) {
-    const body: Record<string, unknown> = {
-      message: "Slot already taken.",
-      code: "BOOKING_OVERLAP",
-    };
-    if (process.env.NODE_ENV !== "production") {
-      const why = explainCandidateOverlap(
-        requestedStartIso,
-        slotDuration,
-        null,
-        toBlockingRows(blockingRaw),
-        slotDuration
-      );
-      if (why) body.debug = why;
-    }
-    return NextResponse.json(body, { status: 409 });
-  }
-
-  // Initial duration for overlap checks and agenda height uses professional_settings.slot_duration_minutes
-  // (defaults to 30). This is provisional until the professional confirms and adjusts the slot.
-  const bookedAtIso = new Date().toISOString();
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("appointments")
-    .insert({
-      doctor_id: doctorId,
-      location_id: bookingLocation?.id ?? null,
-      patient_name: patientName,
-      patient_email: patientEmail,
-      patient_phone: patientPhone,
-      appointment_datetime: appointmentUtc.toISOString(),
-      status: "REQUESTED",
-      reason,
-      is_new_patient: isNewPatient,
-      duration_minutes: slotDuration,
-      // Exact moment the patient submitted the request (dashboard KPIs)
-      created_at: bookedAtIso,
-    })
-    .select("id, appointment_datetime, status, created_at, reason")
-    .single();
-
-  if (insertError) {
-    console.error(insertError);
-
-    // 23505: unique violation — e.g. UNIQUE(doctor_id, appointment_datetime) while a
-    // NEEDS_RESCHEDULE row still holds the original instant. See
-    // the partial unique index appointments_doctor_datetime_active_booking_key.
-    const code = (insertError as any)?.code;
-    if (code === "23505") {
-      return NextResponse.json(
-        { message: "Slot already taken.", code: "BOOKING_DUPLICATE" },
-        { status: 409 }
-      );
-    }
-
-    return NextResponse.json(
-      { message: "Error creating appointment." },
-      { status: 500 }
-    );
-  }
-
-  // Notifications (best-effort) via Resend. From: DocCy <no-reply@mydoccy.com> (override RESEND_FROM for dev).
-  // No reply_to. Do not block booking success if notifications fail.
   try {
-    const { data: doctor } = await supabase
-      .from("professionals")
-      .select("name, email, registration_email, phone")
-      .eq("id", doctorId)
-      .single();
-
-    const doctorRow = doctor as (DoctorRow & { registration_email?: string | null }) | null;
-    const doctorName = doctorRow?.name ?? undefined;
-    const doctorEmail = professionalAccountEmail(doctorRow ?? {});
-    const patientEmailTo = String(patientEmail).trim();
-    const resendToOverride = process.env.RESEND_TO_OVERRIDE?.trim();
-    const allowRecipientOverride = process.env.NODE_ENV !== "production";
-    const effectiveOverride =
-      allowRecipientOverride && resendToOverride ? resendToOverride : null;
-
-    const cyDate = appointmentToCyprusDate(inserted.appointment_datetime as string);
-    const dateLabel = format(cyDate, "EEEE, d MMMM yyyy", { locale: enUS });
-    const timeLabel = format(cyDate, "HH:mm");
-    const manageUrl = new URL(
-      `/dashboard/appointments/${encodeURIComponent(String(inserted.id))}`,
-      siteUrl
-    ).toString();
-    const clinic = appointmentClinicCopy({
-      locations,
-      locationId: bookingLocation?.id ?? null,
+    const [draftsLastHourForEmail, draftsLastHourForPhone, openRequestsWithProfessional] = await Promise.all([
+      countRecentDrafts(supabase, { patientEmail }),
+      countRecentDrafts(supabase, { patientPhone: fields.patientPhone }),
+      countOpenRequestsWithProfessional(supabase, professionalId, patientEmail),
+    ]);
+    const refusal = bookingLimitRefusal({
+      draftsLastHourForEmail,
+      draftsLastHourForPhone,
+      openRequestsWithProfessional,
     });
-
-    if (doctorName) {
-      const proFirst = professionalFirstName(doctorName);
-
-      const doctorText =
-        `Hi ${proFirst},\n\n` +
-        `You have a new appointment request from ${patientName} for ${dateLabel} at ${timeLabel} (Cyprus time).\n\n` +
-        `${formatAppointmentClinicEmailText(clinic)}\n` +
-        `Reason: ${reason}\n\n` +
-        `Please sign in to DocCy to review, adjust the duration, and confirm.\n\n` +
-        `${manageUrl}\n\n` +
-        `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
-
-      const doctorHtml = `
-${EMAIL_SHELL_OPEN}
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">New appointment request</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(proFirst)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      You have a new request from <strong>${escapeHtml(patientName)}</strong> for
-      <strong>${escapeHtml(dateLabel)}</strong> at <strong>${escapeHtml(timeLabel)}</strong> (Cyprus time).
-    </p>
-    ${formatAppointmentClinicEmailHtml(clinic)}
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      Please sign in to DocCy to review, adjust the duration, and confirm.
-    </p>
-
-    <p style="${PRIMARY_ACTIONS_LABEL}">Next step</p>
-    <a href="${manageUrl}" style="${DASHBOARD_LINK_STYLE}">Open request in DocCy</a>
-
-    ${automatedEmailFooterHtml()}
-${EMAIL_SHELL_CLOSE}`;
-
-      const doctorRecipient = effectiveOverride || doctorEmail;
-      if (doctorRecipient) {
-        await sendResendEmail({
-          to: doctorRecipient,
-          subject: `🩺 New appointment request: ${patientName}`,
-          text: doctorText,
-          html: doctorHtml,
-        });
-      } else {
-        console.warn(
-          "[DocCy] Professional notification skipped: missing email and no RESEND_TO_OVERRIDE."
-        );
-      }
-
-      const patientText =
-        `Hi ${patientName},\n\n` +
-        `We've sent your appointment request to ${doctorName}. They will review the reason for your visit to assign the time you need.\n\n` +
-        `${formatAppointmentClinicEmailText(clinic)}\n` +
-        `We'll let you know as soon as it is confirmed. Please do not add this visit to your external calendar yet.\n\n` +
-        `Please manage this request through DocCy — wait for our email rather than contacting the clinic directly to schedule.\n\n` +
-        `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
-
-      const patientHtml = `
-${EMAIL_SHELL_OPEN}
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Request sent</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patientName)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      We've sent your request to <strong>${escapeHtml(doctorName)}</strong>. They will review the reason for your visit to assign the time you need.
-    </p>
-    ${formatAppointmentClinicEmailHtml(clinic)}
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      We'll let you know as soon as it is confirmed. Please <strong>do not</strong> add this visit to your external calendar yet.
-    </p>
-    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${EMAIL_TEXT_MUTED};">
-      Please wait for DocCy to confirm your visit rather than messaging the clinic separately to book the same time.
-    </p>
-
-    ${automatedEmailFooterHtml()}
-${EMAIL_SHELL_CLOSE}`;
-
-      const patientRecipient = effectiveOverride || patientEmailTo;
-      if (patientRecipient) {
-        await sendResendEmail({
-          to: patientRecipient,
-          subject: `Request sent — awaiting confirmation with ${doctorName}`,
-          text: patientText,
-          html: patientHtml,
-        });
-      } else {
-        console.warn(
-          "[DocCy] Patient notification skipped: missing patient email and no RESEND_TO_OVERRIDE."
-        );
-      }
+    if (refusal) {
+      return NextResponse.json(
+        { message: refusal.message, code: refusal.code },
+        { status: refusal.code === "too_many_requests" ? 429 : 409 },
+      );
     }
   } catch (err) {
-    console.error("[DocCy] Failed to send appointment notification emails", err);
+    console.error("[DocCy] booking limits", err);
+    return NextResponse.json({ message: "Error checking your request." }, { status: 500 });
+  }
+
+  const clinicId = slot.bookingLocation.clinic_id;
+  if (!clinicId) {
+    return NextResponse.json({ message: "Bookings temporarily unavailable" }, { status: 403 });
+  }
+
+  let token: string;
+  try {
+    ({ token } = await createAppointmentDraft(supabase, {
+      ...fields,
+      patientEmail,
+      professionalId,
+      clinicId,
+      appointmentUtc: slot.appointmentUtc,
+      durationMinutes: slot.slotDurationMinutes,
+      professionalServiceId,
+    }));
+  } catch (err) {
+    console.error("[DocCy] draft insert", err);
+    return NextResponse.json({ message: "Error saving your request." }, { status: 500 });
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
+  try {
+    const { data: professional } = await supabase
+      .from("professionals")
+      .select("name, slug")
+      .eq("id", professionalId)
+      .single();
+    const emailClinic =
+      (await loadPatientEmailClinic(supabase, {
+        clinicId: slot.bookingLocation.clinic_id,
+        professionalSlug: (professional as { slug?: string | null } | null)?.slug,
+        siteUrl,
+      }).catch(() => null)) ?? emailClinicFromLocation(slot.bookingLocation);
+    await sendBuiltEmail(
+      patientEmail,
+      buildBookingConfirmLinkEmail({
+        patientName: fields.patientName,
+        professionalName: String((professional as { name?: string } | null)?.name ?? ""),
+        appointmentIso: slot.appointmentUtc.toISOString(),
+        clinic: emailClinic,
+        confirmUrl: appointmentLinkUrl(siteUrl, "confirm", token),
+      }),
+    );
+  } catch (err) {
+    // The draft exists; without the email the patient can simply submit again.
+    console.error("[DocCy] booking confirm-link email failed", err);
+    return NextResponse.json(
+      { message: "We couldn't send the confirmation email. Please try again." },
+      { status: 502 },
+    );
   }
 
   return NextResponse.json(
-    {
-      appointment: inserted,
-      // Signed query for the request-sent page (the browser can't sign it).
-      requestSentQuery: appointmentRequestSentQuery(String(inserted.id)),
-      message: "Your booking request was submitted.",
-    },
-    { status: 201 }
+    { status: "check_email", message: "Check your email to confirm your request." },
+    { status: 202 },
   );
 }
-

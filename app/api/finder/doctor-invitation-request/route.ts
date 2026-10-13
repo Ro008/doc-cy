@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isSupabaseMissingTableError } from "@/lib/supabase-db-errors";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { getClientIp, voterFingerprint } from "@/lib/vote-fingerprint";
+import { USER_EVENTS_TABLE, missingProfessionalReportEvent } from "@/lib/user-events";
 
 const DEDUPE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 const MIN_NAME_LEN = 2;
@@ -74,11 +75,13 @@ export async function POST(req: Request) {
 
   if (voterKey) {
     const { data: existing, error: dupErr } = await supabase
-      .from("missing_professional_requests")
+      .from(USER_EVENTS_TABLE)
       .select("id")
-      .eq("voter_key", voterKey)
-      .eq("requested_name", requestedName)
+      .eq("event_type", "missing_professional_report")
+      .eq("visitor_key", voterKey)
+      .eq("details->>requested_name", requestedName)
       .gte("created_at", sinceIso)
+      .limit(1)
       .maybeSingle();
 
     if (dupErr) {
@@ -93,14 +96,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const { error: insertErr } = await supabase.from("missing_professional_requests").insert({
-    requested_name: requestedName,
-    specialty,
-    district,
-    search_name: searchName,
-    source: "finder_empty_state",
-    ...(voterKey ? { voter_key: voterKey } : {}),
-  });
+  const { error: insertErr } = await supabase.from(USER_EVENTS_TABLE).insert(
+    missingProfessionalReportEvent({
+      details: { requested_name: requestedName, specialty, district, search_name: searchName },
+      visitorKey: voterKey,
+    }),
+  );
 
   if (insertErr) {
     const code = String((insertErr as { code?: string }).code ?? "");

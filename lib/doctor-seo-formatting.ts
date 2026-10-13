@@ -23,7 +23,7 @@ export function formatProfessionalSeoDisplayName(name: string): string {
   return name.trim();
 }
 
-export function buildVerifiedRegisteredMetaTitle(input: {
+export function buildRegisteredProfileMetaTitle(input: {
   doctorName: string;
   specialty: string;
   districtLabel: string | null;
@@ -38,24 +38,7 @@ export function buildVerifiedRegisteredMetaTitle(input: {
   return `Book Online with ${name} in ${city} | DocCy`;
 }
 
-/** Pending / rejected slug pages: informative, no instant-booking promise. */
-export function buildNonLiveDoctorMetaTitle(input: {
-  doctorName: string;
-  specialty: string;
-  districtLabel: string | null;
-}): string | null {
-  const name = formatProfessionalSeoDisplayName(input.doctorName);
-  if (!name) return null;
-  const spec = input.specialty.trim();
-  const city = input.districtLabel?.trim() || "Cyprus";
-  if (spec.length > 0) {
-    return `${name} | ${spec} in ${city} | Profile & Contact | DocCy`;
-  }
-  return `${name} in ${city} | Profile & Contact | DocCy`;
-}
-
 export function buildRegisteredProfileMetaDescription(input: {
-  status: string;
   doctorName: string;
   specialtyForSeo: string;
   cityLabel: string;
@@ -63,18 +46,11 @@ export function buildRegisteredProfileMetaDescription(input: {
   const doctorName = formatProfessionalSeoDisplayName(input.doctorName);
   const specialtyForSeo = input.specialtyForSeo.trim();
   const cityLabel = input.cityLabel.trim() || "Cyprus";
-  const st = input.status.trim().toLowerCase();
 
-  if (st === "verified" && specialtyForSeo.length > 0) {
+  if (specialtyForSeo.length > 0) {
     return `Book your next ${specialtyForSeo} appointment online with ${doctorName} in ${cityLabel}. Secure scheduling via DocCy.`;
   }
-  if (st === "verified") {
-    return `Book online with ${doctorName} in ${cityLabel} via DocCy.`;
-  }
-  if (specialtyForSeo.length > 0) {
-    return `View profile and contact details for ${doctorName} (${specialtyForSeo} in ${cityLabel}) on DocCy.`;
-  }
-  return `View profile and contact details for ${doctorName} in ${cityLabel} on DocCy.`;
+  return `Book online with ${doctorName} in ${cityLabel} via DocCy.`;
 }
 
 /**

@@ -201,6 +201,12 @@ async function main() {
   }
 
   if (doctorIds.length > 0) {
+    // Appointments never cascade with a professional (reviews RESTRICT now, the
+    // appointments FK from M2): delete reviews, drafts and visits first (links cascade).
+    for (const table of ["professional_reviews", "appointment_drafts", "appointments"]) {
+      const { error: childErr } = await admin.from(table).delete().in("professional_id", doctorIds);
+      if (childErr) throw new Error(`Failed deleting ${table}: ${childErr.message}`);
+    }
     const { error } = await admin.from("professionals").delete().in("id", doctorIds);
     if (error) throw new Error(`Failed deleting doctors: ${error.message}`);
   }

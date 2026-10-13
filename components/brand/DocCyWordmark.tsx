@@ -1,12 +1,12 @@
 import Image from "next/image";
 
-const LOGO_SRC = "/brand/doccy-logo.png";
-/** Trimmed wordmark aspect (1518×461). */
+const LOGO_SRC = { light: "/brand/doccy-logo.png", dark: "/brand/doccy-logo-on-dark.png" } as const;
+/** Trimmed wordmark aspect (1518×461), shared by both artworks. */
 const LOGO_ASPECT = 1518 / 461;
 
 type DocCyWordmarkProps = {
   className?: string;
-  /** Kept for call-site compatibility; single artwork works on light and dark surfaces. */
+  /** Surface the logo sits on: `dark` uses the reverse artwork (white "my"). */
   variant?: "light" | "dark";
   /** `sm` = compact headers; `md` = default; `lg` = blog / marketing; `xl` = finder (~1.5× md) */
   size?: "sm" | "md" | "lg" | "xl";
@@ -17,7 +17,7 @@ const HEIGHT_CLASS = { sm: "h-6", md: "h-7", lg: "h-9", xl: "h-[42px]" } as cons
 
 export function DocCyWordmark({
   className = "",
-  variant: _variant = "dark",
+  variant = "dark",
   size = "md",
 }: DocCyWordmarkProps) {
   const height = HEIGHT_PX[size];
@@ -26,7 +26,7 @@ export function DocCyWordmark({
   return (
     <span className={`inline-flex shrink-0 items-center ${className}`.trim()}>
       <Image
-        src={LOGO_SRC}
+        src={LOGO_SRC[variant]}
         alt="my doccy"
         width={width}
         height={height}

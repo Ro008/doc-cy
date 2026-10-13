@@ -12,8 +12,6 @@ export type ClinicRosterProfessional = {
   displayName: string;
   specialty: string;
   specialties?: readonly string[] | null;
-  /** False for inpatient-only (clinic roster secondary list). */
-  finderVisible?: boolean;
 };
 
 export function clinicRosterSpecialtyKeys(pro: ClinicRosterProfessional): string[] {
@@ -51,18 +49,4 @@ export function filterClinicRosterBySpecialty<T extends ClinicRosterProfessional
   if (!activeSpecialty) return unique;
   const canon = harmonizeFinderSpecialtyLabel(activeSpecialty);
   return unique.filter((pro) => clinicRosterSpecialtyKeys(pro).includes(canon));
-}
-
-/** Bookable (finder-visible) vs inpatient-only for clinic roster sections. */
-export function splitClinicRosterByFinderVisibility<
-  T extends ClinicRosterProfessional,
->(professionals: readonly T[]): { bookable: T[]; inpatientOnly: T[] } {
-  const unique = uniqueClinicRosterProfessionals(professionals);
-  const bookable: T[] = [];
-  const inpatientOnly: T[] = [];
-  for (const pro of unique) {
-    if (pro.finderVisible === false) inpatientOnly.push(pro);
-    else bookable.push(pro);
-  }
-  return { bookable, inpatientOnly };
 }

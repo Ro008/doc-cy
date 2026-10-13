@@ -80,15 +80,13 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         admin,
         nonce,
         name: `Sync Doctor ${nonce.slice(-4)}`,
-        specialty: "Cardiology",
-        is_specialty_approved: true,
-        status: "verified",
+        specialty: "Cardiology",
       });
 
       const inserted = await admin
         .from("appointments")
         .insert({
-          doctor_id: fixture.doctorId,
+          professional_id: fixture.doctorId,
           patient_name: patientName,
           patient_email: `sync-${nonce}@integration.test`,
           patient_phone: "99123456",
@@ -124,7 +122,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .from("appointments")
         .update({ status: "CONFIRMED" })
         .eq("id", appointmentId)
-        .eq("doctor_id", fixture.doctorId);
+        .eq("professional_id", fixture.doctorId);
       expect(confirmRes.error).toBeNull();
 
       // The confirmation must reach this session on its own (realtime, or the
@@ -133,14 +131,15 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .poll(
           async () => {
             await mobileCard.click();
-            const hasReschedule = await mobile
-              .getByRole("button", { name: /Reschedule appointment/i })
+            // A confirmed visit can only be cancelled (no reschedule since 2026-10-04).
+            const hasCancel = await mobile
+              .getByRole("button", { name: /Cancel appointment/i })
               .count();
             await mobile
               .getByRole("button", { name: "Close", exact: true })
               .first()
               .click();
-            return hasReschedule;
+            return hasCancel;
           },
           { timeout: 30_000, intervals: [1000, 2000, 3000] },
         )
@@ -150,14 +149,14 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .from("appointments")
         .delete()
         .eq("id", appointmentId)
-        .eq("doctor_id", fixture.doctorId);
+        .eq("professional_id", fixture.doctorId);
       expect(deleteRes.error).toBeNull();
       appointmentId = "";
 
       await expect(mobileCard).toHaveCount(0, { timeout: 30_000 });
     } finally {
       if (fixture) {
-        await admin.from("appointments").delete().eq("doctor_id", fixture.doctorId);
+        await admin.from("appointments").delete().eq("professional_id", fixture.doctorId);
         await deleteTestDoctor(fixture);
       }
       await laptopCtx.close();

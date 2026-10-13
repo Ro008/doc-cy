@@ -81,12 +81,13 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
             First Request online booking tap per patient fingerprint is stored in{" "}
-            <code className="rounded bg-black/30 px-1">public.professional_patient_booking_requests</code>{" "}
+            <code className="rounded bg-black/30 px-1">user_events</code> as{" "}
+            <code className="rounded bg-black/30 px-1">request_online_appointment</code>{" "}
             (<code className="rounded bg-black/30 px-1">professional_id</code>,{" "}
             <code className="rounded bg-black/30 px-1">created_at</code>,{" "}
             <code className="rounded bg-black/30 px-1">source</code>,{" "}
             <code className="rounded bg-black/30 px-1">clinic_id</code>,{" "}
-            <code className="rounded bg-black/30 px-1">voter_key</code>). Numbers below are unique
+            <code className="rounded bg-black/30 px-1">visitor_key</code>). Numbers below are unique
             patients in the selected window — the same lifetime signal the public finder badge uses
             when the range is All time. A repeat tap from the same fingerprint shows the thank-you
             toast but does not insert another row.

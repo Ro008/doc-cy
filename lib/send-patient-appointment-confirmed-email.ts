@@ -1,12 +1,8 @@
 import { addMinutes, format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import {
-  appointmentClinicCopyFromAddress,
-  formatAppointmentClinicEmailHtml,
-  formatAppointmentClinicEmailText,
-  type AppointmentClinicCopy,
-} from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopyFromAddress, type AppointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { patientClinicBlockHtml, patientClinicBlockText, type PatientEmailClinic } from "@/lib/patient-email-clinic";
 import {
   sendResendEmail,
   AUTOMATED_EMAIL_FOOTER_TEXT,
@@ -18,6 +14,7 @@ import {
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
 import {
+  EMAIL_CANCEL_BTN,
   EMAIL_CAL_GOOGLE_BTN,
   EMAIL_CAL_ICS_BTN,
   EMAIL_SECTION_LABEL,
@@ -53,7 +50,10 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   reason?: string | null;
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
+  /** The professional's public profile: the clinic name links to it. */
+  profileUrl?: string | null;
   isAfterReschedule?: boolean;
+  cancel?: { url: string; deadlineLabel: string } | null;
   resendToOverride?: string | null;
 }): Promise<void> {
   const content = buildPatientAppointmentConfirmedEmailContent(opts);
@@ -82,7 +82,11 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   reason?: string | null;
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
+  /** The professional's public profile: the clinic name links to it. */
+  profileUrl?: string | null;
   isAfterReschedule?: boolean;
+  /** The patient's cancel link and its deadline label (user, 2026-10-04). */
+  cancel?: { url: string; deadlineLabel: string } | null;
   resendToOverride?: string | null;
 }): { subject: string; text: string; html: string } {
   const {
@@ -94,6 +98,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     reason,
     doctor,
     isAfterReschedule,
+    cancel,
   } = opts;
 
   const doctorName = String(doctor.name ?? "your professional").trim();
@@ -102,6 +107,14 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     appointmentClinicCopyFromAddress({
       address: doctor.clinic_address,
     });
+
+  const clinicBlock: PatientEmailClinic = {
+    name: clinic.clinicName,
+    address: clinic.address,
+    mapsUrl: clinic.mapsUrl,
+    phone: doctor.phone,
+    profileUrl: opts.profileUrl ?? null,
+  };
 
   const startUtc = new Date(appointmentDatetimeIso);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -114,7 +127,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       name: doctor.name,
       specialty: doctor.specialty,
       phone: doctor.phone,
+      clinic_name: clinic.clinicName,
       clinic_address: clinic.address,
+      maps_url: clinic.mapsUrl,
     },
     { reason: reason ?? null, visitType: null, visitNotes: null },
     { includeDirectClinicContact: true }
@@ -136,8 +151,8 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   let text =
     `Hi ${patientName},\n\n` +
     `Your appointment with ${doctorName} is confirmed for ${whenLabel} (Cyprus time).\n\n` +
-    `${formatAppointmentClinicEmailText(clinic)}\n` +
-    `You can add it to your calendar:\n\n` +
+    `${patientClinicBlockText(clinicBlock)}` +
+    `\nYou can add it to your calendar:\n\n` +
     `Google Calendar: ${patientGoogleUrl}\n` +
     `Apple / Outlook (.ics): ${patientIcsUrl}\n\n`;
   if (isAfterReschedule) {
@@ -145,6 +160,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       `IMPORTANT - RESCHEDULED VISIT:\n` +
       `If you already added your previous confirmed visit to calendar, delete that old entry now.\n` +
       `DocCy cannot remove old events from your personal calendar.\n\n`;
+  }
+  if (cancel) {
+    text += `Need to cancel? You can cancel online until ${cancel.deadlineLabel} (Cyprus time):\n${cancel.url}\n\n`;
   }
   text += `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
@@ -158,7 +176,7 @@ ${EMAIL_SHELL_OPEN}
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
-    ${formatAppointmentClinicEmailHtml(clinic)}
+    ${patientClinicBlockHtml(clinicBlock)}
     ${
       isAfterReschedule
         ? `<div style="margin:0 0 14px;padding:12px 13px;border:2px solid #f59e0b;background:rgba(245,158,11,.16);border-radius:12px;">
@@ -177,6 +195,15 @@ ${EMAIL_SHELL_OPEN}
     <p style="${PRIMARY_ACTIONS_LABEL}">Calendar</p>
     <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
     <a href="${patientIcsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    ${
+      cancel
+        ? `<p style="${PRIMARY_ACTIONS_LABEL}">Need to cancel?</p>
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${EMAIL_TEXT};">
+      You can cancel online until <strong>${escapeHtml(cancel.deadlineLabel)}</strong> (Cyprus time).
+    </p>
+    <a href="${escapeHtml(cancel.url)}" style="${EMAIL_CANCEL_BTN}">Cancel this appointment</a>`
+        : ""
+    }
 
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;

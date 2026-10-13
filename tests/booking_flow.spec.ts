@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
+import { takeOverLatestDraftLink } from "./integration/helpers/online-booking";
 
 test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
@@ -19,7 +20,7 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 
@@ -77,9 +78,11 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     await expect(nameInput).toBeVisible();
     await nameInput.fill("Jane Smith");
 
+    // A test address: the confirmation link is never really emailed.
+    const patientEmail = `booking-flow-${Date.now()}-${test.info().parallelIndex}@integration.test`;
     const emailInput = page.getByLabel("Email", { exact: true });
     await expect(emailInput).toBeVisible();
-    await emailInput.fill("jane.smith@example.com");
+    await emailInput.fill(patientEmail);
 
     const phoneInput = page.getByRole("textbox", {
       name: /Phone.*priority contact/i,
@@ -94,6 +97,8 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     ).toBeHidden({ timeout: 3000 });
 
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
+    await page.getByRole("radio", { name: /Prefer not to say/i }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
 
     await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
 
@@ -104,52 +109,37 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    // 6. Assert success page + extract appointmentId for teardown
-    // If another worker books the same slot between selection and insert,
-    // the UI shows an inline 409 error and we need to retry with a different slot.
-    // Localized routes: /{locale}/{slug}/request-sent (localePrefix: "always")
-    const successUrlRegex = new RegExp(
-      `/(?:en|el)/${chosenDoctor.slug}/request-sent[?]appointmentId=`,
-    );
+    // 6. The form doesn't book yet: the patient is asked to confirm by email (user, 2026-10-02).
+    const success = page.getByTestId("booking-success-message");
+    await expect(success).toBeVisible({ timeout: 25000 });
+    await expect(success).toContainText(/Check your email/i);
+    await expect(success).toContainText(patientEmail);
 
+    // 7. The emailed link (its token swapped for a known one) opens "Confirm my request".
+    test.skip(!admin, "SUPABASE_SERVICE_ROLE_KEY is needed to open the confirmation link.");
+    let appointmentId: string | null = null;
     try {
-      await page.waitForURL(successUrlRegex, { timeout: 25000 });
-    } catch {
-      await expect(page.getByTestId("booking-error-message")).toBeVisible({
-        timeout: 5000,
-      });
+      const token = await takeOverLatestDraftLink(admin!, patientEmail);
+      await page.goto(`/booking/confirm?token=${encodeURIComponent(token)}`);
+      const confirmBtn = page.getByRole("button", { name: /Confirm my request/i });
+      await expect(confirmBtn).toBeVisible({ timeout: 20000 });
+      await confirmBtn.click();
+      await expect(page.getByTestId("booking-confirm-sent")).toBeVisible({ timeout: 20000 });
 
-      const changeTimeBtn = page.getByRole("button", { name: /Change time/i });
-      await expect(changeTimeBtn).toBeVisible({ timeout: 10000 });
-      await changeTimeBtn.click();
-
-      const selectButtons = page.getByRole("button", { name: /Select/i });
-      const count = await selectButtons.count();
-      expect(count).toBeGreaterThan(0);
-
-      await selectButtons.nth((slotIndex + 1) % count).click();
-      await page.getByRole("button", { name: /Confirm/i }).first().click();
-      await page.getByRole("radio", { name: /This is my first visit/i }).check();
-      await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
-      await page.getByRole("button", { name: /Send booking request/i }).click();
-
-      await page.waitForURL(successUrlRegex, { timeout: 25000 });
-    }
-    await expect(page.getByTestId("booking-request-sent-page")).toBeVisible({
-      timeout: 15000,
-    });
-
-    const url = new URL(page.url());
-    const appointmentId = url.searchParams.get("appointmentId") ?? "";
-    expect(appointmentId).not.toBe("");
-
-    // 7. .ics is only offered after the professional confirms the request
-    await expect(
-      page.getByRole("link", { name: /Download \.ics/i })
-    ).toHaveCount(0);
-
-    if (serviceKey) {
-      await admin.from("appointments").delete().eq("id", appointmentId);
+      // 8. Now it's a request waiting for the professional.
+      const { data: rows } = await admin!
+        .from("appointments")
+        .select("id, status, booking_source")
+        .eq("patient_email", patientEmail);
+      expect(rows).toHaveLength(1);
+      appointmentId = String(rows![0].id);
+      expect(rows![0].status).toBe("REQUESTED");
+      expect(rows![0].booking_source).toBe("online");
+    } finally {
+      if (admin) {
+        await admin.from("appointment_drafts").delete().eq("patient_email", patientEmail);
+        if (appointmentId) await admin.from("appointments").delete().eq("id", appointmentId);
+      }
     }
   });
 });

@@ -1,10 +1,14 @@
+import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { parseDDMMYYYYToISO } from "@/lib/date-format";
 import type { SettingsDirtySnapshot } from "@/lib/settings-form-dirty";
+import type { ClinicLimitsById } from "@/lib/settings-clinic-limits";
 
 /**
- * One save rule for settings (user, 2026-10-01): small controls (booking limits,
+ * One save rule for settings (user, 2026-10-01): small controls (booking limits and
+ * the online cancellation deadline,
  * languages, turning holiday mode off) save at once; bigger editors (a clinic's hours,
- * the bio, the mobile, holiday dates) have their own Save. There is no page-wide
+ * the bio, holiday dates) have their own Save. The personal mobile saves through its own
+ * route (POST /api/professional-mobile). There is no page-wide
  * "Save settings" any more.
  *
  * POST /api/doctor-settings replaces everything it is sent (unchanged API), so a save
@@ -17,15 +21,13 @@ export type SaveGroup =
   | { kind: "holiday" }
   | { kind: "bio" }
   | { kind: "languages" }
-  | { kind: "mobile" }
   | { kind: "clinic"; id: string };
 
 const GROUP_FIELDS: Record<Exclude<SaveGroup["kind"], "clinic">, Array<keyof SettingsDirtySnapshot>> = {
-  limits: ["bookingHorizonDays", "minimumNoticeHours"],
+  limits: ["bookingHorizonDays", "minimumNoticeHours", "patientCancelNoticeHours"],
   holiday: ["holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
   bio: ["bio"],
   languages: ["languages"],
-  mobile: ["mobileNumber"],
 };
 
 type Workplace = SettingsDirtySnapshot["workplaces"][number];
@@ -35,9 +37,6 @@ function clinicHours(row: Workplace | undefined) {
   if (!row) return null;
   return {
     weeklySchedule: row.weeklySchedule,
-    breakEnabled: row.breakEnabled,
-    breakStart: row.breakStart,
-    breakEnd: row.breakEnd,
     slotDurationMinutes: row.slotDurationMinutes,
   };
 }
@@ -91,6 +90,10 @@ export function validateSettingsToSave(snapshot: SettingsDirtySnapshot): string 
     if (!start || !end) return "Pick both holiday dates.";
     if (start > end) return "The holiday must end on or after the day it starts.";
   }
+  for (const row of snapshot.workplaces) {
+    const wrongHours = clinicHoursProblem(row);
+    if (wrongHours) return wrongHours;
+  }
   return null;
 }
 
@@ -98,6 +101,8 @@ export function validateSettingsToSave(snapshot: SettingsDirtySnapshot): string 
 export function buildSettingsSavePayload(
   doctorId: string,
   snapshot: SettingsDirtySnapshot,
+  /** Each clinic's booking limits (lib/settings-clinic-limits); the API ignores them until Livio adds them. */
+  clinicLimits?: ClinicLimitsById,
 ): Record<string, unknown> {
   // Account-level hours follow the first (primary) clinic, as the API expects.
   const primary = snapshot.workplaces[0];
@@ -105,7 +110,6 @@ export function buildSettingsSavePayload(
   const holidayOn = snapshot.holidayModeEnabled;
   return {
     doctorId,
-    doctorPhone: snapshot.mobileNumber || null,
     bio: snapshot.bio.trim(),
     languages: snapshot.languages.filter((l) => l.trim()),
     monday: Boolean(schedule?.monday.enabled),
@@ -116,12 +120,10 @@ export function buildSettingsSavePayload(
     saturday: Boolean(schedule?.saturday.enabled),
     sunday: Boolean(schedule?.sunday.enabled),
     weeklySchedule: schedule,
-    breakEnabled: primary?.breakEnabled ?? false,
-    breakStart: primary?.breakStart ?? "",
-    breakEnd: primary?.breakEnd ?? "",
     slotDurationMinutes: primary?.slotDurationMinutes,
     bookingHorizonDays: snapshot.bookingHorizonDays,
     minimumNoticeHours: snapshot.minimumNoticeHours,
+    patientCancelNoticeHours: snapshot.patientCancelNoticeHours,
     holidayModeEnabled: holidayOn,
     holidayStartDate: holidayOn ? parseDDMMYYYYToISO(snapshot.holidayStartInput) : null,
     holidayEndDate: holidayOn ? parseDDMMYYYYToISO(snapshot.holidayEndInput) : null,
@@ -135,10 +137,8 @@ export function buildSettingsSavePayload(
       friday: row.weeklySchedule.friday.enabled,
       saturday: row.weeklySchedule.saturday.enabled,
       sunday: row.weeklySchedule.sunday.enabled,
-      breakEnabled: row.breakEnabled,
-      breakStart: row.breakStart,
-      breakEnd: row.breakEnd,
       slotDurationMinutes: row.slotDurationMinutes,
+      ...(clinicLimits?.[row.id] ?? {}),
     })),
   };
 }

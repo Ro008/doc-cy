@@ -40,18 +40,36 @@ describe("pro session hint cookie", () => {
     assert.equal(script.includes("document.cookie"), true);
   });
 
-  it("boot script reserves the sticky header on /agenda and /settings", () => {
-    const run = (pathname: string) => {
-      const attrs: Record<string, string> = {};
-      const fakeDocument = {
-        cookie: `${PRO_SESSION_HINT_COOKIE}=1`,
-        documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) },
-      };
-      new Function("location", "document", proChromeBootInlineScript())({ pathname }, fakeDocument);
-      return attrs;
+  function runBootScript(pathname: string): Record<string, string> {
+    const attrs: Record<string, string> = {};
+    const fakeDocument = {
+      cookie: `${PRO_SESSION_HINT_COOKIE}=1`,
+      documentElement: {
+        setAttribute(name: string, value: string) {
+          attrs[name] = value;
+        },
+      },
     };
-    assert.equal(run("/agenda")[PRO_CHROME_AGENDA_ATTR], "1");
-    assert.equal(run("/settings")[PRO_CHROME_AGENDA_ATTR], "1");
-    assert.equal(run("/dashboard")[PRO_CHROME_AGENDA_ATTR], undefined);
+    new Function("location", "document", proChromeBootInlineScript())(
+      { pathname },
+      fakeDocument,
+    );
+    return attrs;
+  }
+
+  it("boot script gives the dashboard the same sticky chrome as the agenda", () => {
+    for (const path of ["/dashboard", "/agenda", "/agenda/settings", "/settings"]) {
+      const attrs = runBootScript(path);
+      assert.equal(attrs[PRO_CHROME_BOOT_ATTR], "1", path);
+      assert.equal(attrs[PRO_CHROME_AGENDA_ATTR], "1", path);
+    }
+  });
+
+  it("boot script keeps public pages and the review page without sticky chrome", () => {
+    const publicAttrs = runBootScript("/for-professionals");
+    assert.equal(publicAttrs[PRO_CHROME_BOOT_ATTR], "1");
+    assert.equal(publicAttrs[PRO_CHROME_AGENDA_ATTR], undefined);
+
+    assert.deepEqual(runBootScript("/dashboard/appointments/abc"), {});
   });
 });

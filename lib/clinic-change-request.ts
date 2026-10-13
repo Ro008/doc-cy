@@ -1,13 +1,15 @@
 import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
+import { clinicPinMoved } from "@/lib/clinic-requests";
 import type { ClinicLocation } from "@/lib/clinic-location";
 import { registerClinicLocationIsComplete } from "@/lib/register-clinic-location";
 
 /**
- * Adding a clinic and asking to change one use the same picker as /register
- * (user, 2026-09-30): a DocCy clinic first, Google Maps (or a pin) as the fallback,
- * then a name and phone for a clinic DocCy does not have yet.
- * Contracts: POST /api/doctor-locations and POST /api/clinic-change-requests
- * (docs/handoff/settings-redesign.md).
+ * What the Clinics forms in Settings send (user, 2026-10-11). "Add clinic" uses the
+ * picker of /register: a DocCy clinic first (joined at once), else Google Maps or a pin
+ * with a name and phone (a request). "Request a change to clinic details" is only about
+ * the name, address and phone of a clinic she works at.
+ * Contracts: POST /api/professional-clinics, /api/clinic-requests and
+ * /api/clinic-change-requests.
  */
 
 export type ClinicPick = {
@@ -21,7 +23,6 @@ export type ClinicPick = {
 export type ClinicPinFields = Pick<ClinicLocation, "latitude" | "longitude" | "placeId" | "district" | "town">;
 
 export type ClinicChanges = {
-  clinicId?: string;
   name?: string;
   address?: string;
   location?: ClinicPinFields;
@@ -78,19 +79,12 @@ function checkName(name: string): { field: Field; message: string } | null {
 const PHONE_MESSAGE = "Enter a Cyprus landline or mobile, e.g. 25 123456.";
 
 export function validateClinicChangeRequest(input: {
-  current: { name: string; address: string; phone: string };
+  current: { name: string; address: string; phone: string; latitude?: number | null; longitude?: number | null };
   requested: ClinicPick;
 }): ClinicChangeRequestValidation {
   const { current, requested } = input;
   const name = clean(requested.name);
   const address = clean(requested.location.address);
-
-  if (requested.clinicId) {
-    if (!registerClinicLocationIsComplete(requested.location)) {
-      return { ok: false, field: "location", message: "Pick the address from the suggestions or drop a pin." };
-    }
-    return { ok: true, changes: { clinicId: requested.clinicId, name, address } };
-  }
 
   const nameError = checkName(name);
   if (nameError) return { ok: false, ...nameError };
@@ -98,7 +92,14 @@ export function validateClinicChangeRequest(input: {
   const changes: ClinicChanges = {};
   if (name !== clean(current.name)) changes.name = name;
 
-  if (address !== clean(current.address)) {
+  const pinMoved =
+    current.latitude !== undefined &&
+    registerClinicLocationIsComplete(requested.location) &&
+    clinicPinMoved(current, {
+      latitude: requested.location.latitude as number,
+      longitude: requested.location.longitude as number,
+    });
+  if (address !== clean(current.address) || pinMoved) {
     if (!registerClinicLocationIsComplete(requested.location)) {
       return { ok: false, field: "location", message: "Pick the address from the suggestions or drop a pin." };
     }

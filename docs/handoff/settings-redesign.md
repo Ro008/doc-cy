@@ -1,129 +1,522 @@
-# Settings redesign (design B1) — backend handoff
+# Settings redesign — handoff to backend (START HERE)
 
-Branch `feat/settings-redesign`. The frontend is done; this note lists what it now does
-and what it expects from the API and the database. Reference design:
-https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8NBmm (board "B1 · Sidebar + clinic cards").
+Branch: `feat/settings-redesign` · Frontend: **final** (Rocío, 2026-10-01; last changes
+2026-10-09) · Backend and database: **Livio decides**. Up to date with `master` on
+2026-10-09 (incl. #272, appointments M2).
 
-## What changed in the UI
+This file is for Livio and for the AI assistant working with him. It says what the
+frontend on this branch now does and what it calls or reads that the backend does not
+provide yet. It does **not** say how to build the backend: tables, columns, endpoints'
+internals, naming and whether to keep, rename or reshape any contract are Livio's call.
+Where the UI calls something, the shape it sends is listed so you know what exists today;
+if you choose a different shape, change the call site named next to it (the frontend is
+small and isolated for exactly that).
 
-- Settings lives at **`/settings`** (not under the agenda). `/agenda/settings` redirects
-  there keeping `?section=`; `/settings` has the same middleware gate as `/agenda`
-  (`isProfessionalGatedPath`), the sticky pro header and the boot chrome.
-- `/settings` is a sidebar of sections: Availability, Clinics, Services & prices,
-  Profile, Contact & phone, Account. The section is in `?section=` (default: Availability),
-  switched on the client; edits survive switching sections. One "Save settings" bar shows
-  whenever something is unsaved (same `POST /api/doctor-settings` as before).
-- Holiday mode sits at the bottom of the sidebar (same fields, same save).
-- Clinics: one card per clinic with its online booking switch
-  (`POST /api/doctor-online-bookings`, unchanged), a summary of days, hours, break and slot,
-  and "Edit hours" to open the editor inside the card.
-- "Add clinic" and "Request a change" use the **/register clinic picker** (dark tone):
-  DocCy's clinics first, then Google Maps or a pin, plus name and phone for a clinic
-  DocCy does not have yet (`components/dashboard/settings/ClinicPicker.tsx`).
-- A clinic's name, address and phone change **only by request**. Only the hours are
-  editable on the card ("Edit hours").
-- **One clinic name everywhere: DocCy's `clinics.name`** (user, 2026-10-01). A doctor
-  at a shared clinic (e.g. Evangelismos) must not rename it for their patients. A rename
-  is a `name` in `POST /api/clinic-change-requests`; DocCy approves it only when the
-  doctor is the clinic's only professional. /register already worked this way (picking
-  a DocCy clinic hides the name field).
-  - Frontend side, done here: `professionalClinicRowToLocation` reads `clinics.name`
-    (falls back to `professional_clinics.label` only if the clinic has no name), so
-    settings, agenda, booking, profile, finder and emails show the same name; settings
-    no longer sends `label` in `POST /api/doctor-settings` (the API already leaves it
-    untouched when it is missing).
-  - For you: `professional_clinics.label` is now unused by the UI. Dropping the column
-    and the `label` handling in `lib/professional-clinic-settings-writes.ts` is yours to
-    decide; nothing breaks while it stays.
-- **One save rule** (user, 2026-10-01; `lib/settings-save-groups.ts`): no page-wide
-  "Save settings". Booking limits, languages and turning holiday mode off save at once;
-  a clinic's hours, the bio, the mobile and holiday dates have their own Save / Cancel.
-  `POST /api/doctor-settings` is unchanged: each save sends the last saved settings
-  with only that block changed, so expect more, smaller saves than before. A block left
-  half-edited shows a dot in the sidebar and warns before leaving the page.
-- Any clinic can be removed, the primary one too, as long as one clinic is left.
-- Any specialty can be removed instantly, as long as one specialty is left.
-- Specialty requests (user, 2026-10-01): settings only sends **"add"** to
-  `POST /api/doctor-specialty-change-request` (unchanged API). Changing one is "add the
-  new one, remove the old one once approved", so the "what do you want to do?" choice is
-  gone; "replace" / "remove" are no longer sent (older pending ones still show).
-  - Errors show next to each field (`lib/settings-specialty-request.ts`), all at once.
-  - The license field says why: "So DocCy can check you're registered for this specialty."
-  - The pending request is a dashed chip "In review" next to the specialties, with ✕ to
-    cancel it (endpoint 5 below). While it is pending, "+ Add a specialty" is hidden: the
-    API allows one pending request per professional.
-- Phones: unchanged from #238 (clinic phones read-only, mobile private).
+Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8NBmm
+(board "B1 · Sidebar + clinic cards").
 
-Pure rules the backend should mirror (and can import):
-`lib/settings-removal-rules.ts`, `lib/clinic-change-request.ts`.
+---
 
-## Backend to-do
+## 1. TL;DR for the assistant taking over
 
-### 1. `DELETE /api/doctor-specialties` (new)
+1. Read sections 2 (what changed) and 3 (what the UI calls that does not exist yet).
+2. Every call that waits for the backend is marked in code with
+   `EXPECTED TO FAIL until Livio builds …` and shows the doctor a message saying so
+   (`lib/settings-backend-pending.ts`). `grep -rn "EXPECTED TO FAIL" components lib`
+   lists them all.
+3. When an endpoint exists, remove its entry from `BACKEND_PENDING` (and the file once
+   empty) and drop the matching `page.route` stub in
+   `tests/integration/settings_redesign.integration.spec.ts`.
+4. Section 4 lists open decisions that are yours; section 6 lists merge notes with
+   `feat/doctor-dashboard`.
+5. No migrations on this branch. Nothing here writes anything new to the database.
+   One migration is needed from you: booking limits move to `professional_clinics`
+   (3.7).
 
-- Auth: the signed-in professional.
-- Body: `{ "specialty": "Venereology" }` (an approved label on their profile, any case).
-- Rule: refuse when it is their last approved specialty
-  (`canRemoveSpecialty` in `lib/settings-removal-rules.ts`).
-- Effect: delete the `professional_specialties` row; keep any derived columns in sync
-  (same write path as `lib/professional-specialty-writes.ts`).
-- 200 `{ "specialties": string[] }` — the approved labels left (the page shows these).
-- 400 `{ "message": "Your profile needs at least one specialty." }` for the last one;
-  404 `{ "message": … }` when it is not on the profile.
+---
 
-### 2. `POST /api/clinic-change-requests` (new) + table + review
+## 2. What the frontend now does
 
-- Auth: the signed-in professional; `locationId` must be theirs.
-- Body: `{ "locationId": "<professional_clinics.id>", "changes": ClinicChanges }` — only
-  what changes (`lib/clinic-change-request.ts`):
-  - `name`, `phone` (8 national digits, `25123456`);
-  - `address` + `location` `{ latitude, longitude, placeId, district, town }` (always
-    together: the address was picked on Google or pinned);
-  - or `clinicId` + `name` + `address`: move this link to an existing DocCy clinic.
-  Validate again with `validateClinicChangeRequest` (`lib/clinic-change-request.ts`).
-- 201 `{ "request": { "id", "locationId", "changes", "createdAt" } }`.
-- 409 `{ "message": … }` if that clinic already has a pending request.
-- Needs a table (e.g. `clinic_change_requests`: professional_id, professional_clinic_id,
-  clinic_id, requested name/address/phone, status pending|approved|rejected, created_at,
-  reviewed_at, reviewed_by, note).
-- Founder review (internal dashboard) like specialty requests: approving an address needs
-  its pin (lat/lng, place id, district) before it goes live; email the professional on
-  approve/reject.
-- Page load: pass pending requests to the form as `initial.pendingClinicChanges`
-  (`Record<locationId, { changes, createdAt }>`) from `app/agenda/settings/page.tsx`.
-  Until then a request only shows "Change in review" until the page reloads.
+### Page and navigation
+- Settings lives at **`/settings`** (`app/settings/page.tsx`), not under the agenda.
+  `/agenda/settings` redirects there keeping `?section=`. Same middleware gate as
+  `/agenda` (`isProfessionalGatedPath`).
+- A sidebar of sections, kept in `?section=` (default `profile`; Livio, 2026-10-09):
+  Profile · Clinics · Services & prices · Promote | Plan & billing ·
+  Account (`lib/settings-sections.ts`). A thin line on wide screens sets the last two
+  apart. Old `?section=availability` and `?section=contact` links open Clinics. The dashboard's paused-clinic
+  notice links to `?section=clinics`.
+- Old `/settings?section=account#promote-practice` links land on Promote.
 
-### 3. `POST /api/clinic-requests` (new) — ask to add a clinic
+### One save rule (frontend only; same API)
+- No page-wide "Save settings". Booking limits, languages and turning holiday mode off
+  save at once; a clinic's hours, the bio and holiday dates have their own
+  Save / Cancel (`lib/settings-save-groups.ts`). The personal mobile is not part of it:
+  its card in Account saves through its own routes (below).
+- Still `POST /api/doctor-settings`, unchanged. That API replaces everything it is sent,
+  so each save sends **the last saved settings with only that block changed**. Expect
+  more, smaller saves than before. If you ever make that API accept partial updates,
+  `buildSettingsSavePayload` is the one place to adapt.
 
-Since #243 clinics are curated by DocCy and `/api/doctor-locations` is gone, so adding a
-clinic is a request too (reviewed like the others).
+### Clinics
+- One card per clinic: status, online booking switch (`POST /api/doctor-online-bookings`,
+  unchanged), summary of days/hours/break/slot, "Edit hours" editor in the card.
+- **Booking limits per clinic** on each card (how far ahead, minimum notice, online
+  cancellation deadline), saved at once, plus "Apply to all my clinics" when there is
+  more than one. All clinics are equal; there is no primary in this. Until your
+  migration a change shows on every clinic and the card says so (section 3.7,
+  `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
+- **With several clinics, one card is open at a time** (user, 2026-10-10): the others
+  fold to their header (name, days and hours, status, the online-booking switch), so
+  every clinic's booking state stays in view. The first clinic opens; a single clinic
+  has nothing to fold (`ClinicCard` `collapsible` / `open`).
+- A clinic's **name, address and phone change only by request** ("Request name or address change" and "Request phone change" on the card).
+  Only hours are editable. Times are picked by hour and quarter (`ClinicTimePicker`), and an open day,
+  and the break, must end after they start
+  (`lib/clinic-hours-check.ts`): the row says so, Save stays off, and the route refuses it too.
+- **A break per day** (Livio, 2026-10-10; `ClinicHoursEditor`): each open day's row has its
+  hours and its own break ("Add break", remove, and a copy button that puts the day's hours
+  and break on the other open days). The break must sit inside that day's hours. It is saved
+  on the day in `weekly_schedule` (`break_start` / `break_end`, null for none) and the
+  clinic's one break (`professional_clinics.break_start` / `break_end`) is cleared; days
+  saved before this, without break keys, still follow the clinic's one break
+  (`dayBreakTimes` in `lib/doctor-settings.ts`). No migration. Slot length stays per clinic.
+- **The clinic's phone is on its card** (Livio, 2026-10-10), shown as "+357 25 123456",
+  with its own "Request phone change" next to it. That opens a phone field in the card (a
+  Cyprus landline or mobile only, grouped as she types) and sends
+  `POST /api/clinic-change-requests` with `{ locationId, changes: { phone } }`, the
+  contract of section 3.2 (backend pending). **Founders approve every clinic phone
+  change, however many people work at the clinic** (Livio, 2026-10-10). Then the card
+  shows "Change in review" (`components/dashboard/settings/ClinicPhoneField.tsx`).
+- **One clinic name everywhere: DocCy's `clinics.name`.** A doctor at a shared clinic
+  must not rename it for their patients. `professionalClinicRowToLocation`
+  (`lib/professional-clinic-locations.ts`) now maps `label` from `clinics.name` and only
+  falls back to `professional_clinics.label` when the clinic has no name. This is a
+  shared read mapping, so settings, agenda, booking, profile, finder **and emails** all
+  show the DocCy name now. Settings no longer sends `label`.
+- "Add clinic" and "Request name or address change" reuse the /register clinic picker (DocCy clinics
+  first, then Google Maps or a pin) — `components/dashboard/settings/ClinicPicker.tsx`.
+- Any clinic can be removed, the primary too, while one is left
+  (`lib/settings-removal-rules.ts`).
 
-- Body: `{ "kind": "add", "clinic": NewClinic }` (`lib/clinic-change-request.ts`):
-  `{ clinicId, name, location }` to join an existing DocCy clinic, or
-  `{ clinicId: null, name, phone, location }` for a clinic DocCy does not have yet.
-- 201 `{ "request": { "id", "createdAt" } }`; 400/409 `{ "message" }`.
-- On approval: create the `professional_clinics` row (and the `clinics` row for a new
-  one, with its phone), email the professional.
-- Page load: pass pending ones as `initial.pendingClinicAdds`
-  (`{ clinic, createdAt }[]`); the page shows them as "Request in review" cards.
+### Availability (removed, Livio 2026-10-09)
+- The section only repeated each clinic card's status (and the dashboard already says
+  which clinics are paused), so it is gone. Clinics is the default section; old
+  `?section=availability` links land there.
+- Clinics now shows the "Holiday mode is on until …" banner and, on phones, the holiday
+  mode card (the sidebar keeps it on wide screens). Unsaved holiday dates mark Clinics.
+- With pro access ended (`initial.accessEnded`, master's `loadProAccessEnded`), every
+  clinic's switch is off and disabled and Clinics says why.
 
-### 4. `DELETE /api/professional-clinics?locationId=` (new) — leave a clinic
+### Profile
+- Specialties: removing one is instant (✕ on the chip) while one is left. Asking for a
+  new one is a request (section 3.6): a change is "add the new one, remove the old one
+  once approved". Master dropped the old specialty requests (E3) and showed "Contact us"
+  meanwhile; this branch keeps the redesigned form and calls the NEW requests instead.
+  `tests/unit/legacy-specialty-claim-outreach-removed.test.ts` was updated to match.
+- The pending request shows as an "In review" chip with ✕ to cancel it (section 3.5).
+  The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
+- **Name, who she sees, qualifications (Livio, 2026-10-10; section 3.9).** The name sits
+  read-only beside the photo ("Name and photo") with "Request name change": the new name
+  (no title; `lib/settings-profile-details.ts`) and an optional reason go to the founders
+  (`ProfileNameField`). **The name's backend is built:** while the request is open the
+  card says "Request sent on dd/mm/yyyy · waiting for DocCy's approval" with "Withdraw
+  request"; if her latest request was denied, the reason shows until she dismisses it
+  (kept in this browser) or asks again. The other two are still UI only. "Patients I see" is Adults / Children / Adults and children,
+  saved when picked (`PatientAgesCard`). "Qualifications" is a list of up to 6 lines
+  (qualification, where, optional year), most recent first, each added or removed on its
+  own (`QualificationsCard`). **Until their routes exist these two keep the change on
+  screen for the visit and say "Shown here only for now…"**, so the screens can be seen;
+  nothing is saved and a reload clears it. The page loads neither yet.
+  "I see GeSY patients" (was "Accepts GESY patients") moved up under Specialties.
+- "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
+  "Opening…" and then a toast.
 
-- Auth: the signed-in professional; `locationId` = their `professional_clinics.id`.
-- Rule: refuse the last clinic (`canRemoveClinic` in `lib/settings-removal-rules.ts`) and
-  a clinic with REQUESTED/CONFIRMED appointments (the dialog copy says so).
-- Removing the primary promotes the next one (lowest `sort_order`); account settings
-  follow the new primary.
-- 200 `{}`; 400 `{ "message" }` (the page shows it as is).
+### Services & prices
+- A short "What are services?" block above the list says what they are and how they
+  help patients (only claims that are true today: they are on the profile with prices;
+  patients cannot pick one when booking yet, Notion task "Booking: el paciente elige un
+  servicio y el doctor lo ve en la cita").
 
-### 5. `DELETE /api/doctor-specialty-change-request` (new) — cancel the pending request
+- **Price list: built (Livio, 2026-10-10).** `ServicesCard`: each line is the name with
+  its price on the right ("€60", "From €80", or "No price"), a pencil to edit it in place
+  and a bin; removing asks first in a dialog, no undo (user, 2026-10-10). At most
+  20, no name twice. No founder; each change recorded (`professional_service_add` /
+  `_change` / `_removal`, with the list she had before).
+  - `POST /api/professional-services` `{ name, price: amount | null, priceFrom? }` → 201
+    `{ service: { id, name, price } }`; 400 with `errors` per field; 409 at 20 or name taken.
+  - `PUT` `{ id, name, price, priceFrom? }` → 200 `{ service, changed }`; 404 not hers; 409.
+  - `DELETE ?id=…` → 200; 404 not hers. `/api/doctor-services` is gone.
+  - The price stays text in `professional_services.price`: `"60"` or `"From 80"`
+    (helpers in `lib/settings-services.ts`: `formatServicePrice` gives "€60" / "From €80").
+  - Migrations `20261010170000_professional_service_requests` (Production before the
+    merge) and `20261010180000_professional_services_not_writable` (Production after it).
+- For Ro008 (`feat/profile-redesign`): the public profile's services list; use
+  `formatServicePrice` so prices read the same as in Settings.
+- **Later (user, 2026-10-10):** after the public list, the patient picks a service on the
+  appointment request form (API and DB already take `professionalServiceId`); with it, an
+  optional "usual length" per service that only pre-fills the visit length on her review
+  page (no change to the times offered).
 
-- Auth: the signed-in professional. No body: they have at most one pending request.
-- Marks their pending row in `professional_specialty_change_requests` as cancelled (or
-  deletes it; yours to choose). It must no longer show to founders for review.
-- 200 `{}`; 404 `{ "message": "No pending request." }` when there is none.
+### Contact & phone (removed, Livio 2026-10-10)
+- Each clinic's phone is on its card in Clinics and the personal mobile is in Account,
+  so the section is gone (`components/dashboard/PhoneNumbersSettings.tsx` deleted).
 
-### 6. Notifications — `PUT /api/doctor-notification-settings` (new) + loading them
+### Promote (frontend only)
+- QR, booking link (`mydoccy.com/<slug>`, Copy link), scripts that fold.
+- "Print booking sign" prints design A on A5 (`lib/booking-sign.ts`): DocCy logo, the
+  name **as on the profile (no "Dr" added)** and the approved primary specialty.
+- **Livio, 2026-10-11 (frontend only, nothing saved on the server):**
+  - "Language of the sign and scripts": English / Ελληνικά, for her patients. It sets
+    the printed sign, the three scripts and the share message; the tab itself stays in
+    the app's language. Remembered in the browser only (`doccy:promote-language`).
+  - The sign's steps are "Scan the code · Choose a time · We confirm by email": a
+    request is not a booking until she accepts it.
+  - A notice at the top when patients who follow the link cannot book: access ended
+    (→ Plan & billing), holiday mode on today, or online booking paused at every clinic
+    (→ Clinics). `lib/promote-booking-notice.ts`.
+  - Voicemail script: "search for <name> on mydoccy.com" (a long address is hard to
+    catch on a recording). Reception script names her instead of "my".
+  - "Share" under the link: WhatsApp, Viber and Telegram, message with her name and link.
+  - Removed: the offer that DocCy adds the button to her website ("Contact Support"),
+    and with it the feedback topic "Help with website booking button".
+  - With several specialties, "Specialties on the sign" lists them with a tick each
+    (all ticked at first; the unticked ones are remembered in the browser,
+    `doccy:promote-sign-left-off`). One specialty prints beside the name, several on
+    their own line under it, none leaves the name alone. Before this the sign showed
+    only the first one alphabetically.
+  - The QR link still carries its tracking tags; nothing reads them yet (scan counts
+    are planned for later).
+
+### Plan & billing (frontend only)
+- Reads `professionals.pro_access_until` and `subscription_tier`
+  (`lib/settings-plan.ts`): countdown to the end of the free period, the terms after it
+  (Founding Member €19/month locked for life, otherwise €49/month), "Nothing to pay
+  today". No payment form exists; it is read-only.
+- The Founding Member badge no longer opens a pop-up: outside Settings it links to
+  Plan & billing; inside Settings it is a plain label. The founders' direct line is the
+  "Write to the founders" button (opens the feedback form). The badge was removed from
+  the agenda header (as on `feat/doctor-dashboard`).
+
+### Account
+- "Sign-in & security": the email with "Change email" (section 3.8, **built**),
+  "Change password" (calls the existing `POST /api/auth/forgot-password` with the
+  account email), sign out other devices (result as a toast), sign out.
+- **A new password signs out her other devices and is announced by email (Livio,
+  2026-10-11).** The "Choose a new password" page calls `POST /api/auth/password-changed`
+  once the password is saved (`lib/revoke-other-sessions.ts`, shared with "Sign out
+  other devices"). Best effort: a session that changes the password straight through
+  Supabase skips it.
+- **Personal mobile (Livio, 2026-10-09; built; in Account since 2026-10-10, not Profile:
+  it is DocCy's way to reach her and a future SMS sign-in factor).** Card under "Sign-in & security"
+  (`components/dashboard/settings/PersonalMobileCard.tsx`): the /register country picker,
+  its own Save (a real mobile for the country, `lib/professional-mobile.ts`, the same
+  check the register server now makes), and a "Show on my profile" switch that saves at
+  once (off by default; refused without a saved mobile). No founder: each change is a
+  `request_log` row born `recorded` with the old value in `before_snapshot`
+  (`professional_mobile_change`, `professional_mobile_visibility_change`).
+  - `POST /api/professional-mobile` `{ mobile }` → 200 `{ changed, mobile }` · 400 not a
+    valid mobile · 409 used by another professional. Same number: `changed: false`.
+  - `POST /api/professional-mobile/visibility` `{ show }` → 200 `{ changed, show }` ·
+    400 not true/false · 409 no saved mobile.
+  - Both behind the emailed sign-in step (middleware), writing through the service role
+    via `professional_mobile_set` / `professional_mobile_visibility_set`.
+  - `/api/doctor-settings` no longer saves the mobile (an old page's `doctorPhone` is
+    ignored). Where the mobile shows on the public profile is Ro008's decision on
+    `feat/profile-redesign` (`docs/handoff/profile-redesign.md`); nothing shows it yet.
+  - When SMS 2FA arrives, a new number will need verifying before it is saved.
+
+### Buttons and loading states (frontend only; keep them when you add to Settings)
+- One button system by role (primary, secondary, ghost/Cancel, danger, text link) in
+  `components/dashboard/settings/styles.ts`; never restyle a button inline.
+- Loading rules are written at the top of that file: the button that waits shows a
+  spinner and "-ing…" (`BusyLabel`), is disabled and `aria-busy`; the block's fields are
+  locked (`<fieldset disabled>` / `readOnly`); a dialog passed `busy` cannot be closed
+  with Esc or the backdrop (its own buttons still close it after success); controls that
+  save at once show "Saving…" (`SavingNote`); done is a toast with one id per block.
+
+---
+
+## 3. What the UI calls that does not exist yet
+
+Each item: what the doctor does → what the page sends today → where it is called. The
+outcome the UI assumes is noted so you know what the screen will show; how to achieve
+it (tables, review flow, emails) is yours.
+
+### 3.1 Remove a specialty: built (Livio, 2026-10-10)
+- UI: ✕ on a specialty chip (not offered on the last one).
+- `DELETE /api/professional-specialties` with `{ "specialty": "<label>" }` → 200
+  `{ "specialties": string[] }` (the ones left); 404 not hers; **409 her last one** ("Your
+  profile needs at least one specialty. Add the new one first; once it is approved, remove
+  this one."). No founder: recorded at once in `request_log`
+  (`professional_specialty_removal`, with the specialty and its licence number as the
+  "before"). The database refuses the last one too (`professional_specialty_remove`).
+- Call site: `handleRemoveSpecialty` in `components/dashboard/SettingsForm.tsx`.
+
+### 3.2 Request a change to a clinic (name, address, phone, or move to a DocCy clinic)
+- UI: "Request name or address change" and "Request phone change" on a clinic card.
+- Sends `POST /api/clinic-change-requests` with
+  `{ "locationId": "<professional_clinics.id>", "changes": ClinicChanges }` — only what
+  changed (`ClinicChanges` in `lib/clinic-change-request.ts`; validation the UI already
+  runs: `validateClinicChangeRequest`).
+- UI expects 2xx, then shows "Change in review" on the card; `{ "message" }` on refusal.
+- To keep that state after a reload, the page accepts
+  `initial.pendingClinicChanges: Record<locationId, { changes, createdAt }>`
+  (`app/settings/page.tsx` → `SettingsForm`). Nothing fills it today.
+- Product intent (Rocío): DocCy reviews these. A clinic shared by several professionals
+  should not be renamed by one of them; a rename is approved only for a clinic where the
+  doctor is the sole professional.
+- Call site: `components/dashboard/settings/ClinicChangeRequestDialog.tsx`.
+
+### 3.3 Add a clinic
+- UI: "+ Add clinic" → picker.
+- Sends `POST /api/clinic-requests` with `{ "kind": "add", "clinic": NewClinic }`:
+  `{ clinicId, name, location }` for an existing DocCy clinic, or
+  `{ clinicId: null, name, phone, location }` for one DocCy does not have.
+- UI expects 2xx, then shows a "Request in review" card. To keep it after a reload the
+  page accepts `initial.pendingClinicAdds: { clinic, createdAt }[]`.
+- Call site: `handleAddWorkplace` in `components/dashboard/SettingsForm.tsx`.
+
+### 3.4 Leave (remove) a clinic
+- UI: "Remove clinic" on a card (not offered on the last one). The dialog tells the
+  doctor a clinic with upcoming or requested appointments can't be removed.
+- Sends `DELETE /api/professional-clinics?locationId=<professional_clinics.id>`.
+- UI expects 2xx (then removes the card, promoting the next clinic to primary on screen),
+  or `{ "message" }` shown as is.
+- Call site: `handleRemoveWorkplace` in `components/dashboard/SettingsForm.tsx`.
+
+### 3.5 Withdraw a pending specialty request: built (Livio, 2026-10-10)
+- UI: ✕ on the "In review" specialty chip ("Withdraw the request for …").
+- `DELETE /api/specialty-requests` (no body: one open request per professional) → 200;
+  409 once a founder decided.
+- Call site: `cancelSpecialtyRequest` in `components/dashboard/SettingsForm.tsx`.
+
+### 3.6 Ask for a new specialty: built (Livio, 2026-10-10)
+- UI: "+ Add a specialty" → specialty (catalogue or new) + licence number (required).
+- `POST /api/specialty-requests` with
+  `{ "toSpecialty", "toSpecialtyFromMaster", "licenseNumber" }` (the page also sends
+  `requestKind` and `fromSpecialty`, ignored) → 201
+  `{ "request": { "id", "specialty", "licenseNumber", "createdAt" } }`; 400 not usable
+  (no licence number, already hers, already 5); 409 one is already waiting.
+- It is a `request_log` row of type `professional_specialty_add` whose details keep
+  `name`, `from_catalogue` and `license_number`. Founders see it under "Change requests"
+  (specialty, catalogue or new, licence number, her specialties today), may correct the
+  specialty and the licence number, and approve or deny with a reason; a new specialty
+  joins the catalogue on approval. She is emailed either way.
+- The card says "Request sent on dd/mm/yyyy · waiting for DocCy's approval"; a denial's
+  reason shows until dismissed. After a reload the page gets
+  `initial.pendingSpecialtyChange` and `initial.specialtyDenied` from
+  `loadProfileChangeStates`.
+- Limits: one open request at a time; at most 5 specialties.
+- Call site: `submitSpecialtyChangeRequest` in `components/dashboard/SettingsForm.tsx`.
+- Migration `20261010130000_professional_specialty_and_gesy_requests`.
+
+### 3.6b GeSY switch: recorded (Livio, 2026-10-10)
+- "I see GeSY patients" still saves at once, on or off, with no founder
+  (`POST /api/doctor-gesy` `{ "isGesy" }`), but now through `professional_gesy_set`, which
+  records each change in `request_log` (`professional_gesy_change`).
+- `is_gesy` is no longer writable through the professional's own session (migration
+  `20261010140000_professionals_gesy_not_writable`: Production after the merge).
+
+### 3.7 Booking limits per clinic (needs a migration)
+- Rocío, 2026-10-09: how far ahead, minimum notice and the online cancellation deadline
+  belong to **each clinic**, with an "Apply to all my clinics" shortcut. All clinics are
+  equal: there is no primary clinic in this decision.
+- **Migration for you:** the three columns `booking_horizon_days`, `minimum_notice_hours`
+  and `patient_cancel_notice_hours` have to move from `professional_settings` (one row
+  per professional) to `professional_clinics` (one row per clinic). Copy each
+  professional's current values to all their clinics, keep the same CHECKs and
+  defaults, then drop them from `professional_settings` once nothing reads them
+  (slot search, `/api/booking/choose`, manual booking, cancel window, reminders job:
+  `grep -rn "booking_horizon_days\|minimum_notice_hours\|patient_cancel_notice_hours" app lib`).
+- UI already sends them per clinic: each `locations[i]` of `POST /api/doctor-settings`
+  carries `bookingHorizonDays`, `minimumNoticeHours`, `patientCancelNoticeHours`
+  (`buildSettingsSavePayload` in `lib/settings-save-groups.ts`). The top-level fields
+  are still sent too, as the clinic just changed, only because today's API reads them;
+  drop them when you switch.
+- To load them, fill `bookingLimits` on each location of the form data
+  (`DoctorWorkplaceFormData.bookingLimits` in `app/settings/page.tsx`). As soon as one
+  clinic has it, the form treats limits as per clinic.
+- Until then (EXPECTED): a change on one clinic shows on all of them, and each card says
+  "Expected for now: these limits apply to all your clinics until Livio stores them per
+  clinic…" (`PER_CLINIC_LIMITS_PENDING` in `lib/settings-clinic-limits.ts`).
+
+### 3.8 Change the sign-in email: built (Livio, 2026-10-11)
+- UI: Account → Sign-in & security → "Change email" → new address → "Send confirmation
+  link" (Rocío, 2026-10-09). The row now reads "You sign in with it, and booking
+  requests are sent here."
+- The address does two jobs, stored in two places: the sign-in address (Supabase Auth)
+  and `professionals.registration_email` (where booking requests go). Confirming moves
+  **both**; if the database refuses, the sign-in address is put back.
+- `POST /api/account/email` `{ "email" }` → 200 `{ "email" }` once the link has gone to
+  the new address · 400 not usable · 409 another account uses it · 429 more than 5 in
+  an hour · 502 the email could not be sent. `DELETE /api/account/email` cancels the
+  change that is waiting. Both behind the emailed sign-in step (middleware).
+- The link (`/account/confirm-email?token=…`) lasts 60 minutes and works once. Opening
+  it changes nothing; the "Confirm new email" button does
+  (`POST /api/account/email-confirmation` `{ "token" }` → 200 `{ "email" }` · 409 ·
+  410 the link no longer works). No session needed: she may open it on another device.
+- "Waiting for you to confirm …" is loaded with the page (`initialPendingEmail`), so it
+  survives a reload, with "Cancel" next to it. Asking again replaces the waiting change.
+- **Confirming signs her out on every device** (Livio, 2026-10-11): she signs in again
+  with the new address, which proves it receives mail and ends any session that should
+  not be there (`professional_sessions_end`: ends her Supabase Auth sessions and revokes
+  issued tokens). The field's help text and the confirm page say so.
+- Afterwards the **old** address gets "Your DocCy email was changed". No founder; the
+  change is a `request_log` row `professional_email_change` (recorded, old address in
+  `before_snapshot`).
+- Migration `20261011120000_professional_email_change` (table
+  `professional_email_changes`: new address + SHA-256 of the token; functions
+  `professional_email_change_start` / `_cancel` / `_confirm`, service role only). DB test
+  `supabase/tests/professional_email_change.test.sql` (45 checks).
+- Code: `lib/account-email-change.ts`, `lib/account-email-change-server.ts`,
+  `lib/account-security-emails.ts`, `components/auth/ConfirmEmailChangeClient.tsx`.
+- Security emails about her own account (confirm new email, email changed, password
+  changed) are allowed next to the three automatic booking emails (Livio, 2026-10-11).
+
+### 3.9 Profile: name change, who she sees, qualifications
+- **Name change: built (Livio, 2026-10-10).** `POST /api/name-change-requests`
+  `{ "name", "reason": string | null }` → 201 `{ "request": { "id", "name", "createdAt" } }`
+  (400 not a usable name, 409 one is already waiting); `DELETE /api/name-change-requests`
+  withdraws the open one (409 once a founder decided). It is a `request_log` row of type
+  `professional_name_change` (migration `20261010120000_professional_profile_change_requests`,
+  which also prepares `professional_photo_change` and the recorded
+  `professional_photo_removal`). Founders see it under "Change requests" on
+  `/internal/directory?tab=requests` (`ProfileChangeRequestsSection`), may correct the
+  spelling, and approve or deny with a reason
+  (`POST /api/internal/profile-changes/[id]/approve|deny`); she is emailed either way and
+  founders are emailed when a request arrives. **Approving also moves the profile's address
+  (slug) to the new name; the old one stays in `professional_slug_redirects` and forwards.**
+  The settings page loads her state with `loadProfileChangeStates` →
+  `initial.nameChange { pending, denied }`. Code: `lib/profile-change-requests.ts` (no
+  database; imported by the page), `-server.ts`, `lib/profile-change-emails.ts`.
+- **Photo change: built (Livio, 2026-10-10).** A new photo also needs a founder. The crop
+  dialog sends `POST /api/photo-change-requests` (multipart `photo`; JPEG / PNG / WebP,
+  1 MB: the private `request-uploads` bucket's limit) → 201
+  `{ "request": { "id", "createdAt", "photoUrl" } }`; the photo waits at
+  `professional_photo_change/<professional id>/…` and the live one stays. The card shows
+  the photo she sent with "New photo sent on dd/mm/yyyy · waiting for DocCy's approval"
+  and "Withdraw request" (`DELETE`, which also deletes the waiting file); "Upload new
+  photo" is hidden meanwhile. Founders see both photos side by side and approve (copied
+  to the public `avatars` bucket, `professionals.avatar_url`) or deny with a reason.
+  **"Remove photo" is immediate** (`DELETE /api/professional-photo`, recorded as
+  `professional_photo_removal`; the public file is deleted). Component:
+  `ProfilePhotoControls`; state from `initial.photoChange`. **`POST /api/doctor-avatar`
+  is gone** (it saved without approval). New professional routes go in
+  `PROFESSIONAL_API_ROUTES` and the middleware matcher.
+- **Patients I see: built (Livio, 2026-10-10).** No founder; each change recorded
+  (`professional_patients_seen_change`). `PUT /api/professional-profile`
+  `{ "patientAges": "adults" | "children" | "all" }` → 200 `{ patientAges, changed }`; 400
+  for anything else. Saved in `professionals.patients_seen` (null until she chooses).
+  `PatientAgesCard` gets `initialValue` from `initial.patientAges`.
+- **Qualifications: built (Livio, 2026-10-10).** No founder (user: founders do not check
+  them); each add and removal recorded (`professional_qualification_add` / `_removal`).
+  `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`
+  → 201 `{ "qualification": { "id", "title", "institution", "year" } }`; 400 with `errors`
+  per field; 409 at 6. `DELETE /api/professional-qualifications?id=…` → 200; 404 not hers.
+  Saved in `professionals.qualifications` (a JSON list, at most 6).
+  `QualificationsCard` gets `initial` from `initial.qualifications`.
+- **Bio and languages: recorded (Livio, 2026-10-10).** Same page behaviour
+  (`POST /api/doctor-settings`), but the route now saves them through
+  `professional_bio_set` / `professional_languages_set`, which record each real change
+  (`professional_bio_change`, `professional_languages_change`); an unchanged value
+  records nothing. Neither column is writable through her session any more.
+- Migrations: `20261010150000_professional_profile_details` (columns, types, functions; **Production before the merge**:
+  without it every save through /api/doctor-settings fails) and
+  `20261010160000_professionals_bio_languages_not_writable` (Production after the merge).
+  Server code: `lib/profile-details-server.ts`.
+- For Ro008 (`feat/profile-redesign`): where the public profile shows "patients I see"
+  and the qualifications. Read `patients_seen` and `qualifications` through the service
+  role (`parsePatientAges`, `parseSavedQualifications` in `lib/settings-profile-details.ts`).
+
+3.2–3.4 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
+
+---
+
+## 4. Decisions that are yours
+
+- **`professional_clinics.label`** is no longer shown anywhere. Keep, drop or repurpose
+  it; nothing in the UI breaks either way. `lib/professional-clinic-settings-writes.ts`
+  still writes it when a caller sends one.
+- **Review flows** for clinic changes/additions and their emails (3.2, 3.3).
+- **Founders' Club**: Harrison Ford (Testing) registered with `founders_club: false`, so
+  approval set `subscription_tier = 'standard'`; Rocío set it to `founder` by hand on
+  2026-10-01. Worth checking why that registration reserved no place.
+- **Delete account / download my data** (Account): agreed as an idea, not built; needs a
+  backend decision first.
+- **New specialty requests** (3.5, 3.6): you dropped the old ones in E3; the UI waits
+  for whatever you build under `/api/specialty-requests` (rename freely).
+- **Notifications** is a separate task, not in this branch: draft UI and a proposed
+  contract on `wip/settings-notifications` (pushed).
+
+---
+
+## 5. Data and environment notes
+
+- Migrations (Livio, 2026-10-09; applied to Testing, not Production):
+  - `20261009150000_professional_mobile_change_requests`: the two request types,
+    `professional_settings.show_mobile_on_profile`, the two functions, `request_submit`
+    snapshot steps, requester email from `registration_email`. Backward compatible, but
+    this branch reads the new column: Production **before** merge.
+  - `20261009160000_professionals_update_columns` (security): signed-in professionals
+    could UPDATE every column of their own row through /rest/v1 (`pro_access_until`,
+    `subscription_tier`, `is_registered`, `slug`, the mobile…). Now only `bio`,
+    `languages`, `is_gesy` and the two sign-out columns. master still saves the mobile
+    through the session, so Production **after** merge.
+  - DB tests: `supabase/tests/professional_mobile_change.test.sql`,
+    `supabase/tests/professionals_update_columns.test.sql`.
+- New writes: the mobile and its switch (section 2, Account). Otherwise none.
+- New reads: `professional_clinics.id` (clinic phones on cards,
+  `lib/settings-clinic-phones.ts`); `professionals.pro_access_until` (Plan & billing).
+- Changed read: clinic names come from `clinics.name` (section 2, Clinics).
+- Testing data changed on 2026-10-01: removed the test clinic "Harrison Ford" (link
+  "dermakk") and two test specialty requests; set Harrison Ford's tier to `founder`.
+
+---
+
+## 6. Merged with master (2026-10-09, incl. `feat/doctor-dashboard` #270 and #272)
+
+- #272 (appointments M2 drops legacy `appointments` columns): merged cleanly; nothing in
+  this branch reads or writes those columns.
+- `lib/doctor-routes.ts`: the Settings tab, active tab and login gate now use `/settings`.
+- `app/settings/page.tsx` was rebuilt on master's data loading (no `status`,
+  `professional_services`, account settings select, `accessEnded`).
+- Notes below are kept for history.
+
+### Before the merge
+
+- That branch still has `app/agenda/settings/page.tsx` and nav links to
+  `/agenda/settings`; here settings moved to `app/settings/page.tsx`. Point links at
+  `/settings` (`lib/settings-sections.ts` → `settingsSectionHref`).
+- Agenda header: both branches removed the Founding Member badge.
+- Insights still renders the badge; it now links to Plan & billing.
+- Pro page layout: `components/navigation/ResponsiveBottomInset.tsx` makes a pro page one
+  window tall under the header (no extra scroll). Check the agenda's own "fits the
+  window" layout when merging.
+
+---
+
+## 7. Tests
+
+- Unit (all in `npm run test:unit`): `settings-sections`, `settings-removal-rules`,
+  `clinic-change-request`, `settings-clinic-summary`, `settings-specialty-request`,
+  `settings-backend-pending`, `settings-account`, `settings-save-groups`,
+  `settings-plan`, `booking-sign`, `settings-clinic-limits`, `settings-form-dirty`.
+- e2e: `tests/integration/settings_redesign.integration.spec.ts` (@pr-e2e). Tests for
+  3.1, 3.2, 3.3 and 3.5 stub the endpoints with `page.route` and pin the request body;
+  replace the stubs with the real endpoints when they exist.
+- Updated specs for the new layout: promote, language guard, dashboard, feedback matrix,
+  public phones, sign-out other sessions, registration review, avatar, and others.
+- e2e also covers: limits per clinic (and that each save already sends every clinic's
+  limits), Change email (expected failure, then a stubbed success), Preview profile
+  ("Opening…" + toast) and a slow save (spinner, fields locked).
+- Last full local run (like CI), 2026-10-09 on `cd87015`: 293 passed in the CI lanes,
+  7 outside CI.
+
+## Notifications (frontend built, backend pending)
+
+### Notifications — `PUT /api/doctor-notification-settings` (new) + loading them
 
 Settings → Notifications (user, 2026-10-01; `lib/settings-notifications.ts`,
 `components/dashboard/settings/NotificationsSection.tsx`). Today every professional sees
@@ -144,51 +537,3 @@ Settings → Notifications (user, 2026-10-01; `lib/settings-notifications.ts`,
   - `extraEmail`: also send the professional's emails there.
   - `patientReminder` (new): an email to the patient before each confirmed visit.
   - Security emails (new sign-in) always go and are not listed.
-
-### Plan & billing (no backend needed)
-
-Reads `professionals.pro_access_until` and `subscription_tier` (`lib/settings-plan.ts`).
-Read-only; "Nothing to pay today" until payments exist.
-
-## Temporary message to remove
-
-Until these endpoints exist they answer 404 and the page says the failure is expected
-and what it waits for, e.g. "Expected to fail for now: removing a clinic works once
-Livio builds it in the backend (DELETE /api/professional-clinics)." One message per
-action in `BACKEND_PENDING` (`lib/settings-backend-pending.ts`); each call site is marked
-`EXPECTED TO FAIL until Livio builds …`. Once the endpoints are in, drop that file and
-show the server's message.
-
-## Links elsewhere
-
-`/agenda/settings` is used in `lib/registration-decision-emails.ts` through
-`DOCTOR_FIRST_LOGIN_PATH` (now `/settings`); old emails still work through the redirect.
-`feat/doctor-dashboard` has its own nav links to `/agenda/settings`: point them at
-`/settings` when merging.
-
-## Layout of every pro page
-
-`components/navigation/ResponsiveBottomInset.tsx`: with the pro chrome on, the page sits
-in a column one window tall under the 57px header; the page's `<main>` fills it (its
-`min-h-screen` is overridden) and the "About DocCy" footer sits at the bottom. Before, a
-page that fit still scrolled by header + footer (~146px). Check `feat/doctor-dashboard`'s
-agenda "fits the window" layout when merging.
-
-## DB impact of this branch
-
-- Migrations: none.
-- Reads: additionally `professional_clinics.id` in `lib/settings-clinic-phones.ts` (to
-  show each clinic's phone on its card).
-- Writes: none new. The new endpoints above are called by the page and do not exist yet.
-
-## Tests
-
-- Unit: `settings-sections`, `settings-removal-rules`, `clinic-change-request`,
-  `settings-clinic-summary`, `settings-specialty-request`, `settings-backend-pending`
-  (in `npm run test:unit`).
-- e2e: `tests/integration/settings_redesign.integration.spec.ts` (@pr-e2e). The specialty
-  removal, specialty request cancel and clinic change request tests stub the new endpoints with `page.route` and pin
-  the request body; once the endpoints exist, the stubs can go.
-- Updated for the new layout: address wizard/notice, service menu, public phones, sign-out
-  other sessions, registration review, avatar upload, language guard, feedback matrix,
-  dashboard, promote practice, prod settings smoke.

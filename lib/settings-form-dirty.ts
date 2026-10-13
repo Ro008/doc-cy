@@ -5,12 +5,15 @@ export type SettingsDirtySnapshot = {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
+  // The personal mobile (Account) and its "show on my profile" switch are not here either: they
+  // save through their own route (components/dashboard/settings/PersonalMobileCard.tsx).
+  //
   // pauseOnlineBookings is intentionally excluded: the toggle saves itself through
   // its own API call, so including it here produces a false "unsaved changes"
   // warning the instant a professional flips it.
@@ -29,9 +32,6 @@ export type SettingsDirtySnapshot = {
     clinicLongitude: number | null;
     clinicPlaceId: string | null;
     weeklySchedule: WeeklySchedule;
-    breakEnabled: boolean;
-    breakStart: string;
-    breakEnd: string;
     slotDurationMinutes: number;
   }>;
 };
@@ -41,9 +41,9 @@ export function buildSettingsDirtySnapshot(input: {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
@@ -54,9 +54,9 @@ export function buildSettingsDirtySnapshot(input: {
     specialtyFromMaster: input.specialtyFromMaster,
     bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
-    mobileNumber: input.mobileNumber.trim(),
     bookingHorizonDays: input.bookingHorizonDays,
     minimumNoticeHours: input.minimumNoticeHours,
+    patientCancelNoticeHours: input.patientCancelNoticeHours,
     holidayModeEnabled: input.holidayModeEnabled,
     holidayStartInput: input.holidayStartInput.trim(),
     holidayEndInput: input.holidayEndInput.trim(),
@@ -75,9 +75,6 @@ function comparable(snapshot: SettingsDirtySnapshot) {
       id: row.id,
       label: row.label,
       weeklySchedule: row.weeklySchedule,
-      breakEnabled: row.breakEnabled,
-      breakStart: row.breakStart,
-      breakEnd: row.breakEnd,
       slotDurationMinutes: row.slotDurationMinutes,
     })),
   };
@@ -98,16 +95,24 @@ export function settingsFormHasUnsavedChanges(
 }
 
 const SECTION_FIELDS: Array<[UnsavedSection, Array<keyof SettingsDirtySnapshot>]> = [
+  // Booking limits are set on each clinic's card; holiday mode pauses every clinic and
+  // lives in Clinics on phones (user, 2026-10-09).
   [
-    "availability",
-    ["bookingHorizonDays", "minimumNoticeHours", "holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
+    "clinics",
+    [
+      "workplaces",
+      "bookingHorizonDays",
+      "minimumNoticeHours",
+      "patientCancelNoticeHours",
+      "holidayModeEnabled",
+      "holidayStartInput",
+      "holidayEndInput",
+    ],
   ],
-  ["clinics", ["workplaces"]],
   ["profile", ["specialty", "specialtyFromMaster", "bio", "languages"]],
-  ["contact", ["mobileNumber"]],
 ];
 
-export type UnsavedSection = "availability" | "clinics" | "profile" | "contact";
+export type UnsavedSection = "clinics" | "profile";
 
 /** Which settings sections hold the unsaved changes, in sidebar order (for the save bar). */
 export function unsavedSettingsSections(

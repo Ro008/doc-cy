@@ -3,8 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 /**
- * Distinct active professionals per clinic (N:M `professional_clinics` + legacy
- * `professionals.clinic_id`). Two unbounded reads — do not chunk by clinic id.
+ * Distinct active professionals per clinic (`professional_clinics`, the only link
+ * since Point E5). Two unbounded reads — do not chunk by clinic id.
  */
 export async function loadClinicProfessionalCountById(
   supabase: SupabaseClient,
@@ -13,8 +13,8 @@ export async function loadClinicProfessionalCountById(
     fetchAllSupabaseRows<{ clinic_id: string | null; professional_id: string | null }>(() =>
       supabase.from("professional_clinics").select("clinic_id, professional_id"),
     ),
-    fetchAllSupabaseRows<{ id: string; clinic_id: string | null }>(() =>
-      supabase.from("professionals").select("id, clinic_id").eq("is_archived", false),
+    fetchAllSupabaseRows<{ id: string }>(() =>
+      supabase.from("professionals").select("id").eq("is_archived", false),
     ),
   ]);
 
@@ -39,9 +39,7 @@ export async function loadClinicProfessionalCountById(
   const activeProfessionalIds = new Set<string>();
   for (const row of prosRes.data ?? []) {
     const professionalId = String(row.id ?? "").trim();
-    const clinicId = String(row.clinic_id ?? "").trim();
     if (professionalId) activeProfessionalIds.add(professionalId);
-    if (clinicId && professionalId) add(clinicId, professionalId);
   }
 
   for (const row of linksRes.data ?? []) {

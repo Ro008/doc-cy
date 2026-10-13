@@ -48,7 +48,6 @@ test.describe("Prod smoke: professional profile availability", { tag: "@nightly-
       .eq("is_registered", true)
       .eq("is_archived", false)
       .eq("is_test_profile", false)
-      .eq("status", "verified")
       .not("slug", "is", null)
       .order("created_at", { ascending: true })
       .limit(1);

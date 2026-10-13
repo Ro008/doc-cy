@@ -3,6 +3,11 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { getClientIp, voterFingerprint } from "@/lib/vote-fingerprint";
 import { parseBookingRequestSource } from "@/lib/finder-manual-patient-booking-request";
+import {
+  USER_EVENTS_TABLE,
+  isUniqueViolation,
+  onlineAppointmentRequestEvent,
+} from "@/lib/user-events";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,45 +62,13 @@ export async function POST(req: Request) {
   const ip = getClientIp(req.headers);
   const voterKey = voterFingerprint(manualId, ip);
 
-  // Same IP+professional fingerprint: keep one row lifetime (toast still OK; Ads skips).
-  if (voterKey) {
-    const { data: existing, error: dupErr } = await supabase
-      .from("professional_patient_booking_requests")
-      .select("id")
-      .eq("professional_id", manualId)
-      .eq("voter_key", voterKey)
-      .limit(1);
-
-    if (dupErr) {
-      console.error("[DocCy][manual-booking-request] dedupe_lookup_failed", dupErr.message);
-      return NextResponse.json({ ok: false, reason: "dedupe_lookup_failed" }, { status: 500 });
-    }
-    if ((existing ?? [])[0]?.id) {
-      return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
-    }
-  }
-
-  const insertPayload: Record<string, unknown> = {
-    professional_id: manualId,
-    source,
-    ...(voterKey ? { voter_key: voterKey } : {}),
-    ...(clinicId ? { clinic_id: clinicId } : {}),
-  };
-
-  let { error: insertErr } = await supabase
-    .from("professional_patient_booking_requests")
-    .insert(insertPayload);
-
-  if (insertErr && clinicId) {
-    const code = String((insertErr as { code?: string }).code ?? "");
-    const msg = String(insertErr.message ?? "");
-    if (code === "42703" || /clinic_id/i.test(msg)) {
-      delete insertPayload.clinic_id;
-      const retry = await supabase
-        .from("professional_patient_booking_requests")
-        .insert(insertPayload);
-      insertErr = retry.error;
-    }
+  // One vote per IP+professional fingerprint, kept by a unique index: a repeat vote
+  // still gets the thank-you toast (Ads skips it).
+  const { error: insertErr } = await supabase.from(USER_EVENTS_TABLE).insert(
+    onlineAppointmentRequestEvent({ professionalId: manualId, clinicId, source, visitorKey: voterKey }),
+  );
+  if (isUniqueViolation(insertErr)) {
+    return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
   }
 
   if (insertErr) {
@@ -103,11 +76,7 @@ export async function POST(req: Request) {
     const msg = String(insertErr.message ?? "");
     console.error("[DocCy][manual-booking-request] insert_failed", code, msg);
     const reason =
-      code === "42P01" || /relation.*does not exist|could not find the table/i.test(msg)
-        ? "table_missing"
-        : code === "42501" || /permission denied/i.test(msg)
-          ? "permission_denied"
-          : "insert_failed";
+      code === "42501" || /permission denied/i.test(msg) ? "permission_denied" : "insert_failed";
     return NextResponse.json({ ok: false, reason }, { status: 500 });
   }
 

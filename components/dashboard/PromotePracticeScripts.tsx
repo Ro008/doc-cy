@@ -1,22 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Copy, LifeBuoy } from "lucide-react";
-import {
-  DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
-  emitOpenFeedback,
-} from "@/lib/doccy-feedback";
+import { Check, ChevronDown, Copy } from "lucide-react";
 import type { PromotePracticeCopy } from "@/lib/promote-practice-copy";
 import {
   buildReceptionScriptText,
   buildVoicemailScriptText,
   buildWebsiteButtonHtml,
-  buildWebsiteSupportPrefill,
+  parsePromoteLanguage,
+  websiteButtonLabel,
 } from "@/lib/promote-practice-script-templates";
-import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_SMALL_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 
-const COPY_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-clinical-400/40 hover:bg-clinical-500/10 hover:text-clinical-100";
+const COPY_BUTTON_CLASS = SETTINGS_SMALL_SECONDARY_BUTTON_CLASS;
 
 function CopyButton({ text, copy }: { text: string; copy: PromotePracticeCopy }) {
   const [copied, setCopied] = React.useState(false);
@@ -33,7 +33,11 @@ function CopyButton({ text, copy }: { text: string; copy: PromotePracticeCopy })
 
   return (
     <button type="button" onClick={handleCopy} className={COPY_BUTTON_CLASS}>
-      <Copy className="h-3.5 w-3.5" aria-hidden />
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-clinical-300" aria-hidden />
+      ) : (
+        <Copy className="h-3.5 w-3.5" aria-hidden />
+      )}
       {copied ? copy.copiedButton : copy.copyButton}
     </button>
   );
@@ -98,56 +102,42 @@ function ScriptText({
 }
 
 type PromotePracticeScriptsProps = {
-  slug: string;
   doctorName: string;
   bookingUrl: string;
+  /** The site as she would say it, e.g. "mydoccy.com". */
+  siteHost: string;
+  /** The language she picked for the sign and scripts. */
   localeLike?: string | null;
   copy: PromotePracticeCopy;
 };
 
 export function PromotePracticeScripts({
-  slug,
   doctorName,
   bookingUrl,
+  siteHost,
   localeLike,
   copy,
 }: PromotePracticeScriptsProps) {
-  const [voicemailText, setVoicemailText] = React.useState(() =>
-    buildVoicemailScriptText(localeLike, bookingUrl)
-  );
-  const [receptionText, setReceptionText] = React.useState(() =>
-    buildReceptionScriptText(localeLike, bookingUrl)
-  );
+  const voicemailDefault = buildVoicemailScriptText(localeLike, { name: doctorName, siteHost });
+  const receptionDefault = buildReceptionScriptText(localeLike, { name: doctorName, bookingUrl });
+  const [voicemailText, setVoicemailText] = React.useState(voicemailDefault);
+  const [receptionText, setReceptionText] = React.useState(receptionDefault);
 
+  // A new language (or link) starts from the ready-made wording again.
   React.useEffect(() => {
-    setVoicemailText(buildVoicemailScriptText(localeLike, bookingUrl));
-    setReceptionText(buildReceptionScriptText(localeLike, bookingUrl));
-  }, [localeLike, bookingUrl, slug]);
+    setVoicemailText(voicemailDefault);
+    setReceptionText(receptionDefault);
+  }, [voicemailDefault, receptionDefault]);
 
   const websiteBriefForWebPerson = React.useMemo(() => {
-    const isEl =
-      String(localeLike ?? "")
-        .toLowerCase()
-        .startsWith("el") ||
-      String(localeLike ?? "")
-        .toLowerCase()
-        .startsWith("gr");
-    const buttonText = isEl ? "Κράτηση online" : "Book appointment online";
-    const linkLabel = isEl ? "Σύνδεσμος" : "Link";
-    return `${copy.websiteButtonLabel}: ${buttonText}\n${linkLabel}: ${bookingUrl}`;
+    const linkLabel = parsePromoteLanguage(localeLike) === "el" ? "Σύνδεσμος" : "Link";
+    return `${copy.websiteButtonLabel}: ${websiteButtonLabel(localeLike)}\n${linkLabel}: ${bookingUrl}`;
   }, [localeLike, bookingUrl, copy.websiteButtonLabel]);
 
   const websiteHtml = React.useMemo(
     () => buildWebsiteButtonHtml(bookingUrl, localeLike),
     [bookingUrl, localeLike]
   );
-
-  function openWebsiteSupport() {
-    emitOpenFeedback({
-      subject: DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
-      message: buildWebsiteSupportPrefill(localeLike, doctorName, bookingUrl),
-    });
-  }
 
   return (
     <section className={SETTINGS_CARD_CLASS}>
@@ -168,19 +158,6 @@ export function PromotePracticeScripts({
           </pre>
           <div className="mt-2">
             <CopyButton text={websiteBriefForWebPerson} copy={copy} />
-          </div>
-
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-            <p className="text-sm font-medium text-slate-200">{copy.websiteFreeHelp}</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">{copy.websiteFreeHelpNote}</p>
-            <button
-              type="button"
-              onClick={openWebsiteSupport}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-100 transition hover:bg-clinical-500/20"
-            >
-              <LifeBuoy className="h-4 w-4" aria-hidden />
-              {copy.websiteContactSupport}
-            </button>
           </div>
 
           <details className="group/html mt-4">

@@ -6,70 +6,81 @@ export function buildPublicProfileUrl(slug: string): string {
   return `${base}/${encodeURIComponent(slug)}`;
 }
 
-export function buildVoicemailScriptText(
-  localeLike: string | null | undefined,
-  bookingUrl: string
-): string {
-  const isEl =
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("el") ||
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("gr");
-  if (isEl) {
-    return `Το ιατρείο μας είναι κλειστό αυτή τη στιγμή. Για να δείτε διαθέσιμες ώρες και να κλείσετε ραντεβού online, επισκεφθείτε ${bookingUrl}. Σας ευχαριστούμε.`;
-  }
-  return `Our clinic is currently closed. To see available appointment times and book online, visit ${bookingUrl}. Thank you.`;
+export type PromoteLanguage = "en" | "el";
+
+/** The language she picks for the sign and scripts (user, 2026-10-11); English unless Greek. */
+export function parsePromoteLanguage(value: string | null | undefined): PromoteLanguage {
+  return isGreek(value) ? "el" : "en";
 }
 
+function isGreek(localeLike: string | null | undefined): boolean {
+  const value = String(localeLike ?? "").toLowerCase();
+  return value.startsWith("el") || value.startsWith("gr");
+}
+
+/**
+ * Heard, not read: it names her and the site, since a long address is hard to catch
+ * on a recording.
+ */
+export function buildVoicemailScriptText(
+  localeLike: string | null | undefined,
+  who: { name: string; siteHost: string }
+): string {
+  if (isGreek(localeLike)) {
+    return `Το ιατρείο μας είναι κλειστό αυτή τη στιγμή. Για να δείτε διαθέσιμες ώρες και να ζητήσετε ραντεβού online, αναζητήστε «${who.name}» στο ${who.siteHost}. Σας ευχαριστούμε.`;
+  }
+  return `Our clinic is currently closed. To see available times and request an appointment online, search for ${who.name} on ${who.siteHost}. Thank you.`;
+}
+
+/** Spoken by her team, so it names her instead of saying "my". */
 export function buildReceptionScriptText(
   localeLike: string | null | undefined,
+  who: { name: string; bookingUrl: string }
+): string {
+  if (isGreek(localeLike)) {
+    return `Σας κλείνω το ραντεβού για [ημέρα] στις [ώρα], [όνομα ασθενούς]. Για την επόμενη επίσκεψη, μπορείτε να δείτε τις διαθέσιμες ώρες για ${who.name} και να ζητήσετε ραντεβού online στο ${who.bookingUrl}, χωρίς να περιμένετε στη γραμμή.`;
+  }
+  return `I've booked you for [day] at [time], [patient name]. For your next visit, you can see ${who.name}'s available times and book online at ${who.bookingUrl}, without calling and waiting on hold.`;
+}
+
+/** The message that goes with her link on WhatsApp and Viber (Telegram: below). */
+export function buildShareMessage(
+  localeLike: string | null | undefined,
+  name: string,
   bookingUrl: string
 ): string {
-  const isEl =
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("el") ||
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("gr");
-  if (isEl) {
-    return `Σας κλείνω το ραντεβού για [ημέρα] στις [ώρα], [όνομα ασθενούς]. Για την επόμενη επίσκεψη, μπορείτε να δείτε τα διαθέσιμα slots και να κλείσετε online στο ${bookingUrl}, χωρίς να περιμένετε στη γραμμή.`;
-  }
-  return `I've booked you for [day] at [time], [patient name]. For your next visit, you can see my available times and book online at ${bookingUrl}, without calling and waiting on hold.`;
+  return `${shareSentence(localeLike, name)}: ${bookingUrl}`;
+}
+
+function shareSentence(localeLike: string | null | undefined, name: string): string {
+  return isGreek(localeLike) ? `Κλείστε ραντεβού online με ${name}` : `Book an appointment with ${name} online`;
+}
+
+/** Telegram takes the link and the sentence apart, and shows the link first. */
+export function buildTelegramShareUrl(
+  localeLike: string | null | undefined,
+  name: string,
+  bookingUrl: string
+): string {
+  return `https://t.me/share/url?url=${encodeURIComponent(bookingUrl)}&text=${encodeURIComponent(shareSentence(localeLike, name))}`;
+}
+
+export function buildWhatsAppShareUrl(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
+export function buildViberShareUrl(text: string): string {
+  return `viber://forward?text=${encodeURIComponent(text)}`;
+}
+
+export function websiteButtonLabel(localeLike: string | null | undefined): string {
+  return isGreek(localeLike) ? "Κράτηση online" : "Book appointment online";
 }
 
 export function buildWebsiteButtonHtml(
   bookingUrl: string,
   localeLike?: string | null
 ): string {
-  const isEl =
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("el") ||
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("gr");
-  const label = isEl ? "Κράτηση online" : "Book appointment online";
   const safeUrl = bookingUrl.replace(/"/g, "&quot;");
-  return `<a href="${safeUrl}" style="${EMAIL_INLINE_CTA_BTN}">${label}</a>`;
-}
-
-export function buildWebsiteSupportPrefill(
-  localeLike: string | null | undefined,
-  doctorName: string,
-  bookingUrl: string
-): string {
-  const isEl =
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("el") ||
-    String(localeLike ?? "")
-      .toLowerCase()
-      .startsWith("gr");
-  if (isEl) {
-    return `Γεια σας DocCy,\n\nΘα ήθελα βοήθεια να προσθέσουμε ένα κουμπί «Κράτηση online» στον υπάρχοντα ιστότοπό μου.\n\nΠροφίλ: ${doctorName}\nΣύνδεσμος κρατήσεων: ${bookingUrl}\n\nΕυχαριστώ.`;
-  }
-  return `Hi DocCy team,\n\nI'd like help adding a "Book appointment online" button to my existing website.\n\nProfile: ${doctorName}\nBooking page: ${bookingUrl}\n\nThank you.`;
+  return `<a href="${safeUrl}" style="${EMAIL_INLINE_CTA_BTN}">${websiteButtonLabel(localeLike)}</a>`;
 }

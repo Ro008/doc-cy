@@ -4,7 +4,7 @@ import {
 } from "@/lib/specialty-options";
 
 export type SpecialtySaveResult =
-  | { ok: true; specialty: string; is_specialty_approved: boolean }
+  | { ok: true; specialty: string; from_catalogue: boolean }
   | { ok: false; message: string };
 
 /**
@@ -26,7 +26,7 @@ export function validateSpecialtySubmission(
     if (!match || match.viaAlias) {
       return { ok: false, message: "Please choose a specialty from the list." };
     }
-    return { ok: true, specialty: match.name, is_specialty_approved: true };
+    return { ok: true, specialty: match.name, from_catalogue: true };
   }
   if (s.length > 120) {
     return { ok: false, message: "Custom specialty must be 120 characters or less." };
@@ -37,7 +37,7 @@ export function validateSpecialtySubmission(
       message: "This matches a standard specialty — select it from the list instead of Other.",
     };
   }
-  return { ok: true, specialty: s, is_specialty_approved: false };
+  return { ok: true, specialty: s, from_catalogue: false };
 }
 
 export function parseSpecialtyFromMasterField(raw: FormDataEntryValue | null): boolean {

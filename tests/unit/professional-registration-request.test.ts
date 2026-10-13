@@ -30,8 +30,8 @@ function input(overrides: Partial<ProfessionalRegistrationInput> = {}): Professi
     languages: ["English", "Spanish"],
     photoPath: "professional_registration/u1/photo.jpg",
     specialties: [
-      { specialty: "Physiotherapy", fromMaster: true, isApproved: true, licenseNumber: " PT-123 " },
-      { specialty: "Dry needling", fromMaster: false, isApproved: false, licenseNumber: "DN-9" },
+      { specialty: "Physiotherapy", fromMaster: true, fromCatalogue: true, licenseNumber: " PT-123 " },
+      { specialty: "Dry needling", fromMaster: false, fromCatalogue: false, licenseNumber: "DN-9" },
     ],
     clinics: [
       {
@@ -213,6 +213,19 @@ describe("buildProfessionalRegistrationDetails", () => {
         buildProfessionalRegistrationDetails(input(overrides)),
         { ok: false, code: "validation" },
         JSON.stringify(overrides),
+      );
+    }
+  });
+
+  it("takes only a real mobile with its country code, stored as + and digits", () => {
+    const built = buildProfessionalRegistrationDetails(input({ mobile: " +357 99 123 456 " }));
+    assert.equal(built.ok, true);
+    if (built.ok) assert.equal(built.details.mobile, "+35799123456");
+    for (const mobile of ["+35722123456", "99123456", "+3579912"]) {
+      assert.deepEqual(
+        buildProfessionalRegistrationDetails(input({ mobile })),
+        { ok: false, code: "validation" },
+        mobile,
       );
     }
   });

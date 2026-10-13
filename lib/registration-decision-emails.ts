@@ -11,6 +11,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { DOCTOR_FIRST_LOGIN_PATH } from "@/lib/first-login-trial-notice";
 import type { ProfessionalRegistrationDetails } from "@/lib/professional-registration-request";
@@ -123,7 +124,7 @@ ${EMAIL_SHELL_OPEN}
     ${p("Your DocCy registration has been approved and your profile is live.")}
     ${trial ? p(escapeHtml(trial)) : ""}
     <a href="${escapeHtml(loginUrl)}" style="${EMAIL_PRIMARY_BTN}">Sign in to DocCy</a>
-    ${p(`Your public profile: <a href="${escapeHtml(profileUrl)}">${escapeHtml(profileUrl)}</a>`, EMAIL_TEXT_MUTED)}
+    ${p(`Your public profile: ${emailFallbackLink(profileUrl)}`, EMAIL_TEXT_MUTED)}
     ${
       opts.corrections.length
         ? `${p("While reviewing your application we changed:")}<ul style="margin:0 0 10px;padding-left:20px;color:${EMAIL_TEXT};">${opts.corrections

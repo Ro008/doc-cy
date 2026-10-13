@@ -162,6 +162,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact_name }}
+        retention-days: 7
         path: |
           playwright-report
           test-results

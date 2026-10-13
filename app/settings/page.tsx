@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -17,8 +18,8 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
+import { loadPendingEmailChange } from "@/lib/account-email-change-server";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
-import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
 import { PlanBillingSection } from "@/components/dashboard/settings/PlanBillingSection";
 import { planSummary } from "@/lib/settings-plan";
 import { NotificationsSection } from "@/components/dashboard/settings/NotificationsSection";
@@ -32,17 +33,26 @@ import {
   buildWeeklyScheduleFromSettings,
   DEFAULT_BOOKING_HORIZON_DAYS,
   DEFAULT_MIN_NOTICE_HOURS,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
-import { locationWeeklySchedule } from "@/lib/doctor-locations";
+import { settingsWorkplaceFromLocation } from "@/lib/settings-workplace";
+import { loadClinicRequestStates } from "@/lib/clinic-requests-server";
+import { loadProAccessEnded } from "@/lib/load-access-ended";
+import {
+  ACCOUNT_SETTINGS_FALLBACK,
+  locationToSettingsRow,
+  locationWeeklySchedule,
+} from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
+import { cyprusTodayKey, holidayState } from "@/lib/holiday-mode";
 import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
+import { loadProfileChangeStates } from "@/lib/profile-change-requests-server";
+import { loadProfileDetails } from "@/lib/profile-details-server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   loadSpecialtyCatalogueNames,
   loadSpecialtyEntries,
   primarySpecialtyEntry,
@@ -83,8 +93,6 @@ export default async function AgendaSettingsPage({
     longitude?: number | null;
     clinic_place_id?: string | null;
     town?: string | null;
-    status?: string | null;
-    specialty_requires_standard_at?: string | null;
     subscription_tier?: string | null;
     is_gesy?: boolean | null;
   } | null = null;
@@ -97,7 +105,7 @@ export default async function AgendaSettingsPage({
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, mobile_number, slug, bio, languages, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, mobile_number, slug, bio, languages, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -106,7 +114,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -116,7 +124,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -131,7 +139,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -141,7 +149,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier"
+          "id, name, avatar_url, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -150,7 +158,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, languages, status, subscription_tier"
+          "id, name, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -159,7 +167,7 @@ export default async function AgendaSettingsPage({
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status"
+          "id, name, avatar_url, slug, languages"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -167,7 +175,7 @@ export default async function AgendaSettingsPage({
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
         .from("professionals")
-        .select("id, name, slug, languages, status")
+        .select("id, name, slug, languages")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -182,26 +190,16 @@ export default async function AgendaSettingsPage({
     let fallback = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, slug, languages, status, specialty_requires_standard_at, subscription_tier"
+        "id, name, avatar_url, slug, languages, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
-
-    if (fallback.error && hasColError(fallback.error, "specialty_requires_standard_at")) {
-      fallback = await supabase
-        .from("professionals")
-        .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier"
-        )
-        .eq("auth_user_id", user.id)
-        .single();
-    }
 
     if (fallback.error && hasColError(fallback.error, "avatar_url")) {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, languages, status, subscription_tier"
+          "id, name, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -210,7 +208,7 @@ export default async function AgendaSettingsPage({
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status"
+          "id, name, avatar_url, slug, languages"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -218,33 +216,13 @@ export default async function AgendaSettingsPage({
     if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
       fallback = await supabase
         .from("professionals")
-        .select("id, name, slug, languages, status")
+        .select("id, name, slug, languages")
         .eq("auth_user_id", user.id)
         .single();
     }
 
     doctor = fallback.data as typeof doctor;
     doctorError = fallback.error ?? doctorError;
-  }
-
-  if (doctor) {
-    // Always hydrate the specialty review flag so banner/UI state remains correct
-    // even when primary selects use compatibility fallbacks.
-    const { data: specialtyFlags } = await supabase
-      .from("professionals")
-      .select("specialty_requires_standard_at")
-      .eq("id", doctor.id)
-      .maybeSingle();
-    if (specialtyFlags) {
-      doctor = {
-        ...doctor,
-        specialty_requires_standard_at:
-          (specialtyFlags as { specialty_requires_standard_at?: string | null })
-            .specialty_requires_standard_at ??
-          doctor.specialty_requires_standard_at ??
-          null,
-      };
-    }
   }
 
   if (doctorError) {
@@ -271,14 +249,14 @@ export default async function AgendaSettingsPage({
 
   const { data: settings } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(`${PROFESSIONAL_ACCOUNT_SETTINGS_SELECT}, show_mobile_on_profile`)
     .eq("professional_id", doctor.id)
     .single();
 
   const { data: serviceRows } = await supabase
-    .from("doctor_services")
+    .from("professional_services")
     .select("id, name, price, created_at")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .order("created_at", { ascending: true });
 
   const services: DoctorServiceItem[] = (serviceRows ?? []).map((row) => ({
@@ -296,7 +274,6 @@ export default async function AgendaSettingsPage({
     )
   );
 
-  const isVerified = doctor.status === "verified";
   const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
   // Plan & billing: online booking is free until pro_access_until (approval + trial).
   const { data: accessRow } = await supabase
@@ -309,34 +286,25 @@ export default async function AgendaSettingsPage({
     isFounder: isFoundingMember,
   });
 
-  const pauseOnlineBookings = Boolean(
-    (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
-  );
-
   const locationRows = await loadDoctorLocations(doctor.id);
+  const accessEnded = await loadProAccessEnded(supabase, doctor.id);
   const primaryClinic = primaryDoctorLocation(locationRows);
-  const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
-    id: row.id,
-    isPrimary: Boolean(row.is_primary),
-    label: String(row.label ?? "").trim(),
-    district: String(row.district ?? "").trim(),
-    clinicAddress: String(row.clinic_address ?? "").trim(),
-    clinicTown: String(row.town ?? "").trim() || null,
-    clinicLatitude: row.latitude ?? null,
-    clinicLongitude: row.longitude ?? null,
-    clinicPlaceId: row.clinic_place_id ?? null,
-    weeklySchedule: locationWeeklySchedule(row),
-    breakEnabled: Boolean(row.break_start) && Boolean(row.break_end),
-    breakStart: String(row.break_start ?? "13:00:00").slice(0, 5),
-    breakEnd: String(row.break_end ?? "14:00:00").slice(0, 5),
-    slotDurationMinutes: Number(row.slot_duration_minutes) > 0 ? Number(row.slot_duration_minutes) : 30,
-    pauseOnlineBookings: Boolean(row.pause_online_bookings),
-  }));
+  // The single-clinic fields mirror the primary clinic (Point E6: schedules and the pause
+  // live on the clinic links; professional_settings holds the account settings).
+  const primaryHours = primaryClinic
+    ? locationToSettingsRow(primaryClinic, ACCOUNT_SETTINGS_FALLBACK)
+    : null;
+  const pauseOnlineBookings = Boolean(primaryHours?.pause_online_bookings);
+  const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map(settingsWorkplaceFromLocation);
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   // professional_specialties has no RLS policies for users: read it with the service role.
   const specialtyService = createServiceRoleClient();
+  // An email change still waiting for its link (Account → Sign-in & security).
+  const pendingEmailChange = specialtyService
+    ? await loadPendingEmailChange(specialtyService, doctor.id).catch(() => null)
+    : null;
   const [specialtyEntries, specialtyOptions] = specialtyService
     ? await Promise.all([
         loadSpecialtyEntries(specialtyService, doctor.id),
@@ -344,77 +312,68 @@ export default async function AgendaSettingsPage({
       ])
     : [[], []];
 
-  let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
-  {
-    const pendingChangeRes = await supabase
-      .from("professional_specialty_change_requests")
-      .select("request_kind, from_specialty, to_specialty, license_number, created_at")
-      .eq("professional_id", doctor.id)
-      .eq("status", "pending")
-      .maybeSingle();
-    if (
-      pendingChangeRes.error &&
-      /request_kind/i.test(String(pendingChangeRes.error.message ?? ""))
-    ) {
-      const legacy = await supabase
-        .from("professional_specialty_change_requests")
-        .select("from_specialty, to_specialty, license_number, created_at")
-        .eq("professional_id", doctor.id)
-        .eq("status", "pending")
-        .maybeSingle();
-      if (!legacy.error && legacy.data) {
-        const from = String(
-          (legacy.data as { from_specialty?: string | null }).from_specialty ?? "",
-        ).trim();
-        pendingSpecialtyChange = {
-          requestKind: from ? "replace" : "add",
-          fromSpecialty: from || null,
-          toSpecialty: String(
-            (legacy.data as { to_specialty?: string }).to_specialty ?? "",
-          ).trim(),
-          licenseNumber: String(
-            (legacy.data as { license_number?: string }).license_number ?? "",
-          ).trim(),
-          createdAt: String(
-            (legacy.data as { created_at?: string }).created_at ?? "",
-          ),
-        };
-      }
-    } else if (!pendingChangeRes.error && pendingChangeRes.data) {
-      const kindRaw = String(
-        (pendingChangeRes.data as { request_kind?: string }).request_kind ?? "add",
-      ).trim();
-      const from = String(
-        (pendingChangeRes.data as { from_specialty?: string | null }).from_specialty ??
-          "",
-      ).trim();
-      const to = String(
-        (pendingChangeRes.data as { to_specialty?: string | null }).to_specialty ?? "",
-      ).trim();
-      const license = String(
-        (pendingChangeRes.data as { license_number?: string | null }).license_number ??
-          "",
-      ).trim();
-      const requestKind =
-        kindRaw === "replace" || kindRaw === "remove"
-          ? kindRaw
-          : from && !to
-            ? "remove"
-            : "add";
-      pendingSpecialtyChange = {
-        requestKind,
-        fromSpecialty: from || null,
-        toSpecialty: to || null,
-        licenseNumber: license || null,
-        createdAt: String(
-          (pendingChangeRes.data as { created_at?: string }).created_at ?? "",
-        ),
-      };
-    }
-  }
+  // Her open name and photo requests, or her latest denials (request_log is service role only).
+  const profileChanges = specialtyService
+    ? await loadProfileChangeStates(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] profile change requests load failed", err);
+        return null;
+      })
+    : null;
+
+  // Her waiting new clinic and open clinic-details requests, or her latest denials.
+  const clinicRequests = specialtyService
+    ? await loadClinicRequestStates(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] clinic requests load failed", err);
+        return null;
+      })
+    : null;
+  // The form keys a clinic by her link to it; requests name the clinic itself.
+  const clinicChangeRequests = Object.fromEntries(
+    locationRows
+      .filter((row) => row.clinic_id && clinicRequests?.details[row.clinic_id])
+      .map((row) => [row.id, clinicRequests!.details[row.clinic_id as string]!]),
+  );
+
+  // "Patients I see" and qualifications: empty when the database has no such columns yet.
+  const profileDetails = specialtyService
+    ? await loadProfileDetails(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] profile details load failed", err);
+        return null;
+      })
+    : null;
+
+  const holidayRow = settings as {
+    holiday_mode_enabled?: boolean | null;
+    holiday_start_date?: string | null;
+    holiday_end_date?: string | null;
+  } | null;
+  const holidayShown = holidayState(
+    {
+      enabled: Boolean(holidayRow?.holiday_mode_enabled),
+      start: holidayRow?.holiday_start_date ?? null,
+      end: holidayRow?.holiday_end_date ?? null,
+    },
+    cyprusTodayKey(),
+  );
 
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
+    patientAges: profileDetails?.patientAges ?? null,
+    qualifications: profileDetails?.qualifications ?? [],
+    nameChange: profileChanges?.name ?? null,
+    pendingSpecialtyChange: profileChanges?.specialty.pending
+      ? {
+          requestKind: "add",
+          fromSpecialty: null,
+          toSpecialty: profileChanges.specialty.pending.name,
+          licenseNumber: profileChanges.specialty.pending.licenseNumber,
+          createdAt: profileChanges.specialty.pending.createdAt,
+        }
+      : null,
+    specialtyDenied: profileChanges?.specialty.denied ?? null,
+    photoChange: profileChanges
+      ? { ...profileChanges.photo, pendingPhotoUrl: profileChanges.pendingPhotoUrl }
+      : null,
     doctorId: doctor.id,
     doctorName: doctor.name,
     avatarUrl:
@@ -422,14 +381,17 @@ export default async function AgendaSettingsPage({
         ? supabase.storage.from("avatars").getPublicUrl(String(doctor.avatar_url)).data.publicUrl
         : null,
     specialty: primarySpecialtyEntry(specialtyEntries)?.name ?? "",
-    specialties: approvedSpecialtyNames(specialtyEntries),
-    isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
-    pendingSpecialtyChange,
+    specialties: specialtyNames(specialtyEntries),
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     mobileNumber: (doctor.mobile_number ?? "").trim() || undefined,
-    // Shown read-only: patients see these, and clinics are admin-curated.
+    showMobileOnProfile: Boolean(
+      (settings as { show_mobile_on_profile?: boolean | null } | null)?.show_mobile_on_profile,
+    ),
+    // On each clinic card: patients see these.
     clinicPhones: await loadSettingsClinicPhones(doctor.id),
+    clinicAddRequest: clinicRequests?.add ?? null,
+    clinicChangeRequests,
     // The primary clinic, not the copies on professionals (Point E).
     district: (primaryClinic?.district ?? "").trim(),
     clinicAddress: (primaryClinic?.clinic_address ?? "").trim(),
@@ -437,89 +399,47 @@ export default async function AgendaSettingsPage({
     clinicLatitude: primaryClinic?.latitude ?? null,
     clinicLongitude: primaryClinic?.longitude ?? null,
     clinicPlaceId: primaryClinic?.clinic_place_id ?? null,
-    monday: (settings as { monday?: boolean } | null)?.monday ?? true,
-    tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
-    wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
-    thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
-    friday: (settings as { friday?: boolean } | null)?.friday ?? true,
-    saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
-    sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
-    weeklySchedule: buildWeeklyScheduleFromSettings({
-      professional_id: doctor.id,
-      monday: (settings as { monday?: boolean } | null)?.monday ?? true,
-      tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
-      wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
-      thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
-      friday: (settings as { friday?: boolean } | null)?.friday ?? true,
-      saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
-      sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
-      start_time:
-        (settings as { start_time?: string } | null)?.start_time ?? "09:00:00",
-      end_time:
-        (settings as { end_time?: string } | null)?.end_time ?? "17:00:00",
-      weekly_schedule:
-        (settings as { weekly_schedule?: DoctorSettingsRow["weekly_schedule"] } | null)
-          ?.weekly_schedule ?? null,
-      break_start:
-        (settings as { break_start?: string | null } | null)?.break_start ?? null,
-      break_end:
-        (settings as { break_end?: string | null } | null)?.break_end ?? null,
-      pause_online_bookings: Boolean(
-        (settings as { pause_online_bookings?: boolean } | null)
-          ?.pause_online_bookings
-      ),
-      show_phone_public: Boolean(
-        (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
-      ),
-      holiday_mode_enabled: Boolean(
-        (settings as { holiday_mode_enabled?: boolean } | null)
-          ?.holiday_mode_enabled
-      ),
-      holiday_start_date:
-        (settings as { holiday_start_date?: string | null } | null)
-          ?.holiday_start_date ?? null,
-      holiday_end_date:
-        (settings as { holiday_end_date?: string | null } | null)
-          ?.holiday_end_date ?? null,
-      booking_horizon_days:
-        (settings as { booking_horizon_days?: number } | null)
-          ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
-      minimum_notice_hours:
-        (settings as { minimum_notice_hours?: number } | null)
-          ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
-      slot_duration_minutes:
-        (settings as { slot_duration_minutes?: number } | null)
-          ?.slot_duration_minutes ?? 30,
-    }),
-    breakEnabled:
-      Boolean((settings as { break_start?: string | null } | null)?.break_start) &&
-      Boolean((settings as { break_end?: string | null } | null)?.break_end),
-    breakStart: (
-      (settings as { break_start?: string | null } | null)?.break_start ?? "13:00:00"
-    ).slice(0, 5),
-    breakEnd: (
-      (settings as { break_end?: string | null } | null)?.break_end ?? "14:00:00"
-    ).slice(0, 5),
-    slotDurationMinutes:
-      (settings as { slot_duration_minutes?: number } | null)
-        ?.slot_duration_minutes ?? 30,
-    bookingHorizonDays:
-      (settings as { booking_horizon_days?: number } | null)
-        ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
-    minimumNoticeHours:
-      (settings as { minimum_notice_hours?: number } | null)
-        ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
-    holidayModeEnabled: Boolean(
-      (settings as { holiday_mode_enabled?: boolean | null } | null)
-        ?.holiday_mode_enabled
+    monday: primaryHours?.monday ?? true,
+    tuesday: primaryHours?.tuesday ?? true,
+    wednesday: primaryHours?.wednesday ?? true,
+    thursday: primaryHours?.thursday ?? true,
+    friday: primaryHours?.friday ?? true,
+    saturday: primaryHours?.saturday ?? false,
+    sunday: primaryHours?.sunday ?? false,
+    weeklySchedule: buildWeeklyScheduleFromSettings(
+      primaryHours ?? {
+        professional_id: doctor.id,
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false,
+        start_time: "09:00:00",
+        end_time: "17:00:00",
+        weekly_schedule: null,
+        break_start: null,
+        break_end: null,
+        pause_online_bookings: false,
+        slot_duration_minutes: 30,
+        booking_horizon_days: DEFAULT_BOOKING_HORIZON_DAYS,
+        minimum_notice_hours: DEFAULT_MIN_NOTICE_HOURS,
+        ...ACCOUNT_SETTINGS_FALLBACK,
+      },
     ),
-    holidayStartDate:
-      (settings as { holiday_start_date?: string | null } | null)
-        ?.holiday_start_date ?? null,
-    holidayEndDate:
-      (settings as { holiday_end_date?: string | null } | null)
-        ?.holiday_end_date ?? null,
+    slotDurationMinutes: primaryHours?.slot_duration_minutes ?? 30,
+    // The limits are each clinic's own (locations[i].bookingLimits); these only fill
+    // a clinic that carries none.
+    bookingHorizonDays: primaryClinic?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
+    minimumNoticeHours: primaryClinic?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
+    patientCancelNoticeHours: parsePatientCancelNoticeHours(primaryClinic?.patient_cancel_notice_hours),
+    // A holiday whose end date has passed shows as off (user, 2026-10-11).
+    holidayModeEnabled: holidayShown.kind !== "off",
+    holidayStartDate: holidayShown.kind === "off" ? null : holidayShown.start,
+    holidayEndDate: holidayShown.kind === "off" ? null : holidayShown.end,
     pauseOnlineBookings,
+    accessEnded,
     services,
     locations: workplaceLocations,
   };
@@ -537,7 +457,7 @@ export default async function AgendaSettingsPage({
 
         <SettingsForm
           initial={initial}
-          plan={<PlanBillingSection plan={plan} isFounder={isFoundingMember} />}
+          plan={<PlanBillingSection plan={plan} />}
           // Until Livio stores them (handoff: Notifications), every professional has
           // the defaults, which are what DocCy sends today.
           notifications={
@@ -553,36 +473,22 @@ export default async function AgendaSettingsPage({
               <p className="mt-1.5 text-lg font-semibold tracking-tight text-slate-50">{displayName}</p>
               {isFoundingMember ? (
                 <div className="mt-2">
-                  <FoundingMemberBadge />
+                  {/* No link here: Plan & billing is in the sidebar right below. */}
+                  <FoundingMemberBadge href={null} />
                 </div>
               ) : null}
             </div>
           }
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
-          account={<AccountSecurityCard email={user.email ?? ""} />}
+          account={<AccountSecurityCard email={user.email ?? ""} initialPendingEmail={pendingEmailChange?.email ?? null} />}
           promote={
             <div id="promote-practice">
-              {isVerified ? (
-                <PromotePracticeSection
-                  slug={doctor.slug}
-                  doctorName={doctor.name}
-                  specialty={
-                    primarySpecialtyEntry(specialtyEntries)?.isApproved
-                      ? primarySpecialtyEntry(specialtyEntries)?.name
-                      : ""
-                  }
-                  localeLike={localeLike}
-                />
-              ) : (
-                <section className={SETTINGS_CARD_CLASS}>
-                  <h2 className="text-sm font-semibold text-slate-100">Available once you&apos;re verified</h2>
-                  <p className="mt-2 text-sm text-slate-400">
-                    QR codes, printable signs, and downloads are available after your profile is{" "}
-                    <span className="font-medium text-amber-200/90">verified</span> by our team.
-                    You can still use your agenda and settings in the meantime.
-                  </p>
-                </section>
-              )}
+              <PromotePracticeSection
+                slug={doctor.slug}
+                doctorName={doctor.name}
+                specialties={specialtyNames(specialtyEntries)}
+                localeLike={localeLike}
+              />
             </div>
           }
         />

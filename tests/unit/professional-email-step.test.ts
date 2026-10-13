@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
   EMAIL_STEP_MAX_AGE_DAYS,
   hasValidEmailStep,
   isProfessionalApiPath,
+  PROFESSIONAL_API_ROUTES,
   lastEmailStepAt,
   normalizeSignInCode,
   signInLinkPath,
@@ -68,14 +71,25 @@ describe("isProfessionalApiPath", () => {
     for (const path of [
       "/api/appointments/manual",
       "/api/appointments/abc/confirm",
-      "/api/doctor-avatar",
       "/api/doctor-gesy",
       "/api/doctor-locations",
       "/api/doctor-online-bookings",
-      "/api/doctor-services",
+      "/api/professional-services",
       "/api/doctor-settings",
       "/api/doctor-settings/trial-notice",
-      "/api/doctor-specialty-change-request",
+      "/api/professional-clinics/abc/dismiss-pause-notice",
+      "/api/professional-mobile",
+      "/api/account/email",
+      "/api/professional-mobile/visibility",
+      "/api/name-change-requests",
+      "/api/photo-change-requests",
+      "/api/professional-photo",
+      "/api/professional-specialties",
+      "/api/professional-profile",
+      "/api/professional-qualifications",
+      "/api/specialty-requests",
+      "/api/clinic-requests",
+      "/api/clinic-change-requests",
     ]) {
       assert.equal(isProfessionalApiPath(path), true, path);
     }
@@ -92,6 +106,16 @@ describe("isProfessionalApiPath", () => {
       "/api/directory/contact-reveal",
     ]) {
       assert.equal(isProfessionalApiPath(path), false, path);
+    }
+  });
+});
+
+describe("middleware matcher", () => {
+  it("runs the middleware on every professional API route (else the gate never sees them)", () => {
+    const source = readFileSync(join(process.cwd(), "middleware.ts"), "utf8");
+    const matcher = source.slice(source.indexOf("matcher:"));
+    for (const route of PROFESSIONAL_API_ROUTES) {
+      assert.match(matcher, new RegExp(`"${route}(/:path[*+])?"`), route);
     }
   });
 });

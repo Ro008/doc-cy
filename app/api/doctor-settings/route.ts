@@ -2,32 +2,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { clinicHoursProblem } from "@/lib/clinic-hours-check";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
-import {
-  BOOKING_HORIZON_OPTIONS_DAYS,
-  DAY_NAMES,
-  DEFAULT_BOOKING_HORIZON_DAYS,
-  DEFAULT_MIN_NOTICE_HOURS,
-  MIN_NOTICE_OPTIONS_HOURS,
-  type DayKey,
-  type WeeklySchedule,
-} from "@/lib/doctor-settings";
+import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
+import { saveHoliday } from "@/lib/professional-holiday-server";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
+  clinicHoursUnchanged,
   settingsSaveTargets,
   writeClinicSettings,
   type SettingsClinicInput,
 } from "@/lib/professional-clinic-settings-writes";
+import { saveClinicHours, saveClinicLimits } from "@/lib/professional-clinics-server";
 import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
 } from "@/lib/doctor-specialty-settings-lock";
+import { setProfessionalBio, setProfessionalLanguages } from "@/lib/profile-details-server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
-import {
-  SETTINGS_MOBILE_IN_USE_MESSAGE,
-  professionalContactUniqueViolation,
-} from "@/lib/professional-contact";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -62,7 +56,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctorId)
     .single();
 
@@ -80,7 +74,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert professional_settings + update the mobile, bio, languages (owner only).
+/** POST - save the holiday (professional_settings; saved and recorded by its database
+ * function, user 2026-10-11; a body without holidayModeEnabled leaves it alone) + update
+ * the bio and languages (owner only). Each clinic's hours and booking limits are saved on the professional's
+ * join row and recorded (user, 2026-10-11): the limits belong to each clinic, sent with
+ * its entry in `locations`; a clinic sent without limits keeps them.
  * Clinics are read-only here (user, 2026-09-29 phones; 2026-09-30 D4 addresses): they are
  * curated by DocCy, so a save writes each clinic's hours and name on the professional's
  * join row and never an address. Address fields an old page still sends are ignored.
@@ -107,7 +105,6 @@ export async function POST(req: NextRequest) {
 
   const b = body as {
     doctorId?: string;
-    doctorPhone?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -130,6 +127,7 @@ export async function POST(req: NextRequest) {
     slotDurationMinutes?: number;
     bookingHorizonDays?: number;
     minimumNoticeHours?: number;
+    patientCancelNoticeHours?: number;
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
@@ -186,191 +184,45 @@ export async function POST(req: NextRequest) {
   }
   const languages = langsParsed.value;
   const locationsPayload = Array.isArray(b.locations) ? b.locations : [];
-  const doctorPhoneTrimmed =
-    typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
+  // An open day, and the break, end after they start (user, 2026-10-10). Checked before
+  // anything is written, so a refused save keeps nothing.
+  for (const clinicHours of locationsPayload.length > 0 ? locationsPayload : [b]) {
+    const wrongHours = clinicHoursProblem(clinicHours ?? {});
+    if (wrongHours) return NextResponse.json({ message: wrongHours }, { status: 400 });
+  }
 
-  const toTime = (v: string | undefined, fallback: string) => {
-    if (!v || typeof v !== "string") return fallback;
-    const parts = v.trim().split(":");
-    const h = parts[0]?.padStart(2, "0") ?? "09";
-    const m = parts[1]?.padStart(2, "0") ?? "00";
-    return `${h}:${m}:00`;
-  };
-
-  const slotMinutes = Number(b.slotDurationMinutes);
-  const duration =
-    Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30;
-  const bookingHorizon = Number(b.bookingHorizonDays);
-  const booking_horizon_days = BOOKING_HORIZON_OPTIONS_DAYS.includes(
-    bookingHorizon as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
-  )
-    ? bookingHorizon
-    : DEFAULT_BOOKING_HORIZON_DAYS;
-  const minimumNotice = Number(b.minimumNoticeHours);
-  const minimum_notice_hours = MIN_NOTICE_OPTIONS_HOURS.includes(
-    minimumNotice as (typeof MIN_NOTICE_OPTIONS_HOURS)[number]
-  )
-    ? minimumNotice
-    : DEFAULT_MIN_NOTICE_HOURS;
-
-  const weeklySchedulePayload = DAY_NAMES.reduce((acc, day) => {
-    const incoming = (b.weeklySchedule as WeeklySchedule | undefined)?.[day];
-    const legacyEnabled = Boolean((b as Record<DayKey, unknown>)[day]);
-    const startFallback = toTime(b.startTime, "09:00:00");
-    const endFallback = toTime(b.endTime, "17:00:00");
-    acc[day] = {
-      enabled:
-        typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled,
-      start_time: incoming?.start_time
-        ? toTime(incoming.start_time, "09:00:00")
-        : startFallback,
-      end_time: incoming?.end_time
-        ? toTime(incoming.end_time, "17:00:00")
-        : endFallback,
-    };
-    return acc;
-  }, {} as Record<DayKey, { enabled: boolean; start_time: string; end_time: string }>);
-
-  const payload = {
-    professional_id: doctorId,
-    monday: Boolean(b.monday),
-    tuesday: Boolean(b.tuesday),
-    wednesday: Boolean(b.wednesday),
-    thursday: Boolean(b.thursday),
-    friday: Boolean(b.friday),
-    saturday: Boolean(b.saturday),
-    sunday: Boolean(b.sunday),
-    start_time: toTime(b.startTime, "09:00:00"),
-    end_time: toTime(b.endTime, "17:00:00"),
-    weekly_schedule: weeklySchedulePayload,
-    break_start: b.breakEnabled ? toTime(b.breakStart, "13:00:00") : null,
-    break_end: b.breakEnabled ? toTime(b.breakEnd, "14:00:00") : null,
-    slot_duration_minutes: duration,
-    booking_horizon_days,
-    minimum_notice_hours,
-    holiday_mode_enabled: Boolean(b.holidayModeEnabled),
-    holiday_start_date: Boolean(b.holidayModeEnabled)
-      ? (b.holidayStartDate ?? null)
-      : null,
-    holiday_end_date: Boolean(b.holidayModeEnabled)
-      ? (b.holidayEndDate ?? null)
-      : null,
-    updated_at: new Date().toISOString(),
-  };
-
-  const legacyPayload = {
-    professional_id: doctorId,
-    monday: Boolean(b.monday),
-    tuesday: Boolean(b.tuesday),
-    wednesday: Boolean(b.wednesday),
-    thursday: Boolean(b.thursday),
-    friday: Boolean(b.friday),
-    start_time: toTime(b.startTime, "09:00:00"),
-    end_time: toTime(b.endTime, "17:00:00"),
-    break_start: b.breakEnabled ? toTime(b.breakStart, "13:00:00") : null,
-    break_end: b.breakEnabled ? toTime(b.breakEnd, "14:00:00") : null,
-    slot_duration_minutes: duration,
-    updated_at: new Date().toISOString(),
-  };
-
-  const {
-    data: dataFull,
-    error: errorFull,
-  } = await supabase
-    .from("professional_settings")
-    .upsert(payload, { onConflict: "professional_id" })
-    .select()
-    .single();
-
-  let data = dataFull ?? null;
-  if (errorFull) {
-    // Missing new scheduling columns means advanced availability cannot be saved reliably.
-    const errMsg = String((errorFull as any)?.message ?? "");
-    const missingNewCols =
-      /(saturday|sunday|weekly_schedule|pause_online_bookings|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
-        errMsg
-      );
-    if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
-      return NextResponse.json(
-        {
-          message:
-            "Advanced schedule settings are unavailable because the database is missing columns. Please contact DocCy support.",
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!data && (errorFull as { code?: string }).code === "PGRST204") {
-      const {
-        data: dataLegacy,
-        error: errorLegacy,
-      } = await supabase
-        .from("professional_settings")
-        .upsert(legacyPayload, { onConflict: "professional_id" })
-        .select()
-        .single();
-
-      if (errorLegacy) {
-        console.error(errorLegacy);
-      } else {
-        data = dataLegacy ?? null;
-      }
+  // The personal mobile is not saved here: POST /api/professional-mobile changes and
+  // records it (2026-10-09). A doctorPhone sent by an old page is ignored.
+  // Holiday, bio and languages change as she pleases, but each change is recorded
+  // (user, 2026-10-10 and 2026-10-11): the database functions write the value and its
+  // request_log row together, and do nothing when the value is the same.
+  const profileService = createServiceRoleClient();
+  if (!profileService) {
+    return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+  }
+  if (b.holidayModeEnabled !== undefined) {
+    const holidayOn = Boolean(b.holidayModeEnabled);
+    const holidaySaved = await saveHoliday(profileService, {
+      professionalId: doctorId,
+      enabled: holidayOn,
+      startDate: holidayOn ? String(b.holidayStartDate ?? "").trim() || null : null,
+      endDate: holidayOn ? String(b.holidayEndDate ?? "").trim() || null : null,
+    });
+    if (holidaySaved.ok === false) {
+      return NextResponse.json({ message: holidaySaved.message }, { status: holidaySaved.status });
     }
   }
-
-  if (!data) {
-    console.error(errorFull);
-    return NextResponse.json(
-      { message: "Error saving settings." },
-      { status: 500 }
-    );
-  }
-
-  const phoneUpdateBase: {
-    mobile_number?: string | null;
-    bio?: string | null;
-    languages: string[];
-  } = { languages };
-  if (b.doctorPhone !== undefined) {
-    phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
-  }
-  if (b.bio !== undefined) {
-    phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;
-  }
-
-  let docErr = (
-    await supabase.from("professionals").update(phoneUpdateBase).eq("id", doctorId)
-  ).error;
-
-  if (
-    docErr &&
-    (docErr.code === "42703" ||
-      docErr.code === "PGRST204" ||
-      String(docErr.message ?? "").toLowerCase().includes("column"))
-  ) {
-    if (/mobile_number/i.test(String(docErr.message ?? ""))) {
-      const { mobile_number: _mobile, ...withoutMobile } = phoneUpdateBase;
-      docErr = (
-        await supabase.from("professionals").update(withoutMobile).eq("id", doctorId)
-      ).error;
+  const languagesSaved = await setProfessionalLanguages(profileService, { professionalId: doctorId, languages });
+  const bioSaved =
+    languagesSaved.ok && b.bio !== undefined
+      ? await setProfessionalBio(profileService, { professionalId: doctorId, bio: bioRaw })
+      : languagesSaved;
+  if (bioSaved.ok === false) {
+    // Changed too often: she is told when it opens again (lib/request-frequency.ts).
+    if (bioSaved.status === 429) {
+      return NextResponse.json({ message: bioSaved.message }, { status: 429 });
     }
-  }
-
-  if (professionalContactUniqueViolation(docErr) === "mobile") {
-    return NextResponse.json({ message: SETTINGS_MOBILE_IN_USE_MESSAGE }, { status: 409 });
-  }
-
-  if (docErr) {
-    console.error("[DocCy] Failed to update doctors row", docErr);
-    return NextResponse.json(
-      {
-        message:
-          docErr.message?.includes("languages") || docErr.code === "42703"
-            ? "Languages could not be saved because the database is missing a column. Please contact DocCy support."
-            : "Error updating professional profile.",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Error updating professional profile." }, { status: 500 });
   }
 
   const ownedClinics = await loadDoctorLocations(doctorId);
@@ -394,16 +246,37 @@ export async function POST(req: NextRequest) {
           },
         ];
 
-  for (const { locationId, settings } of settingsSaveTargets(clinicInputs, ownedClinics)) {
-    const saved = await writeClinicSettings(doctorId, locationId, settings);
-    if (!saved.ok) {
-      console.error("[DocCy] Failed to save clinic settings", saved.error);
-      return NextResponse.json(
-        { message: "Error saving clinic settings." },
-        { status: 500 },
-      );
+  for (const { locationId, settings, limits } of settingsSaveTargets(clinicInputs, ownedClinics)) {
+    // Hours and limits are saved and recorded by their database functions; saving
+    // what is already there records nothing.
+    const { label, ...hours } = settings;
+    // A save sends every clinic: only the ones whose hours really differ are written.
+    const current = ownedClinics.find((row) => row.id === locationId);
+    if (!current || !clinicHoursUnchanged(hours, current)) {
+      const hoursSaved = await saveClinicHours(profileService, { professionalId: doctorId, linkId: locationId, hours });
+      if (hoursSaved.ok === false) {
+        return NextResponse.json({ message: hoursSaved.message }, { status: hoursSaved.status });
+      }
+    }
+    if (limits) {
+      const limitsSaved = await saveClinicLimits(profileService, { professionalId: doctorId, linkId: locationId, limits });
+      if (limitsSaved.ok === false) {
+        return NextResponse.json({ message: limitsSaved.message }, { status: limitsSaved.status });
+      }
+    }
+    if (label !== undefined) {
+      const saved = await writeClinicSettings(doctorId, locationId, { label });
+      if (!saved.ok) {
+        console.error("[DocCy] Failed to save clinic settings", saved.error);
+        return NextResponse.json({ message: "Error saving clinic settings." }, { status: 500 });
+      }
     }
   }
 
-  return NextResponse.json({ settings: data }, { status: 200 });
+  const { data } = await profileService
+    .from("professional_settings")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+    .eq("professional_id", doctorId)
+    .maybeSingle();
+  return NextResponse.json({ settings: data ?? null }, { status: 200 });
 }
