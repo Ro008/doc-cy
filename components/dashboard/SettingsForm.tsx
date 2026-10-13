@@ -278,7 +278,7 @@ type SettingsFormProps = {
   /** Extra Profile rows rendered by the page (e.g. the GESY switch). */
   profileExtra?: React.ReactNode;
   /** "Your public page" (colour + headline): a set-once look, so the last card of Profile. */
-  profilePublicPage?: React.ReactNode;
+  profileHeadline?: React.ReactNode;
   /** The Account section: sign-in & security. */
   account?: React.ReactNode;
   /** The Promote section: QR, print sign, scripts. */
@@ -419,7 +419,7 @@ export function SettingsForm({
   section: initialSection,
   sidebarHeader,
   profileExtra,
-  profilePublicPage,
+  profileHeadline,
   account,
   promote,
   publicProfileHref,
@@ -2146,6 +2146,8 @@ export function SettingsForm({
           />
         </div>
       </section>
+      {/* The line under her name on the public page, so it follows the name here too. */}
+      {profileHeadline}
       {specialtiesCard}
       {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
       {profileExtra}
@@ -2220,8 +2222,6 @@ export function SettingsForm({
         ) : null}
       </section>
       <QualificationsCard initial={initial.qualifications ?? []} />
-      {/* Colour and headline are chosen once; what patients rely on comes first. */}
-      {profilePublicPage}
     </div>
   );
 

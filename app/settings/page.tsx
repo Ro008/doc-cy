@@ -17,8 +17,8 @@ import type {
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
-import { ProfilePageCustomization } from "@/components/dashboard/ProfilePageCustomization";
-import { profileCustomizationFromRow } from "@/lib/profile-customization";
+import { ProfileHeadlineCard } from "@/components/dashboard/ProfileHeadlineCard";
+import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
 import { loadPendingEmailChange } from "@/lib/account-email-change-server";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -341,6 +341,10 @@ export default async function AgendaSettingsPage({
         return null;
       })
     : null;
+  // The line under her name on her public page (Profile → Headline).
+  const profileHeadline = specialtyService
+    ? await loadProfileHeadline(specialtyService, doctor.id).catch(() => null)
+    : null;
 
   const holidayRow = settings as {
     holiday_mode_enabled?: boolean | null;
@@ -475,19 +479,7 @@ export default async function AgendaSettingsPage({
             </div>
           }
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
-          profilePublicPage={
-            /* "Your public page" (colour + headline), moved here from the old
-               /agenda/settings page as docs/handoff/profile-redesign.md asks. The
-               public profile's owner banner links to this anchor. */
-            <div id="public-page" className="scroll-mt-24">
-              <ProfilePageCustomization
-                initial={profileCustomizationFromRow(doctor)}
-                name={displayName}
-                avatarUrl={initial.avatarUrl ?? null}
-                publicPageHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
-              />
-            </div>
-          }
+          profileHeadline={<ProfileHeadlineCard initial={{ headline: profileHeadline }} />}
           account={<AccountSecurityCard email={user.email ?? ""} initialPendingEmail={pendingEmailChange?.email ?? null} />}
           promote={
             <div id="promote-practice">

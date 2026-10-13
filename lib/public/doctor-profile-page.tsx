@@ -26,8 +26,11 @@ import { ProfileReviewsSection } from "@/components/doctor/profile/ProfileReview
 import { cache } from "react";
 import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
-import { profileCustomizationFromRow } from "@/lib/profile-customization";
+import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { profileThemeStyle } from "@/lib/profile-theme";
+import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
+import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
+import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
 import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
@@ -66,7 +69,7 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { Building2, MapPin, Star } from "lucide-react";
+import { MapPin } from "lucide-react";
 import {
   buildShareDescription,
   heroRatingFromReviews,
@@ -500,12 +503,11 @@ export async function generateMetadata({
     cityLabel,
     rating: shareRating,
   });
-  // The picture under the link is drawn per version of what is on it (photo, name, colour,
+  // The picture under the link is drawn per version of what is on it (photo, name,
   // specialties, place, the note): the same facts the route reads, so its `v` matches.
   const shareCardVersion = profileShareCardVersion({
     name: String(doctor.name ?? ""),
     avatarPath: String(doctor.avatar_url ?? "").trim() || null,
-    accent: profileCustomizationFromRow(doctor).accent,
     specialties: specialtyLabels,
     district: districtLabel,
     rating: shareRating,
@@ -615,6 +617,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     supabase,
     profile.id,
   );
+
+  // Her personal mobile, when she chose to show it (user, 2026-10-13): the page knows
+  // only that there is one; the number comes from the reveal route on the click.
+  const hasPersonalMobile = Boolean(await loadPublicPersonalMobile(supabase, profile.id));
 
   const [practiceLocations, registeredClinics] = await Promise.all([
     loadDoctorLocations(profile.id),
@@ -734,7 +740,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : callClinics.length > 0;
 
   // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
-  const customization = profileCustomizationFromRow(profile);
+  const customization = { headline: await loadProfileHeadline(supabase, profile.id) };
   // Light unless this visitor switched to dark (cookie, so no flash on load).
   const scheme = parseProfileScheme(cookies().get(PROFILE_SCHEME_COOKIE)?.value);
   const accountSettings = normalizedSettings as {
@@ -888,7 +894,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     <main
       className="doccy-profile min-h-screen font-sans"
       data-scheme={scheme}
-      style={profileThemeStyle(customization.accent)}
+      style={profileThemeStyle()}
     >
       <div className="border-b border-profile-border bg-profile-surface">
         <FinderPublicHeader proSessionHint={proSessionHint} />
@@ -998,32 +1004,38 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     <span>{profileHeadingCity}</span>
                   )}
                 </span>
-                {clinicCards.length > 0 ? (
-                  <a
-                    href={`#${PROFILE_SECTION_IDS.clinics}`}
-                    data-testid="profile-hero-clinics-link"
-                    className={`inline-flex items-center gap-1.5 text-accent-on ${heroLinkClass}`}
-                  >
-                    <Building2 className="h-4 w-4 shrink-0" aria-hidden />
-                    {practiceLocations.length > 1
-                      ? t("heroClinicsCount", { count: practiceLocations.length })
-                      : t("heroClinicDetails")}
-                  </a>
-                ) : null}
-                {showHeroRating(reviews.length) ? (
-                  <a
-                    href={`#${PROFILE_SECTION_IDS.reviews}`}
-                    data-testid="profile-hero-rating"
-                    aria-label={`${t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}, ${t("reviewsSummary", { count: reviewSummary.count })}`}
-                    className={`inline-flex items-center gap-1.5 text-accent-on ${heroLinkClass}`}
-                  >
-                    <Star className="h-4 w-4 shrink-0 fill-current" aria-hidden />
-                    <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
-                    <span aria-hidden>·</span>
-                    <span>{t("reviewsSummary", { count: reviewSummary.count })}</span>
-                  </a>
+                {hasPersonalMobile ? (
+                  <RevealMobileButton
+                    professionalId={profile.id}
+                    label={t("heroShowMobile")}
+                    loadingLabel={t("heroShowMobileLoading")}
+                    errorLabel={t("heroShowMobileError")}
+                    className={`text-accent-on ${heroLinkClass}`}
+                    testId="profile-hero-mobile"
+                  />
                 ) : null}
               </div>
+              {showHeroRating(reviews.length) ? (
+                <div
+                  data-testid="profile-hero-rating"
+                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-bold"
+                >
+                  <ProfileStars
+                    rating={reviewSummary.average ?? 0}
+                    label={t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}
+                    size="h-[18px] w-[18px]"
+                    emptyClassName="text-accent-on/40"
+                  />
+                  <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
+                  <span aria-hidden>·</span>
+                  <a
+                    href={`#${PROFILE_SECTION_IDS.reviews}`}
+                    className={`text-accent-on ${heroLinkClass}`}
+                  >
+                    {t("reviewsSummary", { count: reviewSummary.count })}
+                  </a>
+                </div>
+              ) : null}
               {languageChips.length > 0 ? (
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.14em]">
@@ -1130,6 +1142,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           cards={clinicCards}
           professionalId={profile.id}
           openingHours={openingHoursByCard}
+          hasPersonalMobile={hasPersonalMobile}
         />
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">

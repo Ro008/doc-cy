@@ -50,7 +50,7 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
   phone (`RevealPhoneButton`, unchanged) (`lib/public/profile-clinic-cards.ts`).
 - **Light and dark.** Every profile opens in light. A Light/Dark switch next to the
   language switcher lets anyone change it; the choice is a first-party cookie
-  `doccy_profile_scheme` (`lib/profile-scheme.ts`, one year, all profiles) read by the
+  `doccy_scheme` (`lib/profile-scheme.ts`, one year, all profiles) read by the
   server, so there is no flash. Nothing to store in the database. Colours live in
   `lib/profile-theme.ts` and reach the page as CSS variables (`.doccy-profile` +
   `data-scheme` in `app/globals.css`, Tailwind `profile-*` / `accent-*`).
@@ -58,25 +58,33 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
   day cards and time chips, a small "pop" on the chosen time. All off with
   `prefers-reduced-motion`.
 
-## What waits for the backend
+## Headline, personal mobile and colours (Livio, 2026-10-13)
 
-Professionals can personalise their page: **one of three colours** (teal, amber,
-violet) and an **optional headline** (≤ 90 characters). Settings › "Your public page"
-(`components/dashboard/ProfilePageCustomization.tsx`) edits both with a light/dark preview.
-The contract is in `lib/profile-customization.ts`:
+Nothing waits for the backend any more.
 
-1. **Read.** Columns `professionals.profile_accent text` (one of `teal`, `amber`,
-   `violet`; default `teal`) and `professionals.profile_headline text`
-   (nullable, ≤ 90 chars). Add them to the public profile field list
-   (`DOCTOR_FIELD_LIST_PUBLIC_PROFILE*` in `lib/doctor-fieldsets.ts`) and to the settings
-   page select. The page already calls `profileCustomizationFromRow(profile)`, which reads
-   them when present and falls back to teal / no headline.
-2. **Write.** `PATCH /api/professional-profile-customization`, signed-in professional,
-   body `{ "accent": "amber", "headline": "Kind, careful skin care" | null }`.
-   Validate with `resolveProfileAccent` and `profileHeadlineError`, write the two columns
-   of the caller's own row, answer `200 { ok: true }`; `400` on invalid input, `401` when
-   signed out. Today the call returns 404 and the screen shows
-   "Expected to fail for now: … (PATCH /api/professional-profile-customization)".
+- **No colour choice, no light/dark in Settings** (Livio and Rocío): every profile is DocCy
+  teal (`PROFILE_ACCENT` in `lib/profile-theme.ts`). Light/dark is the visitor's choice, meant
+  for the whole public site later (cookie `doccy_scheme`, was `doccy_profile_scheme`). The top
+  bar's logo follows the mode (white "my" on the dark bar, `FinderPublicHeader`).
+- **Headline**: Settings › Profile › "Headline", right below "Name and photo"
+  (`components/dashboard/ProfileHeadlineCard.tsx`), optional, ≤ 90 characters.
+  `PATCH /api/professional-profile-customization` body `{ "headline": "…" | null }` →
+  `professional_headline_set` (migration `20261013150000_professional_headline_change`):
+  column `professionals.profile_headline`, every change recorded in `request_log`
+  (`professional_headline_change`, status `recorded`, no founder), **at most 5 changes in a
+  rolling 30 days** (429 with the date it opens again, shown as a toast). The pages read it
+  with `loadProfileHeadline` (`lib/profile-headline-server.ts`), which returns no headline
+  when the column is missing, so the code is safe before Production has the migration.
+- **Personal mobile**: when she turned "Show on my profile" on (Settings › Account), the hero
+  shows **"Show mobile"** next to the district and Clinics & contact shows **"Show personal
+  mobile"** under its heading (`RevealMobileButton`). The number is fetched on the click from
+  `POST /api/directory/professional-mobile-reveal` (same rate limit as the clinic phones; one
+  404 for hidden, missing or unknown). Never in the page's HTML, never in the JSON-LD.
+  Not recorded in `user_events` yet.
+- **Hero**: the clinic count ("2 clinics" / "Clinic details") is gone; the clinic picker and
+  the "Clinics & contact" tab already say it. The districts stay.
+
+## Booking form and security (earlier work)
 
 3. **Booking form: gender and date of birth.** Done on master (2026-10-04, Livio):
    `patientGender` / `patientBirthdate` → `appointments.patient_gender` /
@@ -135,37 +143,10 @@ The contract is in `lib/profile-customization.ts`:
      `TURNSTILE_SECRET_KEY` are set — put them in Vercel → Production only (local, CI and
      previews stay off). No DB change.
 
-## Decision needed: where the professional's personal mobile shows (Livio, 2026-10-09)
-
-Livio is building, on `feat/settings-redesign`, a personal mobile the professional edits in
-Settings › Profile, with an on/off switch "Show on my profile"
-(`professional_settings.show_mobile_on_profile`, **off by default**). Changes to the
-number and to the switch are recorded in `request_log` (`professional_mobile_change`,
-`professional_mobile_visibility_change`, status `recorded`, no founder approval).
-
-**To decide with Rocío: where this page shows the mobile when the switch is on.** Fixed
-already: the clinic's phone stays the main public phone (each clinic card, as now); the
-personal mobile is extra, shown only on this page (not on finder cards) and never in the
-JSON-LD.
-
-Questions for the design:
-- Where: a "Personal mobile" row in **Clinics & contact** (above or below the clinic
-  cards), in the hero next to the clinics, or both?
-- Behind a reveal button like the clinic phones (`RevealPhoneButton`, which also records
-  the "Show phone number" click), or shown in full?
-- Label and wording, e.g. "Mobile (Dr …'s own)", and whether to offer WhatsApp.
-- On phones: part of the "Request appointment" bar, or not?
-
-Livio's suggestion: one "Personal mobile" row at the top of **Clinics & contact**,
-behind the same reveal button, not in the hero. The page will receive it as one field,
-`personalMobile: string | null` (null when the switch is off), read with the service
-role; nothing about it reaches the client when it's off.
-
 ## Data notes
 
-- No migrations in this branch. Reads are unchanged (`professionals`, `professional_services`,
+- One migration in this branch: `20261013150000_professional_headline_change` (a new column, request type and function; backward-compatible). Other reads are unchanged (`professionals`, `professional_services`,
   clinic locations, the occupied-slots RPC).
-- Unknown or missing accent values always render as teal, so a bad row never breaks a page.
 
 ## Tests
 
@@ -197,12 +178,10 @@ No database change: everything **reads** `professional_reviews` (written by
 - **Shared link preview**: the description leads with the note (3+ reviews); the description
   Google reads is unchanged.
 - **Share card image**: `GET /api/og/profile/[slug]?v=…` draws 1200×630 (photo, name,
-  specialties, district, note, accent colour) with Inter (`assets/fonts/inter`, OFL). The `v` in
+  specialties, district, note) with Inter (`assets/fonts/inter`, OFL). The `v` in
   the link is a hash of everything drawn (`profileShareCardVersion`); the route only draws when
   `v` is current (else a 307 to the current one, a 404 for an unknown slug) and the result is
   cached for a year, so a crawler cannot make the server draw by inventing versions.
-  **When the accent column exists** (`professionals.profile_accent`), select it in
-  `loadProfileShareCard` and in `generateMetadata` together, or the `v` will not match.
   Changing the card's *design* does not change `v`: add a design number to the hash if you retouch it.
 - **Manual booking**: an optional "Service" choice (never required; a picked service makes the
   reason optional, the service name stands in). Uses `professionalServiceId`, already accepted

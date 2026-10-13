@@ -15,7 +15,6 @@ export type ProfileShareCardFacts = {
   name: string;
   /** Storage path or URL of the photo, as stored; the card draws the photo behind it. */
   avatarPath: string | null;
-  accent: string;
   specialties: readonly string[];
   /** Primary district, the one the profile heading uses. */
   district: string | null;
@@ -27,7 +26,6 @@ export function profileShareCardVersion(facts: ProfileShareCardFacts): string {
   const canonical = JSON.stringify([
     facts.name.trim(),
     facts.avatarPath ?? "",
-    facts.accent,
     facts.specialties.map((label) => label.trim()),
     facts.district ?? "",
     facts.rating ? [facts.rating.count, facts.rating.average] : null,

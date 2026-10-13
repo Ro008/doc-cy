@@ -10,7 +10,7 @@ type DoctorProfileSpecialtiesProps = {
   specialty?: string | null;
   district?: string | null;
   className?: string;
-  /** Pill style override (the profile hero paints them in the doctor's accent). */
+  /** Pill style override (the profile hero paints them in the profile's accent). */
   pillClassName?: string;
 };
 

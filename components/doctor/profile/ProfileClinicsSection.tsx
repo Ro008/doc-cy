@@ -1,6 +1,7 @@
 import { Check, Clock, MapPin } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
+import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
 import type { ProfileClinicCard } from "@/lib/public/profile-clinic-cards";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 
@@ -9,10 +10,20 @@ type Props = {
   professionalId: string;
   /** Opening hours per card key, already formatted ("Mon–Fri", "09:00–13:00, 14:00–17:00"). */
   openingHours: Readonly<Record<string, ReadonlyArray<{ days: string; hours: string }>>>;
+  /** She chose to show her personal mobile; the number itself comes on the click. */
+  hasPersonalMobile?: boolean;
 };
 
-/** "Clinics & contact": each place with its address, opening hours, map and phone. */
-export async function ProfileClinicsSection({ cards, professionalId, openingHours }: Props) {
+/**
+ * "Clinics & contact": each place with its address, opening hours, map and phone, and
+ * her personal mobile under the heading when she shows it (user, 2026-10-13).
+ */
+export async function ProfileClinicsSection({
+  cards,
+  professionalId,
+  openingHours,
+  hasPersonalMobile = false,
+}: Props) {
   if (cards.length === 0) return null;
   const t = await getTranslations("DoctorProfilePage");
   const bookingT = await getTranslations("BookingPage");
@@ -32,6 +43,16 @@ export async function ProfileClinicsSection({ cards, professionalId, openingHour
         </h2>
         {cards.length > 1 ? (
           <p className="mt-1.5 text-sm text-profile-muted">{t("clinicsHintSeveral")}</p>
+        ) : null}
+        {hasPersonalMobile ? (
+          <RevealMobileButton
+            professionalId={professionalId}
+            label={t("clinicsShowMobile")}
+            loadingLabel={t("heroShowMobileLoading")}
+            errorLabel={t("heroShowMobileError")}
+            className="mt-4 min-h-11 rounded-2xl border-2 border-profile-border px-4 text-sm font-bold text-profile-text transition hover:border-accent"
+            testId="profile-clinics-mobile"
+          />
         ) : null}
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">

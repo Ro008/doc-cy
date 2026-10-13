@@ -35,7 +35,15 @@ export function FinderPublicHeader({
   const isSales = variant === "sales";
   const showGuestNav = !isSales && !hideGuestCtas;
 
-  const logo = <DocCyWordmark variant="light" size={isSales ? "xl" : "md"} />;
+  const logoSize = isSales ? "xl" : "md";
+  // On a public profile in dark mode the bar is dark: the reverse artwork (white "my"),
+  // as on the dashboard. The mode switches without a reload, so CSS picks the artwork.
+  const logo = (
+    <>
+      <DocCyWordmark variant="light" size={logoSize} className="[.doccy-profile[data-scheme=dark]_&]:hidden" />
+      <DocCyWordmark variant="dark" size={logoSize} className="hidden [.doccy-profile[data-scheme=dark]_&]:inline-flex" />
+    </>
+  );
 
   return (
     <header

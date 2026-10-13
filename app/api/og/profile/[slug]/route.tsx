@@ -13,7 +13,7 @@ import {
   profileShareCardVersion,
   shareCardSpecialtyLine,
 } from "@/lib/public/profile-share-card";
-import { PROFILE_ACCENTS, resolveProfileAccent } from "@/lib/profile-theme";
+import { PROFILE_ACCENT } from "@/lib/profile-theme";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
   }
 
   const { facts } = card;
-  const palette = PROFILE_ACCENTS[resolveProfileAccent(facts.accent)];
+  const palette = PROFILE_ACCENT;
   const photo = await avatarDataUri(card.avatarUrl);
   const specialties = shareCardSpecialtyLine(facts.specialties);
   const { width, height } = PROFILE_SHARE_CARD_SIZE;

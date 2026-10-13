@@ -22,7 +22,7 @@ export type PhoneInputProps = {
   errorMessage?: string | null;
   /**
    * "dark" for the professional's dark modals (manual booking); "profile" for the public
-   * profile theme (light/dark + the doctor's accent, set as CSS variables in globals.css).
+   * profile theme (light/dark + DocCy's accent, set as CSS variables in globals.css).
    */
   tone?: "light" | "dark" | "profile";
   /**

@@ -7,7 +7,7 @@
 
 export type ProfileScheme = "light" | "dark";
 
-export const PROFILE_SCHEME_COOKIE = "doccy_profile_scheme";
+export const PROFILE_SCHEME_COOKIE = "doccy_scheme";
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 
 export function parseProfileScheme(value: string | null | undefined): ProfileScheme {

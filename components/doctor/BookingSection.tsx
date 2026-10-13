@@ -51,7 +51,7 @@ import {
 } from "@/lib/public/profile-booking-events";
 import { useIsomorphicLayoutEffect, useProfileBookingStep } from "@/components/doctor/profile/ProfileBookingStep";
 
-// Public profile theme tokens (light/dark + the doctor's accent, see lib/profile-theme.ts).
+// Public profile theme tokens (light/dark + DocCy's accent, see lib/profile-theme.ts).
 const CARD_CLASS =
   "rounded-3xl border border-profile-border bg-profile-surface p-6 text-profile-body shadow-sm";
 const LABEL_CLASS = "text-sm font-semibold text-profile-text";

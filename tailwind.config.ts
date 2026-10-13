@@ -110,7 +110,7 @@ const config: Config = {
           muted: "var(--p-muted)",
           off: "var(--p-off)",
         },
-        // The professional's chosen accent on their public profile.
+        // The public profile's accent (DocCy teal, lib/profile-theme.ts).
         accent: {
           DEFAULT: "var(--p-accent)",
           on: "var(--p-accent-on)",

@@ -20,14 +20,14 @@ describe("parseProfileScheme", () => {
 
 describe("profileSchemeCookie", () => {
   it("is a small, first-party preference cookie kept for a year on every profile", () => {
-    assert.equal(PROFILE_SCHEME_COOKIE, "doccy_profile_scheme");
+    assert.equal(PROFILE_SCHEME_COOKIE, "doccy_scheme");
     assert.equal(
       profileSchemeCookie("dark"),
-      "doccy_profile_scheme=dark; Path=/; Max-Age=31536000; SameSite=Lax",
+      "doccy_scheme=dark; Path=/; Max-Age=31536000; SameSite=Lax",
     );
     assert.equal(
       profileSchemeCookie("light"),
-      "doccy_profile_scheme=light; Path=/; Max-Age=31536000; SameSite=Lax",
+      "doccy_scheme=light; Path=/; Max-Age=31536000; SameSite=Lax",
     );
   });
 });

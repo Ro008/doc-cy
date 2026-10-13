@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
 import { normalizeDistrictForSeoTitle, resolveShareAvatarUrl } from "@/lib/doctor-seo-formatting";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { profileCustomizationFromRow } from "@/lib/profile-customization";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { heroRatingFromReviews } from "@/lib/public/profile-reviews";
@@ -19,8 +18,7 @@ export type ProfileShareCard = { facts: ProfileShareCardFacts; avatarUrl: string
 /**
  * What the share card draws, for a registered professional by slug: the same facts, read the
  * same way, as the profile's own metadata (that is what lets the route check the `v` in the
- * link). Public data only, read only. When the accent column exists (the customization
- * contract in lib/profile-customization.ts), select it here and in generateMetadata together.
+ * link). Public data only, read only.
  */
 export async function loadProfileShareCard(
   supabase: SupabaseClient,
@@ -51,7 +49,6 @@ export async function loadProfileShareCard(
     facts: {
       name: String(professional.name ?? ""),
       avatarPath: avatarPath || null,
-      accent: profileCustomizationFromRow(professional).accent,
       specialties: publicSpecialtyLabels({
         specialties: specialtyNames(entries),
         specialty: primarySpecialtyEntry(entries)?.name ?? "",

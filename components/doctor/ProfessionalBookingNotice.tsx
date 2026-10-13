@@ -6,7 +6,7 @@ import type { BookingViewerMode } from "@/lib/booking-viewer";
 /**
  * Shown instead of the booking calendar to a signed-in professional (user, 2026-10-06):
  * on her own profile it points to manual booking; on a colleague's it says to sign out
- * to book as a patient. Only on the public profile: drawn in its theme (light/dark, her colour).
+ * to book as a patient. Only on the public profile: drawn in its theme (light/dark).
  */
 export async function ProfessionalBookingNotice({ mode }: { mode: Exclude<BookingViewerMode, "patient"> }) {
   const t = await getTranslations("BookingPage");

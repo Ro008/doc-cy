@@ -645,7 +645,7 @@ button {
 
 /* ─── Public profile theme (lib/profile-theme.ts) ───────────────────────────────
  * The page root carries every colour as inline variables (profileThemeStyle):
- * the professional's accent and both surface sets. Light by default; the page's
+ * DocCy's accent and both surface sets. Light by default; the page's
  * Light/Dark switch (or the settings preview) sets `data-scheme="dark"`, remembered
  * in a cookie (lib/profile-scheme.ts). Tailwind exposes them as `profile-*` and `accent-*`.
  */

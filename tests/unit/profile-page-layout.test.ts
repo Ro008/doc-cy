@@ -10,10 +10,11 @@ const read = (file: string) => fs.readFileSync(path.join(repoRoot, file), "utf8"
 describe("public profile: one page with anchor tabs", () => {
   const page = read("lib/public/doctor-profile-page.tsx");
 
-  it("themes the page root with the doctor's accent", () => {
+  it("themes the page root with DocCy's colours, the same on every profile", () => {
     assert.match(page, /className="doccy-profile[^"]*"/);
-    assert.match(page, /style=\{profileThemeStyle\(customization\.accent\)\}/);
-    assert.match(page, /profileCustomizationFromRow\(profile\)/);
+    assert.match(page, /style=\{profileThemeStyle\(\)\}/);
+    assert.doesNotMatch(page, /customization\.accent/);
+    assert.match(page, /loadProfileHeadline\(supabase, profile\.id\)/);
   });
 
   it("renders every section on the page behind sticky anchor tabs", () => {
@@ -40,11 +41,11 @@ describe("public profile: one page with anchor tabs", () => {
   });
 
   it("hero: what is clickable looks clickable, languages are the finder's colour chips", () => {
-    // District links to the finder, the clinic count jumps to #clinics.
+    // District links to the finder; no clinic count (the picker and the tab say it; user, 2026-10-13).
     assert.match(page, /<FinderDistrictLink[\s\S]*?className="[^"]*underline[^"]*"/);
-    assert.match(page, /data-testid="profile-hero-clinics-link"[\s\S]*?href=\{`#\$\{PROFILE_SECTION_IDS\.clinics\}`\}|href=\{`#\$\{PROFILE_SECTION_IDS\.clinics\}`\}[\s\S]*?data-testid="profile-hero-clinics-link"/);
-    // Both hero links take the hero's text colour, never the default link teal (2026-10-10).
-    assert.match(page, /className=\{`inline-flex items-center gap-1\.5 text-accent-on \$\{heroLinkClass\}`\}/);
+    assert.equal(page.includes("profile-hero-clinics-link"), false);
+    // Hero links take the hero's text colour, never the default link teal (2026-10-10).
+    assert.match(page, /className=\{`text-accent-on \$\{heroLinkClass\}`\}/);
     // Same language chips as the finder cards.
     assert.match(page, /languageThemeForLabel\(/);
     assert.match(page, /\.pillClass/);
@@ -182,6 +183,13 @@ describe("public profile: one page with anchor tabs", () => {
 describe("public profile: colours, dark mode and motion", () => {
   const css = read("app/globals.css");
 
+  it("the top bar's logo follows the mode: white \"my\" on the dark bar, as on the dashboard", () => {
+    const header = read("components/finder/FinderPublicHeader.tsx");
+    // Both artworks are drawn; the mode switches on the page without a reload, so CSS picks.
+    assert.match(header, /<DocCyWordmark\s+variant="light"[^>]*\[\.doccy-profile\[data-scheme=dark\]_&\]:hidden/);
+    assert.match(header, /<DocCyWordmark\s+variant="dark"[^>]*hidden \[\.doccy-profile\[data-scheme=dark\]_&\]:inline-flex/);
+  });
+
   it("opens in light and lets anyone switch to dark, remembered in a cookie", () => {
     assert.match(css, /\.doccy-profile\s*\{/);
     assert.match(css, /\.doccy-profile\[data-scheme="dark"\]/);
@@ -230,25 +238,29 @@ describe("public profile: colours, dark mode and motion", () => {
   });
 });
 
-describe("doctor settings: your public page", () => {
-  it("offers colour + headline with a light/dark preview and the pending-backend notice", () => {
-    const settings = read("components/dashboard/ProfilePageCustomization.tsx");
-    assert.match(settings, /PROFILE_ACCENT_IDS/);
+describe("doctor settings: headline", () => {
+  it("offers the headline, saved through the customization route, with the too-often words as a toast", () => {
+    const settings = read("components/dashboard/ProfileHeadlineCard.tsx");
     assert.match(settings, /PROFILE_HEADLINE_MAX_LENGTH/);
     assert.match(settings, /saveProfileCustomization/);
-    assert.match(settings, /data-scheme=\{previewScheme\}/);
-    assert.match(settings, /EXPECTED TO FAIL until Livio builds PATCH \/api\/professional-profile-customization/);
+    assert.match(settings, /result\.reason === "too_often"/);
+    assert.doesNotMatch(settings, /EXPECTED TO FAIL|pending_backend|backend_pending/);
     // Settings moved to /settings (#279); the card sits in its Profile section.
     const page = read("app/settings/page.tsx");
-    assert.match(page, /<ProfilePageCustomization\b/);
+    assert.match(page, /<ProfileHeadlineCard\b/);
+  });
+
+  it("offers no page colour and no light/dark: the colour is DocCy's, the mode is the visitor's (user, 2026-10-13)", () => {
+    assert.equal(fs.existsSync(path.join(repoRoot, "components/dashboard/ProfilePageCustomization.tsx")), false);
+    const settings = read("components/dashboard/ProfileHeadlineCard.tsx");
+    assert.doesNotMatch(settings, /accent|data-scheme|doccy-profile|previewScheme|Page colour|Live preview/i);
   });
 
   it("looks like the other settings cards: shared card, eyebrow, buttons, busy and toast rules", () => {
-    const settings = read("components/dashboard/ProfilePageCustomization.tsx");
+    const settings = read("components/dashboard/ProfileHeadlineCard.tsx");
     assert.match(settings, /SETTINGS_CARD_CLASS/);
     assert.match(settings, /SETTINGS_EYEBROW_CLASS/);
     assert.match(settings, /SETTINGS_PRIMARY_BUTTON_CLASS/);
-    assert.match(settings, /SETTINGS_SECONDARY_BUTTON_CLASS/);
     assert.match(settings, /<BusyLabel\b/);
     // Done = a toast, replaced rather than stacked; the fields wait while saving.
     assert.match(settings, /toast\.success\([^)]*id: "profile-page"/);
@@ -257,18 +269,19 @@ describe("doctor settings: your public page", () => {
     assert.doesNotMatch(settings, /shadow-2xl|backdrop-blur/);
   });
 
-  it("sits at the end of Profile: a set-once look comes after what patients rely on", () => {
+  it("sits right below her name and photo, where it shows on the page (user, 2026-10-13)", () => {
     const form = read("components/dashboard/SettingsForm.tsx");
+    const namePhoto = form.indexOf("<ProfilePhotoControls");
+    const headline = form.indexOf("{profileHeadline}");
+    const specialties = form.indexOf("{specialtiesCard}", namePhoto);
     const gesy = form.indexOf("{profileExtra}");
     const ages = form.indexOf("<PatientAgesCard");
     const bio = form.indexOf('htmlFor="settings-bio"');
     const qualifications = form.indexOf("<QualificationsCard");
-    const publicPage = form.indexOf("{profilePublicPage}");
-    assert.ok(gesy > 0 && gesy < ages && ages < bio && bio < qualifications, "GeSY stays with who she is");
-    assert.ok(publicPage > qualifications, "the public page card is the last card of Profile");
+    assert.ok(namePhoto > 0 && namePhoto < headline && headline < specialties, "headline follows name and photo");
+    assert.ok(specialties < gesy && gesy < ages && ages < bio && bio < qualifications, "GeSY stays with who she is");
+    assert.doesNotMatch(form, /profilePublicPage/);
     const page = read("app/settings/page.tsx");
-    assert.match(page, /profilePublicPage=\{/);
-    // The owner banner on the public profile links to this anchor.
-    assert.match(page, /id="public-page"/);
+    assert.match(page, /profileHeadline=\{/);
   });
 });

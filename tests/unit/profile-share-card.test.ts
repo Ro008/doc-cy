@@ -26,7 +26,6 @@ const read = (file: string) => fs.readFileSync(path.join(repoRoot, file), "utf8"
 const base = {
   name: "Harrison Ford",
   avatarPath: "profiles/abc/avatar-1.jpg",
-  accent: "teal",
   specialties: ["Dentist", "Biochemistry"],
   district: "Nicosia",
   rating: { count: 3, average: 3.6 },
@@ -44,7 +43,6 @@ describe("profileShareCardVersion", () => {
     const changed = [
       { ...base, name: "Harrison Ford Jr" },
       { ...base, avatarPath: "profiles/abc/avatar-2.jpg" },
-      { ...base, accent: "violet" },
       { ...base, specialties: ["Dentist"] },
       { ...base, district: "Paphos" },
       { ...base, rating: { count: 4, average: 3.6 } },

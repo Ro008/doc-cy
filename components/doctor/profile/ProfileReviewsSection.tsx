@@ -1,29 +1,15 @@
 import { format } from "date-fns";
 import { enGB, el as elLocale } from "date-fns/locale";
 import { utcToZonedTime } from "date-fns-tz";
-import { Star } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { CY_TZ } from "@/lib/appointments";
+import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 import {
   PROFILE_REVIEWS_SHOWN_FIRST,
   summariseReviews,
   type PublicReview,
 } from "@/lib/public/profile-reviews";
-
-function Stars({ rating, label, size = "h-4 w-4" }: { rating: number; label: string; size?: string }) {
-  return (
-    <span role="img" aria-label={label} className="inline-flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          aria-hidden
-          className={`${size} ${n <= Math.round(rating) ? "fill-amber-500 text-amber-500" : "text-profile-border"}`}
-        />
-      ))}
-    </span>
-  );
-}
 
 /**
  * "Patient reviews": the verified reviews patients leave from the emailed link, read from
@@ -51,7 +37,7 @@ export async function ProfileReviewsSection({
       className="flex flex-col gap-2 rounded-2xl border border-profile-border bg-profile-surface px-5 py-4"
     >
       <div className="flex items-center justify-between gap-3">
-        <Stars rating={review.rating} label={t("reviewRatingLabel", { rating: review.rating })} />
+        <ProfileStars rating={review.rating} label={t("reviewRatingLabel", { rating: review.rating })} />
         <time dateTime={review.createdAt} className="text-sm font-medium text-profile-muted">
           {format(utcToZonedTime(new Date(review.createdAt), CY_TZ), "d MMM yyyy", { locale: dateLocale })}
         </time>
@@ -81,7 +67,7 @@ export async function ProfileReviewsSection({
             {average?.toFixed(1)}
           </span>
           <div className="flex flex-col gap-1">
-            <Stars
+            <ProfileStars
               rating={average ?? 0}
               label={t("reviewRatingLabel", { rating: average?.toFixed(1) ?? "0" })}
               size="h-5 w-5"

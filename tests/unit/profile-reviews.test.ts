@@ -277,15 +277,38 @@ describe("the profile reads reviews and shows them", () => {
     assert.match(page, /\[&_span\]:decoration-1/);
   });
 
-  it("the hero shows the average and count as a link to the reviews, once there are enough", () => {
+  it("the hero shows five stars, the average and the count as a link to the reviews, once there are enough", () => {
     const page = read("lib/public/doctor-profile-page.tsx");
     const hero = page.indexOf('data-testid="profile-hero-rating"');
     assert.ok(hero > 0, "hero rating exists");
     assert.match(page.slice(hero - 400, hero), /showHeroRating\(reviews\.length\)/);
-    assert.match(page.slice(hero - 400, hero + 400), /href=\{`#\$\{PROFILE_SECTION_IDS\.reviews\}`\}/);
-    // The hero is accent-coloured (amber too): the star takes the text colour, not a fixed amber.
-    assert.match(page.slice(hero, hero + 900), /fill-current/);
-    assert.match(page.slice(hero, hero + 900), /reviewRatingLabel/);
+    const row = page.slice(hero, hero + 1200);
+    // The same five stars as the Reviews section (user, 2026-10-13), with a text alternative.
+    assert.match(row, /<ProfileStars\b/);
+    assert.match(row, /reviewRatingLabel/);
+    assert.match(row, /reviewSummary\.average\?\.toFixed\(1\)/);
+    // Only the count is the link.
+    assert.match(row, /<a\s+href=\{`#\$\{PROFILE_SECTION_IDS\.reviews\}`\}[\s\S]*?reviewsSummary/);
+  });
+
+  it("the hero rating has its own line: after the district and the mobile, before the languages", () => {
+    const page = read("lib/public/doctor-profile-page.tsx");
+    const district = page.indexOf("<FinderDistrictLink");
+    const mobile = page.indexOf("<RevealMobileButton");
+    const rating = page.indexOf('data-testid="profile-hero-rating"');
+    const languages = page.indexOf('t("speaksLabel")');
+    assert.ok(district < mobile && mobile < rating && rating < languages);
+    // Its own row, not one more item of the facts row.
+    assert.match(page, /<div\s+data-testid="profile-hero-rating"/);
+  });
+
+  it("the Reviews section and the hero draw their stars with the same component", () => {
+    const section = read("components/doctor/profile/ProfileReviewsSection.tsx");
+    assert.match(section, /import \{ ProfileStars \} from "@\/components\/doctor\/profile\/ProfileStars"/);
+    assert.doesNotMatch(section, /function Stars\(/);
+    const stars = read("components/doctor/profile/ProfileStars.tsx");
+    assert.match(stars, /role="img"/);
+    assert.match(stars, /fill-amber-500 text-amber-500/);
   });
 
   it("the section shows the average, the count, stars with a text alternative, and the rest on request", () => {
