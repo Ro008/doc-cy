@@ -1,4 +1,5 @@
-import { languageThemeForLabel } from "@/lib/cyprus-languages";
+import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
+import { LANGUAGE_CHIP_ON_LIGHT } from "@/lib/language-chips";
 
 type FinderCardLanguagesProps = {
   languages: string[];
@@ -19,14 +20,14 @@ export function FinderCardLanguages({
       {languages.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {languages.slice(0, maxVisible).map((language, index) => {
-            const theme = languageThemeForLabel(language);
+            const label = canonicalLanguageLabel(language);
             return (
               <span
-                key={`${theme.label}-${index}`}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
-                title={theme.label}
+                key={`${label}-${index}`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${LANGUAGE_CHIP_ON_LIGHT}`}
+                title={label}
               >
-                <span>{theme.label}</span>
+                <span>{label}</span>
               </span>
             );
           })}

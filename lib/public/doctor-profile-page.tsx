@@ -25,7 +25,8 @@ import { ProfileServicesSection } from "@/components/doctor/profile/ProfileServi
 import { ProfileReviewsSection } from "@/components/doctor/profile/ProfileReviewsSection";
 import { cache } from "react";
 import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
-import { languageThemeForLabel } from "@/lib/cyprus-languages";
+import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
+import { LANGUAGE_CHIP_ON_ACCENT } from "@/lib/language-chips";
 import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { profileThemeStyle } from "@/lib/profile-theme";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
@@ -819,11 +820,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   // Every district with a clinic (Nicosia · Paphos), not only the primary one.
   const districts = profileDistricts({ locations: practiceLocations, fallback: profile.district });
-  // Same colour chips as the finder cards (lib/cyprus-languages).
+  // One calm chip for every language (lib/language-chips).
   const languageChips = (Array.isArray(profile.languages) ? profile.languages : [])
     .map((raw) => String(raw).trim())
     .filter(Boolean)
-    .map((raw) => languageThemeForLabel(raw));
+    .map((raw) => canonicalLanguageLabel(raw));
   // Opening hours per clinic card, from the same schedule as the bookable times.
   const weekdayLabel = (day: DayKey) =>
     format(
@@ -866,7 +867,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       (profile.bio ?? "").trim() ||
       `${profile.name} provides ${profileSpecialtySeo || profile.specialty || "healthcare"} services in Cyprus via DocCy.`,
     imageUrl: avatarUrl,
-    languages: languageChips.map((chip) => chip.label),
+    languages: languageChips,
     services: services.map((service) => ({ name: service.name, price: service.price })),
     clinics: practiceLocations.map((location, index) => ({
       name: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
@@ -1024,7 +1025,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     rating={reviewSummary.average ?? 0}
                     label={t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}
                     size="h-[18px] w-[18px]"
-                    emptyClassName="text-accent-on/40"
+                    emptyClassName="text-accent-on"
                   />
                   <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
                   <span aria-hidden>·</span>
@@ -1041,12 +1042,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.14em]">
                     {t("speaksLabel")}
                   </span>
-                  {languageChips.map((chip) => (
+                  {languageChips.map((label) => (
                     <span
-                      key={chip.label}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${chip.pillClass}`}
+                      key={label}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${LANGUAGE_CHIP_ON_ACCENT}`}
                     >
-                      {chip.label}
+                      {label}
                     </span>
                   ))}
                 </div>

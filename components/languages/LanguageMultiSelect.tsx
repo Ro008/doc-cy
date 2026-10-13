@@ -5,8 +5,8 @@ import { Check, ChevronDown, Search, X } from "lucide-react";
 import {
   CYPRUS_SPOKEN_LANGUAGE_THEMES,
   CYPRUS_SPOKEN_LANGUAGE_LABELS,
-  languageThemeForLabel,
 } from "@/lib/cyprus-languages";
+import { LANGUAGE_CHIP_ON_DARK, LANGUAGE_CHIP_ON_LIGHT } from "@/lib/language-chips";
 
 type Props = {
   id: string;
@@ -66,13 +66,8 @@ export function LanguageMultiSelect({
       : // Dark scrollbar too: the system's white one stood out on the dark card.
         "absolute z-50 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 shadow-xl [color-scheme:dark] [scrollbar-color:rgb(51_65_85)_transparent] [scrollbar-width:thin]";
 
-  // Settings (user, 2026-10-09): one calm teal chip for every language, as the active
-  // sidebar item, instead of a colour per language. The public pages and /register
-  // keep the per-language colours (lib/cyprus-languages.ts).
-  const chipClass = (lang: string) =>
-    variant === "register"
-      ? languageThemeForLabel(lang).pillClass
-      : "bg-clinical-500/15 text-clinical-50 ring-1 ring-inset ring-clinical-400/35";
+  // One calm teal chip for every language, here and on the public pages (lib/language-chips.ts).
+  const chipClass = variant === "register" ? LANGUAGE_CHIP_ON_LIGHT : LANGUAGE_CHIP_ON_DARK;
 
   return (
     <div ref={rootRef} className="relative">
@@ -135,7 +130,7 @@ export function LanguageMultiSelect({
             return (
               <span
                 key={lang}
-                className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-semibold ${chipClass(lang)}`}
+                className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-semibold ${chipClass}`}
               >
                 {lang}
                 <button
@@ -218,9 +213,7 @@ export function LanguageMultiSelect({
                         >
                           {checked ? "✓" : ""}
                         </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${t.pillClass}`}>
-                          {t.label}
-                        </span>
+                        <span>{t.label}</span>
                       </>
                     ) : (
                       <>

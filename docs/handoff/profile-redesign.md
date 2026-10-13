@@ -81,6 +81,9 @@ Nothing waits for the backend any more.
   `POST /api/directory/professional-mobile-reveal` (same rate limit as the clinic phones; one
   404 for hidden, missing or unknown). Never in the page's HTML, never in the JSON-LD.
   Not recorded in `user_events` yet.
+- **Languages**: one calm chip for every language instead of a colour per language
+  (`lib/language-chips.ts`): the profile hero, the finder cards and the registration form, as
+  Settings already did. The founders' internal pages keep the per-language colours.
 - **Hero**: the clinic count ("2 clinics" / "Clinic details") is gone; the clinic picker and
   the "Clinics & contact" tab already say it. The districts stay.
 

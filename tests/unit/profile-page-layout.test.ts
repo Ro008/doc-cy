@@ -40,15 +40,16 @@ describe("public profile: one page with anchor tabs", () => {
     assert.equal(page.includes("LanguageSwitcher"), false);
   });
 
-  it("hero: what is clickable looks clickable, languages are the finder's colour chips", () => {
+  it("hero: what is clickable looks clickable, languages are one calm chip", () => {
     // District links to the finder; no clinic count (the picker and the tab say it; user, 2026-10-13).
     assert.match(page, /<FinderDistrictLink[\s\S]*?className="[^"]*underline[^"]*"/);
     assert.equal(page.includes("profile-hero-clinics-link"), false);
     // Hero links take the hero's text colour, never the default link teal (2026-10-10).
     assert.match(page, /className=\{`text-accent-on \$\{heroLinkClass\}`\}/);
-    // Same language chips as the finder cards.
-    assert.match(page, /languageThemeForLabel\(/);
-    assert.match(page, /\.pillClass/);
+    // One chip for every language, in the hero's own text colour (user, 2026-10-13).
+    assert.match(page, /canonicalLanguageLabel\(/);
+    assert.match(page, /LANGUAGE_CHIP_ON_ACCENT/);
+    assert.doesNotMatch(page, /languageThemeForLabel|\.pillClass/);
     // No "Show phone" / "Directions" buttons: the clinics section has each clinic's.
     assert.equal(page.includes("heroShowPhone"), false);
     assert.equal(page.includes("heroDirections"), false);
