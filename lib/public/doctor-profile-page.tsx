@@ -29,6 +29,7 @@ import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
 import { LANGUAGE_CHIP_ON_ACCENT } from "@/lib/language-chips";
 import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { loadProfileDetails } from "@/lib/profile-details-server";
+import { ProfilePatientsSection } from "@/components/doctor/profile/ProfilePatientsSection";
 import { ProfileQualificationsSection } from "@/components/doctor/profile/ProfileQualificationsSection";
 import { profileThemeStyle } from "@/lib/profile-theme";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
@@ -1141,12 +1142,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           <WhatToExpectCard />
         </section>
 
-        <ProfileAboutSection
-          firstName={profileFirstName(profile.name)}
-          bio={profile.bio}
-          patientAges={profileDetails.patientAges}
-        />
+        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
+        <ProfilePatientsSection patientAges={profileDetails.patientAges} />
         <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
         <ProfileClinicsSection
           cards={clinicCards}

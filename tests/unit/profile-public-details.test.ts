@@ -6,8 +6,8 @@ import { patientAgesMessageKey, qualificationDetail } from "../../lib/public/pro
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "../../lib/public/profile-sections";
 
 /**
- * Public profile, left column (user, 2026-10-13): About (with "Patients I see"), Services &
- * prices, Qualifications, then the rest. "Patients I see" and the qualifications are what
+ * Public profile, left column (user, 2026-10-13): About, Services & prices, Patients seen,
+ * Qualifications, then the rest, each a section with its heading on the left. "Patients I see" and the qualifications are what
  * she saved in Settings › Profile; neither shows when she has not filled it in.
  */
 
@@ -21,11 +21,15 @@ describe("patients she sees, on the public profile", () => {
     assert.equal(patientAgesMessageKey(null), null);
   });
 
-  it("is a line of the About section, shown only when she chose", () => {
+  it("is its own section with a heading, shown only when she chose", () => {
+    const section = read("components/doctor/profile/ProfilePatientsSection.tsx");
+    assert.match(section, /patientAgesMessageKey\(patientAges\)/);
+    assert.match(section, /if \(!patientsKey\) return null/);
+    assert.match(section, /<h2[\s\S]*?t\("patientsSeenHeading"\)/);
+    assert.match(section, /data-testid="profile-patients-seen"/);
+    // Not a line of About any more.
     const about = read("components/doctor/profile/ProfileAboutSection.tsx");
-    assert.match(about, /patientAgesMessageKey\(patientAges\)/);
-    assert.match(about, /data-testid="profile-patients-seen"/);
-    assert.match(about, /t\("patientsSeenLabel"\)/);
+    assert.doesNotMatch(about, /patientAges|patientsSeen/);
   });
 });
 
@@ -68,15 +72,16 @@ describe("the page reads and places them", () => {
     assert.match(page, /hasQualifications:/);
   });
 
-  it("orders the left column: About, Services, Qualifications, then clinics and reviews", () => {
+  it("orders the left column: About, Services, Patients seen, Qualifications, then clinics and reviews", () => {
     const about = page.indexOf("<ProfileAboutSection");
     const services = page.indexOf("<ProfileServicesSection");
     const qualifications = page.indexOf("<ProfileQualificationsSection");
     const clinics = page.indexOf("<ProfileClinicsSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
-    assert.ok(about > 0 && about < services && services < qualifications);
+    const patients = page.indexOf("<ProfilePatientsSection");
+    assert.ok(about > 0 && about < services && services < patients && patients < qualifications);
     assert.ok(qualifications < clinics && clinics < reviews);
-    assert.match(page.slice(about, services), /patientAges=\{/);
+    assert.match(page.slice(patients, qualifications), /patientAges=\{/);
   });
 
   it("has the copy in English and Greek", () => {
@@ -85,7 +90,7 @@ describe("the page reads and places them", () => {
       for (const key of [
         "sectionTabQualifications",
         "qualificationsHeading",
-        "patientsSeenLabel",
+        "patientsSeenHeading",
         "patientsAdults",
         "patientsChildren",
         "patientsAll",

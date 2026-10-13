@@ -84,9 +84,9 @@ Nothing waits for the backend any more.
 - **Languages**: one calm chip for every language instead of a colour per language
   (`lib/language-chips.ts`): the profile hero, the finder cards and the registration form, as
   Settings already did. The founders' internal pages keep the per-language colours.
-- **Patients seen and qualifications** (step 1 of the new layout): About shows "Patients seen"
-  (adults, children or both) under the bio, and "Qualifications" is its own section and tab
-  after Services & prices. Both come from Settings › Profile (`loadProfileDetails`) and are
+- **Patients seen and qualifications** (step 1 of the new layout): "Patients seen" (adults,
+  children or both) is its own section after Services & prices, without a tab, and
+  "Qualifications" is its own section and tab after it. Both come from Settings › Profile (`loadProfileDetails`) and are
   hidden when she has not filled them in. Next steps, agreed with Livio: a booking panel that
   stays on screen on the right (clinic choice, its details and times), the details form as a
   dialog, and then the hero card, the old booking area and Clinics & contact go.

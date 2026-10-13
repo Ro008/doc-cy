@@ -186,7 +186,7 @@
     "heroShowMobileError": "Δεν φορτώθηκε. Δοκιμάστε ξανά",
     "aboutHeading": "Σχετικά με {name}",
     "aboutEmpty": "Ο επαγγελματίας δεν έχει προσθέσει ακόμη βιογραφικό.",
-    "patientsSeenLabel": "Δέχεται",
+    "patientsSeenHeading": "Ασθενείς",
     "patientsAdults": "Ενήλικες",
     "patientsChildren": "Παιδιά",
     "patientsAll": "Ενήλικες και παιδιά",
