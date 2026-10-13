@@ -6,10 +6,11 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
 
 ## Before / right after merging this branch
 
-- [ ] Vercel → Project → Settings → Environment Variables, **Production only**: add
-  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (Cloudflare → Turnstile →
-  "DocCy public forms"), then **redeploy**. Until both are set, the booking form runs without
-  the bot check and the booking route logs `[DocCy] Turnstile is OFF in production`.
+- [x] **Done 2026-10-13.** Vercel → doc-cy → Settings → Environment Variables, **Production only**:
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Config) and `TURNSTILE_SECRET_KEY` (Secret), from Cloudflare →
+  Turnstile → "DocCy public forms". No redeploy needed now: production runs master, which has no
+  Turnstile code; the first production build after this branch merges picks both up. Previews keep
+  it off. Until both are set, the booking route logs `[DocCy] Turnstile is OFF in production`.
 
 ## What changed in the UI
 
@@ -173,24 +174,45 @@ role; nothing about it reaches the client when it's off.
 - E2E: `tests/profile_one_page.spec.ts` (`@pr-e2e`: anchors, opens in light + Light/Dark
   switch remembered on reload, reduced motion, day card opens the day) and `tests/doctor_profile_mobile.spec.ts`.
 
-## When `feat/settings-redesign` is merged
+## Settings (after #279): done
 
-That branch (not in master yet, 2026-10-02) moves settings from `/agenda/settings` to
-`/settings`, a sidebar of sections, and redirects the old URL. This branch added a
-**"Your public page"** block (`components/dashboard/ProfilePageCustomization.tsx`) to the
-current `/agenda/settings` page. Whoever takes over `feat/settings-redesign` (most likely
-Livio) should, when merging the two:
+"Your public page" now sits in **Settings › Profile**, as its last card (a set-once look comes
+after what patients rely on), in the shared settings look (card, eyebrow, buttons, toast, busy
+state). The `#public-page` anchor works (`/settings?section=profile#public-page`). Save and
+Cancel appear when something changed; the save still goes to
+`PATCH /api/professional-profile-customization` (see "What waits for the backend").
 
-- Move "Your public page" into the **Profile** section of the new sidebar (it is about how
-  the profile looks: colour + headline, next to photo and bio). It keeps its own Save,
-  which fits that branch's "one save rule" (a block saves on its own).
-- Keep the `#public-page` anchor working, or update the owner banner link on the public
-  profile (`/agenda/settings#public-page` in `lib/public/doctor-profile-page.tsx`) to the
-  new URL, e.g. `/settings?section=profile#public-page`.
-- Restyle it with the new settings look if it differs; the live preview must keep the
-  `doccy-profile` class, `data-scheme` and `profileThemeStyle(...)` so it shows the real
-  page colours in light and dark.
-- The save still goes to `PATCH /api/professional-profile-customization` (see above).
+## Reviews, notes and the share card (2026-10-13)
 
-A comment at the call site in `app/agenda/settings/page.tsx` repeats this, so it shows up
-in the merge conflict.
+No database change: everything **reads** `professional_reviews` (written by
+`POST /api/booking/review`, service role only) and never selects `reviewer_email`.
+
+- **Profile**: a "Patient reviews" section (and tab) between Services and Clinics, only when
+  there are published reviews. Names are "Maria K.". The average is cut, not rounded, to one
+  decimal (24 fives and a four read 4.9). `status = 'hidden'` rows never show.
+- **The bar is 3 reviews** (`PROFILE_HERO_RATING_MIN_REVIEWS`): the hero line, the finder card
+  note and the shared preview only show the average from 3 reviews. The section itself shows from 1.
+- **Finder card**: "★ 4.6 (12)" on registered cards, from one read for the cards on screen
+  (`loadPublishedRatings`, id chunks). Order of results is untouched.
+- **Shared link preview**: the description leads with the note (3+ reviews); the description
+  Google reads is unchanged.
+- **Share card image**: `GET /api/og/profile/[slug]?v=…` draws 1200×630 (photo, name,
+  specialties, district, note, accent colour) with Inter (`assets/fonts/inter`, OFL). The `v` in
+  the link is a hash of everything drawn (`profileShareCardVersion`); the route only draws when
+  `v` is current (else a 307 to the current one, a 404 for an unknown slug) and the result is
+  cached for a year, so a crawler cannot make the server draw by inventing versions.
+  **When the accent column exists** (`professionals.profile_accent`), select it in
+  `loadProfileShareCard` and in `generateMetadata` together, or the `v` will not match.
+  Changing the card's *design* does not change `v`: add a design number to the hash if you retouch it.
+- **Manual booking**: an optional "Service" choice (never required; a picked service makes the
+  reason optional, the service name stands in). Uses `professionalServiceId`, already accepted
+  by `POST /api/appointments/manual`.
+- **Settings › Services**: the "What are services?" block has four points with icons; the
+  "N of 20 services" counter only shows from 15 services on. `tests/integration/settings_redesign.integration.spec.ts`
+  no longer expects "1 of 20" (it expects no counter): please watch it in CI.
+
+## To check on the PR preview
+
+- The share card route in Vercel's production build (`sharp` and the fonts read from disk;
+  `outputFileTracingIncludes` is set in `next.config.mjs`).
+- `/api/og/profile/<slug>` for a professional with a photo, and one without.
