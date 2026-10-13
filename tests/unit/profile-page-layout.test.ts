@@ -67,7 +67,8 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(fade, /var\(--p-bg\)/);
     // Flush on the professional's tab bar, as on the dashboard: a gap left it floating as a
     // translucent band over sharp content (user, 2026-10-10).
-    const dashboard = read("components/dashboard/DoctorDashboard.tsx");
+    // The dashboard's fade is the shared ScrollFade component (moved out of DoctorDashboard in master).
+    const dashboard = read("components/navigation/ScrollFade.tsx");
     const offset = /bottom-\[calc\((\d+(?:\.\d+)?)rem\+env\(safe-area-inset-bottom,0px\)\)\]/;
     assert.equal(fade.match(offset)?.[1], dashboard.match(offset)?.[1]);
   });

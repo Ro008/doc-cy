@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  ClipboardList,
   CalendarDays,
   LayoutDashboard,
   MoreHorizontal,
@@ -17,6 +18,7 @@ import { DOCTOR_HOME_PATH, DOCTOR_NAV_TABS, type DoctorNavTabId } from "@/lib/do
 const BOOT_TAB_ICONS: Record<DoctorNavTabId, typeof CalendarDays> = {
   dashboard: LayoutDashboard,
   agenda: CalendarDays,
+  visits: ClipboardList,
   settings: Settings,
   insights: BarChart3,
 };

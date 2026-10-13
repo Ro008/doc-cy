@@ -1854,8 +1854,9 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("heading", { level: 1, name: "Plan & billing" })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByTestId("auth-about-footer")).toBeAttached();
-    // Header + page + "About DocCy" footer used to add up to more than the window.
+    // The "About DocCy" footer is gone from the doctor's pages (it used to push header + page
+    // past the window), so the page is just the header and the section.
+    await expect(page.getByTestId("auth-about-footer")).toHaveCount(0);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollHeight - window.innerHeight,
     );

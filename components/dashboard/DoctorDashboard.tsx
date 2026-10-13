@@ -8,6 +8,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
 import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { ScrollFade } from "@/components/navigation/ScrollFade";
 import type { BookingServiceItem } from "@/lib/booking-service-choice";
 import { CY_TZ } from "@/lib/appointments";
 import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
@@ -428,42 +429,6 @@ export function DoctorDashboard({
 
       <ScrollFade />
     </div>
-  );
-}
-
-/**
- * Soft fade at the bottom of the viewport while more of the page sits below,
- * so the last visible card does not look cut off. Sits above the phone tab bar.
- */
-function ScrollFade() {
-  const [visible, setVisible] = React.useState(false);
-
-  React.useEffect(() => {
-    function update() {
-      const root = document.documentElement;
-      setVisible(root.scrollHeight - (window.scrollY + window.innerHeight) > 24);
-    }
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    const observer = new ResizeObserver(update);
-    observer.observe(document.body);
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      observer.disconnect();
-    };
-  }, []);
-
-  return (
-    <div
-      aria-hidden
-      data-testid="dashboard-scroll-fade"
-      data-visible={visible ? "true" : "false"}
-      className={`pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 h-24 bg-gradient-to-t from-ink-900 via-ink-900/70 to-transparent transition-opacity duration-300 lg:bottom-0 ${
-        visible ? "opacity-100" : "opacity-0"
-      }`}
-    />
   );
 }
 
