@@ -23,6 +23,10 @@ type Props = {
   clinics: readonly AgendaClinic[];
   hiddenClinicIds: ReadonlySet<string>;
   onToggleClinic: (clinicId: string) => void;
+  /** A day of her holiday: ringed amber in the mini month. */
+  isHoliday?: (date: Date) => boolean;
+  /** Holiday mode is on or announced: the legend explains the amber days. */
+  showHolidayLegend?: boolean;
 };
 
 export function AgendaSidebar({
@@ -35,6 +39,8 @@ export function AgendaSidebar({
   clinics,
   hiddenClinicIds,
   onToggleClinic,
+  isHoliday,
+  showHolidayLegend = false,
 }: Props) {
   const [miniMonth, setMiniMonth] = React.useState(() => startOfMonth(anchor));
   const anchorMonthKey = format(anchor, "yyyy-MM");
@@ -95,13 +101,15 @@ export function AgendaSidebar({
           {weeks.flat().map((day) => {
             const isToday = isSameDay(day, today);
             const highlighted = inRange(day);
+            const holiday = Boolean(isHoliday?.(day));
             return (
               <button
                 key={day.toISOString()}
                 type="button"
                 onClick={() => onPickDate(day)}
-                aria-label={format(day, "EEEE d MMMM yyyy", { locale: enGB })}
+                aria-label={`${format(day, "EEEE d MMMM yyyy", { locale: enGB })}${holiday ? " (holiday)" : ""}`}
                 aria-current={isToday ? "date" : undefined}
+                data-holiday={holiday ? "true" : "false"}
                 className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
                   isToday
                     ? "bg-clinical-500 font-bold text-ink-900"
@@ -110,7 +118,7 @@ export function AgendaSidebar({
                       : isSameMonth(day, miniMonth)
                         ? "text-slate-200 hover:bg-white/10"
                         : "text-slate-500 hover:bg-white/10"
-                }`}
+                } ${holiday && !isToday ? "ring-1 ring-inset ring-amber-400/70 !text-amber-200" : ""}`}
               >
                 {day.getDate()}
               </button>
@@ -161,6 +169,12 @@ export function AgendaSidebar({
           <span className="h-3 w-3 rounded-[3px] bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.45)_0_3px,rgba(176,192,206,0.15)_3px_6px)] ring-1 ring-white/10" aria-hidden />
           Outside working hours
         </p>
+        {showHolidayLegend ? (
+          <p className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-[3px] bg-amber-400/30 ring-1 ring-amber-400/60" aria-hidden />
+            Holiday
+          </p>
+        ) : null}
       </div>
     </aside>
   );

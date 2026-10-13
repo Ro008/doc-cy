@@ -1,9 +1,5 @@
 export const DOCCY_OPEN_FEEDBACK_EVENT = "doccy:open-feedback";
 
-/** Locked feedback topic when opening Support from Promote → website button. */
-export const DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING =
-  "Help with website booking button";
-
 /** Locked feedback topic when requesting done-for-you onboarding on a call (register page). */
 export const DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST = "Onboarding Request";
 

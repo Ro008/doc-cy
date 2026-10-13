@@ -237,7 +237,8 @@ describe("doctor settings: your public page", () => {
     assert.match(settings, /saveProfileCustomization/);
     assert.match(settings, /data-scheme=\{previewScheme\}/);
     assert.match(settings, /EXPECTED TO FAIL until Livio builds PATCH \/api\/professional-profile-customization/);
-    const page = read("app/agenda/settings/page.tsx");
+    // Settings moved to /settings (#279); the card sits in its Profile section.
+    const page = read("app/settings/page.tsx");
     assert.match(page, /<ProfilePageCustomization\b/);
   });
 });

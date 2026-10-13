@@ -9,7 +9,8 @@ import { issueAppointmentLink, issuePatientCancelLink, revokeAppointmentLinks } 
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import type { BuiltEmail } from "@/lib/booking-request-emails";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
-import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
+import { patientCanCancel } from "@/lib/patient-cancel-window";
+import { loadVisitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 import { REVIEW_LINK_DAYS } from "@/lib/professional-review";
 import { buildPatientRescheduleReminderEmailContent, RESCHEDULE_REMINDER_LEAD_HOURS } from "@/lib/reschedule-emails";
 import { buildGoogleCalendarUrl, getCalendarEventDetails } from "@/lib/patient-calendar-event";
@@ -306,19 +307,10 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
     if (claimErr) throw claimErr;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
-    const { data: settings } = await service
-      .from("professional_settings")
-      .select("professional_id, patient_cancel_notice_hours")
-      .in("professional_id", [...new Set(rows.map((r) => r.professional_id))]);
-    const noticeBy = new Map(
-      ((settings ?? []) as { professional_id: string; patient_cancel_notice_hours: number | null }[]).map((s) => [
-        s.professional_id,
-        parsePatientCancelNoticeHours(s.patient_cancel_notice_hours),
-      ]),
-    );
     for (const r of rows) {
       const startIso = str(r.appointment_datetime);
-      const noticeHours = noticeBy.get(r.professional_id) ?? parsePatientCancelNoticeHours(null);
+      // The deadline each visit was confirmed with, else its clinic's (user, 2026-10-11).
+      const noticeHours = await loadVisitCancelNoticeHours(service, r.id);
       const cancel = patientCanCancel(startIso, noticeHours, now)
         ? await issuePatientCancelLink(
             service,

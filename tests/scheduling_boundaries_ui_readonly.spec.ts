@@ -34,12 +34,16 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
       `Verified doctor not found for slug: ${targetSlug}.`
     );
 
+    // The booking limits live on the clinic link: the profile opens on her first clinic.
     const { data: settings } = await supabase
-      .from("professional_settings")
+      .from("professional_clinics")
       .select("booking_horizon_days, minimum_notice_hours")
       .eq("professional_id", doctor.id)
-      .single();
-    test.skip(!settings, "No professional_settings row found.");
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    test.skip(!settings, "No professional_clinics row found.");
 
     const horizonDays =
       [14, 30, 90, 180].includes(Number(settings.booking_horizon_days))

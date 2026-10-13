@@ -571,7 +571,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
 
-  // Account settings (holiday, horizon, notice); the schedule is the clinic link's (Point E6).
+  // Account settings (holiday); the schedule and the booking limits are the clinic link's.
   const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
     supabase,
     profile.id,
@@ -626,7 +626,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const nowUtc = new Date();
   const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const horizonRaw = normalizedSettings?.booking_horizon_days ?? 90;
+  // How far ahead is the selected clinic's own limit (user, 2026-10-11).
+  const horizonRaw = locationSettings?.booking_horizon_days ?? 90;
   const maxHorizonDays = [14, 30, 90, 180].includes(horizonRaw)
     ? horizonRaw
     : 90;
@@ -697,8 +698,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     holiday_mode_enabled?: boolean | null;
     holiday_start_date?: string | null;
     holiday_end_date?: string | null;
-    booking_horizon_days?: number | null;
-    minimum_notice_hours?: number | null;
   } | null;
   // No clinic, no schedule: nothing to book online.
   const onlineBookingsPaused =
@@ -706,8 +705,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const holidayModeEnabled = Boolean(accountSettings?.holiday_mode_enabled);
   const holidayStartDate = accountSettings?.holiday_start_date ?? null;
   const holidayEndDate = accountSettings?.holiday_end_date ?? null;
-  const bookingHorizonDays = accountSettings?.booking_horizon_days ?? 90;
-  const minimumNoticeHours = accountSettings?.minimum_notice_hours ?? 2;
+  // The booking limits are the selected clinic's own (user, 2026-10-11).
+  const bookingHorizonDays = locationSettings?.booking_horizon_days ?? 90;
+  const minimumNoticeHours = locationSettings?.minimum_notice_hours ?? 2;
   const breakStartHm = breakStart ? breakStart.slice(0, 5) : undefined;
   const breakEndHm = breakEnd ? breakEnd.slice(0, 5) : undefined;
 

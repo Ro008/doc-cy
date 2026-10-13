@@ -114,7 +114,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await confirmButton.click();
 
       await expect(
-        page.getByRole("heading", { name: /Appointment Blocked!/i }),
+        page.getByRole("heading", { name: /Appointment Confirmed!/i }),
       ).toBeVisible({ timeout: 15_000 });
 
       const googleLink = page.getByRole("link", { name: /Add to Google/i });
@@ -232,7 +232,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.getByRole("button", { name: /Confirm Booking/i }).click();
 
       await expect(
-        page.getByRole("heading", { name: /Appointment Blocked!/i }),
+        page.getByRole("heading", { name: /Appointment Confirmed!/i }),
       ).toBeVisible({ timeout: 15_000 });
 
       await expect(page.getByRole("link", { name: /Add to Google/i })).toBeVisible();

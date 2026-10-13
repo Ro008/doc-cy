@@ -176,6 +176,10 @@ export function RegisterClinicAddressField({
   onCompleteChange,
   takenClinicIds,
   duplicateOf = null,
+  showDetailsFields,
+  initialClinicPhone = "",
+  onPhoneChange,
+  plainSummary = false,
 }: {
   listingAddressHint?: string | null;
   /** District from the finder listing — used when confirming the listing address. */
@@ -212,6 +216,18 @@ export function RegisterClinicAddressField({
   takenClinicIds?: readonly string[];
   /** Register: 1-based number of an earlier row with the same address. */
   duplicateOf?: number | null;
+  /** Show the name and phone of a new clinic (default: with the hidden inputs, i.e. /register). */
+  showDetailsFields?: boolean;
+  /** Settings: the phone already on file, when changing a clinic. */
+  initialClinicPhone?: string;
+  /** Settings: the phone as typed (a DocCy clinic keeps its own, so it sends ""). */
+  onPhoneChange?: (phone: string) => void;
+  /**
+   * Settings → "Request a change to clinic details" (2026-10-11): the address as it is,
+   * without the "Patients will see" heading, its source chip and the Maps note, and
+   * with a plain "Change address" link. /register never sets it.
+   */
+  plainSummary?: boolean;
 } = {}) {
   const styles = toneStyles[tone];
   const linkClass = styles.link;
@@ -270,9 +286,22 @@ export function RegisterClinicAddressField({
   const [clinicName, setClinicName] = React.useState(initialClinicName ?? "");
   const effectiveName = chosenClinic?.name ?? (clinicName.trim() || null);
   /** A new clinic's phone (a DocCy clinic keeps its own): the number patients will call. */
-  const [clinicPhone, setClinicPhone] = React.useState("");
+  const [clinicPhone, setClinicPhone] = React.useState(initialClinicPhone);
+  const showDetails = showDetailsFields ?? includeHiddenInputs;
+  const onPhoneChangeRef = React.useRef(onPhoneChange);
+  React.useEffect(() => {
+    onPhoneChangeRef.current = onPhoneChange;
+  }, [onPhoneChange]);
   const [clinicPhoneTouched, setClinicPhoneTouched] = React.useState(false);
   const clinicPhoneValue = chosenClinic ? null : normalizeCyprusClinicPhone(clinicPhone);
+  const skipPhoneNotifyRef = React.useRef(true);
+  React.useEffect(() => {
+    if (skipPhoneNotifyRef.current) {
+      skipPhoneNotifyRef.current = false;
+      return;
+    }
+    onPhoneChangeRef.current?.(chosenClinic ? "" : clinicPhone);
+  }, [clinicPhone, chosenClinic]);
   const onNameChangeRef = React.useRef(onNameChange);
   React.useEffect(() => {
     onNameChangeRef.current = onNameChange;
@@ -364,7 +393,7 @@ export function RegisterClinicAddressField({
       </p>
     ) : null;
   const nameField =
-    includeHiddenInputs && !chosenClinic ? (
+    showDetails && !chosenClinic ? (
       <label className="mt-3 block" htmlFor={`register-clinic-name-${index}`}>
         <span className={styles.label}>
           Clinic name<span className="text-red-600">*</span>
@@ -384,7 +413,7 @@ export function RegisterClinicAddressField({
       </label>
     ) : null;
   const phoneField =
-    includeHiddenInputs && !chosenClinic ? (
+    showDetails && !chosenClinic ? (
       <label className="mt-3 block" htmlFor={`register-clinic-phone-${index}`}>
         <span className={styles.label}>
           Clinic phone<span className="text-red-600">*</span>
@@ -746,6 +775,10 @@ export function RegisterClinicAddressField({
     </>
   ) : null;
 
+  // On the dark form the open list kept the field's pale text on the system's
+  // grey background: give the entries their own dark background.
+  const districtOptionClass = tone === "light" ? undefined : "bg-slate-900 text-slate-100";
+
   const districtSelect = (
     <label className="mt-3 block">
       <span className={styles.label}>District</span>
@@ -755,9 +788,11 @@ export function RegisterClinicAddressField({
         className={styles.input}
         aria-label="District"
       >
-        <option value="">Select a district</option>
+        <option value="" className={districtOptionClass}>
+          Select a district
+        </option>
         {CYPRUS_DISTRICTS.map((district) => (
-          <option key={district} value={district}>
+          <option key={district} value={district} className={districtOptionClass}>
             {district}
           </option>
         ))}
@@ -837,6 +872,7 @@ export function RegisterClinicAddressField({
           className={styles.summaryPanel}
           data-testid="clinic-location-saved-summary"
         >
+          {plainSummary ? null : (
           <div className="flex flex-wrap items-center gap-2">
             <p className={styles.eyebrow}>
               Patients will see
@@ -859,10 +895,11 @@ export function RegisterClinicAddressField({
                   : "Saved address"}
             </span>
           </div>
+          )}
           {chosenClinic ? (
             <p className={`mt-1.5 font-bold ${styles.body}`}>{chosenClinic.name}</p>
           ) : null}
-          <p className={`${chosenClinic ? "mt-0.5" : "mt-1.5"} ${styles.body}`}>
+          <p className={`${chosenClinic ? "mt-0.5" : plainSummary ? "" : "mt-1.5"} ${styles.body}`}>
             {location.address}
           </p>
           {location.district ? (
@@ -883,7 +920,7 @@ export function RegisterClinicAddressField({
             <p className={styles.amberHint}>
               Add a map pin so nearby patients can find you accurately in Health Finder.
             </p>
-          ) : !location.placeId && !chosenClinic ? (
+          ) : !location.placeId && !chosenClinic && !plainSummary ? (
             <p className={`mt-2 ${styles.soft}`}>
               Maps opens a search for this text. Prefer a Google result when you can, so the pin
               and address match a real place.
@@ -938,7 +975,7 @@ export function RegisterClinicAddressField({
               </button>
             )}
             <button type="button" onClick={startSearch} className={linkClass}>
-              {docCySearch ? "Change clinic" : "Change clinic address"}
+              {plainSummary ? "Change address" : docCySearch ? "Change clinic" : "Change clinic address"}
             </button>
           </div>
         </div>
@@ -974,6 +1011,7 @@ export function RegisterClinicAddressField({
               <RegisterClinicSearchInput
                 key={searchSession}
                 index={index}
+                tone={tone}
                 onSelect={chooseDocCyClinic}
                 takenIds={takenClinicIds}
                 onSearchGoogle={() => {
@@ -1050,9 +1088,11 @@ export function RegisterClinicAddressField({
 
       {mode === "adjust" && coords ? (
         <div className={styles.panel}>
-          <p className={styles.eyebrow}>
-            Patients will see
-          </p>
+          {plainSummary ? null : (
+            <p className={styles.eyebrow}>
+              Patients will see
+            </p>
+          )}
           <p className={`mt-1 flex items-start gap-1.5 ${styles.body}`}>
             <MapPin className={styles.pinIcon} aria-hidden />
             {location.address}

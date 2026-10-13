@@ -10,7 +10,7 @@ import { appointmentToCyprusDate } from "@/lib/appointments";
 import { professionalFirstName } from "@/lib/professional-name";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { linkIdForClinic, clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { linkIdForClinic, requestClinicLeft, clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
@@ -93,7 +93,7 @@ function DoctorLinkStatePanel({
         <PendingLink href="/agenda" className={PRIMARY_BTN_CLASS}>
           Open agenda
         </PendingLink>
-        <PendingLink href="/agenda/settings" className={SECONDARY_BTN_CLASS}>
+        <PendingLink href="/settings" className={SECONDARY_BTN_CLASS}>
           Open settings
         </PendingLink>
       </div>
@@ -360,6 +360,8 @@ export default async function DashboardAppointmentDetailPage({
 
     const clinics = locationsToAgendaClinics(locationRows);
     const locationId = linkIdForClinic(locationRows, apptClinicId);
+    // Made at a clinic she has since left: accept or decline only (user, 2026-10-11).
+    const clinicLeft = requestClinicLeft(locationRows, apptClinicId);
     const clinicName =
       clinics.length > 1
         ? clinics.find((c) => c.id === clinicIdForAppointment(apptClinicId, clinics))?.name ?? null
@@ -399,7 +401,8 @@ export default async function DashboardAppointmentDetailPage({
           initialDurationMinutes={initialDurationMinutes}
           scheduleForReview={scheduleForReview}
           back={reviewBackTarget(searchParams?.from)}
-          openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
+          openSuggestions={!clinicLeft && wantsSuggestOnOpen(searchParams?.intent)}
+          clinicLeft={clinicLeft}
           locationId={locationId}
           clinicOptions={locationRows.map((l) => ({ id: l.id, name: l.clinic_name ?? "Clinic" }))}
         />

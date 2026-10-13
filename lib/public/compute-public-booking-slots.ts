@@ -176,12 +176,10 @@ function collectAvailableSlotsForDay(
         continue;
       }
 
-      if (
-        ctx.breakStart &&
-        ctx.breakEnd &&
-        timeLabel >= ctx.breakStart &&
-        timeLabel < ctx.breakEnd
-      ) {
+      // The day's own break travels with its slots; slots without one use the clinic's.
+      const breakStart = slot.break_start !== undefined ? slot.break_start?.slice(0, 5) : ctx.breakStart;
+      const breakEnd = slot.break_end !== undefined ? slot.break_end?.slice(0, 5) : ctx.breakEnd;
+      if (breakStart && breakEnd && timeLabel >= breakStart && timeLabel < breakEnd) {
         cursorMinutes += slot.duration;
         continue;
       }

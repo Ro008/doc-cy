@@ -16,7 +16,6 @@ export type ManualDirectoryLandingClinic = {
   id: string | null;
   name: string;
   slug: string;
-  isPrimary: boolean;
   address?: string | null;
   addressMapsLink?: string | null;
   district?: string | null;
@@ -203,7 +202,7 @@ async function buildManualDirectoryLandingRow(
   const joinRes = await supabase
     .from("professional_clinics")
     .select(
-      "clinic_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+      "clinic_id, sort_order, created_at, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
     )
     .eq("professional_id", manualId);
 
@@ -213,7 +212,7 @@ async function buildManualDirectoryLandingRow(
     );
   }
 
-  const primary = clinics.find((c) => c.isPrimary) ?? clinics[0] ?? null;
+  const primary = clinics[0] ?? null;
 
   return {
     id: manualId,

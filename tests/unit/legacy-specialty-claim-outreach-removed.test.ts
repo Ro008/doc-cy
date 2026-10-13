@@ -5,8 +5,10 @@ import { describe, it } from "node:test";
 import { SPECIALTY_LICENSE_MAX, specialtyChangeContactMessage } from "@/lib/doctor-specialties";
 
 // Point E3: the old specialty-change requests, the licence file, the specialty review
-// flag, the claim columns and the outreach log are dropped. Until the new specialty
-// requests (user, 2026-10-01), specialties are read-only in settings.
+// flag, the claim columns and the outreach log are dropped. The settings redesign
+// (user, 2026-10-01) asks for a new specialty through the NEW specialty requests,
+// /api/specialty-requests, which the backend builds (until then the page says the
+// call fails as expected); removing one is instant with the chip's ✕.
 const root = path.resolve(__dirname, "../..");
 
 function sourceFiles(dir: string): string[] {
@@ -46,14 +48,12 @@ describe("specialties are read-only in settings (Point E3)", () => {
     assert.equal(SPECIALTY_LICENSE_MAX, 80);
   });
 
-  it("the settings form offers contact, not a change request", () => {
+  it("the settings form asks through the new specialty requests, not the old ones", () => {
     const form = readFileSync(path.join(root, "components/dashboard/SettingsForm.tsx"), "utf8");
-    assert.ok(form.includes("Contact us if you wish to change your specialties"));
-    assert.ok(form.includes('data-testid="settings-specialties-contact"'));
     assert.ok(form.includes('data-testid="settings-specialty-locked"'));
+    assert.ok(form.includes('"/api/specialty-requests"'));
     assert.ok(!form.includes("Request a specialty update"));
-    assert.ok(!form.includes("pendingSpecialtyChange"));
-    assert.ok(!form.includes("settings-specialty-change"));
+    assert.ok(!form.includes("/api/doctor-specialty-change-request"));
   });
 });
 

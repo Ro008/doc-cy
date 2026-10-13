@@ -28,6 +28,12 @@ function weekdayKey(daysAhead: number): string {
   while (day.getDay() === 0 || day.getDay() === 6) day = addDays(day, 1);
   return format(day, "yyyy-MM-dd");
 }
+/** The weekday `days` after a given day: never that day itself, whatever today is. */
+function weekdayAfter(dateKey: string, days: number): string {
+  let day = addDays(new Date(`${dateKey}T12:00:00`), days);
+  while (day.getDay() === 0 || day.getDay() === 6) day = addDays(day, 1);
+  return format(day, "yyyy-MM-dd");
+}
 const iso = (dateKey: string, hhmm: string) => zonedTimeToUtc(`${dateKey}T${hhmm}`, CY).toISOString();
 
 test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
@@ -50,7 +56,7 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
     clinicIds.push(seeded.clinicId);
     linkId = seeded.locationId;
     const other = await seedProfessionalClinic(admin, pro.doctorId, { nonce: `${nonce}b`, district: "Limassol" });
-    await admin.from("professional_clinics").update({ is_primary: false, sort_order: 1 }).eq("id", other.linkId);
+    await admin.from("professional_clinics").update({ sort_order: 1 }).eq("id", other.linkId);
     clinicIds.push(other.clinicId);
     otherLinkId = other.linkId;
     otherClinicId = other.clinicId;
@@ -153,7 +159,8 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
     // Remove the first, then add a time from another day.
     await list.first().getByRole("button", { name: /^Remove/ }).click();
     await expect(list).toHaveCount(2);
-    const otherDay = weekdayKey(6);
+    // Counted from the visit's day: on a Tuesday, 4 and 6 days ahead both land on Monday.
+    const otherDay = weekdayAfter(day, 2);
     await page.getByLabel("Day", { exact: true }).fill(otherDay);
     await page.getByRole("button", { name: /show free times/i }).click();
     const options = page.getByTestId("review-day-options").getByRole("button");

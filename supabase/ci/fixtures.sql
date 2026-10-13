@@ -30,12 +30,12 @@ values (
 );
 
 insert into public.professional_clinics (
-  professional_id, clinic_id, is_primary, sort_order, pause_online_bookings,
+  professional_id, clinic_id, sort_order, pause_online_bookings,
   monday, tuesday, wednesday, thursday, friday, saturday, sunday,
   start_time, end_time, slot_duration_minutes, weekly_schedule
 )
 values (
-  md5('ci-fixture-andreas-nikos')::uuid, md5('ci-fixture-andreas-nikos-clinic')::uuid, true, 0, false,
+  md5('ci-fixture-andreas-nikos')::uuid, md5('ci-fixture-andreas-nikos-clinic')::uuid, 0, false,
   true, true, true, true, true, false, false,
   '09:00', '18:00', 30,
   jsonb_build_object(
@@ -66,7 +66,7 @@ begin
     join public.clinics c on c.id = pc.clinic_id
     join public.professional_settings ps on ps.professional_id = pc.professional_id
     where pc.professional_id = md5('ci-fixture-andreas-nikos')::uuid
-      and pc.is_primary and not pc.pause_online_bookings
+      and not pc.pause_online_bookings
       and nullif(btrim(c.address), '') is not null
   ) then
     raise exception 'Fixture doctor andreas-nikos is not bookable after the load.';

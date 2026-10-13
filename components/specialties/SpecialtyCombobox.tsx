@@ -129,7 +129,8 @@ export function SpecialtyCombobox({
     variant === "register"
       ? // Same box as the register text inputs, so it lines up with the licence field.
         "mt-1 w-full rounded-[10px] border-[1.5px] border-ink-200 bg-white px-3.5 py-2.5 text-base text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-clinical-500 focus:ring-4 focus:ring-clinical-500/20 sm:text-[15px]"
-      : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
+      : // Same box as the other settings fields (selects, licence input).
+        "mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30";
 
   const listBoxClass =
     variant === "register"
@@ -172,7 +173,17 @@ export function SpecialtyCombobox({
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2 text-left ${inputBase}`}
       >
-        <span className={hasValue ? "text-ink-900" : "text-ink-400"}>
+        <span
+          className={
+            variant === "register"
+              ? hasValue
+                ? "text-ink-900"
+                : "text-ink-400"
+              : hasValue
+                ? "text-slate-100"
+                : "text-slate-500"
+          }
+        >
           {displayLabel}
         </span>
         <ChevronDown
@@ -265,7 +276,7 @@ export function SpecialtyCombobox({
             }
           >
             Describe your specialty
-            <span className={variant === "register" ? "text-red-600" : "text-amber-700"}>*</span>
+            <span className={variant === "register" ? "text-red-600" : "text-red-300"}>*</span>
           </label>
           <p
             className={
@@ -292,7 +303,10 @@ export function SpecialtyCombobox({
             }`}
           />
           {otherTouched && otherError ? (
-            <p id={`${id}-other-error`} className="mt-1 text-xs text-red-600">
+            <p
+              id={`${id}-other-error`}
+              className={`mt-1 text-xs ${variant === "register" ? "text-red-600" : "text-red-300"}`}
+            >
               {otherError}
             </p>
           ) : null}

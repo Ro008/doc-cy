@@ -4,7 +4,7 @@ import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 export const FIRST_LOGIN_TRIAL_NOTICE_TEST_ID = "first-login-trial-notice";
 export const TRIAL_NOTICE_DISMISS_PATH = "/api/doctor-settings/trial-notice";
 /** A professional's first login lands here until the welcome notice is dismissed. */
-export const DOCTOR_FIRST_LOGIN_PATH = "/agenda/settings";
+export const DOCTOR_FIRST_LOGIN_PATH = "/settings";
 
 export type FirstLoginTrialNoticeCopy = {
   title: string;

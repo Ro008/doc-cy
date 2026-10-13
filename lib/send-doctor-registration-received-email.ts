@@ -14,8 +14,6 @@ import {
   emailFallbackLink,
 } from "@/lib/email-brand";
 
-const DOCCY_EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo.png";
-
 export function buildDoctorRegistrationReceivedEmailContent(opts: {
   doctorName: string;
   confirmUrl?: string | null;
@@ -44,7 +42,6 @@ export function buildDoctorRegistrationReceivedEmailContent(opts: {
 
   const html = `
 ${EMAIL_SHELL_OPEN}
-    <img src="${DOCCY_EMAIL_LOGO_URL}" alt="DocCy" width="99" height="30" style="display:block;margin:0 0 16px;height:30px;width:auto;border:0;" />
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">We received your application</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(firstName)},</p>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">

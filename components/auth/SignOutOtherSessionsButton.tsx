@@ -2,23 +2,22 @@
 
 import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { toast } from "sonner";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 
-export function SignOutOtherSessionsButton() {
+/** The button; the result is a toast. The caller places it (settings "Sign-in & security"). */
+export function SignOutOtherSessionsButton({ className }: { className?: string }) {
   const supabase = createClientComponentClient();
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleClick() {
     setPending(true);
-    setMessage(null);
-    setError(null);
     try {
       const revokeResponse = await fetch("/api/auth/revoke-other-sessions", {
         method: "POST",
       });
       if (!revokeResponse.ok) {
-        setError("Could not sign out other devices. Please try again.");
+        toast.error("Could not sign out other devices. Please try again.", { id: "sign-out-others" });
         console.error("[DocCy][auth] revoke_other_sessions_failed", {
           status: revokeResponse.status,
         });
@@ -31,10 +30,10 @@ export function SignOutOtherSessionsButton() {
         console.warn("[DocCy][auth] signout_others_refresh_revoke_failed", signOutError);
       }
 
-      setMessage("Other devices have been signed out.");
+      toast.success("Other devices have been signed out.", { id: "sign-out-others" });
       console.info("[DocCy][auth] signout_others_success");
     } catch (err) {
-      setError("Could not sign out other devices. Please try again.");
+      toast.error("Could not sign out other devices. Please try again.", { id: "sign-out-others" });
       console.error("[DocCy][auth] signout_others_failed_unexpected", err);
     } finally {
       setPending(false);
@@ -42,22 +41,10 @@ export function SignOutOtherSessionsButton() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4">
-      <h3 className="text-sm font-semibold text-slate-100">Device security</h3>
-      <p className="mt-2 text-xs leading-relaxed text-slate-400">
-        Keep this session active on this device and close all other active sessions.
-      </p>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="mt-3 inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-clinical-400/40 hover:text-clinical-200 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? "Closing sessions..." : "Sign out on other devices"}
-      </button>
-      {message ? <p className="mt-2 text-xs text-clinical-300">{message}</p> : null}
-      {error ? <p className="mt-2 text-xs text-red-300">{error}</p> : null}
-    </div>
+    <button type="button" onClick={handleClick} disabled={pending} aria-busy={pending} className={className}>
+      <BusyLabel busy={pending} busyText="Signing out…">
+        Sign out other devices
+      </BusyLabel>
+    </button>
   );
 }
-

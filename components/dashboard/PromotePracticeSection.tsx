@@ -2,40 +2,129 @@
 
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Download, Printer, QrCode } from "lucide-react";
+import { Check, Copy, Download, MessageCircle, Printer, QrCode, Send } from "lucide-react";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
-import { buildPublicProfileUrl } from "@/lib/promote-practice-script-templates";
+import {
+  buildPublicProfileUrl,
+  buildShareMessage,
+  buildTelegramShareUrl,
+  buildViberShareUrl,
+  buildWhatsAppShareUrl,
+  parsePromoteLanguage,
+  type PromoteLanguage,
+} from "@/lib/promote-practice-script-templates";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { PromotePracticeScripts } from "@/components/dashboard/PromotePracticeScripts";
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+  SETTINGS_SMALL_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
+import { shortBookingLink } from "@/lib/settings-account";
+import { buildBookingSignHtml, signSpecialties } from "@/lib/booking-sign";
 
 type Props = {
   slug: string | null | undefined;
   doctorName: string;
+  /** The profile's approved specialties; she ticks the ones printed on the sign. */
+  specialties?: readonly string[];
   localeLike?: string | null;
 };
+
+/** Remembered in this browser only: a convenience, nothing depends on it. */
+const LANGUAGE_STORAGE_KEY = "doccy:promote-language";
+const SIGN_LEFT_OFF_STORAGE_KEY = "doccy:promote-sign-left-off";
+const NO_SPECIALTIES: readonly string[] = [];
+const LANGUAGES: { id: PromoteLanguage; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "el", label: "Ελληνικά" },
+];
+
+/** Waits for the sign's logo, QR and font, so the print never comes out half drawn. */
+function whenSignReady(doc: Document, maxMs = 3000): Promise<void> {
+  const images = Array.from(doc.images).map((img) =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+        }),
+  );
+  const fonts = doc.fonts?.ready.then(() => undefined) ?? Promise.resolve();
+  const cap = new Promise<void>((resolve) => window.setTimeout(resolve, maxMs));
+  return Promise.race([Promise.all([...images, fonts]).then(() => undefined), cap]);
+}
 
 export function PromotePracticeSection({
   slug,
   doctorName,
+  specialties = NO_SPECIALTIES,
   localeLike,
 }: Props) {
   const copy = React.useMemo(
     () => resolvePromotePracticeCopy(localeLike),
     [localeLike]
   );
+  // The sign and the scripts are for her patients, so she picks their language
+  // (user, 2026-10-11); the tab itself stays in the app's language.
+  const [language, setLanguage] = React.useState<PromoteLanguage>(() => parsePromoteLanguage(localeLike));
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (saved) setLanguage(parsePromoteLanguage(saved));
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit.
+    }
+  }, []);
+  function chooseLanguage(next: PromoteLanguage) {
+    setLanguage(next);
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+    } catch {
+      // See above.
+    }
+  }
+  // The specialties she unticked for the sign. Kept as the ones left off, so a
+  // specialty approved later shows without her doing anything.
+  const [leftOff, setLeftOff] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    try {
+      const saved: unknown = JSON.parse(window.localStorage.getItem(SIGN_LEFT_OFF_STORAGE_KEY) ?? "[]");
+      if (Array.isArray(saved)) setLeftOff(saved.filter((value): value is string => typeof value === "string"));
+    } catch {
+      // Blocked or unreadable storage: every specialty shows.
+    }
+  }, []);
+  function toggleSpecialty(name: string, shown: boolean) {
+    const next = shown ? leftOff.filter((value) => value !== name) : [...leftOff, name];
+    setLeftOff(next);
+    try {
+      window.localStorage.setItem(SIGN_LEFT_OFF_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // See above.
+    }
+  }
+  const shownOnSign = React.useMemo(() => signSpecialties(specialties, leftOff), [specialties, leftOff]);
+  const signCopy = React.useMemo(() => resolvePromotePracticeCopy(language), [language]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const profileBookingUrl = slug ? buildPublicProfileUrl(slug) : "";
   const bookingUrl = slug
     ? `${profileBookingUrl}?utm_source=doctor_qr&utm_medium=profile_card&ref=doctor_profile_qr`
     : "";
 
+  const shareMessage = buildShareMessage(language, doctorName, profileBookingUrl);
+  const [linkCopied, setLinkCopied] = React.useState(false);
+  // The plain profile link (no QR tracking), for websites, emails and messages.
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(profileBookingUrl);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      window.alert(copy.copyFailed);
+    }
+  }
   const downloadPng = React.useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !slug) return;
@@ -59,82 +148,14 @@ export function PromotePracticeSection({
     const canvas = canvasRef.current;
     const dataUrl = canvas?.toDataURL("image/png") ?? "";
 
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>DocCy · Booking sign</title>
-<style>
-  @page { size: A5 portrait; margin: 10mm; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #0f172a;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .sheet {
-    max-width: 148mm;
-    min-height: 210mm;
-    margin: 0 auto;
-    padding: 10mm 12mm 14mm;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-  .logo {
-    font-size: 2.25rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    margin-bottom: 2mm;
-    color: #0f172a;
-  }
-  .logo span { color: #12B8C0; }
-  .name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 5mm;
-  }
-  .qr img {
-    display: block;
-    width: 46mm;
-    height: 46mm;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
-  .cta {
-    margin-top: 7mm;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.35;
-    max-width: 118mm;
-  }
-  .url {
-    margin-top: 5mm;
-    font-size: 0.62rem;
-    color: #64748b;
-    word-break: break-all;
-    max-width: 130mm;
-  }
-</style>
-</head>
-<body>
-  <div class="sheet">
-    <div class="logo">Doc<span>Cy</span></div>
-    <p class="name">${escapeHtml(doctorName)}</p>
-    <div class="qr"><img src="${dataUrl}" alt="" width="512" height="512" /></div>
-    <p class="cta">${escapeHtml(copy.printCta)}</p>
-    <p class="url">${escapeHtml(bookingUrl)}</p>
-  </div>
-</body>
-</html>`;
+    const html = buildBookingSignHtml({
+      doctorName,
+      specialties: shownOnSign,
+      qrDataUrl: dataUrl,
+      logoUrl: `${window.location.origin}/brand/doccy-logo.png`,
+      shortLink: shortBookingLink(profileBookingUrl),
+      copy: signCopy,
+    });
 
     const iframe = document.createElement("iframe");
     iframe.setAttribute("title", "DocCy booking sign");
@@ -183,16 +204,16 @@ export function PromotePracticeSection({
       fallbackRemove = window.setTimeout(cleanup, 120_000);
     };
 
-    requestAnimationFrame(() => {
+    void whenSignReady(idoc).then(() => {
       requestAnimationFrame(() => {
-        window.setTimeout(triggerPrint, 150);
+        window.setTimeout(triggerPrint, 50);
       });
     });
-  }, [slug, bookingUrl, doctorName, copy.printCta, copy.printPrepareFailed, copy.printDialogFailed]);
+  }, [slug, bookingUrl, profileBookingUrl, doctorName, shownOnSign, copy, signCopy]);
 
   if (!slug?.trim()) {
     return (
-      <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
+      <section className={SETTINGS_CARD_CLASS}>
         <div className="flex items-center gap-2 text-amber-200/90">
           <QrCode className="h-5 w-5 shrink-0" aria-hidden />
           <h2 className="text-sm font-semibold text-slate-100">{copy.missingSlugTitle}</h2>
@@ -203,64 +224,146 @@ export function PromotePracticeSection({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
-      <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/15 text-clinical-300">
-          <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-slate-100">{copy.title}</h2>
-          <p className="text-xs text-slate-500">{copy.subtitle}</p>
+    <div className="space-y-5">
+      <div
+        role="group"
+        aria-label={copy.languageLabel}
+        data-testid="promote-language"
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
+        <p className="text-sm text-slate-300">{copy.languageLabel}</p>
+        <div className="inline-flex rounded-xl border border-slate-700 bg-slate-950/40 p-1">
+          {LANGUAGES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={language === option.id}
+              onClick={() => chooseLanguage(option.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                language === option.id
+                  ? "bg-clinical-500 text-slate-950"
+                  : "text-slate-300 hover:text-slate-100"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">
-        {copy.patientsScanPrefix}{" "}
-        <span className="break-all font-mono text-slate-400">{bookingUrl}</span>
-      </p>
+      {specialties.length > 1 ? (
+        <div
+          role="group"
+          aria-label={copy.signSpecialtiesLabel}
+          data-testid="promote-sign-specialties"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <p className="text-sm text-slate-300">{copy.signSpecialtiesLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {specialties.map((name) => (
+              <label
+                key={name}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+              >
+                <input
+                  type="checkbox"
+                  checked={!leftOff.includes(name)}
+                  onChange={(event) => toggleSpecialty(name, event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-500 bg-slate-900 accent-clinical-500"
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      <div className="mt-4 flex flex-col items-center gap-4 rounded-xl border border-slate-800/60 bg-white p-6 sm:flex-row sm:items-start sm:justify-center">
-        <div className="rounded-lg bg-white p-2 shadow-inner ring-1 ring-slate-200/80">
+      <section className={SETTINGS_CARD_CLASS} data-testid="promote-booking-link">
+        <h2 className={SETTINGS_EYEBROW_CLASS}>{copy.bookingLinkLabel}</h2>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 truncate font-mono text-sm text-slate-100" title={profileBookingUrl}>
+            {shortBookingLink(profileBookingUrl)}
+          </p>
+          <button type="button" onClick={() => void copyLink()} className={SETTINGS_SECONDARY_BUTTON_CLASS}>
+            {linkCopied ? (
+              <Check className="h-4 w-4 text-clinical-300" aria-hidden />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden />
+            )}
+            {linkCopied ? copy.copiedButton : copy.copyLinkButton}
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="promote-share">
+          <span className="text-xs text-slate-400">{copy.shareLabel}</span>
+          <a
+            href={buildWhatsAppShareUrl(shareMessage)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}
+          >
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            WhatsApp
+          </a>
+          <a href={buildViberShareUrl(shareMessage)} className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}>
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            Viber
+          </a>
+          <a
+            href={buildTelegramShareUrl(language, doctorName, profileBookingUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SETTINGS_SMALL_SECONDARY_BUTTON_CLASS}
+          >
+            <Send className="h-3.5 w-3.5" aria-hidden />
+            Telegram
+          </a>
+        </div>
+
+        <div className="mt-5 flex flex-col items-center gap-5 rounded-2xl bg-white p-5 sm:flex-row sm:items-center">
           <QRCodeCanvas
             ref={canvasRef}
             value={bookingUrl}
-            size={280}
+            // Drawn large so the PNG and the printed sign stay sharp; shown smaller.
+            size={512}
+            style={{ width: 168, height: 168 }}
             level="H"
             includeMargin
             bgColor="#ffffff"
-            fgColor="#0f172a"
+            fgColor="#062F61"
+            className="shrink-0 rounded-lg ring-1 ring-slate-200"
           />
+          <div className="flex w-full flex-col gap-3 sm:max-w-xs">
+            <p className="text-sm font-medium text-slate-700">{copy.patientsScanCaption}</p>
+            <button
+              type="button"
+              onClick={printBookingSign}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400"
+            >
+              <Printer className="h-4 w-4" aria-hidden />
+              {copy.printButton}
+            </button>
+            <button
+              type="button"
+              onClick={downloadPng}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {copy.downloadButton}
+            </button>
+            <p className="text-xs text-slate-500">{copy.printHelper}</p>
+          </div>
         </div>
-        <div className="flex w-full max-w-xs flex-col gap-3 sm:pt-1">
-          <button
-            type="button"
-            onClick={printBookingSign}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400"
-          >
-            <Printer className="h-4 w-4" aria-hidden />
-            {copy.printButton}
-          </button>
-          <button
-            type="button"
-            onClick={downloadPng}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            {copy.downloadButton}
-          </button>
-          <p className="text-[11px] leading-relaxed text-slate-500">{copy.printHelper}</p>
-        </div>
-      </div>
+      </section>
 
       {profileBookingUrl && slug ? (
         <PromotePracticeScripts
-          slug={slug}
           doctorName={doctorName}
           bookingUrl={profileBookingUrl}
-          localeLike={localeLike}
+          siteHost={shortBookingLink(getPublicBookingBaseUrl())}
+          localeLike={language}
           copy={copy}
         />
       ) : null}
-    </section>
+    </div>
   );
 }

@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
   });
   if (limited) return limited;
 
-  const supabase = createServiceRoleClient();
+  // Fresh: this route reads no cookies, so Next would save and reuse the answers.
+  const supabase = createServiceRoleClient({ fresh: true });
   if (!supabase) {
     return NextResponse.json({ results: [] }, { status: 503, headers: noStore });
   }

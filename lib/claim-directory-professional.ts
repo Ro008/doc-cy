@@ -1,3 +1,4 @@
+import { compareClinicOrder } from "@/lib/clinic-order";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
@@ -101,7 +102,8 @@ type ClaimClinicNested = {
 };
 
 type ClaimClinicJoinRow = {
-  is_primary?: boolean | null;
+  sort_order?: number | null;
+  created_at?: string | null;
   clinics?: ClaimClinicNested | ClaimClinicNested[] | null;
 };
 
@@ -113,14 +115,12 @@ function unwrapClaimClinic(
   return value;
 }
 
-/** Linked workplaces for a claim, primary first. Never copies clinic phones. */
+/** Linked workplaces for a claim, in the listing's clinic order. Never copies clinic phones. */
 export function registerClaimClinicsFromJoin(
   links: readonly ClaimClinicJoinRow[],
   cap = MAX_DOCTOR_LOCATIONS,
 ): RegisterClaimClinic[] {
-  const sorted = [...links].sort(
-    (a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)),
-  );
+  const sorted = [...links].sort(compareClinicOrder);
   const out: RegisterClaimClinic[] = [];
   for (const link of sorted) {
     const clinic = unwrapClaimClinic(link.clinics);
@@ -407,9 +407,11 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data: linkRows, error: linkError } = await supabase
     .from("professional_clinics")
     .select(
-      "is_primary, clinics ( id, name, address, district, town, latitude, longitude, is_archived )",
+      "sort_order, created_at, clinics ( id, name, address, district, town, latitude, longitude, is_archived )",
     )
     .eq("professional_id", id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
     .limit(MAX_DOCTOR_LOCATIONS);
 
   if (linkError) {

@@ -7,7 +7,6 @@ import { addDays, addHours, addMinutes, format } from "date-fns";
 import { CY_TZ } from "@/lib/appointments";
 import {
   buildWeeklyScheduleFromSettings,
-  isDateInHolidayRange,
   isTimeWithinSettings,
   normalizeMinimumNoticeHours,
 } from "@/lib/doctor-settings";
@@ -174,9 +173,8 @@ export async function POST(req: NextRequest) {
   const hhmmss = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
   const appointmentDateKey = format(cyLocal, "yyyy-MM-dd");
 
-  if (isDateInHolidayRange(settingsRow, appointmentDateKey)) {
-    return NextResponse.json({ message: "Bookings temporarily unavailable" }, { status: 403 });
-  }
+  // Holiday mode pauses online booking only: she may still add a visit herself on a
+  // holiday day (user, 2026-10-11).
 
   const horizonDays = Number(settingsRow.booking_horizon_days ?? 90);
   const maxHorizonDays = [14, 30, 90, 180].includes(horizonDays) ? horizonDays : 90;

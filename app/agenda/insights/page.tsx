@@ -11,10 +11,14 @@ import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { buildPracticeInsights } from "@/lib/practice-insights";
+import { DOCTOR_HOME_PATH, INSIGHTS_ENABLED } from "@/lib/doctor-routes";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export default async function PracticeInsightsPage() {
+  // Hidden for now (see INSIGHTS_ENABLED): the address lands on the Dashboard.
+  if (!INSIGHTS_ENABLED) redirect(DOCTOR_HOME_PATH);
+
   const t = createPracticeInsightsTranslator();
   const supabase = createServerComponentClient({ cookies });
 

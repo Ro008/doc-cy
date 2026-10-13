@@ -1,4 +1,5 @@
 import type { DoctorSpecialtyEntryValidated } from "@/lib/doctor-specialties";
+import { normalizeProfessionalMobile } from "@/lib/professional-mobile";
 import type { ResolvedRegisterClinicLocation } from "@/lib/register-clinic-location";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
@@ -104,7 +105,8 @@ export function buildProfessionalRegistrationDetails(
   const firstName = text(input.firstName);
   const lastName = text(input.lastName);
   const email = text(input.email);
-  const mobile = text(input.mobile);
+  const mobileCheck = normalizeProfessionalMobile(input.mobile);
+  const mobile = mobileCheck.ok ? mobileCheck.e164 : "";
   const photoPath = text(input.photoPath);
   const languages = input.languages.map(text).filter(Boolean);
   if (

@@ -52,7 +52,7 @@ begin
     'appointments.cancel_reason', 'appointments.professional_notes',
     'appointments.visit_reminder_sent_at', 'appointments.proposal_reminder_sent_at',
     'appointments.review_requested_at',
-    'professional_settings.patient_cancel_notice_hours',
+    'professional_clinics.patient_cancel_notice_hours',
     'professional_clinics.pause_notice_dismissed_at'
   ]) as c
   where not exists (
@@ -266,13 +266,9 @@ begin
     '23514', 'review status outside published/hidden');
   v_checks := v_checks + 1;
 
-  -- 14. Patient cancel notice: default 24, only 12/24/48.
-  select count(*) into v_n from public.professional_settings where patient_cancel_notice_hours is distinct from 24;
-  if v_n > 0 then
-    raise exception 'FAIL: % professional_settings rows without the default 24 h cancel notice', v_n;
-  end if;
+  -- 14. Patient cancel notice: only 12/24/48 (on the clinic link since 2026-10-11).
   perform pg_temp.expect_error(format(
-    $s$update public.professional_settings set patient_cancel_notice_hours = 36 where professional_id = %L$s$, v_pro),
+    $s$update public.professional_clinics set patient_cancel_notice_hours = 36 where professional_id = %L$s$, v_pro),
     '23514', 'cancel notice outside 12/24/48');
   v_checks := v_checks + 1;
 

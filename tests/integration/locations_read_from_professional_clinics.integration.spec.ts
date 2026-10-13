@@ -7,7 +7,8 @@ import { seedProfessionalSpecialty } from "./helpers/test-doctor";
  * Point D2: practice locations are read from professional_clinics -> clinics, and since
  * D4 (doctor_locations dropped) nothing else. Each test seeds clinic links the way an
  * approved registration writes them and asserts the public profile shows what the JOIN
- * ROW and its clinic say: the join row's label, the clinic's address, and no archived
+ * clinic says: DocCy's clinic name (never the join row's own label, user 2026-10-01), the
+ * clinic's address, and no archived
  * clinic.
  */
 
@@ -60,7 +61,7 @@ async function seedProfessional(
 async function addClinic(
   admin: SupabaseClient,
   created: Created,
-  input: { address: string; isPrimary: boolean; sortOrder: number },
+  input: { address: string; sortOrder: number },
 ): Promise<string> {
   const token = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   const clinic = await admin
@@ -83,7 +84,6 @@ async function addClinic(
     .insert({
       professional_id: created.professionalId,
       clinic_id: clinic.data.id,
-      is_primary: input.isPrimary,
       sort_order: input.sortOrder,
       pause_online_bookings: false,
     })
@@ -119,7 +119,7 @@ async function cleanup(admin: SupabaseClient, created: Created) {
 }
 
 test.describe("Integration: locations read from professional_clinics", { tag: "@pr-e2e" }, () => {
-  test("the public profile renders the join row's clinic name and address", async ({ page }) => {
+  test("the public profile renders DocCy's clinic name and address", async ({ page }) => {
     // Two SSR renders plus seeding; the default budget is not enough.
     test.setTimeout(120_000);
     const admin = createIntegrationAdmin(requireSafeIntegration());
@@ -133,19 +133,18 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       const primaryId = await addClinic(admin, created, {
         address: `First Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: true,
         sortOrder: 0,
       });
       // The profile only names clinics when there is more than one, so give the
       // professional a second one.
       await addClinic(admin, created, {
         address: `Second Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: false,
         sortOrder: 1,
       });
       const clinicId = await clinicIdFor(admin, primaryId);
 
-      // The join row's label names the clinic; the clinic row holds its address.
+      // An old per-doctor label must not rename the clinic for patients: the clinic row
+      // holds the name and the address.
       const joinUpdate = await admin
         .from("professional_clinics")
         .update({ label: `Join Row Clinic ${nonce}` })
@@ -154,13 +153,14 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       const clinicUpdate = await admin
         .from("clinics")
-        .update({ address: `Join Row Street ${nonce}, Paphos, Cyprus` })
+        .update({ name: `DocCy Clinic ${nonce}`, address: `Join Row Street ${nonce}, Paphos, Cyprus` })
         .eq("id", clinicId);
       if (clinicUpdate.error) throw new Error(`clinic update: ${clinicUpdate.error.message}`);
 
       await page.goto(`/en/${seeded.slug}`);
 
-      await expect(page.getByText(`Join Row Clinic ${nonce}`).first()).toBeVisible({
+      await expect(page.getByText(`Join Row Clinic ${nonce}`)).toHaveCount(0);
+      await expect(page.getByText(`DocCy Clinic ${nonce}`).first()).toBeVisible({
         timeout: 20_000,
       });
       await expect(page.getByText(`Join Row Street ${nonce}`).first()).toBeVisible({
@@ -185,12 +185,10 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       await addClinic(admin, created, {
         address: `Kept Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: true,
         sortOrder: 0,
       });
       const archivedId = await addClinic(admin, created, {
         address: `Archived Street ${nonce}, Paphos, Cyprus`,
-        isPrimary: false,
         sortOrder: 1,
       });
       const archivedClinic = await clinicIdFor(admin, archivedId);

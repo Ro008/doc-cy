@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
 import { PatientDetails } from "@/components/dashboard/PatientDetails";
+import { LEFT_CLINIC_PROPOSAL_MESSAGE } from "@/lib/clinic-hours-visits";
 
 type ScheduleForReview = {
   weeklySchedule: WeeklySchedule;
@@ -61,6 +62,8 @@ type Props = {
   back: ReviewBackTarget;
   /** Opened from "Suggest other times": load the three times straight away. */
   openSuggestions: boolean;
+  /** She has left the request's clinic: she can accept or decline, not suggest other times. */
+  clinicLeft?: boolean;
   /** The request's clinic link; proposals default to it. */
   locationId?: string | null;
   /** Her clinics: she may propose times at another one (user, 2026-10-04). */
@@ -109,6 +112,7 @@ export function AppointmentReviewClient({
   scheduleForReview,
   back,
   openSuggestions,
+  clinicLeft = false,
   locationId = null,
   clinicOptions = [],
 }: Props) {
@@ -723,7 +727,16 @@ export function AppointmentReviewClient({
         <p className="text-center text-xs text-slate-500">
           {firstName(patientName)} will get an email confirmation.
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        {clinicLeft ? (
+          <p
+            data-testid="review-clinic-left"
+            className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+          >
+            {LEFT_CLINIC_PROPOSAL_MESSAGE}
+          </p>
+        ) : null}
+        <div className={clinicLeft ? "grid gap-2" : "grid grid-cols-2 gap-2"}>
+          {clinicLeft ? null : (
           <button
             type="button"
             disabled={loadingAlternatives || busy}
@@ -739,6 +752,7 @@ export function AppointmentReviewClient({
             {loadingAlternatives ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
             {t("proposeOtherTimes")}
           </button>
+          )}
           <button
             type="button"
             disabled={busy}

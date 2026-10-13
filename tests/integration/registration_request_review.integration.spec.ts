@@ -270,7 +270,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     const { data: links } = await admin
       .from("professional_clinics")
-      .select("clinic_id, is_primary")
+      .select("clinic_id")
       .eq("professional_id", body.professionalId)
       .order("sort_order");
     expect(links?.map((l) => l.clinic_id)[0]).toBe(clinic.id);
@@ -287,15 +287,14 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     // (The one-time welcome notice is skipped, as createTestDoctor does.)
     await admin.from("professionals").update({ trial_notice_seen_at: new Date().toISOString() }).eq("id", body.professionalId);
     await loginDoctorUi(page, seeded.email, "StrongPass123!");
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
-    const clinicTabs = page.getByRole("tablist", { name: "Clinics" }).getByRole("tab");
-    await expect(clinicTabs).toHaveCount(2);
-    // The form is server-rendered: retry until React has hydrated and the tab switches.
+    await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
+    const clinicCards = page.getByTestId("settings-clinic-card");
+    await expect(clinicCards).toHaveCount(2, { timeout: 20_000 });
+    // With two clinics the second card is folded: open it to read its address.
     await expect(async () => {
-      await clinicTabs.nth(1).click();
-      await expect(clinicTabs.nth(1)).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
-    await expect(page.getByText(/5 Review Street/).first()).toBeVisible({ timeout: 20_000 });
+      await clinicCards.nth(1).locator("h2 button").click();
+      await expect(clinicCards.nth(1)).toContainText(/5 Review Street/, { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
     // Deciding twice is refused.
     const again = await request.post(url, {
@@ -591,7 +590,11 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await expect(addedRow).toContainText("existing DocCy clinic");
 
     await card.getByRole("button", { name: "APPROVE" }).click();
-    await expect(card.getByText(/Approved/)).toBeVisible({ timeout: 30_000 });
+    // The card shows "Approved", then the list refreshes without it (it is no longer
+    // pending), sometimes before a check could read the label: wait for the request.
+    await expect
+      .poll(async () => (await loadRequest(admin, seeded.requestId)).status, { timeout: 30_000 })
+      .toBe("approved");
 
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
     const { data: approvedLinks } = await admin

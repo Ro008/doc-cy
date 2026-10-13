@@ -61,8 +61,7 @@ test.describe("Doctor lunch/break time", () => {
         break_end: "16:00:00",
         updated_at: new Date().toISOString(),
       })
-      .eq("professional_id", doctorId)
-      .eq("is_primary", true);
+      .eq("professional_id", doctorId);
     expect(upsertErr).toBeNull();
 
     // Signed in, her own profile shows no calendar (she can't book herself, user 2026-10-06):

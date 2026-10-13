@@ -40,6 +40,13 @@ export const agendaOffHoursOverlayClass = `absolute inset-0 ${OFF_HOURS_HATCH}`;
 /** Before opening / after closing time. */
 export const agendaOffHoursBandClass = `absolute inset-x-0 ${OFF_HOURS_HATCH}`;
 
+/** A day of her holiday: a soft amber wash over the whole day, under the appointments. */
+export const agendaHolidayOverlayClass = "pointer-events-none absolute inset-0 bg-amber-400/[0.09]";
+
+/** The "Holiday" tag beside a day's name. */
+export const agendaHolidayTagClass =
+  "rounded-sm bg-amber-400/20 px-1 text-[9px] font-bold uppercase leading-4 tracking-wide text-amber-200";
+
 export const agendaBreakBandClass =
   "absolute inset-x-0 bg-[repeating-linear-gradient(135deg,rgba(245,185,66,0.10)_0_5px,transparent_5px_10px)]";
 

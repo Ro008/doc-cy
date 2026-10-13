@@ -172,6 +172,7 @@ export async function checkOnlineBookingSlot(
     appointmentUtc,
     durationMinutes: slotDurationMinutes,
     blockingRows: rows,
+    refuseBreak: true,
     now,
   });
   if (refusal) {
