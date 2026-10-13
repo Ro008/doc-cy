@@ -79,8 +79,8 @@ with
     returning id
   ),
   ins_links as (
-    insert into public.professional_clinics (professional_id, clinic_id, is_primary, sort_order)
-    select professional_id, clinic_id, true, 0
+    insert into public.professional_clinics (professional_id, clinic_id, sort_order)
+    select professional_id, clinic_id, 0
     from people
     where professional_id in (select id from ins_pros)
     returning professional_id
