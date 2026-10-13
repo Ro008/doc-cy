@@ -38,7 +38,11 @@ import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
 import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
-import { summarizeNextAvailabilityDays } from "@/lib/public/profile-next-availability";
+import {
+  clinicNextAvailabilityRows,
+  nextAvailabilityRowHref,
+  widestBookingHorizonDays,
+} from "@/lib/public/profile-clinic-availability";
 import { profileDistricts } from "@/lib/public/profile-districts";
 import { profileBreadcrumbs } from "@/lib/public/profile-breadcrumbs";
 import { buildProfileStructuredData } from "@/lib/public/profile-structured-data";
@@ -675,11 +679,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const nowUtc = new Date();
   const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  // How far ahead is the selected clinic's own limit (user, 2026-10-11).
-  const horizonRaw = locationSettings?.booking_horizon_days ?? 90;
-  const maxHorizonDays = [14, 30, 90, 180].includes(horizonRaw)
-    ? horizonRaw
-    : 90;
+  // Each clinic has its own limit (user, 2026-10-11); her busy times are loaded once,
+  // far enough ahead for the longest one, because the hero shows every clinic's next time.
+  const settingsRowFor = (location: (typeof practiceLocations)[number]) =>
+    locationToSettingsRow(location, normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK);
+  const maxHorizonDays = widestBookingHorizonDays(
+    practiceLocations.map((location) => settingsRowFor(location).booking_horizon_days),
+  );
   const todayCyprus = utcToZonedTime(nowUtc, CY_TZ);
   const lastBookableDay = addDays(todayCyprus, maxHorizonDays);
   // End of the day after last bookable date (Cyprus): covers late slots + long visit durations vs POST /api/appointments.
@@ -766,31 +772,62 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const breakStartHm = breakStart ? breakStart.slice(0, 5) : undefined;
   const breakEndHm = breakEnd ? breakEnd.slice(0, 5) : undefined;
 
-  // Same slot rules as BookingSection, for the hero's next-availability days.
-  const nextDays = onlineBookingsPaused || accessEnded
-    ? []
-    : summarizeNextAvailabilityDays(
-        computePublicAvailabilityCalendar({
-          weeklySlots,
-          takenSlotTimes,
-          breakStart: breakStartHm,
-          breakEnd: breakEndHm,
-          holidayModeEnabled,
-          holidayStartDate,
-          holidayEndDate,
-          bookingHorizonDays,
-          minimumNoticeHours,
-        }).days,
-      );
   const locale = profileLocale(params);
   const dayLabelLocale = locale === "el" ? elLocale : enGB;
-  const dayByDate: Record<string, string> = {};
-  const fromByDate: Record<string, string> = {};
-  for (const day of nextDays) {
-    const [y, m, d] = day.dateKey.split("-").map(Number);
-    dayByDate[day.dateKey] = format(new Date(y, m - 1, d), "EEE d MMM", { locale: dayLabelLocale });
-    fromByDate[day.dateKey] = t("nextAvailabilityFrom", { time: day.fromTime });
-  }
+  // The hero's next free time at each clinic that takes online bookings, by the same
+  // slot rules as BookingSection and that clinic's own schedule, notice and horizon.
+  const nextAvailabilityRows = clinicNextAvailabilityRows({
+    clinics: practiceLocations.map((location, index) => {
+      const row = settingsRowFor(location);
+      const paused = Boolean(row.pause_online_bookings);
+      return {
+        id: location.id,
+        title: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
+        place: String(location.town ?? "").trim() || String(location.district ?? "").trim() || null,
+        paused,
+        days:
+          paused || accessEnded
+            ? []
+            : computePublicAvailabilityCalendar({
+                weeklySlots: settingsToWeeklySlots(row),
+                takenSlotTimes,
+                breakStart: row.break_start ? row.break_start.slice(0, 5) : undefined,
+                breakEnd: row.break_end ? row.break_end.slice(0, 5) : undefined,
+                holidayModeEnabled,
+                holidayStartDate,
+                holidayEndDate,
+                bookingHorizonDays: row.booking_horizon_days ?? 90,
+                minimumNoticeHours: row.minimum_notice_hours ?? 2,
+              }).days,
+      };
+    }),
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+  }).map((row) => {
+    let when: string | null = null;
+    if (row.next) {
+      const [y, m, d] = row.next.dateKey.split("-").map(Number);
+      const day = row.next.isToday
+        ? t("nextAvailabilityToday")
+        : format(new Date(y, m - 1, d), "EEE d MMM", { locale: dayLabelLocale });
+      when = `${day} · ${row.next.fromTime}`;
+    }
+    return {
+      locationId: row.locationId,
+      title: row.title,
+      place: row.place,
+      selected: row.selected,
+      dateKey: row.next?.dateKey ?? null,
+      isToday: Boolean(row.next?.isToday),
+      when,
+      href: nextAvailabilityRowHref({
+        locale,
+        slug: params.slug,
+        locationId: row.locationId,
+        selected: row.selected,
+      }),
+    };
+  });
 
   const selectedLocationTitle =
     practiceLocations.length > 1 && selectedLocation
@@ -886,12 +923,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     breadcrumbs,
   });
 
-  const firstDay = nextDays[0];
-  const mobileBarNext = firstDay
-    ? t("mobileBarNext", {
-        when: `${firstDay.isToday ? t("nextAvailabilityToday") : dayByDate[firstDay.dateKey]} · ${firstDay.fromTime}`,
-      })
-    : null;
+  // The phone bar speaks for the clinic the calendar is showing.
+  const selectedRowWhen = nextAvailabilityRows.find((row) => row.selected)?.when ?? null;
+  const mobileBarNext = selectedRowWhen ? t("mobileBarNext", { when: selectedRowWhen }) : null;
 
   // Links in the hero look like links (underline); plain facts do not.
   const heroLinkClass =
@@ -1061,16 +1095,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             </div>
           </div>
           <ProfileNextAvailability
-            days={nextDays}
-            clinicLabel={selectedLocationTitle}
+            rows={nextAvailabilityRows}
             canCallClinic={hasClinicPhone}
             labels={{
               title: t("nextAvailabilityTitle"),
-              today: t("nextAvailabilityToday"),
-              dayByDate,
-              fromByDate,
               liveToday: t("nextAvailabilityLiveToday"),
               cta: t("requestAppointmentCta"),
+              noTimes: t("nextAvailabilityNoTimes"),
               none: t("nextAvailabilityNone"),
               noneHint: t("nextAvailabilityNoneHint"),
             }}

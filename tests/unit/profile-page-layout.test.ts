@@ -169,9 +169,15 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(booking, /prefers-reduced-motion: reduce/);
   });
 
-  it("puts next availability in the hero", () => {
+  it("puts each bookable clinic's next free time in the hero", () => {
     assert.match(page, /<ProfileNextAvailability\b/);
+    assert.match(page, /clinicNextAvailabilityRows\(/);
     assert.match(page, /computePublicAvailabilityCalendar\(/);
+    // Her busy times are loaded far enough ahead for the clinic with the longest horizon.
+    assert.match(page, /widestBookingHorizonDays\(/);
+    const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
+    assert.match(next, /rows\.map\(/);
+    assert.match(next, /data-location/);
   });
 
   it("lets a next-availability day open that day in the booking calendar", () => {
@@ -217,7 +223,7 @@ describe("public profile: colours, dark mode and motion", () => {
     assert.match(css, /\.profile-rise/);
     const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
     // The pulsing dot only exists when today really has a free time.
-    assert.match(next, /hasAvailabilityToday\(/);
+    assert.match(next, /rows\.some\(\(row\) => row\.isToday\)/);
     assert.match(next, /profile-live-dot/);
     const booking = read("components/doctor/BookingSection.tsx");
     assert.match(booking, /profile-rise/);

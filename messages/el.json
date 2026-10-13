@@ -175,7 +175,7 @@
     "sectionTabClinics": "Ιατρεία & επικοινωνία",
     "nextAvailabilityTitle": "Επόμενη διαθεσιμότητα",
     "nextAvailabilityToday": "Σήμερα",
-    "nextAvailabilityFrom": "από {time}",
+    "nextAvailabilityNoTimes": "Καμία ώρα προς το παρόν",
     "nextAvailabilityLiveToday": "Ελεύθερες ώρες σήμερα",
     "nextAvailabilityNone": "Δεν υπάρχουν διαθέσιμες ώρες online αυτή τη στιγμή",
     "nextAvailabilityNoneHint": "Μπορείτε να καλέσετε το ιατρείο για ραντεβού.",

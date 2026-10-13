@@ -39,10 +39,14 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
   checks as /register (valid format, "Did you mean …?" for typos like `gmai.com`).
 - **Fades**: a soft fade at the bottom of the screen while the page continues below (as on
   the doctor dashboard), and on the tabs' edge when they scroll sideways on phones.
-- **Next availability** in the hero: up to six days with their first free time ("Today
-  from 14:00", "Mon 5 Oct from 11:00"). It uses the same slot rules as the calendar
-  (`computePublicAvailabilityCalendar`), for the clinic being booked. Tapping a day opens
-  that day in the calendar without reloading (`lib/public/profile-day-select.ts`).
+- **Next availability** in the hero (user, 2026-10-13): one row per clinic that takes
+  online bookings, with its first free time ("Wed 14 Oct · 09:00"), in her clinic order;
+  paused clinics are left out (`lib/public/profile-clinic-availability.ts`). Each clinic
+  uses the calendar's slot rules (`computePublicAvailabilityCalendar`) with its own
+  schedule, notice and horizon; her busy times are loaded once, up to the longest horizon.
+  The chosen clinic's row opens that day in the calendar without reloading
+  (`lib/public/profile-day-select.ts`); another clinic's row goes to `?location=<id>#book`.
+  The rows keep the test id `profile-next-availability-day` (plus `data-location`).
 - **Booking.** Same flow and same API (`POST /api/appointments`): clinic picker, calendar,
   time chips, Confirm, your details. Only the look changed.
 - **About** is open (no accordion). **Clinics & contact** merges the old Contact and

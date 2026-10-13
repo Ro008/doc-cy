@@ -232,7 +232,7 @@
     "sectionTabClinics": "Clinics & contact",
     "nextAvailabilityTitle": "Next availability",
     "nextAvailabilityToday": "Today",
-    "nextAvailabilityFrom": "from {time}",
+    "nextAvailabilityNoTimes": "No times right now",
     "nextAvailabilityLiveToday": "Free times today",
     "nextAvailabilityNone": "No online times right now",
     "nextAvailabilityNoneHint": "You can still call the clinic to book.",
