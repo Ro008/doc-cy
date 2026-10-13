@@ -199,6 +199,7 @@
     "reviewRatingLabel": "{rating} στα 5 αστέρια",
     "reviewsShowMore": "Περισσότερες αξιολογήσεις",
     "servicePriceMissing": "Τιμή κατόπιν αιτήματος",
+    "servicePriceFrom": "Από {price}",
     "serviceBook": "Κράτηση",
     "serviceBookFor": "Κράτηση: {name}",
     "clinicsHeading": "Ιατρεία & επικοινωνία",

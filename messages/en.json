@@ -256,6 +256,7 @@
     "reviewRatingLabel": "{rating} out of 5 stars",
     "reviewsShowMore": "Show more reviews",
     "servicePriceMissing": "Price on request",
+    "servicePriceFrom": "From {price}",
     "serviceBook": "Book",
     "serviceBookFor": "Book {name}",
     "clinicsHeading": "Clinics & contact",

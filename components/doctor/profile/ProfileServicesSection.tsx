@@ -5,7 +5,7 @@ import { formatServicePrice } from "@/lib/public/service-price";
 
 type Service = { id: string; name: string; price: string | null };
 
-/** "Services & prices": the professional's own list; a bare number gets "€" after it. */
+/** "Services & prices": the professional's own list, prices in euros ("€60", "From €95"). */
 export async function ProfileServicesSection({ services }: { services: readonly Service[] }) {
   if (services.length === 0) return null;
   const t = await getTranslations("DoctorProfilePage");
@@ -24,7 +24,7 @@ export async function ProfileServicesSection({ services }: { services: readonly 
       </h2>
       <ul className="grid gap-3 sm:grid-cols-2">
         {services.map((service) => {
-          const price = formatServicePrice(service.price);
+          const price = formatServicePrice(service.price, (price) => t("servicePriceFrom", { price }));
           return (
           <li
             key={service.id}
