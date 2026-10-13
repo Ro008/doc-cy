@@ -12,8 +12,8 @@ import { BookingSection } from "@/components/doctor/BookingSection";
 import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
-import { ProfileClinicsSection } from "@/components/doctor/profile/ProfileClinicsSection";
-import { ProfileNextAvailability } from "@/components/doctor/profile/ProfileNextAvailability";
+import { ProfileBookingPanel } from "@/components/doctor/profile/ProfileBookingPanel";
+import { ProfileClinicChooser } from "@/components/doctor/profile/ProfileClinicChooser";
 import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
 import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
 import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
@@ -38,10 +38,9 @@ import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
 import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
+import { buildBookingPanelClinics } from "@/lib/public/profile-booking-panel";
 import {
-  clinicNextAvailabilityRows,
-  clinicSwitchOptions,
-  nextAvailabilityRowHref,
+  clinicChooserRows,
   widestBookingHorizonDays,
 } from "@/lib/public/profile-clinic-availability";
 import { profileDistricts } from "@/lib/public/profile-districts";
@@ -53,7 +52,6 @@ import {
   formatOpeningRanges,
 } from "@/lib/public/clinic-opening-hours";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
-import { ProfileClinicSwitch } from "@/components/doctor/profile/ProfileClinicSwitch";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import {
@@ -775,8 +773,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const locale = profileLocale(params);
   const dayLabelLocale = locale === "el" ? elLocale : enGB;
-  // The hero's next free time at each clinic that takes online bookings, by the same
-  // slot rules as BookingSection and that clinic's own schedule, notice and horizon.
+  // Each clinic's next free time for "Choose a clinic", by the same slot rules as
+  // BookingSection and that clinic's own schedule, notice and horizon.
   const clinicSources = practiceLocations.map((location, index) => {
       const row = settingsRowFor(location);
       const paused = Boolean(row.pause_online_bookings);
@@ -801,43 +799,32 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               }).days,
       };
   });
-  // Above the calendar: the clinic being booked, and "Change clinic" for the others.
-  const clinicSwitch = clinicSwitchOptions({
+  // "Choose a clinic": every clinic of hers, each with its next free time.
+  const chooserRows = clinicChooserRows({
     clinics: clinicSources,
     selectedId: selectedLocation?.id ?? null,
     bookingOffEverywhere: accessEnded,
     locale,
     slug: params.slug,
-  });
-  const nextAvailabilityRows = clinicNextAvailabilityRows({
-    clinics: clinicSources,
-    selectedId: selectedLocation?.id ?? null,
-    bookingOffEverywhere: accessEnded,
   }).map((row) => {
-    let when: string | null = null;
+    let day: string | null = null;
     if (row.next) {
       const [y, m, d] = row.next.dateKey.split("-").map(Number);
-      const day = row.next.isToday
+      day = row.next.isToday
         ? t("nextAvailabilityToday")
         : format(new Date(y, m - 1, d), "EEE d MMM", { locale: dayLabelLocale });
-      when = `${day} · ${row.next.fromTime}`;
     }
     return {
-      locationId: row.locationId,
+      id: row.id,
       title: row.title,
       place: row.place,
       selected: row.selected,
+      bookable: row.bookable,
+      day,
+      time: row.next?.fromTime ?? null,
       dateKey: row.next?.dateKey ?? null,
       slotKey: row.next?.slotKey ?? null,
-      isToday: Boolean(row.next?.isToday),
-      when,
-      href: nextAvailabilityRowHref({
-        locale,
-        slug: params.slug,
-        locationId: row.locationId,
-        selected: row.selected,
-        slotKey: row.next?.slotKey ?? null,
-      }),
+      href: row.href,
     };
   });
 
@@ -864,14 +851,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     missingAddress: bookingT("clinicAddressMissing"),
     fallbackAddress: clinicAddress,
   });
-  const hasClinicPhone = clinicCards.some((card) => card.phoneClinicId);
 
   const sectionTabs = profileSectionTabs({
     hasServices: services.length > 0,
     hasQualifications: profileDetails.qualifications.length > 0,
-    hasClinics: clinicCards.length > 0,
+    // Her clinics are in the booking column, always next to the sections: no tab for them,
+    // nor for the booking column itself.
+    hasClinics: false,
     hasReviews: reviews.length > 0,
-  }).map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
+  })
+    .filter((tab) => tab.id !== PROFILE_SECTION_IDS.book)
+    .map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
 
   // Every district with a clinic (Nicosia · Paphos), not only the primary one.
   const districts = profileDistricts({ locations: practiceLocations, fallback: profile.district });
@@ -907,6 +897,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     }));
   }
 
+  // The clinic card in the booking column: the chosen clinic with what a patient needs to
+  // get there or call (address, hours, phone, map).
+  const panelClinics = buildBookingPanelClinics({
+    locations: practiceLocations,
+    cards: clinicCards,
+    openingHours: openingHoursByCard,
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+  });
+  const panelClinic = panelClinics.find((clinic) => clinic.selected) ?? panelClinics[0] ?? null;
+
   const breadcrumbs = profileBreadcrumbs({
     specialty: profileSpecialtyLabels[0] ?? profile.specialty,
     district: districts[0] ?? profileDistrictLabel,
@@ -936,8 +937,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   });
 
   // The phone bar speaks for the clinic the calendar is showing.
-  const selectedRowWhen = nextAvailabilityRows.find((row) => row.selected)?.when ?? null;
-  const mobileBarNext = selectedRowWhen ? t("mobileBarNext", { when: selectedRowWhen }) : null;
+  const selectedRow = chooserRows.find((row) => row.selected) ?? null;
+  const mobileBarNext = selectedRow?.day
+    ? t("mobileBarNext", { when: `${selectedRow.day} · ${selectedRow.time}` })
+    : null;
 
   // Links in the hero look like links (underline); plain facts do not.
   const heroLinkClass =
@@ -975,7 +978,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         />
       ))}
 
-      <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-5 sm:px-6 lg:px-8">
         {/* No "You are viewing your public profile" banner: the account menu links to
             Settings here, and the booking box says "This is how patients see your profile"
             (user, 2026-10-08). */}
@@ -999,9 +1002,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           </div>
         </div>
 
-        <header className="grid gap-6 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:gap-8">
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6">
-            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem]">
+      </div>
+
+      {/* Two columns on a wide page (user, 2026-10-13). Left: the hero and the tabs stay on
+          screen while her sections scroll under them. Right: "Choose a clinic" stays on
+          screen, with the chosen clinic's details and calendar below it. On a phone the
+          pieces follow one another: hero, booking column, tabs (sticky), sections. */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-8 lg:gap-y-0 lg:px-8">
+        <div className="contents lg:block lg:min-w-0">
+        <div
+          data-profile-pin
+          className="contents lg:sticky lg:top-0 lg:z-20 lg:block lg:bg-profile-bg lg:pb-3 lg:pt-3"
+        >
+        <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5">
+            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28">
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
@@ -1020,7 +1035,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 </div>
               )}
             </div>
-            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px]">
+            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px] lg:text-4xl">
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span>{profile.name}</span>
                   {profile.is_gesy ? (
@@ -1106,92 +1121,15 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               ) : null}
             </div>
           </div>
-          <ProfileNextAvailability
-            rows={nextAvailabilityRows}
-            canCallClinic={hasClinicPhone}
-            labels={{
-              title: t("nextAvailabilityTitle"),
-              liveToday: t("nextAvailabilityLiveToday"),
-              cta: t("requestAppointmentCta"),
-              noTimes: t("nextAvailabilityNoTimes"),
-              none: t("nextAvailabilityNone"),
-              noneHint: t("nextAvailabilityNoneHint"),
-            }}
-          />
         </header>
-      </div>
+        <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
+        </div>
 
-      {/* Direct child of <main> so it stays stuck for the whole page (a permanent index). */}
-      <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
-
-      <div className="mx-auto flex max-w-6xl flex-col gap-14 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-        <section
-          id={PROFILE_SECTION_IDS.book}
-          aria-label={t("sectionTabBook")}
-          className="grid scroll-mt-20 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6"
-        >
-          <div className="min-w-0">
-            <ProfileBookingStepProvider>
-            <ProfileClinicSwitch
-              key={selectedLocation?.id ?? "none"}
-              current={clinicSwitch.current}
-              others={clinicSwitch.others}
-              labels={{
-                bookingAt: bookingT("bookingAtClinic"),
-                chooseClinic: bookingT("chooseClinic"),
-                changeClinic: bookingT("changeClinic"),
-                bookingOff: bookingT("onlineBookingOff"),
-              }}
-            />
-            {viewerMode !== "patient" ? (
-              <ProfessionalBookingNotice mode={viewerMode} />
-            ) : (
-              <div data-testid="booking-section">
-                <BookingSection
-                  doctorId={profile.id}
-                  doctorName={profile.name}
-                  weeklySlots={weeklySlots}
-                  takenSlotTimes={takenSlotTimes}
-                  profileSlug={params.slug}
-                  locationId={selectedLocation?.id ?? null}
-                  locationLabel={selectedLocationTitle}
-                  locationScopedPause={practiceLocations.length > 1}
-                  initialSlotKey={
-                    parseBookingSlotParam(
-                      Array.isArray(searchParams?.slot)
-                        ? searchParams?.slot[0]
-                        : searchParams?.slot,
-                    )
-                  }
-                  breakStart={breakStartHm}
-                  breakEnd={breakEndHm}
-                  publicPhoneAvailable={hasPublicPhone}
-                  onlineBookingsUnavailable={accessEnded}
-                  onlineBookingsPaused={onlineBookingsPaused}
-                  holidayModeEnabled={holidayModeEnabled}
-                  holidayStartDate={holidayStartDate}
-                  holidayEndDate={holidayEndDate}
-                  bookingHorizonDays={bookingHorizonDays}
-                  minimumNoticeHours={minimumNoticeHours}
-                  services={services.map(({ id, name }) => ({ id, name }))}
-                />
-              </div>
-            )}
-            </ProfileBookingStepProvider>
-          </div>
-          <WhatToExpectCard />
-        </section>
-
+        <div data-profile-sections className="order-4 flex min-w-0 flex-col gap-14 lg:pt-6">
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
         <ProfilePatientsSection patientAges={profileDetails.patientAges} />
         <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
-        <ProfileClinicsSection
-          cards={clinicCards}
-          professionalId={profile.id}
-          openingHours={openingHoursByCard}
-          hasPersonalMobile={hasPersonalMobile}
-        />
         <ProfileReviewsSection reviews={reviews} locale={locale} />
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">
@@ -1206,6 +1144,77 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             message={t("reportMessage", { name: profile.name, url: profileCanonicalUrl })}
           />
         </footer>
+        </div>
+        </div>
+
+        <div
+          id={PROFILE_SECTION_IDS.book}
+          role="region"
+          aria-label={t("sectionTabBook")}
+          data-testid="profile-booking-column"
+          className="order-2 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:gap-1"
+        >
+          {chooserRows.length > 1 ? (
+            <div className="lg:sticky lg:top-0 lg:z-10 lg:bg-profile-bg lg:pb-3 lg:pt-3">
+              <ProfileClinicChooser
+                rows={chooserRows}
+                labels={{
+                  title: bookingT("chooseClinic"),
+                  nextFree: t("nextFree"),
+                  callToBook: t("callToBook"),
+                  noTimes: t("nextAvailabilityNoTimes"),
+                }}
+              />
+            </div>
+          ) : (
+            <div className="hidden lg:block lg:h-2" />
+          )}
+          <ProfileBookingStepProvider>
+            <ProfileBookingPanel
+              professionalId={profile.id}
+              clinic={panelClinic}
+              several={practiceLocations.length > 1}
+            >
+              {viewerMode !== "patient" ? (
+                <ProfessionalBookingNotice mode={viewerMode} />
+              ) : (
+                <div data-testid="booking-section">
+                  <BookingSection
+                    key={selectedLocation?.id ?? "none"}
+                    doctorId={profile.id}
+                    doctorName={profile.name}
+                    weeklySlots={weeklySlots}
+                    takenSlotTimes={takenSlotTimes}
+                    profileSlug={params.slug}
+                    locationId={selectedLocation?.id ?? null}
+                    locationLabel={selectedLocationTitle}
+                    locationScopedPause={practiceLocations.length > 1}
+                    initialSlotKey={
+                      parseBookingSlotParam(
+                        Array.isArray(searchParams?.slot)
+                          ? searchParams?.slot[0]
+                          : searchParams?.slot,
+                      )
+                    }
+                    breakStart={breakStartHm}
+                    breakEnd={breakEndHm}
+                    publicPhoneAvailable={hasPublicPhone}
+                    onlineBookingsUnavailable={accessEnded}
+                    onlineBookingsPaused={onlineBookingsPaused}
+                    holidayModeEnabled={holidayModeEnabled}
+                    holidayStartDate={holidayStartDate}
+                    holidayEndDate={holidayEndDate}
+                    bookingHorizonDays={bookingHorizonDays}
+                    minimumNoticeHours={minimumNoticeHours}
+                    services={services.map(({ id, name }) => ({ id, name }))}
+                    layout="panel"
+                    detailsAside={<WhatToExpectCard />}
+                  />
+                </div>
+              )}
+            </ProfileBookingPanel>
+          </ProfileBookingStepProvider>
+        </div>
       </div>
       {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
       {viewerMode === "patient" ? (

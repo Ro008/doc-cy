@@ -203,12 +203,12 @@ describe("Google Ads wiring", () => {
       path.join(repoRoot, "lib/public/doctor-profile-page.tsx"),
       "utf8",
     );
-    // The profile's phone buttons live in its "Clinics & contact" section.
+    // The profile's phone button is in the clinic card of the booking column.
     const profileClinics = fs.readFileSync(
-      path.join(repoRoot, "components/doctor/profile/ProfileClinicsSection.tsx"),
+      path.join(repoRoot, "components/doctor/profile/ProfileBookingPanel.tsx"),
       "utf8",
     );
-    assert.equal(profilePage.includes("<ProfileClinicsSection"), true);
+    assert.equal(profilePage.includes("<ProfileBookingPanel"), true);
     assert.equal(profileClinics.includes('kind="clinic"'), true);
     assert.equal(profileClinics.includes("publicTelHref"), false);
     assert.equal(profilePage.includes("publicTelHref"), false);

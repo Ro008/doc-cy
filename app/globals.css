@@ -684,6 +684,14 @@ html:has(.doccy-profile) {
   scroll-behavior: smooth;
 }
 
+/* Wide page: the hero and the tabs stay on screen, so a tab's section stops below them
+ * (the height is set by ProfileSectionNav). */
+@media (min-width: 1024px) {
+  .doccy-profile [data-profile-sections] > section {
+    scroll-margin-top: calc(var(--profile-pin-h, 20rem) + 1.5rem);
+  }
+}
+
 /* Sticky section tabs: frosted glass over the page scrolling underneath (user, 2026-10-10).
  * The page colour at 72% plus blur and a little saturation, a hairline edge and a soft top
  * highlight. Solid where blur isn't supported or the person asks for less transparency. */

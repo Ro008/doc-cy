@@ -217,3 +217,24 @@ No database change: everything **reads** `professional_reviews` (written by
 - The share card route in Vercel's production build (`sharp` and the fonts read from disk;
   `outputFileTracingIncludes` is set in `next.config.mjs`).
 - `/api/og/profile/<slug>` for a professional with a photo, and one without.
+
+## Two columns (user, 2026-10-13, a preview: not yet agreed)
+
+- **Wide page:** left column = the hero (no availability card, no "Request appointment")
+  with the tabs under it, both staying on screen (`data-profile-pin`), and her sections
+  scrolling under them (`data-profile-sections`: About, Services, Patients seen,
+  Qualifications, Reviews). Right column (`#book`, 380px) = "Choose a clinic"
+  (`ProfileClinicChooser`, stays on screen) above one clinic card (`ProfileBookingPanel`:
+  address, hours, Call, Open in Maps, then the month, the times and "Continue"), which scrolls.
+- **Choose a clinic:** every clinic, drawn like radio buttons, all rows as tall as the
+  tallest, each with its next free time ("Call to book" when online booking is off there).
+  A row loads the page for that clinic (`?location=`); the calendar opens with that
+  clinic's next free time already picked. "Continue" opens the details form.
+- **Details form:** a dialog over the page (`ProfileBookingDialog`) with "What to expect"
+  beside it; "Change time" or Escape goes back.
+- **Phone:** hero, booking column, tabs (sticky on their own), sections; the bottom bar
+  shows once the booking column has scrolled away.
+- **Gone:** "Clinics & contact" (its content is the clinic card) and its tab, the "Book"
+  tab, `ProfileNextAvailability`, `ProfileClinicSwitch`, the second "Show personal mobile".
+- **Still to do if agreed:** `tests/profile_one_page.spec.ts` (old test ids), unused
+  message keys, Greek wording.

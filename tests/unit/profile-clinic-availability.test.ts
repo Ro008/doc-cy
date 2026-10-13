@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { PublicAvailabilityDay } from "../../lib/public/compute-public-booking-slots";
-import {
-  clinicNextAvailabilityRows,
-  clinicSwitchOptions,
-  nextAvailabilityRowHref,
-  widestBookingHorizonDays,
-} from "../../lib/public/profile-clinic-availability";
+import { clinicChooserRows, widestBookingHorizonDays } from "../../lib/public/profile-clinic-availability";
 
 function day(dateKey: string, times: string[], isToday = false): PublicAvailabilityDay {
   return {
@@ -22,9 +17,12 @@ const pegeia = { id: "loc-1", title: "Malama Machaira", place: "Pegeia", paused:
 const mall = { id: "loc-2", title: "Kings Avenue Mall", place: "Paphos", paused: true };
 const limassol = { id: "loc-3", title: "Iliaxtida", place: "Mesa Geitonia", paused: false };
 
-describe("clinicNextAvailabilityRows", () => {
-  it("gives one row per clinic that takes online bookings, with its first free time", () => {
-    const rows = clinicNextAvailabilityRows({
+describe("clinicChooserRows", () => {
+  const base = { locale: "en", slug: "maria" };
+
+  it("lists every clinic in her order, each with its next free time and a link that chooses it", () => {
+    const rows = clinicChooserRows({
+      ...base,
       clinics: [
         { ...pegeia, days: [day("2026-10-14", []), day("2026-10-15", ["11:15", "12:00"])] },
         { ...mall, days: [day("2026-10-14", ["09:00"])] },
@@ -34,142 +32,42 @@ describe("clinicNextAvailabilityRows", () => {
       bookingOffEverywhere: false,
     });
     assert.deepEqual(
-      rows.map((row) => [row.locationId, row.title, row.place, row.selected, row.next?.dateKey, row.next?.fromTime]),
+      rows.map((row) => [row.id, row.title, row.place, row.selected, row.bookable, row.next?.dateKey, row.next?.fromTime, row.href]),
       [
-        ["loc-1", "Malama Machaira", "Pegeia", true, "2026-10-15", "11:15"],
-        ["loc-3", "Iliaxtida", "Mesa Geitonia", false, "2026-10-14", "09:00"],
+        ["loc-1", "Malama Machaira", "Pegeia", true, true, "2026-10-15", "11:15", "/en/maria?location=loc-1"],
+        ["loc-2", "Kings Avenue Mall", "Paphos", false, false, undefined, undefined, "/en/maria?location=loc-2"],
+        ["loc-3", "Iliaxtida", "Mesa Geitonia", false, true, "2026-10-14", "09:00", "/en/maria?location=loc-3"],
       ],
     );
-    assert.equal(rows[1].next?.isToday, true);
+    assert.equal(rows[2].next?.isToday, true);
   });
 
-  it("keeps her own clinic order, not soonest first", () => {
-    const rows = clinicNextAvailabilityRows({
-      clinics: [
-        { ...pegeia, days: [day("2026-10-20", ["09:00"])] },
-        { ...limassol, days: [day("2026-10-14", ["09:00"])] },
-      ],
-      selectedId: null,
+  it("keeps a clinic with online booking off in the list: the patient can still look and call", () => {
+    const rows = clinicChooserRows({
+      ...base,
+      clinics: [{ ...mall, days: [day("2026-10-14", ["09:00"])] }, { ...pegeia, days: [] }],
+      selectedId: "loc-2",
       bookingOffEverywhere: false,
     });
-    assert.deepEqual(rows.map((row) => row.locationId), ["loc-1", "loc-3"]);
-  });
-
-  it("keeps a bookable clinic with no free time, without a time", () => {
-    const rows = clinicNextAvailabilityRows({
-      clinics: [{ ...pegeia, days: [day("2026-10-14", [])] }],
-      selectedId: "loc-1",
-      bookingOffEverywhere: false,
-    });
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0].next, null);
-  });
-
-  it("has no rows when her access has ended or every clinic is paused", () => {
-    assert.deepEqual(
-      clinicNextAvailabilityRows({
-        clinics: [{ ...pegeia, days: [day("2026-10-14", ["09:00"])] }],
-        selectedId: "loc-1",
-        bookingOffEverywhere: true,
-      }),
-      [],
-    );
-    assert.deepEqual(
-      clinicNextAvailabilityRows({
-        clinics: [{ ...mall, days: [day("2026-10-14", ["09:00"])] }],
-        selectedId: "loc-2",
-        bookingOffEverywhere: false,
-      }),
-      [],
-    );
-  });
-});
-
-describe("nextAvailabilityRowHref", () => {
-  it("stays on the page for the clinic already chosen", () => {
-    assert.equal(
-      nextAvailabilityRowHref({
-        locale: "en",
-        slug: "maria",
-        locationId: "loc-1",
-        selected: true,
-        slotKey: "2026-10-14T09:00",
-      }),
-      "#book",
-    );
-  });
-
-  it("opens another clinic on its next free time (the details form opens for it)", () => {
-    assert.equal(
-      nextAvailabilityRowHref({
-        locale: "el",
-        slug: "maria",
-        locationId: "loc-3",
-        selected: false,
-        slotKey: "2026-10-14T09:00",
-      }),
-      "/el/maria?slot=2026-10-14T09%3A00&location=loc-3#book",
-    );
-  });
-
-  it("only switches clinic when that clinic has no free time", () => {
-    assert.equal(
-      nextAvailabilityRowHref({ locale: "en", slug: "maria", locationId: "loc-3", selected: false, slotKey: null }),
-      "/en/maria?location=loc-3#book",
-    );
-  });
-});
-
-describe("clinicSwitchOptions", () => {
-  const clinics = [pegeia, mall, limassol];
-
-  it("names the clinic being booked and lists the others, in her order", () => {
-    const options = clinicSwitchOptions({
-      clinics,
-      selectedId: "loc-3",
-      bookingOffEverywhere: false,
-      locale: "en",
-      slug: "maria",
-    });
-    assert.deepEqual(options.current, { title: "Iliaxtida", place: "Mesa Geitonia" });
-    assert.deepEqual(options.others, [
-      { id: "loc-1", title: "Malama Machaira", place: "Pegeia", bookable: true, href: "/en/maria?location=loc-1" },
-      { id: "loc-2", title: "Kings Avenue Mall", place: "Paphos", bookable: false, href: "/en/maria?location=loc-2" },
+    assert.deepEqual(rows.map((row) => [row.id, row.selected, row.bookable, row.next]), [
+      ["loc-2", true, false, null],
+      ["loc-1", false, true, null],
     ]);
   });
 
-  it("offers nothing to switch to with a single clinic", () => {
-    const options = clinicSwitchOptions({
-      clinics: [pegeia],
-      selectedId: "loc-1",
-      bookingOffEverywhere: false,
-      locale: "en",
-      slug: "maria",
-    });
-    assert.deepEqual(options.others, []);
-  });
-
   it("marks every clinic as not bookable when her access has ended", () => {
-    const options = clinicSwitchOptions({
-      clinics,
-      selectedId: "loc-1",
-      bookingOffEverywhere: true,
-      locale: "en",
-      slug: "maria",
-    });
-    assert.deepEqual(options.others.map((clinic) => clinic.bookable), [false, false]);
-  });
-
-  it("has no current clinic when none is chosen", () => {
-    const options = clinicSwitchOptions({
-      clinics,
+    const rows = clinicChooserRows({
+      ...base,
+      locale: "el",
+      clinics: [{ ...pegeia, days: [day("2026-10-14", ["09:00"])] }, { ...limassol, days: [] }],
       selectedId: null,
-      bookingOffEverywhere: false,
-      locale: "en",
-      slug: "maria",
+      bookingOffEverywhere: true,
     });
-    assert.equal(options.current, null);
-    assert.equal(options.others.length, 3);
+    assert.deepEqual(rows.map((row) => [row.bookable, row.next, row.selected]), [
+      [false, null, false],
+      [false, null, false],
+    ]);
+    assert.equal(rows[0].href, "/el/maria?location=loc-1");
   });
 });
 

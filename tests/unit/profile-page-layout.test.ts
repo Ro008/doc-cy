@@ -19,7 +19,7 @@ describe("public profile: one page with anchor tabs", () => {
 
   it("renders every section on the page behind sticky anchor tabs", () => {
     assert.match(page, /<ProfileSectionNav\b/);
-    for (const component of ["ProfileAboutSection", "ProfileServicesSection", "ProfileClinicsSection"]) {
+    for (const component of ["ProfileAboutSection", "ProfileServicesSection", "ProfileReviewsSection"]) {
       assert.match(page, new RegExp(`<${component}\\b`), component);
     }
     const sectionsDir = path.join(repoRoot, "components/doctor/profile");
@@ -27,7 +27,7 @@ describe("public profile: one page with anchor tabs", () => {
       page,
       ...fs.readdirSync(sectionsDir).map((file) => read(`components/doctor/profile/${file}`)),
     ].join("\n");
-    for (const id of ["book", "about", "services", "clinics"]) {
+    for (const id of ["book", "about", "services", "reviews"]) {
       assert.match(all, new RegExp(`id=\\{PROFILE_SECTION_IDS\\.${id}\\}`), `section #${id}`);
     }
   });
@@ -104,8 +104,8 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(page, /<ProfileMobileBookBar\b/);
     assert.match(page, /<ProfileShareButton\b/);
     assert.match(page, /<ProfileReportLink\b/);
-    const clinics = read("components/doctor/profile/ProfileClinicsSection.tsx");
-    assert.match(clinics, /openingHours/);
+    const clinicCard = read("components/doctor/profile/ProfileBookingPanel.tsx");
+    assert.match(clinicCard, /data-testid="profile-clinic-hours"/);
   });
 
   it("hero names every district with a clinic, each a link", () => {
@@ -169,15 +169,40 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(booking, /prefers-reduced-motion: reduce/);
   });
 
-  it("puts each bookable clinic's next free time in the hero", () => {
-    assert.match(page, /<ProfileNextAvailability\b/);
-    assert.match(page, /clinicNextAvailabilityRows\(/);
+  it("shows each clinic's next free time in \"Choose a clinic\"", () => {
+    assert.match(page, /<ProfileClinicChooser\b/);
+    assert.match(page, /clinicChooserRows\(/);
     assert.match(page, /computePublicAvailabilityCalendar\(/);
     // Her busy times are loaded far enough ahead for the clinic with the longest horizon.
     assert.match(page, /widestBookingHorizonDays\(/);
-    const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
-    assert.match(next, /rows\.map\(/);
-    assert.match(next, /data-location/);
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    assert.match(chooser, /rows\.map\(/);
+    assert.match(chooser, /data-location/);
+    // The hero is about her: no availability card or "Request appointment" button in it.
+    assert.doesNotMatch(page, /<ProfileNextAvailability\b/);
+  });
+
+  it("two columns on a wide page: hero and tabs stay on screen, so does the clinic choice (user, 2026-10-13)", () => {
+    assert.match(page, /lg:grid-cols-\[minmax\(0,1fr\)_380px\]/);
+    // The hero and the tabs are one pinned block; the sections scroll under it.
+    assert.match(page, /data-profile-pin\s+className="[^"]*lg:sticky[^"]*lg:top-0/);
+    assert.ok(page.indexOf("data-profile-pin") < page.indexOf("<ProfileSectionNav"));
+    assert.ok(page.indexOf("<ProfileSectionNav") < page.indexOf("data-profile-sections"));
+    // The clinic choice is pinned on its own; the clinic card under it scrolls.
+    assert.match(page, /className="[^"]*lg:sticky[^"]*"\s*>\s*<ProfileClinicChooser/);
+    // On a phone: hero, booking column, tabs, sections.
+    assert.match(page, /<header className="order-1 /);
+    assert.match(page, /data-testid="profile-booking-column"\s+className="order-2 /);
+    assert.match(page, /data-profile-sections className="order-4 /);
+    const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
+    assert.match(nav, /order-3/);
+    // A tab's section stops below the pinned block, whatever its height.
+    assert.match(nav, /--profile-pin-h/);
+    const css = read("app/globals.css");
+    assert.match(css, /\[data-profile-sections\] > section \{\s*scroll-margin-top: calc\(var\(--profile-pin-h/);
+    // No tab for the booking column or the clinics: they are always next to the sections.
+    assert.match(page, /hasClinics: false/);
+    assert.match(page, /tab\.id !== PROFILE_SECTION_IDS\.book/);
   });
 
   it("lets a next-availability day open that day in the booking calendar", () => {
@@ -221,10 +246,6 @@ describe("public profile: colours, dark mode and motion", () => {
     assert.match(css, /@keyframes profile-rise/);
     assert.match(css, /\.profile-live-dot/);
     assert.match(css, /\.profile-rise/);
-    const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
-    // The pulsing dot only exists when today really has a free time.
-    assert.match(next, /rows\.some\(\(row\) => row\.isToday\)/);
-    assert.match(next, /profile-live-dot/);
     const booking = read("components/doctor/BookingSection.tsx");
     assert.match(booking, /profile-rise/);
     const nav = read("components/doctor/profile/ProfileSectionNav.tsx");

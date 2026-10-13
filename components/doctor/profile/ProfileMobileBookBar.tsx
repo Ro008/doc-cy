@@ -11,41 +11,24 @@ type Props = {
 };
 
 /**
- * Phones only: once the hero's booking card has scrolled away, a bar keeps
- * "Request appointment" at hand (as on the big booking sites). It hides again while
- * the booking calendar itself is on screen. Sits above the pro tab bar when shown.
+ * Phones only: once the booking column (the clinic choice and the calendar) has scrolled
+ * away, a bar keeps "Request appointment" at hand (as on the big booking sites). Sits
+ * above the pro tab bar when shown.
  */
 export function ProfileMobileBookBar({ next, cta }: Props) {
   const [visible, setVisible] = React.useState(false);
   const { showProChrome } = useDoctorSession();
 
   React.useEffect(() => {
-    const hero = document.querySelector("[data-testid='profile-next-availability']");
     const book = document.getElementById(PROFILE_SECTION_IDS.book);
-    if (!hero || !book || typeof IntersectionObserver === "undefined") return;
-    let heroInView = true;
-    let bookInView = false;
-    const update = () => setVisible(!heroInView && !bookInView);
-    // Any bit of the hero's booking card on screen is enough to hide the bar.
-    const heroObserver = new IntersectionObserver(([entry]) => {
-      heroInView = entry.isIntersecting;
-      update();
-    });
-    // The calendar only counts once it fills the middle of the screen, not when its
-    // last pixels peek out under the sticky tabs.
-    const bookObserver = new IntersectionObserver(
-      ([entry]) => {
-        bookInView = entry.isIntersecting;
-        update();
-      },
-      { rootMargin: "-40% 0px -40% 0px" },
+    if (!book || typeof IntersectionObserver === "undefined") return;
+    // Its last pixels under the sticky tabs do not count as "on screen".
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(!entry.isIntersecting),
+      { rootMargin: "-80px 0px -80px 0px" },
     );
-    heroObserver.observe(hero);
-    bookObserver.observe(book);
-    return () => {
-      heroObserver.disconnect();
-      bookObserver.disconnect();
-    };
+    observer.observe(book);
+    return () => observer.disconnect();
   }, []);
 
   return (

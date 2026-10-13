@@ -55,17 +55,23 @@ describe("booking form wording and steps", () => {
     assert.equal(/>\s*Confirm\s*</.test(booking), false);
   });
 
-  it("steps add up: 1 and 2 of 2 (the clinic is chosen in the hero, not in a step of its own)", () => {
+  it("steps add up: 1 and 2 of 2 (choosing the clinic is not a step of its own)", () => {
     assert.equal(en.chooseClinicStep, undefined);
     assert.equal(en.pickTimeStep, "Step 1 of 2");
     assert.equal(en.detailsStep, "Step 2 of 2");
     assert.match(booking, /t\("detailsStep"\)/);
   });
 
-  it("a hero row with a time opens the details form for that time", () => {
+  it("a clinic's next free time is picked for the patient; Continue opens the form (user, 2026-10-13)", () => {
+    // The chosen clinic's row goes back to its next free time...
     assert.match(booking, /parseProfileSlotSelectDetail\(/);
-    const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
-    assert.match(next, /requestProfileDaySelect\(row\.dateKey, row\.slotKey\)/);
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    assert.match(chooser, /requestProfileDaySelect\(row\.dateKey, row\.slotKey\)/);
+    // ...and the calendar opens with it picked, without opening the form by itself.
+    const handler = booking.slice(booking.indexOf("const onSelectDay"), booking.indexOf("PROFILE_SELECT_DAY_EVENT, onSelectDay"));
+    assert.match(handler, /setShowContactForm\(false\)/);
+    assert.doesNotMatch(handler, /setShowContactForm\(true\)/);
+    assert.match(booking, /if \(panel\) \{[\s\S]*?if \(first\) setSelectedSlot\(first\);/);
   });
 
   it("Greek has every new key", () => {
@@ -110,17 +116,19 @@ describe("profile page pieces", () => {
     assert.match(button, /href=\{`#\$\{PROFILE_SECTION_IDS\.book\}`\}/);
   });
 
-  it("the clinic switch steps aside while the details are filled in", () => {
-    const picker = read("components/doctor/profile/ProfileClinicSwitch.tsx");
-    assert.match(picker, /<HideWhileBookingDetails\b/);
-    assert.match(picker, /data-testid="profile-clinic-picker"/);
-    // The big "Where do you want to go?" block is gone: the hero rows choose the clinic.
-    assert.equal(fs.existsSync(path.join(repoRoot, "components/doctor/DoctorProfileClinicPicker.tsx")), false);
-    const hide = read("components/doctor/profile/HideWhileBookingDetails.tsx");
-    assert.match(hide, /useProfileBookingStep\(\)/);
-    assert.match(hide, /hidden=\{step === "details"\}/);
+  it("one clinic chooser, drawn as a pick-one list; the older pickers are gone", () => {
+    for (const gone of ["DoctorProfileClinicPicker.tsx", "profile/ProfileClinicSwitch.tsx", "profile/HideWhileBookingDetails.tsx"]) {
+      assert.equal(fs.existsSync(path.join(repoRoot, "components/doctor", gone)), false, gone);
+    }
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    assert.match(chooser, /data-testid="profile-clinic-chooser"/);
+    assert.match(chooser, /aria-current="true"/);
+    // Every row is as tall as the tallest (user, 2026-10-13).
+    assert.match(chooser, /auto-rows-fr/);
+    // Nothing to choose with a single clinic.
+    assert.match(chooser, /if \(rows\.length < 2\) return null;/);
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /<ProfileBookingStepProvider>[\s\S]*<ProfileClinicSwitch[\s\S]*<BookingSection[\s\S]*<\/ProfileBookingStepProvider>/);
+    assert.match(page, /<ProfileClinicChooser[\s\S]*<ProfileBookingStepProvider>[\s\S]*<BookingSection[\s\S]*<\/ProfileBookingStepProvider>/);
   });
 
   it("the install banner stays off the profile page", () => {

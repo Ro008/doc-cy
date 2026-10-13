@@ -139,15 +139,12 @@ describe("profile hero: Show mobile", () => {
 
   });
 
-  it("shows again in Clinics & contact, under the heading, as her personal mobile", () => {
-    assert.match(page, /<ProfileClinicsSection[\s\S]*?hasPersonalMobile=\{hasPersonalMobile\}/);
-    const clinics = read("components/doctor/profile/ProfileClinicsSection.tsx");
-    assert.match(clinics, /\{hasPersonalMobile \? \(\s*<RevealMobileButton\b/);
-    assert.match(clinics, /label=\{t\("clinicsShowMobile"\)\}/);
-    assert.match(clinics, /testId="profile-clinics-mobile"/);
-    assert.ok(clinics.indexOf("<RevealMobileButton") < clinics.indexOf("cards.map("), "before the clinic cards");
-    assert.equal(clinics.includes("mobile_number"), false);
-    // The two buttons are told apart in tests; the hero keeps its own id.
+  it("shows once, in the hero: the clinic card is about the clinic (user, 2026-10-13)", () => {
+    // "Clinics & contact" is off the page; the hero stays on screen on a wide page.
+    assert.equal((page.match(/<RevealMobileButton\b/g) ?? []).length, 1);
+    const clinicCard = read("components/doctor/profile/ProfileBookingPanel.tsx");
+    assert.equal(clinicCard.includes("RevealMobileButton"), false);
+    assert.equal(clinicCard.includes("mobile_number"), false);
     assert.match(page, /testId="profile-hero-mobile"/);
     assert.match(button, /data-testid=\{testId\}/);
     for (const file of ["messages/en.json", "messages/el.json"]) {

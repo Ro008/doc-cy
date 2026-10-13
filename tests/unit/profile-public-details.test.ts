@@ -72,15 +72,16 @@ describe("the page reads and places them", () => {
     assert.match(page, /hasQualifications:/);
   });
 
-  it("orders the left column: About, Services, Patients seen, Qualifications, then clinics and reviews", () => {
+  it("orders the left column: About, Services, Patients seen, Qualifications, then reviews", () => {
     const about = page.indexOf("<ProfileAboutSection");
     const services = page.indexOf("<ProfileServicesSection");
     const qualifications = page.indexOf("<ProfileQualificationsSection");
-    const clinics = page.indexOf("<ProfileClinicsSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
     const patients = page.indexOf("<ProfilePatientsSection");
     assert.ok(about > 0 && about < services && services < patients && patients < qualifications);
-    assert.ok(qualifications < clinics && clinics < reviews);
+    assert.ok(qualifications < reviews);
+    // Her clinics are in the booking column, next to these sections.
+    assert.doesNotMatch(page, /<ProfileClinicsSection\b/);
     assert.match(page.slice(patients, qualifications), /patientAges=\{/);
   });
 

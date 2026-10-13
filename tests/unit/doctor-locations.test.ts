@@ -122,16 +122,16 @@ describe("doctor locations", () => {
     assert.equal(settingsForm.includes("ClinicHoursEditor"), true);
     assert.equal(settingsForm.includes("workplaceTabScrollYRef"), true);
     const picker = fs.readFileSync(
-      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/profile/ProfileClinicSwitch.tsx"),
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/profile/ProfileClinicChooser.tsx"),
       "utf8",
     );
     const profilePage = fs.readFileSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../lib/public/doctor-profile-page.tsx"),
       "utf8",
     );
-    assert.equal(picker.includes("profile-clinic-picker"), true);
-    assert.equal(picker.includes("changeClinic"), true);
-    assert.equal(profilePage.includes("ProfileClinicSwitch"), true);
+    assert.equal(picker.includes("profile-clinic-chooser"), true);
+    assert.equal(picker.includes("profile-clinic-option"), true);
+    assert.equal(profilePage.includes("ProfileClinicChooser"), true);
     assert.equal(profilePage.includes('aria-label="Workplaces"'), false);
   });
 

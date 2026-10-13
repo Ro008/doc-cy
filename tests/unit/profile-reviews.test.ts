@@ -251,13 +251,13 @@ describe("the profile reads reviews and shows them", () => {
     assert.doesNotMatch(loader, /\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
   });
 
-  it("renders the section last, after Clinics & contact, from the loaded reviews", () => {
+  it("renders the section last, from the loaded reviews", () => {
     const page = read("lib/public/doctor-profile-page.tsx");
     const services = page.indexOf("<ProfileServicesSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
-    const clinics = page.indexOf("<ProfileClinicsSection");
-    // Practical details first, reviews close the page (user, 2026-10-13).
-    assert.ok(services > 0 && services < clinics && clinics < reviews);
+    const qualifications = page.indexOf("<ProfileQualificationsSection");
+    // Reviews close the page (user, 2026-10-13).
+    assert.ok(services > 0 && services < qualifications && qualifications < reviews);
     assert.match(page, /loadPublishedReviews\(/);
     assert.match(page, /hasReviews:/);
   });
