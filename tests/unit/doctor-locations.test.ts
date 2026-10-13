@@ -121,9 +121,8 @@ describe("doctor locations", () => {
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
     assert.equal(settingsForm.includes("ClinicHoursEditor"), true);
     assert.equal(settingsForm.includes("workplaceTabScrollYRef"), true);
-    // The clinic choice is part of the profile's booking panel (user, 2026-10-13).
     const picker = fs.readFileSync(
-      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/profile/ProfileBookingPanel.tsx"),
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/DoctorProfileClinicPicker.tsx"),
       "utf8",
     );
     const profilePage = fs.readFileSync(
@@ -132,8 +131,8 @@ describe("doctor locations", () => {
     );
     assert.equal(picker.includes("profile-clinic-picker"), true);
     assert.equal(picker.includes("chooseClinicHeading"), true);
-    assert.equal(profilePage.includes("clinicTitleOrFallback"), true);
-    assert.equal(profilePage.includes("<ProfileBookingPanel"), true);
+    assert.equal(picker.includes("clinicTitleOrFallback"), true);
+    assert.equal(profilePage.includes("DoctorProfileClinicPicker"), true);
     assert.equal(profilePage.includes('aria-label="Workplaces"'), false);
   });
 

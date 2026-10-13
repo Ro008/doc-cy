@@ -169,11 +169,9 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(booking, /prefers-reduced-motion: reduce/);
   });
 
-  it("the hero is who she is; the next days are in the booking panel, not repeated up there", () => {
-    assert.doesNotMatch(page, /<ProfileNextAvailability\b/);
-    // Still computed: the phone's bottom bar says the next free time.
+  it("puts next availability in the hero", () => {
+    assert.match(page, /<ProfileNextAvailability\b/);
     assert.match(page, /computePublicAvailabilityCalendar\(/);
-    assert.match(page, /<ProfileMobileBookBar next=\{mobileBarNext\}/);
   });
 
   it("lets a next-availability day open that day in the booking calendar", () => {

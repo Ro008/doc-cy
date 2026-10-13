@@ -15,7 +15,7 @@ export async function ProfileAboutSection({ firstName, bio }: Props) {
     <section
       id={PROFILE_SECTION_IDS.about}
       aria-labelledby="profile-about-heading"
-      className="grid scroll-mt-20 gap-5"
+      className="grid scroll-mt-20 gap-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8"
     >
       <h2
         id="profile-about-heading"

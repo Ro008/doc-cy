@@ -90,21 +90,6 @@ Nothing waits for the backend any more.
   hidden when she has not filled them in. Next steps, agreed with Livio: a booking panel that
   stays on screen on the right (clinic choice, its details and times), the details form as a
   dialog, and then the hero card, the old booking area and Clinics & contact go.
-- **Booking panel** (step 2 of the new layout, Livio 2026-10-13; a preview, not final): below
-  the hero the page is two columns on a wide screen. Left: About, Services & prices, Patients
-  seen, Qualifications, Clinics & contact, Reviews (headings above their content now). Right:
-  `ProfileBookingPanel`, which stays on screen: her clinics as rows (a link each,
-  `?location=`), the chosen clinic's address, hours, Call and Open in Maps, then
-  `BookingSection layout="panel"`: a strip of days ("More dates" opens the month) and the
-  times. "Continue" opens the details form in `ProfileBookingDialog` with "What to expect"
-  beside it; the "check your email" card shows there too. On a phone the panel is first under
-  the hero. The hero's "Next availability" card and the three-card clinic picker are off the
-  page (their files are still there until the layout is approved).
-  **Still to do:** the Playwright specs that pick a day with `.rdp-day_available`
-  (`tests/helpers/pickBookingCalendarDay.ts`) or look for the hero card
-  (`tests/profile_one_page.spec.ts`) need updating; remove "Clinics & contact" and the unused
-  components; the form still says "Step 3 of 3"; a paused clinic still says "Call the number
-  in the Contact section".
 - **Hero**: the clinic count ("2 clinics" / "Clinic details") is gone; the clinic picker and
   the "Clinics & contact" tab already say it. The districts stay.
 

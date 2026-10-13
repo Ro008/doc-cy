@@ -108,12 +108,14 @@ describe("profile page pieces", () => {
     assert.match(button, /href=\{`#\$\{PROFILE_SECTION_IDS\.book\}`\}/);
   });
 
-  it("the details are filled in over the page, so the clinic choice has nothing to step aside for", () => {
-    // The form opens as a dialog from the booking panel (user, 2026-10-13).
+  it("the clinic picker steps aside while the details are filled in", () => {
+    const picker = read("components/doctor/DoctorProfileClinicPicker.tsx");
+    assert.match(picker, /<HideWhileBookingDetails\b/);
+    const hide = read("components/doctor/profile/HideWhileBookingDetails.tsx");
+    assert.match(hide, /useProfileBookingStep\(\)/);
+    assert.match(hide, /hidden=\{step === "details"\}/);
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /<ProfileBookingPanel[\s\S]*<ProfileBookingStepProvider>[\s\S]*<BookingSection[\s\S]*layout="panel"[\s\S]*<\/ProfileBookingStepProvider>/);
-    const booking = read("components/doctor/BookingSection.tsx");
-    assert.match(booking, /<ProfileBookingDialog label=\{label\} onClose=\{onClose\}/);
+    assert.match(page, /<ProfileBookingStepProvider>[\s\S]*<DoctorProfileClinicPicker[\s\S]*<BookingSection[\s\S]*<\/ProfileBookingStepProvider>/);
   });
 
   it("the install banner stays off the profile page", () => {
