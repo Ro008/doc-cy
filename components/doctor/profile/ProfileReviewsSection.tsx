@@ -5,16 +5,13 @@ import { getTranslations } from "next-intl/server";
 import { CY_TZ } from "@/lib/appointments";
 import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
-import {
-  PROFILE_REVIEWS_SHOWN_FIRST,
-  summariseReviews,
-  type PublicReview,
-} from "@/lib/public/profile-reviews";
+import { ProfileReviewsList } from "@/components/doctor/profile/ProfileReviewsList";
+import { summariseReviews, type PublicReview } from "@/lib/public/profile-reviews";
 
 /**
  * "Patient reviews": the verified reviews patients leave from the emailed link, read from
  * professional_reviews. Hidden when there are none (no empty box, nothing invented). The
- * first few are open; the rest are behind a native <details>, so it works without scripts.
+ * first few are open; "Show more reviews" opens the next ones (ProfileReviewsList).
  */
 export async function ProfileReviewsSection({
   reviews,
@@ -27,8 +24,6 @@ export async function ProfileReviewsSection({
   const t = await getTranslations("DoctorProfilePage");
   const { count, average } = summariseReviews(reviews);
   const dateLocale = locale === "el" ? elLocale : enGB;
-  const first = reviews.slice(0, PROFILE_REVIEWS_SHOWN_FIRST);
-  const rest = reviews.slice(PROFILE_REVIEWS_SHOWN_FIRST);
 
   const card = (review: PublicReview) => (
     <li
@@ -78,18 +73,7 @@ export async function ProfileReviewsSection({
         <p className="mt-3 max-w-xs text-sm leading-relaxed text-profile-muted">{t("reviewsVerifiedNote")}</p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <ul className="grid gap-3 sm:grid-cols-2">{first.map(card)}</ul>
-        {rest.length > 0 ? (
-          <details className="group">
-            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-full border-2 border-accent-soft px-5 text-sm font-bold text-profile-text transition hover:border-accent-cta focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cta [&::-webkit-details-marker]:hidden">
-              <span className="group-open:hidden">{t("reviewsShowAll", { count })}</span>
-              <span className="hidden group-open:inline">{t("reviewsShowFewer")}</span>
-            </summary>
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2">{rest.map(card)}</ul>
-          </details>
-        ) : null}
-      </div>
+      <ProfileReviewsList items={reviews.map(card)} moreLabel={t("reviewsShowMore")} />
     </section>
   );
 }

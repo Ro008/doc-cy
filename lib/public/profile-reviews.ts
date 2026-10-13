@@ -7,8 +7,15 @@ import { reviewDisplayName } from "@/lib/review-display-name";
  * the full name never leave the server.
  */
 
-/** Reviews open on the page; the rest sit behind "Show all". */
+/** Reviews open on the page; the rest come with "Show more reviews". */
 export const PROFILE_REVIEWS_SHOWN_FIRST = 4;
+
+/** How many more each "Show more reviews" opens. */
+export const PROFILE_REVIEWS_SHOWN_MORE = 10;
+
+export function reviewsShownAfterMore(shown: number, total: number): number {
+  return Math.min(total, shown + PROFILE_REVIEWS_SHOWN_MORE);
+}
 
 /** The hero shows the average only from this many reviews: one opinion alone weighs too much there. */
 export const PROFILE_HERO_RATING_MIN_REVIEWS = 3;

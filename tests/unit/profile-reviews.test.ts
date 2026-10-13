@@ -10,6 +10,8 @@ import {
   buildShareDescription,
   heroRatingFromReviews,
   PROFILE_REVIEWS_SHOWN_FIRST,
+  PROFILE_REVIEWS_SHOWN_MORE,
+  reviewsShownAfterMore,
   finderRatingsFromRows,
   publicReviewsFromRows,
   showHeroRating,
@@ -316,12 +318,40 @@ describe("the profile reads reviews and shows them", () => {
     const section = read("components/doctor/profile/ProfileReviewsSection.tsx");
     assert.match(section, /PROFILE_SECTION_IDS\.reviews/);
     assert.match(section, /if \(reviews\.length === 0\) return null/);
-    assert.match(section, /PROFILE_REVIEWS_SHOWN_FIRST/);
-    assert.match(section, /<details/);
+    assert.match(section, /<ProfileReviewsList\b/);
     assert.match(section, /<time\b/);
     assert.match(section, /reviewRatingLabel/);
     assert.doesNotMatch(section, /dangerouslySetInnerHTML/);
     assert.ok(PROFILE_REVIEWS_SHOWN_FIRST >= 3);
+  });
+
+  it("\"Show more reviews\" opens the next 10 each time, up to the total (user, 2026-10-13)", () => {
+    assert.equal(PROFILE_REVIEWS_SHOWN_MORE, 10);
+    assert.equal(reviewsShownAfterMore(4, 6), 6);
+    assert.equal(reviewsShownAfterMore(4, 14), 14);
+    assert.equal(reviewsShownAfterMore(4, 40), 14);
+    assert.equal(reviewsShownAfterMore(14, 40), 24);
+    assert.equal(reviewsShownAfterMore(34, 40), 40);
+    assert.equal(reviewsShownAfterMore(40, 40), 40);
+  });
+
+  it("the list has one button, only while reviews are left, and no way back to fewer", () => {
+    const list = read("components/doctor/profile/ProfileReviewsList.tsx");
+    assert.match(list, /^"use client";/);
+    assert.match(list, /useState\(PROFILE_REVIEWS_SHOWN_FIRST\)/);
+    assert.match(list, /reviewsShownAfterMore\(/);
+    assert.match(list, /shown < items\.length/);
+    assert.match(list, /data-testid="profile-reviews-more"/);
+    assert.doesNotMatch(list, /<details/);
+    const section = read("components/doctor/profile/ProfileReviewsSection.tsx");
+    assert.doesNotMatch(section, /<details|reviewsShowFewer|reviewsShowAll/);
+    assert.match(section, /moreLabel=\{t\("reviewsShowMore"\)\}/);
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      const messages = JSON.parse(read(file)).DoctorProfilePage;
+      assert.equal(messages.reviewsShowFewer, undefined, file);
+      assert.equal(messages.reviewsShowAll, undefined, file);
+    }
+    assert.equal(JSON.parse(read("messages/en.json")).DoctorProfilePage.reviewsShowMore, "Show more reviews");
   });
 
   it("has the copy in English and Greek", () => {
@@ -333,8 +363,7 @@ describe("the profile reads reviews and shows them", () => {
         "reviewsSummary",
         "reviewsVerifiedNote",
         "reviewRatingLabel",
-        "reviewsShowAll",
-        "reviewsShowFewer",
+        "reviewsShowMore",
       ]) {
         assert.equal(typeof messages[key], "string", `${file} ${key}`);
       }

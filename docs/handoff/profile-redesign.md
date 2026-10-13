@@ -171,6 +171,8 @@ No database change: everything **reads** `professional_reviews` (written by
 - **Profile**: a "Patient reviews" section (and tab) at the bottom, after Clinics & contact (Livio, 2026-10-13), only when
   there are published reviews. Names are "Maria K.". The average is cut, not rounded, to one
   decimal (24 fives and a four read 4.9). `status = 'hidden'` rows never show.
+  The first 4 are open; "Show more reviews" opens the next 10 each time (`ProfileReviewsList`),
+  with no "Show fewer". All published reviews are still read in one go on the server.
 - **The bar is 3 reviews** (`PROFILE_HERO_RATING_MIN_REVIEWS`): the hero line, the finder card
   note and the shared preview only show the average from 3 reviews. The section itself shows from 1.
 - **Finder card**: "★ 4.6 (12)" on registered cards, from one read for the cards on screen
