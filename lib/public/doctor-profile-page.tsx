@@ -1137,13 +1137,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
-        <ProfileReviewsSection reviews={reviews} locale={locale} />
         <ProfileClinicsSection
           cards={clinicCards}
           professionalId={profile.id}
           openingHours={openingHoursByCard}
           hasPersonalMobile={hasPersonalMobile}
         />
+        <ProfileReviewsSection reviews={reviews} locale={locale} />
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">
           <a

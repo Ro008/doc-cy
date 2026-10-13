@@ -28,11 +28,11 @@ export function profileSectionTabs(input: {
   if (input.hasServices) {
     tabs.push({ id: PROFILE_SECTION_IDS.services, labelKey: "sectionTabServices" });
   }
-  if (input.hasReviews) {
-    tabs.push({ id: PROFILE_SECTION_IDS.reviews, labelKey: "sectionTabReviews" });
-  }
   if (input.hasClinics) {
     tabs.push({ id: PROFILE_SECTION_IDS.clinics, labelKey: "sectionTabClinics" });
+  }
+  if (input.hasReviews) {
+    tabs.push({ id: PROFILE_SECTION_IDS.reviews, labelKey: "sectionTabReviews" });
   }
   return tabs;
 }

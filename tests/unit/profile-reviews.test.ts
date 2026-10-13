@@ -225,10 +225,10 @@ describe("the finder card shows the note", () => {
 });
 
 describe("profile sections with reviews", () => {
-  it("adds the Reviews tab between Services and Clinics, only when there are reviews", () => {
+  it("adds the Reviews tab last, after Clinics, only when there are reviews", () => {
     assert.deepEqual(
       profileSectionTabs({ hasServices: true, hasClinics: true, hasReviews: true }).map((t) => t.id),
-      ["book", "about", "services", "reviews", "clinics"],
+      ["book", "about", "services", "clinics", "reviews"],
     );
     assert.deepEqual(
       profileSectionTabs({ hasServices: false, hasClinics: true, hasReviews: false }).map((t) => t.id),
@@ -249,12 +249,13 @@ describe("the profile reads reviews and shows them", () => {
     assert.doesNotMatch(loader, /\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
   });
 
-  it("renders the section after Services and before Clinics, from the loaded reviews", () => {
+  it("renders the section last, after Clinics & contact, from the loaded reviews", () => {
     const page = read("lib/public/doctor-profile-page.tsx");
     const services = page.indexOf("<ProfileServicesSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
     const clinics = page.indexOf("<ProfileClinicsSection");
-    assert.ok(services > 0 && services < reviews && reviews < clinics);
+    // Practical details first, reviews close the page (user, 2026-10-13).
+    assert.ok(services > 0 && services < clinics && clinics < reviews);
     assert.match(page, /loadPublishedReviews\(/);
     assert.match(page, /hasReviews:/);
   });

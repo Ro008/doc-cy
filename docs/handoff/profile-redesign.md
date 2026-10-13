@@ -168,7 +168,7 @@ Cancel appear when something changed; the save still goes to
 No database change: everything **reads** `professional_reviews` (written by
 `POST /api/booking/review`, service role only) and never selects `reviewer_email`.
 
-- **Profile**: a "Patient reviews" section (and tab) between Services and Clinics, only when
+- **Profile**: a "Patient reviews" section (and tab) at the bottom, after Clinics & contact (Livio, 2026-10-13), only when
   there are published reviews. Names are "Maria K.". The average is cut, not rounded, to one
   decimal (24 fives and a four read 4.9). `status = 'hidden'` rows never show.
 - **The bar is 3 reviews** (`PROFILE_HERO_RATING_MIN_REVIEWS`): the hero line, the finder card
