@@ -8,6 +8,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
 import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import type { BookingServiceItem } from "@/lib/booking-service-choice";
 import { CY_TZ } from "@/lib/appointments";
 import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 import {
@@ -65,6 +66,8 @@ type Props = {
   appointments: DashboardAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics: AgendaClinic[];
+  /** Her own services, for the optional choice in "Add manual booking". */
+  services?: BookingServiceItem[];
   todayWindow: TodayWorkingWindow | null;
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
@@ -102,6 +105,7 @@ export function DoctorDashboard({
   appointments,
   workingHours,
   clinics,
+  services = [],
   todayWindow,
   pausedNotices,
   accessEnded = false,
@@ -415,6 +419,7 @@ export function DoctorDashboard({
         appointments={rows}
         workingHours={workingHours}
         clinics={clinics}
+        services={services}
         preferredClinicId={clinics[0]?.id ?? null}
         accessEnded={accessEnded}
         onClose={() => setManualOpen(false)}

@@ -4,6 +4,7 @@ export const revalidate = 0;
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { loadOwnServices } from "@/lib/load-own-services";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { DoctorDashboard } from "@/components/dashboard/DoctorDashboard";
 import { CY_TZ } from "@/lib/appointments";
@@ -113,10 +114,12 @@ export default async function DoctorDashboardPage() {
     CY_TZ,
   ).toISOString();
 
-  const [{ data: appointments, error: appointmentsError }, locationRows, accessEnded] = await Promise.all([
+  const [{ data: appointments, error: appointmentsError }, locationRows, accessEnded, services] = await Promise.all([
     loadDashboardAppointments(supabase, doctor.id, todayStartUtc, nowMs),
     loadDoctorLocations(doctor.id),
     loadProAccessEnded(supabase, doctor.id),
+    // Her services, for the optional choice in "Add manual booking".
+    loadOwnServices(supabase, doctor.id),
   ]);
 
   if (appointmentsError) {
@@ -142,6 +145,7 @@ export default async function DoctorDashboardPage() {
         appointments={(appointments ?? []) as DashboardAppointmentRow[]}
         workingHours={workingHours}
         clinics={clinics}
+        services={services}
         todayWindow={todayWorkingWindow(hoursList, nowMs)}
         pausedNotices={pausedNotices}
         accessEnded={accessEnded}

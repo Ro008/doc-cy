@@ -27,6 +27,7 @@ import {
   type ManualBookingError,
   type ManualBookingField,
 } from "@/lib/manual-booking-validation";
+import { bookingServiceRequest, type BookingServiceItem } from "@/lib/booking-service-choice";
 import "react-day-picker/dist/style.css";
 
 
@@ -37,6 +38,8 @@ type ManualBookingFlowProps = {
   appointments: ManualBookingAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
+  /** Her own services, for the optional "Service" choice; none, no choice. */
+  services?: BookingServiceItem[];
   preferredClinicId?: string | null;
   /** Her pro access has ended: nothing new can be booked (the route refuses too). */
   accessEnded?: boolean;
@@ -87,6 +90,7 @@ export function ManualBookingFlow({
   appointments,
   workingHours,
   clinics = [],
+  services = [],
   preferredClinicId = null,
   accessEnded = false,
   onClose,
@@ -104,6 +108,9 @@ export function ManualBookingFlow({
   const [phoneValid, setPhoneValid] = React.useState(false);
   const [patientEmail, setPatientEmail] = React.useState("");
   const [reason, setReason] = React.useState("");
+  // One of her services, or "" for none (the default: a quick call costs nothing more).
+  const [serviceChoice, setServiceChoice] = React.useState("");
+  const hasService = services.some((service) => service.id === serviceChoice);
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
   const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
   const [patientBirthdate, setPatientBirthdate] = React.useState("");
@@ -124,6 +131,7 @@ export function ManualBookingFlow({
     setPatientPhone("");
     setPatientEmail("");
     setReason("");
+    setServiceChoice("");
     setIsNewPatient(null);
     setPatientGender("");
     setPatientBirthdate("");
@@ -301,6 +309,7 @@ export function ManualBookingFlow({
       patientEmail,
       patientBirthdate,
       reason,
+      hasService,
     });
     if (problem) {
       setFieldError(problem);
@@ -308,7 +317,13 @@ export function ManualBookingFlow({
       return;
     }
     setFieldError(null);
-    const reasonTrimmed = reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
+    // With a service her words are optional; without them the service name is the reason.
+    const request = bookingServiceRequest({
+      choice: serviceChoice || null,
+      services,
+      visitReason: reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH),
+    });
+    const reasonTrimmed = request.reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
 
     try {
       setSubmitting(true);
@@ -321,6 +336,7 @@ export function ManualBookingFlow({
           patientEmail: patientEmail.trim(),
           appointmentLocal: selectedSlot.slotKey,
           reason: reasonTrimmed,
+          ...(request.professionalServiceId ? { professionalServiceId: request.professionalServiceId } : {}),
           isNewPatient,
           patientGender: patientGender || null,
           patientBirthdate: patientBirthdate.trim() || null,
@@ -723,9 +739,35 @@ export function ManualBookingFlow({
               {fieldMessage("patientEmail")}
             </div>
 
+            {services.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <label htmlFor="manualService" className="text-xs font-semibold text-slate-200">
+                  Service <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <select
+                  id="manualService"
+                  value={serviceChoice}
+                  onChange={(e) => setServiceChoice(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                >
+                  <option value="">No service</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <div className="mt-4 space-y-2">
               <label htmlFor="manualReason" className="text-xs font-semibold text-slate-200">
-                Reason for visit <span className="text-red-300">*</span>
+                Reason for visit{" "}
+                {hasService ? (
+                  <span className="font-normal text-slate-400">(optional)</span>
+                ) : (
+                  <span className="text-red-300">*</span>
+                )}
               </label>
               <textarea
                 id="manualReason"
@@ -738,7 +780,7 @@ export function ManualBookingFlow({
                 aria-invalid={errorFor("reason") ? true : undefined}
                 aria-describedby={errorFor("reason") ? "manualReason-error" : undefined}
                 className={fieldClass("reason", "resize-y")}
-                placeholder="Brief reason for this visit"
+                placeholder={hasService ? "Anything to add (optional)" : "Brief reason for this visit"}
               />
               {fieldMessage("reason")}
             </div>

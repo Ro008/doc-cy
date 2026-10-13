@@ -7,7 +7,7 @@ export { manualPhoneProblem };
 /**
  * "Add manual booking" (the professional types in a phone or walk-in patient). Only name,
  * phone and reason are required (Rocío, 2026-10-06); first visit, gender, email and birth date
- * are optional but checked when filled in.
+ * are optional but checked when filled in. A service she picks (optional) stands in for the reason.
  */
 export type ManualBookingField = "patientName" | "patientPhone" | "patientEmail" | "patientBirthdate" | "reason";
 
@@ -19,6 +19,8 @@ export type ManualBookingValues = {
   patientEmail: string;
   patientBirthdate: string;
   reason: string;
+  /** She picked one of her services: it says why they come, so the reason is optional. */
+  hasService?: boolean;
 };
 
 export type ManualBookingError = { field: ManualBookingField; message: string };
@@ -50,6 +52,6 @@ export function firstManualBookingError(
   if (v.patientEmail.trim() && !isValidRegisterEmail(v.patientEmail)) {
     return { field: "patientEmail", message: "Check the email address, or leave it empty." };
   }
-  if (!v.reason.trim()) return { field: "reason", message: "Enter a short reason for the visit." };
+  if (!v.reason.trim() && !v.hasService) return { field: "reason", message: "Enter a short reason for the visit." };
   return null;
 }
