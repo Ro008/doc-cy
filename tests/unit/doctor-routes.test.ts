@@ -39,13 +39,14 @@ describe("postLoginDestination", () => {
 describe("DOCTOR_NAV_TABS", () => {
   // Insights is hidden until there are enough appointments and traffic to make it
   // worth reading (user, 2026-10-12). Its page and code stay; INSIGHTS_ENABLED brings it back.
-  it("lists dashboard, agenda and settings in that order: Insights is hidden for now", () => {
+  it("lists dashboard, agenda, visits and settings in that order: Insights is hidden for now", () => {
     assert.equal(INSIGHTS_ENABLED, false);
     assert.deepEqual(
       DOCTOR_NAV_TABS.map((tab) => [tab.id, tab.label, tab.href]),
       [
         ["dashboard", "Dashboard", "/dashboard"],
         ["agenda", "Agenda", "/agenda"],
+        ["visits", "Visits", "/agenda/visits"],
         // Settings is its own page, not under the agenda (settings redesign, 2026-09-30).
         ["settings", "Settings", "/settings"],
       ],
@@ -62,6 +63,8 @@ describe("activeDoctorNavTab", () => {
     assert.equal(activeDoctorNavTab("/settings"), "settings");
     assert.equal(activeDoctorNavTab("/settings/"), "settings");
     assert.equal(activeDoctorNavTab("/agenda/insights"), "insights");
+    assert.equal(activeDoctorNavTab("/agenda/visits"), "visits");
+    assert.equal(activeDoctorNavTab("/agenda/visits/"), "visits");
   });
 
   it("returns null outside the tabbed doctor pages", () => {
@@ -86,6 +89,7 @@ describe("isDoctorProductPath", () => {
       "/agenda",
       "/agenda/settings",
       "/agenda/insights",
+      "/agenda/visits",
       "/agenda/account-review",
       "/settings",
       "/settings/",

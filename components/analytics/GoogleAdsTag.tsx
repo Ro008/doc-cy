@@ -3,8 +3,13 @@ import { googleAdsConsentDefaultInlineScript } from "@/lib/cookie-consent";
 import { googleAdsTagId } from "@/lib/google-ads";
 import { googleAnalyticsMeasurementId } from "@/lib/google-analytics";
 import { GoogleAnalyticsRouteTracker } from "@/components/analytics/GoogleAnalyticsRouteTracker";
+import { PrivateAreaGate } from "@/components/analytics/PrivateAreaGate";
 
-/** Sitewide Google tag (Ads + GA4). Loaded once from the root layout. */
+/**
+ * Sitewide Google tag (Ads + GA4). Loaded once from the root layout, except in the doctor's
+ * internal area (PrivateAreaGate): the consent default stays everywhere, so nothing is sent
+ * there and the consent banner still works.
+ */
 export function GoogleAdsTag() {
   const adsId = googleAdsTagId();
   const gaId = googleAnalyticsMeasurementId();
@@ -23,17 +28,19 @@ export function GoogleAdsTag() {
       <script
         dangerouslySetInnerHTML={{ __html: googleAdsConsentDefaultInlineScript() }}
       />
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loaderId)}`}
-        strategy="afterInteractive"
-      />
-      <Script id="google-ads-gtag-init" strategy="afterInteractive">
-        {`window.dataLayer = window.dataLayer || [];
+      <PrivateAreaGate gaMeasurementId={gaId}>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loaderId)}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads-gtag-init" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 ${configLines}`}
-      </Script>
-      {gaId ? <GoogleAnalyticsRouteTracker measurementId={gaId} /> : null}
+        </Script>
+        {gaId ? <GoogleAnalyticsRouteTracker measurementId={gaId} /> : null}
+      </PrivateAreaGate>
     </>
   );
 }

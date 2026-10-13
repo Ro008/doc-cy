@@ -10,8 +10,7 @@ import { AppChrome } from "@/components/navigation/AppChrome";
 import { ProChromeBoot } from "@/components/navigation/ProChromeBoot";
 import { proChromeBootInlineScript } from "@/lib/pro-session-hint";
 import { Toaster } from "sonner";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { PrivateAreaAnalytics } from "@/components/analytics/PrivateAreaAnalytics";
 import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
 import { googleAdsTagId } from "@/lib/google-ads";
 import { googleAnalyticsMeasurementId } from "@/lib/google-analytics";
@@ -131,8 +130,7 @@ export default function RootLayout({
           googleTagEnabled={Boolean(googleAdsTagId() || googleAnalyticsMeasurementId())}
         />
         <FeedbackWidget />
-        <Analytics />
-        <SpeedInsights />
+        <PrivateAreaAnalytics />
       </body>
     </html>
   );

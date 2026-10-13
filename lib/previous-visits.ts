@@ -4,6 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * "Previous visits with you" on a new request (user, 2026-10-04): her past confirmed visits
  * with the same patient, matched on email or phone. A suggestion until patient accounts
  * exist (then exact on patient_id). Shows her private notes, so only she ever sees it.
+ *
+ * PATIENT-ACCOUNTS: when patients get accounts, switch this to patient_id, together with
+ * patientVisitsHref in lib/past-visits.ts (the Visits tab's "All visits with this patient").
+ * `grep -rn PATIENT-ACCOUNTS` lists every place to revisit.
  */
 export type PreviousVisitRow = {
   id: string;
