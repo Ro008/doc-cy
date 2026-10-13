@@ -6,7 +6,7 @@ import { fillVisitReason } from "./helpers/fillVisitReason";
 /**
  * Public profile redesign: one page with anchor tabs, light by default with a
  * Light/Dark switch anyone can use (remembered), motion that respects "reduce motion", and
- * next-availability day cards that open that day in the booking calendar.
+ * next-availability rows (one per bookable clinic) that open the details form for that time.
  */
 const slug = (process.env.TEST_BOOKING_DOCTOR_SLUG ?? "andreas-nikos").trim();
 
@@ -81,26 +81,30 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     expect(await animated.evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
   });
 
-  test("a next-availability day opens that day in the calendar", async ({ page }) => {
+  test("a next-availability row opens the details form for that clinic and time", async ({ page }) => {
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
-    const dayCards = page.getByTestId("profile-next-availability-day");
     await expect(page.getByTestId("profile-next-availability")).toBeVisible({ timeout: 15000 });
-    test.skip((await dayCards.count()) === 0, "Doctor has no online availability right now.");
+    // A row with a free time carries its day; one row per clinic that takes online bookings.
+    const rows = page.locator("[data-testid='profile-next-availability-day'][data-date]");
+    test.skip((await rows.count()) === 0, "Doctor has no online availability right now.");
 
-    const second = dayCards.nth(Math.min(1, (await dayCards.count()) - 1));
-    const dateKey = await second.getAttribute("data-date");
-    expect(dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    // Before hydration the card is a plain #book link (it still scrolls); retry the click.
+    const row = rows.first();
+    const when = (await row.getAttribute("data-date"))!;
+    expect(when).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Before hydration the row is a plain #book link (it still scrolls); retry the click.
     await expect(async () => {
-      await second.click();
-      await expect(page.getByTestId("booking-selected-day")).toHaveAttribute("data-date", dateKey!, {
-        timeout: 2_000,
-      });
+      await row.click();
+      await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
-    await expect(page).toHaveURL(/#book$/);
+    await expect(page.getByRole("heading", { name: "Your details" })).toBeInViewport();
 
-    // Picking a time brings the Confirm button into view, on any screen size.
-    await page.locator("#book button[aria-pressed]").first().click();
+    // "Change time" goes back to the calendar, on the row's day.
+    await page.getByRole("button", { name: "Change time" }).click();
+    await expect(page.getByTestId("booking-selected-day")).toHaveAttribute("data-date", when);
+
+    // The row's time is still picked there; picking another brings the Continue button into view.
+    await expect(page.locator("#book button[aria-pressed='true']")).toHaveCount(1);
+    await page.locator("#book button[aria-pressed='false']").first().click();
     await expect(continueButton(page)).toBeInViewport();
 
     // Continue opens the details form at its top.
@@ -150,15 +154,14 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
 
   test("the patient picks one of her services (no prices) and may add their own words", async ({ page }) => {
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
-    const dayCards = page.getByTestId("profile-next-availability-day");
+    const rows = page.locator("[data-testid='profile-next-availability-day'][data-date]");
     await expect(page.getByTestId("profile-next-availability")).toBeVisible({ timeout: 15000 });
-    test.skip((await dayCards.count()) === 0, "Doctor has no online availability right now.");
+    test.skip((await rows.count()) === 0, "Doctor has no online availability right now.");
+    // The row opens the details form for its time; retry until hydration has wired it.
     await expect(async () => {
-      await dayCards.first().click();
-      await expect(page.getByTestId("booking-selected-day")).toBeVisible({ timeout: 2_000 });
+      await rows.first().click();
+      await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
-    await page.locator("#book button[aria-pressed]").first().click();
-    await continueButton(page).click();
 
     const picker = page.locator("#professionalService");
     await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
@@ -248,7 +251,7 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(page.locator("#professionalService option:checked")).toHaveText(name);
   });
 
-  test("the clinic picker steps aside while the details are filled in, and returns with Change time", async ({ page }) => {
+  test("the clinic switch steps aside while the details are filled in, and returns with Change time", async ({ page }) => {
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
     const picker = page.getByTestId("profile-clinic-picker");
     test.skip((await picker.count()) === 0, "This professional has a single clinic.");

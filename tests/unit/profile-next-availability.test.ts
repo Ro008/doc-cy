@@ -9,6 +9,7 @@ import {
 import {
   PROFILE_SELECT_DAY_EVENT,
   parseProfileDaySelectDetail,
+  parseProfileSlotSelectDetail,
 } from "../../lib/public/profile-day-select";
 
 function day(dateKey: string, times: string[], isToday = false): PublicAvailabilityDay {
@@ -72,6 +73,23 @@ describe("profile day select event", () => {
     assert.equal(parseProfileDaySelectDetail({ dateKey: "2026-10-05" }), "2026-10-05");
     for (const detail of [null, undefined, {}, { dateKey: "5 Oct" }, { dateKey: "2026-10-05T09:00" }, "2026-10-05"]) {
       assert.equal(parseProfileDaySelectDetail(detail), null);
+    }
+  });
+
+  it("may carry a time on that day, which opens the details form", () => {
+    assert.equal(
+      parseProfileSlotSelectDetail({ dateKey: "2026-10-05", slotKey: "2026-10-05T09:00" }),
+      "2026-10-05T09:00",
+    );
+    // No time, a malformed one, or a time on another day: only the day opens.
+    for (const detail of [
+      { dateKey: "2026-10-05" },
+      { dateKey: "2026-10-05", slotKey: "09:00" },
+      { dateKey: "2026-10-05", slotKey: "2026-10-06T09:00" },
+      { slotKey: "2026-10-05T09:00" },
+      null,
+    ]) {
+      assert.equal(parseProfileSlotSelectDetail(detail), null);
     }
   });
 });

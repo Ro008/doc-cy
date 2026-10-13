@@ -24,6 +24,8 @@ export type ProfileNextAvailabilityRow = {
   selected: boolean;
   /** First day with a free time, null when there is none. */
   dateKey: string | null;
+  /** That first free time (`YYYY-MM-DDTHH:mm`): the row opens the details form for it. */
+  slotKey: string | null;
   isToday: boolean;
   /** Localised "Wed 14 Oct · 09:00" / "Today · 14:00", null when there is none. */
   when: string | null;
@@ -43,8 +45,8 @@ const ROW_CLASS =
 
 /**
  * Hero card: one row per clinic that takes online bookings, with its next free
- * time. A row opens that clinic's calendar (#book) on that day; for the clinic
- * already chosen it does so without reloading.
+ * time. A row opens the details form for that clinic and time (#book); for the
+ * clinic already chosen it does so without reloading.
  */
 export function ProfileNextAvailability({ rows, canCallClinic, labels }: Props) {
   // The one pulsing dot on the page, and only when it is true right now.
@@ -102,14 +104,13 @@ export function ProfileNextAvailability({ rows, canCallClinic, labels }: Props) 
                       {...shared}
                       href={row.href}
                       onClick={() => {
-                        if (row.dateKey) requestProfileDaySelect(row.dateKey);
+                        if (row.dateKey) requestProfileDaySelect(row.dateKey, row.slotKey);
                       }}
                     >
                       {body}
                     </a>
                   ) : (
-                    // Another clinic: the page reloads for it, and its calendar
-                    // opens on its first day with times.
+                    // Another clinic: the page loads for it, with the time in the link.
                     <Link {...shared} href={row.href}>
                       {body}
                     </Link>

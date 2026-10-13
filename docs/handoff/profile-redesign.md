@@ -44,9 +44,16 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
   paused clinics are left out (`lib/public/profile-clinic-availability.ts`). Each clinic
   uses the calendar's slot rules (`computePublicAvailabilityCalendar`) with its own
   schedule, notice and horizon; her busy times are loaded once, up to the longest horizon.
-  The chosen clinic's row opens that day in the calendar without reloading
-  (`lib/public/profile-day-select.ts`); another clinic's row goes to `?location=<id>#book`.
-  The rows keep the test id `profile-next-availability-day` (plus `data-location`).
+  A row opens the **details form for that clinic and time**: the chosen clinic's row without
+  reloading (`lib/public/profile-day-select.ts`, the event now carries the time), another
+  clinic's row through `?slot=<time>&location=<id>#book` (the finder's deep link).
+  The rows keep the test id `profile-next-availability-day` (plus `data-location`, and
+  `data-date` when there is a time).
+- **Clinic choice** (user, 2026-10-13): the "Where do you want to go?" block is gone
+  (`DoctorProfileClinicPicker` deleted); the hero rows choose the clinic. Above the calendar a
+  small bar names the clinic being booked with a "Change clinic" button listing the others
+  (`ProfileClinicSwitch`, same test id `profile-clinic-picker`). Steps are now 1 and 2 of 2,
+  and the calendar header no longer repeats the clinic name.
 - **Booking.** Same flow and same API (`POST /api/appointments`): clinic picker, calendar,
   time chips, Confirm, your details. Only the look changed.
 - **About** is open (no accordion). **Clinics & contact** merges the old Contact and

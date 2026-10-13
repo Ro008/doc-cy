@@ -55,15 +55,17 @@ describe("booking form wording and steps", () => {
     assert.equal(/>\s*Confirm\s*</.test(booking), false);
   });
 
-  it("steps add up: 1, 2 and 3 of 3 with several clinics", () => {
-    assert.equal(en.chooseClinicStep, "Step 1 of 3");
-    assert.equal(en.pickTimeStep, "Step 2 of 3");
-    assert.equal(en.detailsStep, "Step 3 of 3");
+  it("steps add up: 1 and 2 of 2 (the clinic is chosen in the hero, not in a step of its own)", () => {
+    assert.equal(en.chooseClinicStep, undefined);
+    assert.equal(en.pickTimeStep, "Step 1 of 2");
+    assert.equal(en.detailsStep, "Step 2 of 2");
     assert.match(booking, /t\("detailsStep"\)/);
   });
 
-  it("the clinic card says Book here (not 'Tap to') on every device", () => {
-    assert.equal(en.tapToBookHere, "Book here");
+  it("a hero row with a time opens the details form for that time", () => {
+    assert.match(booking, /parseProfileSlotSelectDetail\(/);
+    const next = read("components/doctor/profile/ProfileNextAvailability.tsx");
+    assert.match(next, /requestProfileDaySelect\(row\.dateKey, row\.slotKey\)/);
   });
 
   it("Greek has every new key", () => {
@@ -108,14 +110,17 @@ describe("profile page pieces", () => {
     assert.match(button, /href=\{`#\$\{PROFILE_SECTION_IDS\.book\}`\}/);
   });
 
-  it("the clinic picker steps aside while the details are filled in", () => {
-    const picker = read("components/doctor/DoctorProfileClinicPicker.tsx");
+  it("the clinic switch steps aside while the details are filled in", () => {
+    const picker = read("components/doctor/profile/ProfileClinicSwitch.tsx");
     assert.match(picker, /<HideWhileBookingDetails\b/);
+    assert.match(picker, /data-testid="profile-clinic-picker"/);
+    // The big "Where do you want to go?" block is gone: the hero rows choose the clinic.
+    assert.equal(fs.existsSync(path.join(repoRoot, "components/doctor/DoctorProfileClinicPicker.tsx")), false);
     const hide = read("components/doctor/profile/HideWhileBookingDetails.tsx");
     assert.match(hide, /useProfileBookingStep\(\)/);
     assert.match(hide, /hidden=\{step === "details"\}/);
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /<ProfileBookingStepProvider>[\s\S]*<DoctorProfileClinicPicker[\s\S]*<BookingSection[\s\S]*<\/ProfileBookingStepProvider>/);
+    assert.match(page, /<ProfileBookingStepProvider>[\s\S]*<ProfileClinicSwitch[\s\S]*<BookingSection[\s\S]*<\/ProfileBookingStepProvider>/);
   });
 
   it("the install banner stays off the profile page", () => {

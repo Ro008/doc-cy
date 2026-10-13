@@ -40,6 +40,7 @@ import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-b
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
 import {
   clinicNextAvailabilityRows,
+  clinicSwitchOptions,
   nextAvailabilityRowHref,
   widestBookingHorizonDays,
 } from "@/lib/public/profile-clinic-availability";
@@ -52,7 +53,7 @@ import {
   formatOpeningRanges,
 } from "@/lib/public/clinic-opening-hours";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
-import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
+import { ProfileClinicSwitch } from "@/components/doctor/profile/ProfileClinicSwitch";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import {
@@ -776,8 +777,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const dayLabelLocale = locale === "el" ? elLocale : enGB;
   // The hero's next free time at each clinic that takes online bookings, by the same
   // slot rules as BookingSection and that clinic's own schedule, notice and horizon.
-  const nextAvailabilityRows = clinicNextAvailabilityRows({
-    clinics: practiceLocations.map((location, index) => {
+  const clinicSources = practiceLocations.map((location, index) => {
       const row = settingsRowFor(location);
       const paused = Boolean(row.pause_online_bookings);
       return {
@@ -800,7 +800,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 minimumNoticeHours: row.minimum_notice_hours ?? 2,
               }).days,
       };
-    }),
+  });
+  // Above the calendar: the clinic being booked, and "Change clinic" for the others.
+  const clinicSwitch = clinicSwitchOptions({
+    clinics: clinicSources,
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+    locale,
+    slug: params.slug,
+  });
+  const nextAvailabilityRows = clinicNextAvailabilityRows({
+    clinics: clinicSources,
     selectedId: selectedLocation?.id ?? null,
     bookingOffEverywhere: accessEnded,
   }).map((row) => {
@@ -818,6 +828,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       place: row.place,
       selected: row.selected,
       dateKey: row.next?.dateKey ?? null,
+      slotKey: row.next?.slotKey ?? null,
       isToday: Boolean(row.next?.isToday),
       when,
       href: nextAvailabilityRowHref({
@@ -825,6 +836,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         slug: params.slug,
         locationId: row.locationId,
         selected: row.selected,
+        slotKey: row.next?.slotKey ?? null,
       }),
     };
   });
@@ -1120,20 +1132,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         >
           <div className="min-w-0">
             <ProfileBookingStepProvider>
-            {practiceLocations.length > 1 ? (
-              <DoctorProfileClinicPicker
-                slug={params.slug}
-                selectedId={selectedLocation?.id ?? null}
-                clinics={practiceLocations.map((row) => ({
-                  id: row.id,
-                  label: row.label,
-                  district: row.district,
-                  clinic_address: row.clinic_address,
-                  town: row.town,
-                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
-                }))}
-              />
-            ) : null}
+            <ProfileClinicSwitch
+              key={selectedLocation?.id ?? "none"}
+              current={clinicSwitch.current}
+              others={clinicSwitch.others}
+              labels={{
+                bookingAt: bookingT("bookingAtClinic"),
+                chooseClinic: bookingT("chooseClinic"),
+                changeClinic: bookingT("changeClinic"),
+                bookingOff: bookingT("onlineBookingOff"),
+              }}
+            />
             {viewerMode !== "patient" ? (
               <ProfessionalBookingNotice mode={viewerMode} />
             ) : (

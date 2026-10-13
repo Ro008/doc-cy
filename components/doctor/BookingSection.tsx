@@ -44,6 +44,7 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   PROFILE_SELECT_DAY_EVENT,
   parseProfileDaySelectDetail,
+  parseProfileSlotSelectDetail,
 } from "@/lib/public/profile-day-select";
 import {
   PROFILE_SELECT_SERVICE_EVENT,
@@ -229,7 +230,9 @@ export function BookingSection({
   const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
     null
   );
-  const appliedInitialSlotRef = React.useRef(false);
+  // The deep-linked time already opened (one per clinic and time, so a hero row for
+  // another clinic opens its own after this one has been used).
+  const appliedInitialSlotRef = React.useRef<string | null>(null);
   const successRef = React.useRef<HTMLDivElement | null>(null);
 
   // The success card replaces the taller form, so it can land above or below the fold:
@@ -363,15 +366,16 @@ export function BookingSection({
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
 
   React.useEffect(() => {
-    if (appliedInitialSlotRef.current) return;
     if (onlineBookingsPaused) return;
 
     const slotKey = parseBookingSlotParam(initialSlotKey);
     if (!slotKey) return;
+    const appliedKey = `${locationId ?? ""}|${slotKey}`;
+    if (appliedInitialSlotRef.current === appliedKey) return;
 
     // Wait until we know whether this doctor has any bookable slots.
     if (!weeklySlots || weeklySlots.length === 0) return;
-    appliedInitialSlotRef.current = true;
+    appliedInitialSlotRef.current = appliedKey;
 
     const clearSlotQuery = () => {
       if (typeof window === "undefined") return;
@@ -462,13 +466,21 @@ export function BookingSection({
       if (!dateKey) return;
       const [y, m, d] = dateKey.split("-").map(Number);
       setSelectedDate(new Date(y, m - 1, d));
+      setError(null);
+      // With a time that is still free, straight to the details form for it.
+      const slotKey = parseProfileSlotSelectDetail((event as CustomEvent).detail);
+      const match = slotKey ? upcomingSlots.find((slot) => slot.slotKey === slotKey) : undefined;
+      if (match && !takenSet.has(match.slotKey)) {
+        setSelectedSlot(match);
+        setShowContactForm(true);
+        return;
+      }
       setSelectedSlot(null);
       setShowContactForm(false);
-      setError(null);
     };
     window.addEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
     return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
-  }, []);
+  }, [upcomingSlots, takenSet]);
 
   // A service's own "Book" button in "Services & prices" picks that service in the details form.
   React.useEffect(() => {
@@ -1275,15 +1287,11 @@ export function BookingSection({
             <h2 className="text-xl font-extrabold tracking-tight text-profile-text sm:text-2xl">
               {t("title")}
             </h2>
+            {/* The clinic itself is named right above, by the clinic switch. */}
             {locationLabel ? (
-              <>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
-                  {t("pickTimeStep")}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-profile-text">
-                  {t("timesOnlyForClinic", { clinic: locationLabel })}
-                </p>
-              </>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
+                {t("pickTimeStep")}
+              </p>
             ) : null}
             <p className="mt-1 text-sm text-profile-muted">
               {t("allTimesInCyprusHint")}

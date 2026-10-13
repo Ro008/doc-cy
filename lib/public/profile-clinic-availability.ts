@@ -1,4 +1,4 @@
-import { BOOKING_LOCATION_QUERY } from "@/lib/booking-slot-param";
+import { buildDoctorBookingHref } from "@/lib/booking-slot-param";
 import type { PublicAvailabilityDay } from "@/lib/public/compute-public-booking-slots";
 import {
   summarizeNextAvailabilityDays,
@@ -52,19 +52,57 @@ export function clinicNextAvailabilityRows(input: {
 }
 
 /**
- * The chosen clinic's row is a plain `#book` anchor (the calendar is already
- * its own); another clinic's row reloads the page for that clinic, where the
- * calendar opens on its first day with times.
+ * A row opens the details form for that clinic and time (user, 2026-10-13).
+ * The chosen clinic's row is a plain `#book` anchor (the page asks the calendar
+ * to open the time); another clinic's row loads the page for that clinic with
+ * the time in `?slot=`, which BookingSection opens the same way as a finder link.
+ * Without a free time it only switches clinic.
  */
 export function nextAvailabilityRowHref(input: {
   locale: string;
   slug: string;
   locationId: string;
   selected: boolean;
+  slotKey: string | null;
 }): string {
   const anchor = `#${PROFILE_SECTION_IDS.book}`;
   if (input.selected) return anchor;
-  return `/${input.locale}/${input.slug}?${BOOKING_LOCATION_QUERY}=${encodeURIComponent(input.locationId)}${anchor}`;
+  return `/${input.locale}${buildDoctorBookingHref(input.slug, input.slotKey, input.locationId)}${anchor}`;
+}
+
+export type ClinicSwitchOption = {
+  id: string;
+  title: string;
+  place: string | null;
+  /** False: online booking is off there (the patient can still look and call). */
+  bookable: boolean;
+  href: string;
+};
+
+/**
+ * The small "Change clinic" control above the calendar: the clinic being
+ * booked, and her other clinics in her own order.
+ */
+export function clinicSwitchOptions(input: {
+  clinics: ReadonlyArray<Pick<ClinicAvailabilitySource, "id" | "title" | "place" | "paused">>;
+  selectedId: string | null;
+  bookingOffEverywhere: boolean;
+  locale: string;
+  slug: string;
+}): { current: { title: string; place: string | null } | null; others: ClinicSwitchOption[] } {
+  const selected = input.clinics.find((clinic) => clinic.id === input.selectedId) ?? null;
+  return {
+    current: selected ? { title: selected.title, place: selected.place } : null,
+    others: input.clinics
+      .filter((clinic) => clinic.id !== input.selectedId)
+      .map((clinic) => ({
+        id: clinic.id,
+        title: clinic.title,
+        place: clinic.place,
+        bookable: !input.bookingOffEverywhere && !clinic.paused,
+        href: `/${input.locale}${buildDoctorBookingHref(input.slug, null, clinic.id)}`,
+      })),
+  };
 }
 
 const BOOKING_HORIZONS = [14, 30, 90, 180];
