@@ -18,6 +18,7 @@ import {
 } from "@/components/dashboard/settings/styles";
 import {
   MAX_SERVICES,
+  servicesCountLabel,
   SERVICE_NAME_MAX,
   formatServicePrice,
   parseSavedServices,
@@ -281,9 +282,12 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
     <section className={SETTINGS_CARD_CLASS} data-testid="settings-services">
       <div className="flex items-baseline justify-between gap-3">
         <p className={SETTINGS_EYEBROW_CLASS}>Your price list</p>
-        {items.length > 0 ? (
-          <p className="text-xs tabular-nums text-slate-500" data-testid="settings-services-count">
-            {items.length} of {MAX_SERVICES}
+        {servicesCountLabel(items.length) ? (
+          <p
+            className={`text-xs tabular-nums ${full ? "font-semibold text-amber-300" : "text-slate-400"}`}
+            data-testid="settings-services-count"
+          >
+            {servicesCountLabel(items.length)}
           </p>
         ) : null}
       </div>

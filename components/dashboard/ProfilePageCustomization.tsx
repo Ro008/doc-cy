@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
+import { toast } from "sonner";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_GHOST_BUTTON_CLASS,
+  SETTINGS_PRIMARY_BUTTON_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 import {
   PROFILE_ACCENTS,
   PROFILE_ACCENT_IDS,
@@ -26,12 +35,8 @@ type Props = {
   publicPageHref: string | null;
 };
 
-type SaveState =
-  | { kind: "idle" }
-  | { kind: "saving" }
-  | { kind: "saved" }
-  | { kind: "pending_backend" }
-  | { kind: "error"; message: string };
+/** Saved and failed are toasts (settings loading rules); only "backend pending" stays inline. */
+type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "pending_backend" };
 
 function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter((w) => !/^(dr|prof)\.?$/i.test(w));
@@ -47,15 +52,17 @@ function initialsOf(name: string): string {
  * anyone can switch it to dark there).
  */
 export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageHref }: Props) {
+  // What is saved now: starts as the page's value, moves on after each successful save.
+  const [saved, setSaved] = React.useState<ProfileCustomization>(initial);
   const [accent, setAccent] = React.useState<ProfileAccentId>(initial.accent);
   const [headline, setHeadline] = React.useState(initial.headline ?? "");
   const [previewScheme, setPreviewScheme] = React.useState<"light" | "dark">("light");
   const [save, setSave] = React.useState<SaveState>({ kind: "idle" });
 
+  const saving = save.kind === "saving";
   const headlineTooLong = profileHeadlineError(headline) === "too_long";
   const shownHeadline = normalizeProfileHeadline(headline);
-  const dirty =
-    accent !== initial.accent || (shownHeadline ?? null) !== (initial.headline ?? null);
+  const dirty = accent !== saved.accent || (shownHeadline ?? null) !== (saved.headline ?? null);
 
   const onSave = async () => {
     setSave({ kind: "saving" });
@@ -63,38 +70,40 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
     // (see lib/profile-customization.ts for the contract): the server answers 404 today.
     const result = await saveProfileCustomization({ accent, headline });
     if (!("reason" in result)) {
-      setSave({ kind: "saved" });
+      setSaved({ accent, headline: shownHeadline });
+      setSave({ kind: "idle" });
+      toast.success("Saved. Your page uses it now.", { id: "profile-page" });
       return;
     }
     if (result.reason === "backend_pending") {
       setSave({ kind: "pending_backend" });
       return;
     }
-    setSave({
-      kind: "error",
-      message:
-        result.reason === "invalid"
-          ? `Keep the headline under ${PROFILE_HEADLINE_MAX_LENGTH} characters.`
-          : "Could not save. Please try again.",
-    });
+    setSave({ kind: "idle" });
+    toast.error(
+      result.reason === "invalid"
+        ? `Keep the headline under ${PROFILE_HEADLINE_MAX_LENGTH} characters.`
+        : "Could not save. Please try again.",
+      { id: "profile-page" },
+    );
   };
 
   return (
     <section
       aria-labelledby="public-page-heading"
       data-testid="settings-public-page"
-      className="rounded-3xl border border-clinical-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8"
+      className={SETTINGS_CARD_CLASS}
     >
-      <h2 id="public-page-heading" className="text-xl font-semibold text-slate-50">
+      <h2 id="public-page-heading" className={SETTINGS_EYEBROW_CLASS}>
         Your public page
       </h2>
-      <p className="mt-1 text-sm text-slate-300">
+      <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Make it yours: pick a colour and add a line under your name. Every colour is
         tested to stay readable in light and dark mode.
       </p>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-6">
+      <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        <fieldset disabled={saving} className="flex min-w-0 flex-col gap-6">
           <fieldset>
             <legend className="text-sm font-semibold text-slate-100">Page colour</legend>
             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -137,7 +146,7 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
             <label htmlFor="profile-headline" className="text-sm font-semibold text-slate-100">
               Headline <span className="font-normal text-slate-400">(optional)</span>
             </label>
-            <p className="mt-1 text-sm text-slate-400">One line under your name, in your own words.</p>
+            <p className="mt-0.5 text-xs text-slate-400">One line under your name, in your own words.</p>
             <input
               id="profile-headline"
               type="text"
@@ -149,7 +158,7 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
               placeholder="e.g. Skin care for the whole family"
               aria-invalid={headlineTooLong}
               aria-describedby="profile-headline-count"
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
             />
             <p
               id="profile-headline-count"
@@ -159,22 +168,40 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={!dirty || headlineTooLong || save.kind === "saving"}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-clinical-500 px-5 text-sm font-semibold text-white transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {save.kind === "saving" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              Save
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {dirty ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={headlineTooLong || saving}
+                  aria-busy={saving}
+                  className={SETTINGS_PRIMARY_BUTTON_CLASS}
+                >
+                  <BusyLabel busy={saving} busyText="Saving…">
+                    Save
+                  </BusyLabel>
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setAccent(saved.accent);
+                    setHeadline(saved.headline ?? "");
+                    setSave({ kind: "idle" });
+                  }}
+                  className={SETTINGS_GHOST_BUTTON_CLASS}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : null}
             {publicPageHref ? (
               <a
                 href={publicPageHref}
                 target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center rounded-xl border border-slate-700 px-5 text-sm font-semibold text-slate-100 transition hover:border-clinical-400"
+                rel="noopener noreferrer"
+                className={`${SETTINGS_SECONDARY_BUTTON_CLASS} ${dirty ? "ml-auto" : ""}`}
               >
                 View my page
               </a>
@@ -182,9 +209,6 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
           </div>
 
           <div aria-live="polite">
-            {save.kind === "saved" ? (
-              <p className="text-sm font-medium text-emerald-300">Saved. Your page uses it now.</p>
-            ) : null}
             {save.kind === "pending_backend" ? (
               <p
                 data-testid="settings-public-page-pending"
@@ -195,11 +219,8 @@ export function ProfilePageCustomization({ initial, name, avatarUrl, publicPageH
                 {PROFILE_CUSTOMIZATION_BACKEND.endpoint}).
               </p>
             ) : null}
-            {save.kind === "error" ? (
-              <p className="text-sm font-medium text-red-300">{save.message}</p>
-            ) : null}
           </div>
-        </div>
+        </fieldset>
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">

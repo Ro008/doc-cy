@@ -241,4 +241,33 @@ describe("doctor settings: your public page", () => {
     const page = read("app/settings/page.tsx");
     assert.match(page, /<ProfilePageCustomization\b/);
   });
+
+  it("looks like the other settings cards: shared card, eyebrow, buttons, busy and toast rules", () => {
+    const settings = read("components/dashboard/ProfilePageCustomization.tsx");
+    assert.match(settings, /SETTINGS_CARD_CLASS/);
+    assert.match(settings, /SETTINGS_EYEBROW_CLASS/);
+    assert.match(settings, /SETTINGS_PRIMARY_BUTTON_CLASS/);
+    assert.match(settings, /SETTINGS_SECONDARY_BUTTON_CLASS/);
+    assert.match(settings, /<BusyLabel\b/);
+    // Done = a toast, replaced rather than stacked; the fields wait while saving.
+    assert.match(settings, /toast\.success\([^)]*id: "profile-page"/);
+    assert.match(settings, /<fieldset[^>]*disabled=\{saving\}/);
+    // No private card look.
+    assert.doesNotMatch(settings, /shadow-2xl|backdrop-blur/);
+  });
+
+  it("sits at the end of Profile: a set-once look comes after what patients rely on", () => {
+    const form = read("components/dashboard/SettingsForm.tsx");
+    const gesy = form.indexOf("{profileExtra}");
+    const ages = form.indexOf("<PatientAgesCard");
+    const bio = form.indexOf('htmlFor="settings-bio"');
+    const qualifications = form.indexOf("<QualificationsCard");
+    const publicPage = form.indexOf("{profilePublicPage}");
+    assert.ok(gesy > 0 && gesy < ages && ages < bio && bio < qualifications, "GeSY stays with who she is");
+    assert.ok(publicPage > qualifications, "the public page card is the last card of Profile");
+    const page = read("app/settings/page.tsx");
+    assert.match(page, /profilePublicPage=\{/);
+    // The owner banner on the public profile links to this anchor.
+    assert.match(page, /id="public-page"/);
+  });
 });

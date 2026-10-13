@@ -474,21 +474,19 @@ export default async function AgendaSettingsPage({
               ) : null}
             </div>
           }
-          profileExtra={
-            <>
-              <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
-              {/* "Your public page" (colour + headline), moved here from the old
-                  /agenda/settings page as docs/handoff/profile-redesign.md asks. The
-                  public profile's owner banner links to this anchor. */}
-              <div id="public-page" className="scroll-mt-24">
-                <ProfilePageCustomization
-                  initial={profileCustomizationFromRow(doctor)}
-                  name={displayName}
-                  avatarUrl={initial.avatarUrl ?? null}
-                  publicPageHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
-                />
-              </div>
-            </>
+          profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
+          profilePublicPage={
+            /* "Your public page" (colour + headline), moved here from the old
+               /agenda/settings page as docs/handoff/profile-redesign.md asks. The
+               public profile's owner banner links to this anchor. */
+            <div id="public-page" className="scroll-mt-24">
+              <ProfilePageCustomization
+                initial={profileCustomizationFromRow(doctor)}
+                name={displayName}
+                avatarUrl={initial.avatarUrl ?? null}
+                publicPageHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
+              />
+            </div>
           }
           account={<AccountSecurityCard email={user.email ?? ""} initialPendingEmail={pendingEmailChange?.email ?? null} />}
           promote={
