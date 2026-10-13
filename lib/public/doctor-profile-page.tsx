@@ -28,6 +28,8 @@ import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
 import { LANGUAGE_CHIP_ON_ACCENT } from "@/lib/language-chips";
 import { loadProfileHeadline } from "@/lib/profile-headline-server";
+import { loadProfileDetails } from "@/lib/profile-details-server";
+import { ProfileQualificationsSection } from "@/components/doctor/profile/ProfileQualificationsSection";
 import { profileThemeStyle } from "@/lib/profile-theme";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
 import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
@@ -742,6 +744,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
   const customization = { headline: await loadProfileHeadline(supabase, profile.id) };
+  // "Patients I see" and her qualifications, as saved in Settings › Profile.
+  const profileDetails = await loadProfileDetails(supabase, profile.id);
   // Light unless this visitor switched to dark (cookie, so no flash on load).
   const scheme = parseProfileScheme(cookies().get(PROFILE_SCHEME_COOKIE)?.value);
   const accountSettings = normalizedSettings as {
@@ -814,6 +818,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const sectionTabs = profileSectionTabs({
     hasServices: services.length > 0,
+    hasQualifications: profileDetails.qualifications.length > 0,
     hasClinics: clinicCards.length > 0,
     hasReviews: reviews.length > 0,
   }).map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
@@ -1136,8 +1141,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           <WhatToExpectCard />
         </section>
 
-        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
+        <ProfileAboutSection
+          firstName={profileFirstName(profile.name)}
+          bio={profile.bio}
+          patientAges={profileDetails.patientAges}
+        />
         <ProfileServicesSection services={services} />
+        <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
         <ProfileClinicsSection
           cards={clinicCards}
           professionalId={profile.id}

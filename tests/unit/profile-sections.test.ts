@@ -27,6 +27,7 @@ describe("profileSectionTabs", () => {
       book: "book",
       about: "about",
       services: "services",
+      qualifications: "qualifications",
       reviews: "reviews",
       clinics: "clinics",
     });

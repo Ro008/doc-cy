@@ -4,6 +4,7 @@ export const PROFILE_SECTION_IDS = {
   book: "book",
   about: "about",
   services: "services",
+  qualifications: "qualifications",
   reviews: "reviews",
   clinics: "clinics",
 } as const;
@@ -18,6 +19,7 @@ export type ProfileSectionTab = {
 
 export function profileSectionTabs(input: {
   hasServices: boolean;
+  hasQualifications?: boolean;
   hasClinics: boolean;
   hasReviews?: boolean;
 }): ProfileSectionTab[] {
@@ -27,6 +29,9 @@ export function profileSectionTabs(input: {
   ];
   if (input.hasServices) {
     tabs.push({ id: PROFILE_SECTION_IDS.services, labelKey: "sectionTabServices" });
+  }
+  if (input.hasQualifications) {
+    tabs.push({ id: PROFILE_SECTION_IDS.qualifications, labelKey: "sectionTabQualifications" });
   }
   if (input.hasClinics) {
     tabs.push({ id: PROFILE_SECTION_IDS.clinics, labelKey: "sectionTabClinics" });
