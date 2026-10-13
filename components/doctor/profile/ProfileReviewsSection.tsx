@@ -48,7 +48,7 @@ export async function ProfileReviewsSection({
     <section
       id={PROFILE_SECTION_IDS.reviews}
       aria-labelledby="profile-reviews-heading"
-      className="grid scroll-mt-20 gap-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8"
+      className="grid scroll-mt-20 gap-5"
     >
       <div>
         <h2

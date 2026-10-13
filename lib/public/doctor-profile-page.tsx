@@ -13,7 +13,6 @@ import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBooki
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
 import { ProfileClinicsSection } from "@/components/doctor/profile/ProfileClinicsSection";
-import { ProfileNextAvailability } from "@/components/doctor/profile/ProfileNextAvailability";
 import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
 import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
 import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
@@ -48,7 +47,8 @@ import {
   formatOpeningRanges,
 } from "@/lib/public/clinic-opening-hours";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
-import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
+import { ProfileBookingPanel } from "@/components/doctor/profile/ProfileBookingPanel";
+import { buildBookingPanelClinics } from "@/lib/public/profile-booking-panel";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import {
@@ -815,7 +815,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     missingAddress: bookingT("clinicAddressMissing"),
     fallbackAddress: clinicAddress,
   });
-  const hasClinicPhone = clinicCards.some((card) => card.phoneClinicId);
 
   const sectionTabs = profileSectionTabs({
     hasServices: services.length > 0,
@@ -857,6 +856,15 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       hours: formatOpeningRanges(group.ranges),
     }));
   }
+
+  // The booking panel: her clinics, each with what "Clinics & contact" shows for it.
+  const panelClinics = buildBookingPanelClinics({
+    locations: practiceLocations,
+    cards: clinicCards,
+    openingHours: openingHoursByCard,
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+  });
 
   const breadcrumbs = profileBreadcrumbs({
     specialty: profileSpecialtyLabels[0] ?? profile.specialty,
@@ -953,7 +961,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           </div>
         </div>
 
-        <header className="grid gap-6 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:gap-8">
+        <header className="grid gap-6 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6">
             <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem]">
               {avatarUrl ? (
@@ -1060,49 +1068,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               ) : null}
             </div>
           </div>
-          <ProfileNextAvailability
-            days={nextDays}
-            clinicLabel={selectedLocationTitle}
-            canCallClinic={hasClinicPhone}
-            labels={{
-              title: t("nextAvailabilityTitle"),
-              today: t("nextAvailabilityToday"),
-              dayByDate,
-              fromByDate,
-              liveToday: t("nextAvailabilityLiveToday"),
-              cta: t("requestAppointmentCta"),
-              none: t("nextAvailabilityNone"),
-              noneHint: t("nextAvailabilityNoneHint"),
-            }}
-          />
         </header>
       </div>
 
       {/* Direct child of <main> so it stays stuck for the whole page (a permanent index). */}
       <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-14 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-        <section
-          id={PROFILE_SECTION_IDS.book}
-          aria-label={t("sectionTabBook")}
-          className="grid scroll-mt-20 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6"
-        >
-          <div className="min-w-0">
+      {/* Two columns on a wide screen: her sections on the left, the booking panel on the right,
+          staying on screen. In the code (and on a phone) the panel comes first. */}
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-12 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10 lg:px-8">
+        <ProfileBookingPanel slug={params.slug} professionalId={profile.id} clinics={panelClinics}>
             <ProfileBookingStepProvider>
-            {practiceLocations.length > 1 ? (
-              <DoctorProfileClinicPicker
-                slug={params.slug}
-                selectedId={selectedLocation?.id ?? null}
-                clinics={practiceLocations.map((row) => ({
-                  id: row.id,
-                  label: row.label,
-                  district: row.district,
-                  clinic_address: row.clinic_address,
-                  town: row.town,
-                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
-                }))}
-              />
-            ) : null}
             {viewerMode !== "patient" ? (
               <ProfessionalBookingNotice mode={viewerMode} />
             ) : (
@@ -1134,14 +1110,15 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   bookingHorizonDays={bookingHorizonDays}
                   minimumNoticeHours={minimumNoticeHours}
                   services={services.map(({ id, name }) => ({ id, name }))}
+                  layout="panel"
+                  detailsAside={<WhatToExpectCard />}
                 />
               </div>
             )}
             </ProfileBookingStepProvider>
-          </div>
-          <WhatToExpectCard />
-        </section>
+        </ProfileBookingPanel>
 
+        <div className="flex min-w-0 flex-col gap-14 lg:col-start-1 lg:row-start-1">
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
         <ProfilePatientsSection patientAges={profileDetails.patientAges} />
@@ -1166,6 +1143,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             message={t("reportMessage", { name: profile.name, url: profileCanonicalUrl })}
           />
         </footer>
+        </div>
       </div>
       {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
       {viewerMode === "patient" ? (

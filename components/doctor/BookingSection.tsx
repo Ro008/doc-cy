@@ -50,6 +50,7 @@ import {
   parseProfileServiceSelectDetail,
 } from "@/lib/public/profile-booking-events";
 import { useIsomorphicLayoutEffect, useProfileBookingStep } from "@/components/doctor/profile/ProfileBookingStep";
+import { ProfileBookingDialog } from "@/components/doctor/profile/ProfileBookingDialog";
 
 // Public profile theme tokens (light/dark + DocCy's accent, see lib/profile-theme.ts).
 const CARD_CLASS =
@@ -126,6 +127,14 @@ type BookingSectionProps = {
   locationScopedPause?: boolean;
   /** Her services: when there are any, the patient picks one (or Other). No prices here. */
   services?: BookingServiceItem[];
+  /**
+   * "panel": inside the profile's booking panel (narrow, stays on screen): a strip of days
+   * with the month behind "More dates", and the details form and the "check your email"
+   * card open as a dialog. "page" is the wide card with the month beside the times.
+   */
+  layout?: "page" | "panel";
+  /** Panel only: shown next to the details form in the dialog ("What to expect"). */
+  detailsAside?: React.ReactNode;
 };
 
 type SlotOption = {
@@ -157,7 +166,13 @@ export function BookingSection({
   locationLabel = null,
   locationScopedPause = false,
   services = [],
+  layout = "page",
+  detailsAside = null,
 }: BookingSectionProps) {
+  const panel = layout === "panel";
+  // The panel is already a card: its states are plain blocks inside it.
+  const stateCardClass = panel ? "text-profile-body" : CARD_CLASS;
+  const [showMonth, setShowMonth] = React.useState(false);
   const onlineBookingsPaused = onlineBookingsPausedProp || onlineBookingsUnavailable;
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
     bookingHorizonDays
@@ -418,7 +433,7 @@ export function BookingSection({
   // Continue opens the details form: bring its top ("Your details") into view.
   const contactFormRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (!showContactForm) return;
+    if (!showContactForm || panel) return;
     const card = contactFormRef.current;
     if (!card) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -432,7 +447,7 @@ export function BookingSection({
       window.cancelAnimationFrame(first);
       window.cancelAnimationFrame(second);
     };
-  }, [showContactForm]);
+  }, [showContactForm, panel]);
 
   // Turnstile's box (when it has to show) follows the profile's Light/Dark switch.
   React.useEffect(() => {
@@ -445,7 +460,7 @@ export function BookingSection({
   // already is; instant for people who reduce motion.
   const confirmBarRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (!selectedSlot || showContactForm) return;
+    if (!selectedSlot || showContactForm || panel) return;
     const bar = confirmBarRef.current;
     if (!bar) return;
     const rect = bar.getBoundingClientRect();
@@ -453,7 +468,7 @@ export function BookingSection({
     if (!hiddenBelow && rect.top >= 0) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     bar.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
-  }, [selectedSlot, showContactForm]);
+  }, [selectedSlot, showContactForm, panel]);
 
   // A next-availability day card in the profile hero opens that day here.
   React.useEffect(() => {
@@ -692,7 +707,7 @@ export function BookingSection({
 
   if (onlineBookingsPaused) {
     return (
-      <div className={CARD_CLASS}>
+      <div className={stateCardClass}>
         <h2 className="text-xl font-extrabold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
@@ -714,7 +729,7 @@ export function BookingSection({
 
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
-      <div className={CARD_CLASS}>
+      <div className={stateCardClass}>
         <h2 className="text-xl font-extrabold text-profile-text">
           {t("title")}
         </h2>
@@ -727,7 +742,7 @@ export function BookingSection({
 
   if (upcomingSlots.length === 0) {
     return (
-      <div className={CARD_CLASS}>
+      <div className={stateCardClass}>
         <h2 className="text-xl font-extrabold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
@@ -760,8 +775,20 @@ export function BookingSection({
     }
   }
 
+  /** In the panel, the second step and its result open over the page. */
+  const overPage = (label: string, onClose: () => void, node: React.ReactElement, aside?: React.ReactNode) =>
+    panel ? (
+      <ProfileBookingDialog label={label} onClose={onClose} aside={aside}>
+        {node}
+      </ProfileBookingDialog>
+    ) : (
+      node
+    );
+
   if (bookingSuccess) {
-    return (
+    return overPage(
+      checkEmailAddress ? t("checkEmailTitle") : t("requestSubmittedTitle"),
+      startOver,
       <div
         ref={successRef}
         data-testid="booking-success-message"
@@ -797,13 +824,19 @@ export function BookingSection({
             {t("doneButton")}
           </button>
         </div>
-      </div>
+      </div>,
     );
   }
 
   // Contact form step (after Confirm on time slot)
   if (showContactForm && selectedSlot) {
-    return (
+    const backToTimes = () => {
+      setShowContactForm(false);
+      setError(null);
+    };
+    return overPage(
+      t("yourDetails"),
+      backToTimes,
       <div ref={contactFormRef} className={`${CARD_CLASS} scroll-mt-20`}>
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
@@ -1256,7 +1289,8 @@ export function BookingSection({
             )}
           </button>
         </form>
-      </div>
+      </div>,
+      detailsAside,
     );
   }
 
@@ -1266,6 +1300,190 @@ export function BookingSection({
       (d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
     );
   const selectedDayKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+
+  const monthPicker = (
+    <DayPicker
+      mode="single"
+      required
+      selected={selectedDate ?? undefined}
+      onSelect={(d) => {
+        setSelectedDate(d ?? null);
+        setSelectedSlot(null);
+        setError(null);
+      }}
+      fromDate={new Date()}
+      toDate={addDays(new Date(), normalizedBookingHorizonDays)}
+      disabled={(date) => !isDateAvailable(date)}
+      locale={dateFnsLocale}
+      captionLayout="buttons"
+      className="rdp-profile"
+      classNames={{
+        root: "p-0",
+        caption: "flex justify-between items-center mb-4",
+        caption_label: "text-base font-bold",
+        nav: "flex gap-1",
+        nav_button_previous: "rounded-xl p-2 transition hover:opacity-80",
+        nav_button_next: "rounded-xl p-2 transition hover:opacity-80",
+        month: "w-full",
+        day: "m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+      }}
+      modifiers={{
+        available: availableDates,
+      }}
+      modifiersClassNames={{
+        available: "rdp-day_available",
+        selected: "rdp-day_selected",
+        disabled: "rdp-day_disabled",
+        today: "rdp-day_today",
+      }}
+      components={{
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
+      }}
+    />
+  );
+
+  const timesBlock =
+    !selectedDate ? (
+      <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-profile-border px-4 py-12 text-center">
+        <p className="text-sm font-semibold text-profile-text">
+          {t("selectDateOnCalendar")}
+        </p>
+        <p className="mt-1 text-sm text-profile-muted">
+          {t("availableTimesHere")}
+        </p>
+      </div>
+    ) : (
+      <>
+        <p
+          data-testid="booking-selected-day"
+          data-date={selectedDayKey ?? ""}
+          className="mb-3 text-base font-bold capitalize text-profile-text"
+        >
+          {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
+        </p>
+        {slotsForSelectedDay.length === 0 ? (
+          <p className="py-6 text-sm text-profile-muted">
+            {t("noAvailableTimesThisDay")}
+          </p>
+        ) : (
+          <div
+            key={selectedDayKey ?? "none"}
+            className={panel ? "grid grid-cols-3 gap-2" : "grid grid-cols-3 gap-2 sm:grid-cols-4"}
+          >
+            {slotsForSelectedDay.map((slot, index) => {
+              const isSelected = selectedSlot?.key === slot.key;
+              return (
+                <button
+                  key={slot.key}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setSelectedSlot(isSelected ? null : slot);
+                    setError(null);
+                  }}
+                  style={{ "--rise-i": Math.min(index, 12) } as React.CSSProperties}
+                  className={`profile-rise min-h-12 rounded-2xl border-2 text-base font-bold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    isSelected
+                      ? "profile-pop border-accent-cta bg-accent-cta text-accent-on-cta"
+                      : "border-accent-soft bg-profile-surface text-profile-text hover:border-accent"
+                  }`}
+                >
+                  {slot.labelTime}
+                  <span className="sr-only">
+                    {" "}
+                    {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </>
+    );
+
+  if (panel) {
+    return (
+      <div data-booking-layout="panel" className="flex min-w-0 flex-col gap-4">
+        {bookingServiceName ? (
+          <p data-testid="booking-for-service" className="text-sm font-semibold text-profile-text">
+            {t("bookingForService", { service: bookingServiceName })}
+          </p>
+        ) : null}
+        {error ? (
+          <div data-testid="booking-error-message" className={BOX_ERROR_CLASS}>
+            {error}
+          </div>
+        ) : null}
+
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-profile-muted">{t("selectDate")}</p>
+            <button
+              type="button"
+              data-testid="booking-more-dates"
+              aria-expanded={showMonth}
+              onClick={() => setShowMonth((open) => !open)}
+              className="min-h-9 text-sm font-semibold text-accent-link underline-offset-2 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {showMonth ? t("fewerDates") : t("moreDates")}
+            </button>
+          </div>
+          {showMonth ? (
+            <div className="flex justify-center">{monthPicker}</div>
+          ) : (
+            <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
+              {availableDates.map((date) => {
+                const dateKey = format(date, "yyyy-MM-dd");
+                const isSelected = dateKey === selectedDayKey;
+                return (
+                  <li key={dateKey} className="shrink-0">
+                    <button
+                      type="button"
+                      data-testid="booking-day-chip"
+                      data-date={dateKey}
+                      aria-pressed={isSelected}
+                      onClick={() => {
+                        setSelectedDate(date);
+                        setSelectedSlot(null);
+                        setError(null);
+                      }}
+                      className={`flex min-h-[58px] min-w-[68px] flex-col items-center justify-center rounded-2xl border-2 px-2.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                        isSelected
+                          ? "border-accent-cta bg-accent-cta text-accent-on-cta"
+                          : "border-profile-border bg-profile-surface text-profile-text hover:border-accent"
+                      }`}
+                    >
+                      <span className="text-xs font-semibold capitalize opacity-80">
+                        {format(date, "EEE", { locale: dateFnsLocale })}
+                      </span>
+                      <span className="text-sm font-extrabold">{format(date, "d MMM", { locale: dateFnsLocale })}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="min-w-0">{timesBlock}</div>
+
+        {selectedSlot ? (
+          <div ref={confirmBarRef} className="profile-rise flex flex-col gap-2 border-t border-profile-border pt-4">
+            <p className="text-sm font-semibold text-profile-text">{selectedSlot.labelFull}</p>
+            <button
+              type="button"
+              onClick={() => setShowContactForm(true)}
+              className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            >
+              {t("continueButton")}
+            </button>
+          </div>
+        ) : null}
+        <p className="text-xs text-profile-muted">{t("allTimesInCyprus")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-3xl border border-profile-border bg-profile-surface text-profile-body shadow-sm">
@@ -1313,105 +1531,11 @@ export function BookingSection({
           <p className="mb-3 text-xs font-bold uppercase tracking-wide text-profile-muted">
             {t("selectDate")}
           </p>
-          <DayPicker
-            mode="single"
-            required
-            selected={selectedDate ?? undefined}
-            onSelect={(d) => {
-              setSelectedDate(d ?? null);
-              setSelectedSlot(null);
-              setError(null);
-            }}
-            fromDate={new Date()}
-            toDate={addDays(new Date(), normalizedBookingHorizonDays)}
-            disabled={(date) => !isDateAvailable(date)}
-            locale={dateFnsLocale}
-            captionLayout="buttons"
-            className="rdp-profile"
-            classNames={{
-              root: "p-0",
-              caption: "flex justify-between items-center mb-4",
-              caption_label: "text-base font-bold",
-              nav: "flex gap-1",
-              nav_button_previous: "rounded-xl p-2 transition hover:opacity-80",
-              nav_button_next: "rounded-xl p-2 transition hover:opacity-80",
-              month: "w-full",
-              day: "m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            }}
-            modifiers={{
-              available: availableDates,
-            }}
-            modifiersClassNames={{
-              available: "rdp-day_available",
-              selected: "rdp-day_selected",
-              disabled: "rdp-day_disabled",
-              today: "rdp-day_today",
-            }}
-            components={{
-              IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-              IconRight: () => <ChevronRight className="h-4 w-4" />,
-            }}
-          />
+          {monthPicker}
         </div>
 
         <div className="min-w-0">
-          {!selectedDate ? (
-            <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-profile-border px-4 py-12 text-center">
-              <p className="text-sm font-semibold text-profile-text">
-                {t("selectDateOnCalendar")}
-              </p>
-              <p className="mt-1 text-sm text-profile-muted">
-                {t("availableTimesHere")}
-              </p>
-            </div>
-          ) : (
-            <>
-              <p
-                data-testid="booking-selected-day"
-                data-date={selectedDayKey ?? ""}
-                className="mb-3 text-base font-bold capitalize text-profile-text"
-              >
-                {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
-              </p>
-              {slotsForSelectedDay.length === 0 ? (
-                <p className="py-6 text-sm text-profile-muted">
-                  {t("noAvailableTimesThisDay")}
-                </p>
-              ) : (
-                <div
-                  key={selectedDayKey ?? "none"}
-                  className="grid grid-cols-3 gap-2 sm:grid-cols-4"
-                >
-                  {slotsForSelectedDay.map((slot, index) => {
-                    const isSelected = selectedSlot?.key === slot.key;
-                    return (
-                      <button
-                        key={slot.key}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => {
-                          setSelectedSlot(isSelected ? null : slot);
-                          setError(null);
-                        }}
-                        style={{ "--rise-i": Math.min(index, 12) } as React.CSSProperties}
-                        className={`profile-rise min-h-12 rounded-2xl border-2 text-base font-bold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                          isSelected
-                            ? "profile-pop border-accent-cta bg-accent-cta text-accent-on-cta"
-                            : "border-accent-soft bg-profile-surface text-profile-text hover:border-accent"
-                        }`}
-                      >
-                        {slot.labelTime}
-                        <span className="sr-only">
-                          {" "}
-                          {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+          {timesBlock}
         </div>
       </div>
 
