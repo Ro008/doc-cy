@@ -16,3 +16,6 @@ supabase/.temp/
 # Claude Code local config and worktrees
 .claude/
 supabase/.branches/
+
+# Output of scripts/tutorial-videos (videos and cards are not committed)
+tutorial-videos-out/
