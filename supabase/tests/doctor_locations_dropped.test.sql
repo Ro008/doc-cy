@@ -103,13 +103,13 @@ begin
   insert into public.professionals (name, slug, is_registered, is_test_profile)
   values ('D4 Drop Listing Two', 'd4-drop-listing2-' || v_u, false, true)
   returning id into v_pro;
-  insert into public.professional_settings (professional_id, minimum_notice_hours) values (v_pro, 24);
+  insert into public.professional_settings (professional_id, holiday_mode_enabled) values (v_pro, true);
   v_u := gen_random_uuid();
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-claim2-' || v_u || '@integration.test', now(), now());
   update public.professionals set is_registered = true, auth_user_id = v_u where id = v_pro;
-  if not exists (select 1 from public.professional_settings where professional_id = v_pro and minimum_notice_hours = 24) then
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro and holiday_mode_enabled) then
     raise exception 'FAIL: existing settings must be kept';
   end if;
   v_checks := v_checks + 1;

@@ -30,7 +30,7 @@ begin
   end if;
   select string_agg(c, ', ') into v_names
   from unnest(array['professional_id', 'holiday_mode_enabled', 'holiday_start_date',
-                    'holiday_end_date', 'booking_horizon_days', 'minimum_notice_hours']) c
+                    'holiday_end_date']) c
   where not exists (select 1 from information_schema.columns
                     where table_schema = 'public' and table_name = 'professional_settings'
                       and column_name = c);
