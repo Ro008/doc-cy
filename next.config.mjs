@@ -22,6 +22,10 @@ const nextConfig = {
   distDir: process.platform === "win32" ? ".next-local" : ".next",
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // The share card route reads its fonts from disk at run time: ship them with the function.
+    outputFileTracingIncludes: {
+      "/api/og/profile/[slug]": ["./assets/fonts/inter/**"],
+    },
     // Registration posts a cropped avatar through a Server Action.
     serverActions: {
       bodySizeLimit: "2mb",

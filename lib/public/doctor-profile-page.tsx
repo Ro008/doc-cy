@@ -22,6 +22,9 @@ import { ProfileReportLink } from "@/components/doctor/profile/ProfileReportLink
 import { ProfileShareButton } from "@/components/doctor/profile/ProfileShareButton";
 import { ProfileSectionNav } from "@/components/doctor/profile/ProfileSectionNav";
 import { ProfileServicesSection } from "@/components/doctor/profile/ProfileServicesSection";
+import { ProfileReviewsSection } from "@/components/doctor/profile/ProfileReviewsSection";
+import { cache } from "react";
+import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { profileCustomizationFromRow } from "@/lib/profile-customization";
 import { profileThemeStyle } from "@/lib/profile-theme";
@@ -63,7 +66,18 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { Building2, MapPin } from "lucide-react";
+import { Building2, MapPin, Star } from "lucide-react";
+import {
+  buildShareDescription,
+  heroRatingFromReviews,
+  showHeroRating,
+  summariseReviews,
+} from "@/lib/public/profile-reviews";
+import {
+  PROFILE_SHARE_CARD_SIZE,
+  profileShareCardPath,
+  profileShareCardVersion,
+} from "@/lib/public/profile-share-card";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
@@ -86,7 +100,6 @@ import { getTranslations } from "next-intl/server";
 import {
   buildRegisteredProfileMetaDescription,
   buildRegisteredProfileMetaTitle,
-  buildShareImageMetadata,
   formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
   resolveShareAvatarUrl,
@@ -349,6 +362,12 @@ function getInitials(name: string): string {
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 }
 
+/** One read of a professional's reviews per request: the metadata and the page both need it. */
+const loadReviewsOnce = cache(async (professionalId: string) => {
+  const db = getPublicDirectoryDb();
+  return db ? loadPublishedReviews(db, professionalId) : [];
+});
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -385,6 +404,7 @@ export async function generateMetadata({
   const meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
 
   const doctor = meta.data as {
+    id?: string;
     name?: string;
     specialty?: string;
     district?: string | null;
@@ -471,10 +491,31 @@ export async function generateMetadata({
     cityLabel,
   });
 
-  const shareImageUrl = supabase
-    ? resolvePublicAvatarUrl(supabase, doctor.avatar_url)
-    : null;
-  const shareImages = buildShareImageMetadata(shareImageUrl);
+  // The shared preview leads with the note (3+ reviews); the description Google reads stays
+  // dynamicDescription.
+  const shareRating = heroRatingFromReviews(doctor.id ? await loadReviewsOnce(doctor.id) : []);
+  const shareDescription = buildShareDescription({
+    doctorName,
+    specialtyForSeo: specialtyForSeo || specialty,
+    cityLabel,
+    rating: shareRating,
+  });
+  // The picture under the link is drawn per version of what is on it (photo, name, colour,
+  // specialties, place, the note): the same facts the route reads, so its `v` matches.
+  const shareCardVersion = profileShareCardVersion({
+    name: String(doctor.name ?? ""),
+    avatarPath: String(doctor.avatar_url ?? "").trim() || null,
+    accent: profileCustomizationFromRow(doctor).accent,
+    specialties: specialtyLabels,
+    district: districtLabel,
+    rating: shareRating,
+  });
+  const shareCardUrl = `${siteBaseUrl()}${profileShareCardPath(params.slug, shareCardVersion)}`;
+  const shareCardImage = {
+    url: shareCardUrl,
+    ...PROFILE_SHARE_CARD_SIZE,
+    alt: `${doctorName}${specialtyForSeo ? `, ${specialtyForSeo}` : ""} on DocCy`,
+  };
 
   return {
     title: dynamicTitle,
@@ -482,18 +523,16 @@ export async function generateMetadata({
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: dynamicTitle,
-      description: dynamicDescription,
+      description: shareDescription,
       type: "website",
       url: profileUrl,
-      ...(shareImages.openGraphImages
-        ? { images: shareImages.openGraphImages }
-        : {}),
+      images: [shareCardImage],
     },
     twitter: {
-      card: shareImages.twitterCard,
+      card: "summary_large_image",
       title: dynamicTitle,
-      description: dynamicDescription,
-      ...(shareImages.twitterImages ? { images: shareImages.twitterImages } : {}),
+      description: shareDescription,
+      images: [shareCardUrl],
     },
   };
 }
@@ -676,6 +715,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     }))
     .filter((row) => row.name.length > 0);
 
+  // Verified patient reviews (professional_reviews): read only, published ones.
+  const reviews = await loadReviewsOnce(profile.id);
+  const reviewSummary = summariseReviews(reviews);
+
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
   const profileHeadingCity =
     profileDistrictLabel ?? t("profileHeadingCityFallback");
@@ -765,6 +808,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const sectionTabs = profileSectionTabs({
     hasServices: services.length > 0,
     hasClinics: clinicCards.length > 0,
+    hasReviews: reviews.length > 0,
   }).map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
 
   // Every district with a clinic (Nicosia · Paphos), not only the primary one.
@@ -838,7 +882,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   // Links in the hero look like links (underline); plain facts do not.
   const heroLinkClass =
-    "underline decoration-2 underline-offset-4 transition hover:decoration-[3px] focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
+    "underline decoration-1 underline-offset-4 transition hover:decoration-2 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
 
   return (
     <main
@@ -946,7 +990,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                         {index > 0 ? <span aria-hidden>·</span> : null}
                         <FinderDistrictLink
                           district={district}
-                          className={`text-accent-on ${heroLinkClass} [&_span]:underline [&_span]:decoration-2 [&_span]:underline-offset-4`}
+                          className={`text-accent-on ${heroLinkClass} [&_span]:underline [&_span]:decoration-1 [&_span]:underline-offset-4`}
                         />
                       </span>
                     ))
@@ -964,6 +1008,19 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     {practiceLocations.length > 1
                       ? t("heroClinicsCount", { count: practiceLocations.length })
                       : t("heroClinicDetails")}
+                  </a>
+                ) : null}
+                {showHeroRating(reviews.length) ? (
+                  <a
+                    href={`#${PROFILE_SECTION_IDS.reviews}`}
+                    data-testid="profile-hero-rating"
+                    aria-label={`${t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}, ${t("reviewsSummary", { count: reviewSummary.count })}`}
+                    className={`inline-flex items-center gap-1.5 text-accent-on ${heroLinkClass}`}
+                  >
+                    <Star className="h-4 w-4 shrink-0 fill-current" aria-hidden />
+                    <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
+                    <span aria-hidden>·</span>
+                    <span>{t("reviewsSummary", { count: reviewSummary.count })}</span>
                   </a>
                 ) : null}
               </div>
@@ -1068,6 +1125,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
+        <ProfileReviewsSection reviews={reviews} locale={locale} />
         <ProfileClinicsSection
           cards={clinicCards}
           professionalId={profile.id}

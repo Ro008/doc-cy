@@ -41,6 +41,9 @@ import {
   FinderRegisteredPublicCall,
 } from "@/components/finder/FinderRegisteredCardAvailability";
 import { FinderCardLanguages } from "@/components/finder/FinderCardLanguages";
+import { FinderCardRating } from "@/components/finder/FinderCardRating";
+import { loadPublishedRatings } from "@/lib/public/load-profile-reviews";
+import type { FinderRating } from "@/lib/public/profile-reviews";
 import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
@@ -1099,6 +1102,15 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     await loadManualCardExtras();
   }
 
+  // The note on each registered card on screen (3+ published reviews): one small read,
+  // only for these cards. Read only; the reviews are written by the patient's emailed link.
+  const registeredRatings = supabase
+    ? await loadPublishedRatings(
+        supabase,
+        visibleRegistered.map((item) => item.row.id),
+      )
+    : new Map<string, FinderRating>();
+
   const registeredAvailabilityKey = finderAvailabilityRequestKey(
     visibleRegistered.map((item) => item.row.id),
   );
@@ -1295,6 +1307,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             <div className="self-start">
                               <GesyProviderBadge size="xs" language="en" />
                             </div>
+                          ) : null}
+                          {registeredRatings.get(row.id) ? (
+                            <FinderCardRating rating={registeredRatings.get(row.id)!} />
                           ) : null}
                           {item.distanceKm !== null ? (
                             <p className="text-xs font-semibold text-clinical-700">

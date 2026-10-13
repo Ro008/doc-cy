@@ -27,6 +27,7 @@ describe("profileSectionTabs", () => {
       book: "book",
       about: "about",
       services: "services",
+      reviews: "reviews",
       clinics: "clinics",
     });
     for (const tab of profileSectionTabs({ hasServices: true, hasClinics: true })) {
