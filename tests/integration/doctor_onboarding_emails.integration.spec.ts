@@ -26,7 +26,7 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
       resetUrl: "https://www.mydoccy.com/auth/callback?token_hash=tok&type=recovery",
     });
     expect(content.subject).toBe("[DocCy] Reset your password");
-    expect(content.text).toContain("DocCy practitioner account");
+    expect(content.text).toContain("DocCy professional account");
     expect(content.html).toContain("Choose a new password");
     expect(content.html.toLowerCase()).not.toContain("supabase");
   });
