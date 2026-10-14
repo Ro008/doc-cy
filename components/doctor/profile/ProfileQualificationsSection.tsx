@@ -1,3 +1,4 @@
+import { GraduationCap } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { qualificationsNewestFirst } from "@/lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
@@ -37,6 +38,10 @@ export async function ProfileQualificationsSection({
               data-testid="profile-qualification"
               className="flex items-baseline gap-4 px-5 py-3.5"
             >
+              {/* A small mortarboard on each row (preview for the user, 2026-10-14). */}
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full bg-accent-soft text-accent-link">
+                <GraduationCap className="h-4 w-4" aria-hidden />
+              </span>
               <span
                 data-testid="profile-qualification-year"
                 className="w-12 shrink-0 text-sm font-medium tabular-nums text-profile-muted"

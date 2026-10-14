@@ -62,9 +62,11 @@ describe("qualifications, on the public profile", () => {
     assert.match(section, /id=\{PROFILE_SECTION_IDS\.qualifications\}/);
     assert.match(section, /qualificationsNewestFirst\(qualifications\)/);
     assert.match(section, /data-testid="profile-qualification-year"/);
-    // One card with rows, like Services & prices; no icon on every row.
+    // One card with rows, like Services & prices; a small mortarboard on each row, hidden
+    // from screen readers (preview for the user, 2026-10-14).
     assert.match(section, /divide-y divide-profile-border/);
-    assert.doesNotMatch(section, /GraduationCap|sm:grid-cols-2/);
+    assert.match(section, /<GraduationCap\b[^>]*aria-hidden/);
+    assert.doesNotMatch(section, /sm:grid-cols-2/);
     assert.doesNotMatch(section, /dangerouslySetInnerHTML/);
   });
 
