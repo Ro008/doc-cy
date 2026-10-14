@@ -19,3 +19,4 @@ supabase/.branches/
 
 # Output of scripts/tutorial-videos (videos and cards are not committed)
 tutorial-videos-out/
+announcement-out/
