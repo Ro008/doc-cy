@@ -31,7 +31,7 @@ type Props = {
 };
 
 const ROW_CLASS =
-  "grid h-full w-full grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border-2 px-3.5 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  "grid h-full w-full grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border-2 px-3.5 py-2.5 text-left lg:py-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 /**
  * "Choose a clinic" at the top of the booking column (user, 2026-10-13): every clinic of
@@ -45,12 +45,15 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
 
   return (
     <nav aria-labelledby="profile-clinic-chooser-heading" data-testid="profile-clinic-chooser">
-      <h2
-        id="profile-clinic-chooser-heading"
-        className="mb-2 text-base font-semibold text-profile-text"
-      >
-        {labels.title}
-      </h2>
+      <div className="mb-2 flex items-baseline justify-between gap-3 pr-3.5">
+        <h2 id="profile-clinic-chooser-heading" className="text-base font-semibold text-profile-text">
+          {labels.title}
+        </h2>
+        {/* Once, over the column of times, not on every row (user, 2026-10-14). */}
+        <span aria-hidden className="text-xs font-semibold text-profile-muted">
+          {labels.nextFree}
+        </span>
+      </div>
       <ul className="grid auto-rows-fr gap-2">
         {rows.map((row) => {
           const body = (
@@ -71,12 +74,9 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
                   <span className="block text-xs font-medium text-profile-muted">{row.place}</span>
                 ) : null}
               </span>
-              <span className="w-[5.5rem] text-right">
+              <span className="w-[4.75rem] text-right">
                 {row.day ? (
                   <>
-                    <span className="block text-[11px] font-semibold text-profile-muted">
-                      {labels.nextFree}
-                    </span>
                     <span className="block text-sm font-bold text-profile-text">{row.day}</span>
                     <span className="block text-xs font-semibold tabular-nums text-accent-link">
                       {row.time}

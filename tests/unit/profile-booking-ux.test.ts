@@ -144,6 +144,10 @@ describe("profile page pieces", () => {
     assert.match(chooser, /aria-current="true"/);
     // Every row is as tall as the tallest (user, 2026-10-13).
     assert.match(chooser, /auto-rows-fr/);
+    // "Next free" once, over the column of times, not on every row (user, 2026-10-14).
+    assert.equal((chooser.match(/labels\.nextFree/g) ?? []).length, 1);
+    const heading = chooser.slice(chooser.indexOf("<h2"), chooser.indexOf("<ul"));
+    assert.match(heading, /labels\.nextFree/);
     // Nothing to choose with a single clinic.
     assert.match(chooser, /if \(rows\.length < 2\) return null;/);
     const page = read("lib/public/doctor-profile-page.tsx");

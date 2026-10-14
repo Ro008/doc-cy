@@ -148,7 +148,7 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
   return (
     <nav
       aria-label={ariaLabel}
-      className="profile-glass sticky top-0 z-30 order-3 -mx-4 sm:-mx-6 lg:static lg:mx-0 lg:mt-2 lg:rounded-2xl"
+      className="profile-glass sticky top-0 z-30 order-2 -mx-4 sm:-mx-6 lg:static lg:mx-0 lg:mt-2 lg:rounded-2xl"
     >
       <ul
         ref={listRef}

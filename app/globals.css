@@ -760,6 +760,15 @@ html:has(.doccy-profile) {
   font-weight: 700;
   font-size: 0.7rem;
 }
+/* The booking column on a wide screen: rows as tall as the 36px days, a short weekday row. */
+@media (min-width: 1024px) {
+  [data-booking-layout="panel"] .rdp-profile {
+    --rdp-cell-size: 38px;
+  }
+  [data-booking-layout="panel"] .rdp-profile .rdp-head_cell {
+    height: 24px;
+  }
+}
 .rdp-profile .rdp-day {
   color: var(--p-off);
 }

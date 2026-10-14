@@ -242,12 +242,15 @@ describe("public profile: one page with anchor tabs", () => {
     // Scrolling back up brings its top (the clinic rows) back right away, not only at the page top.
     assert.match(column, /addEventListener\("scroll"/);
     assert.match(column, /lastScrollY/);
-    // On a phone: hero, booking column, tabs, sections.
+    // On a phone (user, 2026-10-14): hero, tabs, her sections, then the booking column and
+    // the footer; the "Book" bar at the bottom of the screen opens the booking.
     assert.match(page, /<header className="order-1 /);
-    assert.match(page, /testId="profile-booking-column"\s+className="order-2 /);
-    assert.match(page, /data-profile-sections className="order-4 /);
     const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
-    assert.match(nav, /order-3/);
+    assert.match(nav, /order-2/);
+    assert.match(page, /data-profile-sections className="order-3 /);
+    assert.match(page, /testId="profile-booking-column"\s+className="order-4 /);
+    assert.match(page, /<footer className="order-5 /);
+    assert.ok(page.indexOf("<footer") > page.indexOf("<ProfileReviewsSection"));
     // A tab's section stops below the pinned block, whatever its height.
     assert.match(nav, /--profile-pin-h/);
     const css = read("app/globals.css");

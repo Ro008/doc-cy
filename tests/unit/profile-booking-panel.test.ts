@@ -114,7 +114,12 @@ describe("the booking panel on the page", () => {
     assert.match(page, /<ProfileBookingPanel\b/);
     assert.match(page, /panelClinics\.find\(\(clinic\) => clinic\.selected\)/);
     assert.match(panel, /data-testid="profile-clinic-selected"/);
-    assert.match(panel, /bookingT\("bookingAtClinic"\)/);
+    // The calendar first, the clinic's details under it (user, 2026-10-14): on a laptop the
+    // times and "Book this time" come up in the first screen.
+    assert.ok(panel.indexOf("{children}") < panel.indexOf('data-testid="profile-clinic-selected"'));
+    // With several clinics the chosen row above already names it: no "You are booking at".
+    assert.doesNotMatch(panel, /bookingAtClinic/);
+    assert.match(panel, /several \? "sr-only"/);
     assert.match(panel, /<RevealPhoneButton\b/);
     assert.match(panel, /t\("openInMaps"\)/);
     assert.match(panel, /data-testid="profile-clinic-hours"/);
@@ -158,6 +163,10 @@ describe("the booking panel on the page", () => {
   it("the calendar in the card is the month, above the times, then Book this time", () => {
     assert.match(page, /layout="panel"/);
     const cardLayout = booking.slice(booking.search(/\n  if \(panel\) \{/));
+    // No "Select a date" label and no repeat of the chosen time above the button: the month
+    // and the highlighted time say it (user, 2026-10-14).
+    const panelBlock = cardLayout.slice(0, cardLayout.indexOf("\n  return ("));
+    assert.doesNotMatch(panelBlock, /t\("selectDate"\)|selectedSlot\.labelFull/);
     assert.ok(cardLayout.indexOf("{monthPicker}") < cardLayout.indexOf("{timesBlock}"));
     assert.ok(cardLayout.indexOf("{timesBlock}") < cardLayout.indexOf('t("bookThisTime")'));
     assert.doesNotMatch(booking, /booking-day-chip|booking-more-dates/);

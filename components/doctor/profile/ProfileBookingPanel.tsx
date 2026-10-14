@@ -14,13 +14,13 @@ type Props = {
 };
 
 /**
- * The clinic card in the booking column (user, 2026-10-13): one clinic at a time, with its
- * address, opening hours, phone and map, then its calendar and times. Which clinic is
- * chosen above it, in "Choose a clinic".
+ * The clinic card in the booking column: one clinic at a time, its calendar and times first,
+ * then its address, opening hours, phone and map (user, 2026-10-14: so on a laptop the times
+ * and "Book this time" come up in the first screen). Which clinic is chosen above it, in
+ * "Choose a clinic", which names it: the card's own heading is then for screen readers only.
  */
 export async function ProfileBookingPanel({ professionalId, clinic, several, children }: Props) {
   const t = await getTranslations("DoctorProfilePage");
-  const bookingT = await getTranslations("BookingPage");
 
   return (
     <section
@@ -28,21 +28,21 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
       data-testid="profile-booking-panel"
       className="min-w-0 rounded-3xl border border-profile-border bg-profile-surface text-profile-body shadow-lg shadow-black/5"
     >
-      <div className="flex min-w-0 flex-col gap-4 p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-4 p-4 sm:p-5 lg:p-4">
         {clinic ? (
-          <div data-testid="profile-clinic-selected">
-            {several && !clinic.bookingOff ? (
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-profile-muted">
-                {bookingT("bookingAtClinic")}
-              </p>
-            ) : null}
-            <h2
-              id="profile-booking-clinic-heading"
-              className="text-lg font-semibold leading-snug tracking-tight text-profile-text"
-            >
-              {clinic.title}
-            </h2>
-            <div className="mt-2.5 flex flex-col gap-2.5">
+          <h2
+            id="profile-booking-clinic-heading"
+            className={several ? "sr-only" : "text-lg font-semibold leading-snug tracking-tight text-profile-text"}
+          >
+            {clinic.title}
+          </h2>
+        ) : null}
+
+        <div className="min-w-0">{children}</div>
+
+        {clinic ? (
+          <div data-testid="profile-clinic-selected" className="border-t border-profile-border pt-4">
+            <div className="flex flex-col gap-2.5">
               {clinic.address ? (
                 <p className="flex items-start gap-2 text-sm text-profile-body">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
@@ -90,8 +90,6 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
             </div>
           </div>
         ) : null}
-
-        <div className={clinic ? "border-t border-profile-border pt-4" : undefined}>{children}</div>
       </div>
     </section>
   );

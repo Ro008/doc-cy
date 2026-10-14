@@ -81,7 +81,6 @@
     "appointmentsPausedAtLocation": "Online booking is not available at this location.",
     "appointmentsUnavailable": "Online booking is not available for this professional right now.",
     "appointmentsPausedCallHint": "Call the clinic to book an appointment.",
-    "bookingAtClinic": "You are booking at",
     "chooseClinic": "Choose a clinic",
     "changeClinic": "Change clinic",
     "clinicNumber": "Clinic {number}",

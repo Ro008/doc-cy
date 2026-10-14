@@ -976,11 +976,18 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         />
       ))}
 
-      <div className="mx-auto max-w-6xl px-4 pt-5 sm:px-6 lg:px-8">
-        {/* No "You are viewing your public profile" banner: the account menu links to
-            Settings here, and the booking box says "This is how patients see your profile"
-            (user, 2026-10-08). */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      {/* Two columns on a wide page (user, 2026-10-13). Left: the hero and the tabs stay on
+          screen while her sections scroll under them. Right: "Choose a clinic" stays on
+          screen, with the chosen clinic's calendar below it. On a phone the pieces follow one
+          another (user, 2026-10-14): hero, tabs (sticky), her sections, the booking column,
+          the footer; the "Book" bar at the bottom of the screen opens the booking. */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 pt-5 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-8 lg:gap-y-0 lg:px-8">
+        <div className="contents lg:block lg:min-w-0">
+        {/* Breadcrumbs, Share and Light / Dark over the left column only, so the booking
+            column starts at the top of the page (user, 2026-10-14). No "You are viewing your
+            public profile" banner: the account menu links to Settings here, and the booking
+            box says "This is how patients see your profile" (user, 2026-10-08). */}
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:mb-2">
           <ProfileBreadcrumbs crumbs={breadcrumbs} ariaLabel={t("breadcrumbLabel")} />
           <div className="flex items-center gap-2">
             <ProfileShareButton
@@ -999,15 +1006,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             />
           </div>
         </div>
-
-      </div>
-
-      {/* Two columns on a wide page (user, 2026-10-13). Left: the hero and the tabs stay on
-          screen while her sections scroll under them. Right: "Choose a clinic" stays on
-          screen, with the chosen clinic's details and calendar below it. On a phone the
-          pieces follow one another: hero, booking column, tabs (sticky), sections. */}
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-8 lg:gap-y-0 lg:px-8">
-        <div className="contents lg:block lg:min-w-0">
         <div
           data-profile-pin
           className="group/pin contents lg:sticky lg:top-0 lg:z-20 lg:block lg:bg-profile-bg lg:pb-3 lg:pt-3"
@@ -1138,13 +1136,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
         </div>
 
-        <div data-profile-sections className="order-4 flex min-w-0 flex-col gap-14 lg:pt-6">
+        <div data-profile-sections className="order-3 flex min-w-0 flex-col gap-14 lg:pt-6">
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
         <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
         <ProfileReviewsSection reviews={reviews} locale={locale} />
+        </div>
 
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">
+        <footer className="order-5 flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted lg:mt-14">
           <a
             href="/for-professionals"
             className="font-semibold text-accent-link underline-offset-2 hover:underline"
@@ -1157,13 +1156,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           />
         </footer>
         </div>
-        </div>
 
         <ProfileStickyColumn
           id={PROFILE_SECTION_IDS.book}
           ariaLabel={t("sectionTabBook")}
           testId="profile-booking-column"
-          className="order-2 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:pb-4"
+          className="order-4 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:z-30 lg:gap-3 lg:pb-4"
         >
           {chooserRows.length > 1 ? (
             <div>

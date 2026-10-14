@@ -1334,13 +1334,17 @@ export function BookingSection({
       className="rdp-profile"
       classNames={{
         root: "p-0",
-        caption: "flex justify-between items-center mb-4",
+        caption: panel ? "flex justify-between items-center mb-4 lg:mb-2" : "flex justify-between items-center mb-4",
         caption_label: "text-base font-bold",
         nav: "flex gap-1",
         nav_button_previous: "rounded-xl p-2 transition hover:opacity-80",
         nav_button_next: "rounded-xl p-2 transition hover:opacity-80",
         month: "w-full",
-        day: "m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+        // A step smaller in the booking column on a wide screen, so the times and "Book this
+        // time" come up in a laptop's first screen (user, 2026-10-14); phones keep 40px for thumbs.
+        day: `m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent${
+          panel ? " lg:h-9 lg:w-9" : ""
+        }`,
       }}
       modifiers={{
         available: availableDates,
@@ -1419,7 +1423,7 @@ export function BookingSection({
 
   if (panel) {
     return (
-      <div data-booking-layout="panel" className="flex min-w-0 flex-col gap-4">
+      <div data-booking-layout="panel" className="flex min-w-0 flex-col gap-4 lg:gap-3">
         {bookingServiceName ? (
           <p data-testid="booking-for-service" className="text-sm font-semibold text-profile-text">
             {t("bookingForService", { service: bookingServiceName })}
@@ -1431,16 +1435,12 @@ export function BookingSection({
           </div>
         ) : null}
 
-        <div className="min-w-0">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-profile-muted">{t("selectDate")}</p>
-          <div className="flex justify-center">{monthPicker}</div>
-        </div>
+        <div className="flex min-w-0 justify-center">{monthPicker}</div>
 
         <div className="min-w-0">{timesBlock}</div>
 
         {selectedSlot ? (
-          <div ref={confirmBarRef} className="profile-rise flex flex-col gap-2 border-t border-profile-border pt-4">
-            <p className="text-sm font-semibold text-profile-text">{selectedSlot.labelFull}</p>
+          <div ref={confirmBarRef} className="profile-rise flex flex-col gap-2">
             <button
               type="button"
               onClick={() => setShowContactForm(true)}

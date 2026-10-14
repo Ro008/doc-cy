@@ -24,7 +24,6 @@
     "appointmentsPausedAtLocation": "Η online κράτηση δεν είναι διαθέσιμη σε αυτή την τοποθεσία.",
     "appointmentsUnavailable": "Η online κράτηση δεν είναι διαθέσιμη για αυτόν τον επαγγελματία αυτή τη στιγμή.",
     "appointmentsPausedCallHint": "Καλέστε την κλινική για να κλείσετε ραντεβού.",
-    "bookingAtClinic": "Κλείνετε ραντεβού στο",
     "chooseClinic": "Διαλέξτε κλινική",
     "changeClinic": "Αλλαγή κλινικής",
     "clinicNumber": "Κλινική {number}",
