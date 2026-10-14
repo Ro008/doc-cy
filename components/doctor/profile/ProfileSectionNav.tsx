@@ -24,6 +24,9 @@ function pinnedBottom(): number | null {
 /** The pinned hero shrinks once the page has scrolled past this, and grows back near the top. */
 const COMPACT_AFTER_PX = 24;
 const EXPAND_BELOW_PX = 4;
+/** A scroll this far in one step is a jump (a reload part way down, the browser restoring the
+ * scroll, Page Down): the hero switches at once instead of animating (user, 2026-10-14). */
+const JUMP_PX = 400;
 /** Scroll quiet time that ends a tab click's smooth scroll. */
 const SCROLL_IDLE_MS = 180;
 
@@ -85,11 +88,26 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
   React.useEffect(() => {
     const pin = document.querySelector<HTMLElement>(PIN_SELECTOR);
     if (!pin) return;
+    let lastY: number | null = null;
+    let instantFrame = 0;
     const update = () => {
       const stuck = window.getComputedStyle(pin).position === "sticky";
       const y = window.scrollY;
-      if (!stuck || y < EXPAND_BELOW_PX) delete pin.dataset.compact;
-      else if (y > COMPACT_AFTER_PX) pin.dataset.compact = "";
+      const wasCompact = "compact" in pin.dataset;
+      const compact = !stuck || y < EXPAND_BELOW_PX ? false : y > COMPACT_AFTER_PX ? true : wasCompact;
+      if (compact !== wasCompact && (lastY === null || Math.abs(y - lastY) > JUMP_PX)) {
+        // No shrink animation on a jump: half way through it the photo lay over the name.
+        pin.dataset.instant = "";
+        window.cancelAnimationFrame(instantFrame);
+        instantFrame = window.requestAnimationFrame(() => {
+          instantFrame = window.requestAnimationFrame(() => {
+            delete pin.dataset.instant;
+          });
+        });
+      }
+      if (compact) pin.dataset.compact = "";
+      else delete pin.dataset.compact;
+      lastY = y;
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
@@ -97,7 +115,9 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+      window.cancelAnimationFrame(instantFrame);
       delete pin.dataset.compact;
+      delete pin.dataset.instant;
     };
   }, []);
 

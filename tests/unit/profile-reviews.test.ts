@@ -310,6 +310,10 @@ describe("the profile reads reviews and shows them", () => {
     const stars = read("components/doctor/profile/ProfileStars.tsx");
     assert.match(stars, /role="img"/);
     assert.match(stars, /fill-amber-500 text-amber-500/);
+    // A star not reached is drawn in the grey text colour, so a 4-star review visibly has a
+    // fifth, empty star in light and dark; the border colour vanished on the dark card
+    // (1.27:1, user, 2026-10-14).
+    assert.match(stars, /emptyClassName = "text-profile-muted"/);
   });
 
   it("the section shows the average, the count, stars with a text alternative, and the rest on request", () => {

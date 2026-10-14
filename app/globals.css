@@ -692,6 +692,12 @@ html:has(.doccy-profile) {
   }
 }
 
+/* The pinned hero switches size without its animation after a jump (ProfileSectionNav). */
+[data-profile-pin][data-instant],
+[data-profile-pin][data-instant] * {
+  transition: none !important;
+}
+
 /* Sticky section tabs: frosted glass over the page scrolling underneath (user, 2026-10-10).
  * The page colour at 72% plus blur and a little saturation, a hairline edge and a soft top
  * highlight. Solid where blur isn't supported or the person asks for less transparency. */

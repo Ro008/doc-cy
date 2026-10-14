@@ -10,7 +10,7 @@ type Props = {
 };
 
 /** Five stars, filled up to the rounded rating: the Reviews section and the hero. */
-export function ProfileStars({ rating, label, size = "h-4 w-4", emptyClassName = "text-profile-border" }: Props) {
+export function ProfileStars({ rating, label, size = "h-4 w-4", emptyClassName = "text-profile-muted" }: Props) {
   return (
     <span role="img" aria-label={label} className="inline-flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (

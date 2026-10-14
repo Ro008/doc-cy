@@ -274,6 +274,13 @@ describe("public profile: one page with anchor tabs", () => {
     // The rest (headline, districts, rating, languages) folds away.
     assert.match(page, /data-hero-more/);
     assert.match(page, /group-data-\[compact\]\/pin:grid-rows-\[0fr\]/);
+    // A jump (a reload part way down, the browser restoring the scroll) switches the hero at
+    // once, without the shrink animation that briefly laid the photo over the name.
+    assert.match(nav, /JUMP_PX/);
+    assert.match(nav, /pin\.dataset\.instant = ""/);
+    assert.match(nav, /delete pin\.dataset\.instant/);
+    const css = read("app/globals.css");
+    assert.match(css, /\[data-profile-pin\]\[data-instant\][^{]*\{[^}]*transition: none !important/);
   });
 
   it("lets a next-availability day open that day in the booking calendar", () => {
@@ -390,7 +397,8 @@ describe("public profile: an icon by each section heading (preview, 2026-10-14)"
     ["ProfileAboutSection", "UserRound"],
     ["ProfileServicesSection", "Receipt"],
     ["ProfileQualificationsSection", "GraduationCap"],
-    ["ProfileReviewsSection", "Star"],
+    // A speech bubble, not a star: the rating stars sit right under the heading.
+    ["ProfileReviewsSection", "MessageSquareQuote"],
   ];
   for (const [file, icon] of sections) {
     it(`${file}: the same small icon chip inside its h2, hidden from screen readers`, () => {
