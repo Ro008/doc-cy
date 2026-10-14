@@ -41,7 +41,7 @@ export function ProfileShowAll({
           aria-controls="profile-services-list"
           onClick={() => setOpen((value) => !value)}
           data-testid="profile-services-show-all"
-          className="justify-self-start rounded-md text-sm font-bold text-accent-link underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="inline-flex min-h-11 items-center justify-self-start rounded-md text-sm font-bold text-accent-link underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {open ? showFewerLabel : showAllLabel}
         </button>

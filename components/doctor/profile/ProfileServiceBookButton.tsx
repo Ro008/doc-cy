@@ -5,9 +5,10 @@ import { requestProfileServiceSelect } from "@/lib/public/profile-booking-events
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 
 /**
- * A row of "Services & prices" (user, 2026-10-14): the whole row is the link. It jumps to the
- * booking calendar with that service already chosen in the details form; a plain `#book`
- * link without JavaScript. Its arrow becomes "Book" on hover or keyboard focus.
+ * A row of "Services & prices" (user, 2026-10-14): the whole row is the link. With a time
+ * already picked it opens the details form with that service chosen; otherwise it jumps to the
+ * booking calendar with the service chosen; a plain `#book` link without JavaScript. Its arrow
+ * becomes "Book" on hover or keyboard focus.
  */
 export function ProfileServiceBookButton({
   serviceId,
@@ -27,7 +28,9 @@ export function ProfileServiceBookButton({
   return (
     <a
       href={`#${PROFILE_SECTION_IDS.book}`}
-      onClick={() => requestProfileServiceSelect(serviceId)}
+      onClick={(event) => {
+        if (!requestProfileServiceSelect(serviceId)) event.preventDefault();
+      }}
       aria-label={ariaLabel}
       data-testid="profile-service-book"
       data-service-name={serviceName}

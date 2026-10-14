@@ -163,3 +163,58 @@ describe("profile page pieces", () => {
     assert.match(hide, /data-doccy-hide-install-banner/);
   });
 });
+
+describe("profile polish round (user, 2026-10-14)", () => {
+  it("no 11-12px text left in the booking column: 13px at least", () => {
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    assert.doesNotMatch(chooser, /text-xs/);
+    const css = read("app/globals.css");
+    const head = css.slice(css.indexOf(".rdp-profile .rdp-head_cell {"));
+    assert.match(head.slice(0, head.indexOf("}")), /font-size: 0\.8125rem/);
+    const booking = read("components/doctor/BookingSection.tsx");
+    assert.match(booking, /<p className="text-\[13px\] text-profile-muted">\{t\("allTimesInCyprus"\)\}<\/p>/);
+    for (const file of ["ProfileSchemeToggle", "ProfileShareButton"]) {
+      assert.doesNotMatch(read(`components/doctor/profile/${file}.tsx`), /text-xs/, file);
+    }
+  });
+
+  it("the hero's small links and Show all get a finger-sized tap area", () => {
+    const page = read("lib/public/doctor-profile-page.tsx");
+    const heroLink = page.slice(page.indexOf("const heroLinkClass"), page.indexOf("return (", page.indexOf("const heroLinkClass")));
+    assert.match(heroLink, /relative after:absolute after:-inset-x-1 after:-inset-y-3 after:content-\[''\]/);
+    // The fold-away wrappers only clip on a laptop, so the larger tap area is not cut on a phone.
+    assert.doesNotMatch(page, /min-h-0 overflow-hidden"/);
+    assert.match(page, /min-h-0 lg:overflow-hidden/);
+    const showAll = read("components/doctor/profile/ProfileShowAll.tsx");
+    assert.match(showAll, /inline-flex min-h-11 items-center/);
+  });
+
+  it("the tab highlight follows the section filling the screen, and moves quickly", () => {
+    const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
+    assert.match(nav, /ACTIVE_LINE_RATIO = 0\.35/);
+    assert.match(nav, /after:duration-150/);
+    assert.doesNotMatch(nav, /after:duration-300/);
+  });
+
+  it("the header's join button is navy on teal, readable (WCAG AA)", () => {
+    const header = read("components/finder/FinderPublicHeader.tsx");
+    const join = header.slice(header.indexOf("const joinLinkClass"), header.indexOf(";", header.indexOf("const joinLinkClass")));
+    assert.match(join, /bg-clinical-500/);
+    assert.match(join, /text-ink-900/);
+    assert.doesNotMatch(join, /text-white|hover:bg-clinical-600/);
+  });
+
+  it("clicking a service opens the details form with it chosen when a time is picked", () => {
+    const events = read("lib/public/profile-booking-events.ts");
+    assert.match(events, /export function requestProfileServiceSelect\(serviceId: string\): boolean/);
+    assert.match(events, /cancelable: true/);
+    const button = read("components/doctor/profile/ProfileServiceBookButton.tsx");
+    // The form opened: no jump to the calendar.
+    assert.match(button, /if \(!requestProfileServiceSelect\(serviceId\)\) event\.preventDefault\(\)/);
+    const booking = read("components/doctor/BookingSection.tsx");
+    const handler = booking.slice(booking.indexOf("const onSelectService"), booking.indexOf("window.addEventListener(PROFILE_SELECT_SERVICE_EVENT"));
+    assert.match(handler, /if \(panel && selectedSlot\) \{\s*setShowContactForm\(true\);\s*event\.preventDefault\(\);/);
+    // The form says which service, at the top, next to the time and the clinic.
+    assert.match(booking, /data-testid="booking-form-service"/);
+  });
+});

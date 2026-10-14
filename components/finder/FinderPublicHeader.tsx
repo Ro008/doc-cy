@@ -8,7 +8,7 @@ const loginLinkClass =
   "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold leading-none text-ink-800 transition hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
 
 const joinLinkClass =
-  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-clinical-500 px-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_1px_2px_rgba(18,184,192,0.22)] transition hover:border-clinical-600 hover:bg-clinical-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
+  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-clinical-500 px-2.5 text-[13px] font-bold leading-none text-ink-900 shadow-[0_1px_2px_rgba(18,184,192,0.22)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
 
 type FinderPublicHeaderProps = {
   /** Server-read hint so we never paint guest CTAs for a signed-in professional. */

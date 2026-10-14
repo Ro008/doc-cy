@@ -9,8 +9,11 @@ type Props = {
   tabs: ReadonlyArray<{ id: ProfileSectionId; label: string; shortLabel: string }>;
 };
 
-/** A section is "current" once its top passes this line under the sticky nav. */
+/** A section is "current" once its top passes this line under the sticky nav (a phone). */
 const ACTIVE_LINE_PX = 140;
+/** On a laptop: this far down the screen under the pinned hero, so the tab follows the section
+ * that fills most of the screen, not only the one at the very top (user, 2026-10-14). */
+const ACTIVE_LINE_RATIO = 0.35;
 /** The block that stays on screen on a wide page (the hero with these tabs). */
 const PIN_SELECTOR = "[data-profile-pin]";
 /** Its height, for the sections' scroll margin (app/globals.css). */
@@ -141,7 +144,8 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
         return;
       }
       const pinned = pinnedBottom();
-      const line = pinned === null ? ACTIVE_LINE_PX : pinned + 48;
+      const line =
+        pinned === null ? ACTIVE_LINE_PX : pinned + (window.innerHeight - pinned) * ACTIVE_LINE_RATIO;
       let current = present[0].id;
       for (const tab of present) {
         const top = document.getElementById(tab.id)!.getBoundingClientRect().top;
@@ -193,7 +197,7 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
                   setActive(tab.id);
                 }}
                 aria-current={current ? "location" : undefined}
-                className={`relative inline-flex min-h-[52px] items-center px-1.5 text-[15px] font-bold transition-colors after:absolute after:inset-x-1.5 after:bottom-0 sm:px-3 sm:after:inset-x-3 after:h-[3px] after:origin-center after:rounded-full after:bg-accent after:transition-transform after:duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                className={`relative inline-flex min-h-[52px] items-center px-1.5 text-[15px] font-bold transition-colors after:absolute after:inset-x-1.5 after:bottom-0 sm:px-3 sm:after:inset-x-3 after:h-[3px] after:origin-center after:rounded-full after:bg-accent after:transition-transform after:duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
                   current
                     ? "text-profile-text after:scale-x-100"
                     : "text-profile-muted after:scale-x-0 hover:text-profile-text"

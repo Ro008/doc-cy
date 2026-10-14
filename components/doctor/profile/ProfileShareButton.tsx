@@ -40,7 +40,7 @@ export function ProfileShareButton({ url, title, labels }: Props) {
       <button
         type="button"
         onClick={() => void share()}
-        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-profile-border bg-profile-surface px-3 text-xs font-bold text-profile-text transition hover:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-profile-border bg-profile-surface px-3 text-[13px] font-bold text-profile-text transition hover:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Share2 className="h-3.5 w-3.5" aria-hidden />}
         {labels.share}
@@ -51,7 +51,7 @@ export function ProfileShareButton({ url, title, labels }: Props) {
       {copied ? (
         <span
           aria-hidden
-          className="profile-rise absolute right-0 top-full z-30 mt-1.5 whitespace-nowrap rounded-full bg-accent-cta px-3 py-1 text-xs font-bold text-accent-on-cta"
+          className="profile-rise absolute right-0 top-full z-30 mt-1.5 whitespace-nowrap rounded-full bg-accent-cta px-3 py-1 text-[13px] font-bold text-accent-on-cta"
         >
           {labels.copied}
         </span>

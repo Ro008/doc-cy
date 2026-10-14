@@ -13,7 +13,10 @@ export function parseProfileServiceSelectDetail(detail: unknown): string | null 
   return typeof serviceId === "string" && serviceId.trim() ? serviceId.trim() : null;
 }
 
-export function requestProfileServiceSelect(serviceId: string): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(PROFILE_SELECT_SERVICE_EVENT, { detail: { serviceId } }));
+/** False when the booking form took it and opened (the caller then stays where it is). */
+export function requestProfileServiceSelect(serviceId: string): boolean {
+  if (typeof window === "undefined") return true;
+  return window.dispatchEvent(
+    new CustomEvent(PROFILE_SELECT_SERVICE_EVENT, { detail: { serviceId }, cancelable: true }),
+  );
 }

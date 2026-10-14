@@ -491,17 +491,23 @@ export function BookingSection({
     return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
   }, [upcomingSlots, takenSet]);
 
-  // A service's own "Book" button in "Services & prices" picks that service in the details form.
+  // A row of "Services & prices" picks that service in the details form and, when a time is
+  // already picked (the calendar opens on the next free one), opens the form straight away
+  // (user, 2026-10-14). Cancelling the event tells the row not to jump to the calendar.
   React.useEffect(() => {
     const onSelectService = (event: Event) => {
       const serviceId = parseProfileServiceSelectDetail((event as CustomEvent).detail);
       if (!serviceId || !services.some((service) => service.id === serviceId)) return;
       setServiceChoice(serviceId);
       setFieldErrors(({ professionalService: _gone, ...rest }) => rest);
+      if (panel && selectedSlot) {
+        setShowContactForm(true);
+        event.preventDefault();
+      }
     };
     window.addEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
     return () => window.removeEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
-  }, [services]);
+  }, [services, panel, selectedSlot]);
 
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
@@ -867,6 +873,11 @@ export function BookingSection({
               {selectedSlot.labelFull} · {t("cyprusTime")}
               {locationLabel ? ` · ${locationLabel}` : ""}
             </p>
+            {bookingServiceName ? (
+              <p data-testid="booking-form-service" className="mt-0.5 text-sm font-semibold text-profile-text">
+                {t("bookingForService", { service: bookingServiceName })}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -1451,7 +1462,7 @@ export function BookingSection({
             </button>
           </div>
         ) : null}
-        <p className="text-xs text-profile-muted">{t("allTimesInCyprus")}</p>
+        <p className="text-[13px] text-profile-muted">{t("allTimesInCyprus")}</p>
       </div>
     );
   }

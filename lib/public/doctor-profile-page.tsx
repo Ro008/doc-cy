@@ -941,8 +941,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   // Links in the hero look like links (underline); plain facts do not.
   const patientsKey = patientAgesMessageKey(profileDetails.patientAges);
+  // An invisible margin around each makes a finger-sized tap area without moving the text.
   const heroLinkClass =
-    "underline decoration-1 underline-offset-4 transition hover:decoration-2 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
+    "relative after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] underline decoration-1 underline-offset-4 transition hover:decoration-2 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
 
   return (
     <main
@@ -1039,7 +1040,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               <h1 className="text-balance text-[26px] font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-[30px] lg:group-data-[compact]/pin:text-2xl">{profile.name}</h1>
               {showHeroRating(reviews.length) ? (
                 <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
-                  <div className="min-h-0 overflow-hidden">
+                  <div className="min-h-0 lg:overflow-hidden">
                     <div
                       data-testid="profile-hero-rating"
                       className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold"
@@ -1082,7 +1083,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 ) : null}
               </DoctorProfileSpecialties>
               <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
-                <div className="min-h-0 overflow-hidden">
+                <div className="min-h-0 lg:overflow-hidden">
                   {customization.headline ? (
                     <p className="mt-3 max-w-xl text-lg font-medium leading-snug">
                       {customization.headline}

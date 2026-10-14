@@ -764,7 +764,8 @@ html:has(.doccy-profile) {
 .rdp-profile .rdp-head_cell {
   color: var(--p-muted);
   font-weight: 700;
-  font-size: 0.7rem;
+  /* 13px at least (user, 2026-10-14). */
+  font-size: 0.8125rem;
 }
 /* The booking column on a wide screen: rows as tall as the 36px days, a short weekday row. */
 @media (min-width: 1024px) {

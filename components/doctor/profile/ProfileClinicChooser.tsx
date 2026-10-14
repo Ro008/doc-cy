@@ -50,7 +50,7 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
           {labels.title}
         </h2>
         {/* Once, over the column of times, not on every row (user, 2026-10-14). */}
-        <span aria-hidden className="text-xs font-semibold text-profile-muted">
+        <span aria-hidden className="text-[13px] font-semibold text-profile-muted">
           {labels.nextFree}
         </span>
       </div>
@@ -71,19 +71,19 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
                   {row.title}
                 </span>
                 {row.place ? (
-                  <span className="block text-xs font-medium text-profile-muted">{row.place}</span>
+                  <span className="block text-[13px] font-medium text-profile-muted">{row.place}</span>
                 ) : null}
               </span>
               <span className="w-[4.75rem] text-right">
                 {row.day ? (
                   <>
                     <span className="block text-sm font-bold text-profile-text">{row.day}</span>
-                    <span className="block text-xs font-semibold tabular-nums text-accent-link">
+                    <span className="block text-[13px] font-semibold tabular-nums text-accent-link">
                       {row.time}
                     </span>
                   </>
                 ) : (
-                  <span className="block text-xs font-bold text-profile-muted">
+                  <span className="block text-[13px] font-bold text-profile-muted">
                     {row.bookable ? labels.noTimes : labels.callToBook}
                   </span>
                 )}

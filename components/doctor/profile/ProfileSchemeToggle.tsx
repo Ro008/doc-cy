@@ -44,7 +44,7 @@ export function ProfileSchemeToggle({ initial, labels }: Props) {
             type="button"
             aria-pressed={pressed}
             onClick={() => choose(value)}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               pressed
                 ? "bg-accent-cta text-accent-on-cta"
                 : "text-profile-muted hover:text-profile-text"
