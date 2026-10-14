@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import fs, { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { patientAgesMessageKey, qualificationDetail } from "../../lib/public/profile-public-details";
+import {
+  patientAgesMessageKey,
+  qualificationsNewestFirst,
+} from "../../lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "../../lib/public/profile-sections";
 
 /**
@@ -38,18 +41,28 @@ describe("patients she sees, on the public profile", () => {
 });
 
 describe("qualifications, on the public profile", () => {
-  it("says where and when under the title, with whatever she gave", () => {
-    assert.equal(qualificationDetail({ institution: "University of Athens", year: 2012 }), "University of Athens · 2012");
-    assert.equal(qualificationDetail({ institution: "University of Athens", year: null }), "University of Athens");
-    assert.equal(qualificationDetail({ institution: "  ", year: 2012 }), "2012");
-    assert.equal(qualificationDetail({ institution: "", year: null }), "");
+  it("lists the newest first; lines without a year keep her order, at the end (user, 2026-10-14)", () => {
+    const q = (id: string, year: number | null) => ({ id, title: id, institution: "", year });
+    assert.deepEqual(
+      qualificationsNewestFirst([q("a", 2008), q("b", null), q("c", 2015), q("d", 2008), q("e", null)]).map(
+        (row) => row.id,
+      ),
+      ["c", "a", "d", "b", "e"],
+    );
+    const list = [q("x", 2001)];
+    qualificationsNewestFirst(list);
+    assert.equal(list.length, 1);
   });
 
-  it("is its own section, hidden when the list is empty", () => {
+  it("is its own section, like a CV: year on the left, title, institution below; hidden when empty", () => {
     const section = read("components/doctor/profile/ProfileQualificationsSection.tsx");
     assert.match(section, /if \(qualifications\.length === 0\) return null/);
     assert.match(section, /id=\{PROFILE_SECTION_IDS\.qualifications\}/);
-    assert.match(section, /qualificationDetail\(/);
+    assert.match(section, /qualificationsNewestFirst\(qualifications\)/);
+    assert.match(section, /data-testid="profile-qualification-year"/);
+    // One card with rows, like Services & prices; no icon on every row.
+    assert.match(section, /divide-y divide-profile-border/);
+    assert.doesNotMatch(section, /GraduationCap|sm:grid-cols-2/);
     assert.doesNotMatch(section, /dangerouslySetInnerHTML/);
   });
 

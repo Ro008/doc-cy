@@ -1,12 +1,12 @@
-import { GraduationCap } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { qualificationDetail } from "@/lib/public/profile-public-details";
+import { qualificationsNewestFirst } from "@/lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 import type { SavedQualification } from "@/lib/settings-profile-details";
 
 /**
- * "Qualifications": the list she keeps in Settings › Profile, in her order. DocCy does not
- * check them. Hidden when she has none.
+ * "Qualifications" as a CV lists them (user, 2026-10-14): one card, newest first, the year in a
+ * column on the left (empty when she gave none), the title, and the institution below it.
+ * What she keeps in Settings › Profile; DocCy does not check them. Hidden when she has none.
  */
 export async function ProfileQualificationsSection({
   qualifications,
@@ -28,20 +28,25 @@ export async function ProfileQualificationsSection({
       >
         {t("qualificationsHeading")}
       </h2>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {qualifications.map((qualification) => {
-          const detail = qualificationDetail(qualification);
+      <ul className="divide-y divide-profile-border rounded-2xl border border-profile-border bg-profile-surface">
+        {qualificationsNewestFirst(qualifications).map((qualification) => {
+          const institution = qualification.institution.trim();
           return (
             <li
               key={qualification.id}
               data-testid="profile-qualification"
-              className="flex items-start gap-3 rounded-2xl border border-profile-border bg-profile-surface px-5 py-4"
+              className="flex items-baseline gap-4 px-5 py-3.5"
             >
-              <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-accent-link" aria-hidden />
+              <span
+                data-testid="profile-qualification-year"
+                className="w-12 shrink-0 text-sm font-medium tabular-nums text-profile-muted"
+              >
+                {qualification.year ?? ""}
+              </span>
               <span className="min-w-0">
                 <span className="block break-words font-semibold text-profile-text">{qualification.title}</span>
-                {detail ? (
-                  <span className="mt-0.5 block break-words text-sm text-profile-muted">{detail}</span>
+                {institution ? (
+                  <span className="mt-0.5 block break-words text-sm text-profile-muted">{institution}</span>
                 ) : null}
               </span>
             </li>

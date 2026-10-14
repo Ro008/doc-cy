@@ -16,9 +16,15 @@ export function patientAgesMessageKey(ages: PatientAges | null): string | null {
   return ages ? PATIENT_AGES_MESSAGE_KEYS[ages] : null;
 }
 
-/** The line under a qualification's title: where, and the year when she gave one. */
-export function qualificationDetail(qualification: { institution: string; year: number | null }): string {
-  return [qualification.institution.trim(), qualification.year ? String(qualification.year) : ""]
-    .filter(Boolean)
-    .join(" · ");
+/**
+ * Qualifications as a CV lists them, newest first (user, 2026-10-14). Lines without a year
+ * keep her own order, after the dated ones.
+ */
+export function qualificationsNewestFirst<T extends { year: number | null }>(list: readonly T[]): T[] {
+  return [...list].sort((a, b) => {
+    if (a.year === b.year) return 0;
+    if (a.year === null) return 1;
+    if (b.year === null) return -1;
+    return b.year - a.year;
+  });
 }

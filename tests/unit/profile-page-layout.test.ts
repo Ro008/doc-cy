@@ -149,7 +149,7 @@ describe("public profile: one page with anchor tabs", () => {
 
   it("services show the price with the euro sign, no EUR note", () => {
     const services = read("components/doctor/profile/ProfileServicesSection.tsx");
-    assert.match(services, /formatServicePrice\(/);
+    assert.match(services, /servicePriceParts\(/);
     assert.equal(services.includes("servicesHint"), false);
   });
 

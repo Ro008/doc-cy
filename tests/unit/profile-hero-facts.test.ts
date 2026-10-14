@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { formatServicePrice } from "../../lib/public/service-price";
+import { formatServicePrice, servicePriceParts } from "../../lib/public/service-price";
 import { profileDistricts } from "../../lib/public/profile-districts";
 
 describe("formatServicePrice", () => {
@@ -24,11 +24,25 @@ describe("formatServicePrice", () => {
       const messages = JSON.parse(readFileSync(join(process.cwd(), file), "utf8")).DoctorProfilePage;
       assert.match(messages.servicePriceFrom, /\{price\}/, file);
     }
+  });
+
+  it("splits a price into its 'from' and its amount, for the price list (user, 2026-10-14)", () => {
+    assert.deepEqual(servicePriceParts("From 95"), { from: true, price: "€95" });
+    assert.deepEqual(servicePriceParts("100"), { from: false, price: "€100" });
+    assert.deepEqual(servicePriceParts("50-80"), { from: false, price: "€50-80" });
+    assert.deepEqual(servicePriceParts("On request"), { from: false, price: "On request" });
+    assert.equal(servicePriceParts("  "), null);
+    // "from" is small and grey before the amount, in each language.
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      const messages = JSON.parse(readFileSync(join(process.cwd(), file), "utf8")).DoctorProfilePage;
+      assert.equal(typeof messages.servicePriceFromWord, "string", file);
+    }
     const section = readFileSync(
       join(process.cwd(), "components/doctor/profile/ProfileServicesSection.tsx"),
       "utf8",
     );
-    assert.match(section, /t\("servicePriceFrom", \{ price \}\)/);
+    assert.match(section, /servicePriceParts\(service\.price\)/);
+    assert.match(section, /t\("servicePriceFromWord"\)/);
   });
 
   it("keeps a price the doctor already wrote with a currency or words", () => {

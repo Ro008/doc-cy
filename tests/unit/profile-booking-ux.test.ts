@@ -108,12 +108,31 @@ describe("booking form behaviour", () => {
 });
 
 describe("profile page pieces", () => {
-  it("each service has a Book button", () => {
+  it("services are a price list: one card, one row per service, the whole row books (user, 2026-10-14)", () => {
     const services = read("components/doctor/profile/ProfileServicesSection.tsx");
     assert.match(services, /<ProfileServiceBookButton\b/);
+    // One card of rows with thin lines between them, across the column: no two-column grid of cards.
+    assert.match(services, /divide-y divide-profile-border/);
+    assert.doesNotMatch(services, /sm:grid-cols-2/);
+    // After six, "Show all N services".
+    assert.match(services, /<ProfileShowAll\b/);
+    assert.match(services, /SERVICES_SHOWN = 6/);
+    assert.match(services, /t\("servicesShowAll", \{ count: services\.length \}\)/);
+    const showAll = read("components/doctor/profile/ProfileShowAll.tsx");
+    assert.match(showAll, /aria-expanded/);
+    // The hidden rows stay in the page (search engines, find in page), only hidden.
+    assert.match(showAll, /nth-child/);
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      const messages = JSON.parse(read(file)).DoctorProfilePage;
+      assert.match(messages.servicesShowAll, /#|\{count\}/, file);
+    }
     const button = read("components/doctor/profile/ProfileServiceBookButton.tsx");
     assert.match(button, /requestProfileServiceSelect\(/);
     assert.match(button, /href=\{`#\$\{PROFILE_SECTION_IDS\.book\}`\}/);
+    // The row is the link: name, price, and an arrow that becomes "Book" on hover or focus.
+    assert.match(button, /children/);
+    assert.match(button, /group-hover\/service:/);
+    assert.doesNotMatch(button, /rounded-xl border-2/);
   });
 
   it("one clinic chooser, drawn as a pick-one list; the older pickers are gone", () => {
