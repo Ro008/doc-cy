@@ -938,6 +938,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const mobileBarNext = selectedRow?.day
     ? t("mobileBarNext", { when: `${selectedRow.day} · ${selectedRow.time}` })
     : null;
+  const mobileBarClinic = chooserRows.length > 1 && selectedRow?.day ? selectedRow.title : null;
 
   // Links in the hero look like links (underline); plain facts do not.
   const patientsKey = patientAgesMessageKey(profileDetails.patientAges);
@@ -1223,7 +1224,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       </div>
       {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
       {viewerMode === "patient" ? (
-        <ProfileMobileBookBar next={mobileBarNext} cta={t("bookCta")} />
+        <ProfileMobileBookBar next={mobileBarNext} clinic={mobileBarClinic} cta={t("bookCta")} />
       ) : null}
       <ProfileScrollFade />
     </main>

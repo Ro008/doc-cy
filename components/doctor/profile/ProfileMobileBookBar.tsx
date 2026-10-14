@@ -7,6 +7,8 @@ import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 type Props = {
   /** "Next: Mon 5 Oct · 09:00", or null when there is no free time online. */
   next: string | null;
+  /** The clinic that time is at, when she has more than one; otherwise null. */
+  clinic: string | null;
   cta: string;
 };
 
@@ -15,7 +17,7 @@ type Props = {
  * away, a bar keeps "Book" at hand (as on the big booking sites). Sits
  * above the pro tab bar when shown.
  */
-export function ProfileMobileBookBar({ next, cta }: Props) {
+export function ProfileMobileBookBar({ next, clinic, cta }: Props) {
   const [visible, setVisible] = React.useState(false);
   const { showProChrome } = useDoctorSession();
 
@@ -42,7 +44,19 @@ export function ProfileMobileBookBar({ next, cta }: Props) {
     >
       <div className="mx-auto flex max-w-xl items-center gap-3">
         {next ? (
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-profile-text">{next}</span>
+          // The time, and under it where (user, 2026-10-14): with several clinics the next
+          // free time belongs to one of them.
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-semibold text-profile-text">{next}</span>
+            {clinic ? (
+              <span
+                data-testid="profile-mobile-book-bar-clinic"
+                className="truncate text-[13px] font-medium text-profile-muted"
+              >
+                {clinic}
+              </span>
+            ) : null}
+          </span>
         ) : (
           <span className="flex-1" />
         )}

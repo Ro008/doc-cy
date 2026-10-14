@@ -174,6 +174,26 @@ describe("profile page pieces", () => {
 });
 
 describe("profile polish round (user, 2026-10-14)", () => {
+  it("the calendar names the clinic under the day, so it stays clear once the chooser scrolls away", () => {
+    const booking = read("components/doctor/BookingSection.tsx");
+    const times = booking.slice(booking.indexOf("const timesBlock"), booking.indexOf("slotsForSelectedDay.length === 0"));
+    assert.match(times, /data-testid="booking-selected-day"/);
+    // Only on the profile panel, and only with more than one clinic (locationLabel is null otherwise).
+    assert.match(times, /\{panel && locationLabel \? \(/);
+    assert.match(times, /data-testid="booking-selected-clinic"/);
+    assert.match(times, /<MapPin\b/);
+    assert.match(times, /\{locationLabel\}/);
+  });
+
+  it("the phone's book bar names the clinic under the next time, when she has more than one", () => {
+    const bar = read("components/doctor/profile/ProfileMobileBookBar.tsx");
+    assert.match(bar, /clinic: string \| null;/);
+    assert.match(bar, /data-testid="profile-mobile-book-bar-clinic"/);
+    assert.match(bar, /\{clinic\}/);
+    const page = read("lib/public/doctor-profile-page.tsx");
+    assert.match(page, /const mobileBarClinic = chooserRows\.length > 1 && selectedRow\?\.day \? selectedRow\.title : null;/);
+  });
+
   it("the details form has a ✕ to close and a back link to change the time, in a bar that stays on screen", () => {
     const booking = read("components/doctor/BookingSection.tsx");
     const header = booking.slice(booking.indexOf('data-testid="booking-form-bar"'), booking.indexOf("<form "));

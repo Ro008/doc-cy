@@ -349,9 +349,14 @@ describe("the profile reads reviews and shows them", () => {
     assert.ok(row.indexOf("<ProfileStars") < row.indexOf("{review.name}"));
     assert.ok(row.indexOf("{review.name}") < row.indexOf("<time"));
     assert.ok(row.indexOf("<time") < row.indexOf("{review.comment}"));
-    // "Show more reviews" is a link under the card, as "Show all 8 services".
+    // "Show more reviews" is the card's last row, full width with a chevron, as "Show 8 more
+    // services" (user, 2026-10-14).
     assert.match(list, /text-accent-link/);
     assert.doesNotMatch(list, /rounded-full border-2/);
+    assert.match(list, /<ChevronDown\b/);
+    assert.match(list, /flex min-h-12 w-full items-center/);
+    assert.match(list, /border-t border-profile-border/);
+    assert.doesNotMatch(list, /self-start/);
   });
 
   it("the list has one button, only while reviews are left, and no way back to fewer", () => {

@@ -11,7 +11,7 @@ import {
 import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Loader2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Loader2, MapPin, X } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { TurnstileWidget } from "@/components/booking/TurnstileWidget";
 import { waitForTurnstileToken } from "@/lib/turnstile";
@@ -1426,6 +1426,17 @@ export function BookingSection({
         >
           {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
         </p>
+        {/* The clinic under the day: on a laptop "Choose a clinic" scrolls off the top, and the
+            times should still say where (user, 2026-10-14). Only when she has more than one. */}
+        {panel && locationLabel ? (
+          <p
+            data-testid="booking-selected-clinic"
+            className="-mt-2 mb-3 flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-profile-muted"
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{locationLabel}</span>
+          </p>
+        ) : null}
         {slotsForSelectedDay.length === 0 ? (
           <p className="py-6 text-sm text-profile-muted">
             {t("noAvailableTimesThisDay")}

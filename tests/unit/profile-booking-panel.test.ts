@@ -155,7 +155,7 @@ describe("the booking panel on the page", () => {
     // The Greek submit button was still in English.
     assert.notEqual(el.BookingPage.sendRequestButton, en.BookingPage.sendRequestButton);
     // The phone's bottom bar and the calendar card say it.
-    assert.match(page, /<ProfileMobileBookBar next=\{mobileBarNext\} cta=\{t\("bookCta"\)\}/);
+    assert.match(page, /<ProfileMobileBookBar next=\{mobileBarNext\} clinic=\{mobileBarClinic\} cta=\{t\("bookCta"\)\}/);
     const cardLayout = booking.slice(booking.search(/\n  if \(panel\) \{/));
     assert.match(cardLayout, /t\("bookThisTime"\)/);
   });
