@@ -174,6 +174,26 @@ describe("profile page pieces", () => {
 });
 
 describe("profile polish round (user, 2026-10-14)", () => {
+  it("the details form has a ✕ to close and a back link to change the time, in a bar that stays on screen", () => {
+    const booking = read("components/doctor/BookingSection.tsx");
+    const header = booking.slice(booking.indexOf('data-testid="booking-form-bar"'), booking.indexOf("<form "));
+    // ← Change time on the left, ✕ (Close) on the right, only over the page.
+    assert.match(header, /<ArrowLeft\b/);
+    assert.match(header, /\{t\("changeTime"\)\}/);
+    assert.match(header, /\{panel \? \(\s*<button/);
+    assert.match(header, /aria-label=\{t\("closeForm"\)\}/);
+    assert.match(header, /data-testid="booking-form-close"/);
+    assert.match(header, /<X\b/);
+    // The bar sticks to the top of the dialog while the long form scrolls, edge to edge of the card.
+    // Stuck at the very top edge: minus the dialog's own padding (py-4, sm:py-10), so nothing shows above it.
+    assert.match(header, /sticky -top-4 z-10 -mx-6 -mt-6/);
+    assert.match(header, /sm:-top-10/);
+    assert.match(header, /bg-profile-surface/);
+    for (const locale of ["en", "el"] as const) {
+      assert.ok(messages(locale).BookingPage.closeForm, locale);
+    }
+  });
+
   it("no 11-12px text left in the booking column: 13px at least", () => {
     const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
     assert.doesNotMatch(chooser, /text-xs/);

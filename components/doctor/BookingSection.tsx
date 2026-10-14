@@ -11,7 +11,7 @@ import {
 import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { ChevronLeft, ChevronRight, Clock, Loader2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Loader2, X } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { TurnstileWidget } from "@/components/booking/TurnstileWidget";
 import { waitForTurnstileToken } from "@/lib/turnstile";
@@ -872,7 +872,38 @@ export function BookingSection({
       t("yourDetails"),
       backToTimes,
       <div ref={contactFormRef} className={`${CARD_CLASS} scroll-mt-20`}>
-        <div className="mb-6 flex items-center justify-between gap-3">
+        {/* "← Change time" goes back to the calendar; ✕ closes the form (user, 2026-10-14).
+            Over the page the bar stays at the top while the long form scrolls, so both stay
+            within reach on a phone. What she typed is kept either way. */}
+        <div
+          data-testid="booking-form-bar"
+          className={
+            panel
+              ? "sticky -top-4 z-10 -mx-6 -mt-6 mb-3 flex items-center justify-between gap-3 rounded-t-3xl border-b border-profile-border bg-profile-surface px-4 py-1.5 sm:-top-10"
+              : "-ml-2 mb-3 flex items-center"
+          }
+        >
+          <button
+            type="button"
+            onClick={backToTimes}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-accent-link transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            {t("changeTime")}
+          </button>
+          {panel ? (
+            <button
+              type="button"
+              onClick={backToTimes}
+              aria-label={t("closeForm")}
+              data-testid="booking-form-close"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-profile-muted transition hover:bg-accent-soft hover:text-profile-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        <div className="mb-6">
           <div>
             {locationLabel ? (
               <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
@@ -892,16 +923,6 @@ export function BookingSection({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowContactForm(false);
-              setError(null);
-            }}
-            className="min-h-11 rounded-xl px-2 text-sm font-semibold text-accent-link transition hover:underline"
-          >
-            {t("changeTime")}
-          </button>
         </div>
         {/* noValidate: our own messages under each field, not the browser's generic bubble. */}
         <form className="space-y-4" noValidate onSubmit={handleSubmit}>
