@@ -58,10 +58,10 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
               <span
                 aria-hidden
                 className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                  row.selected ? "border-accent" : "border-profile-muted"
+                  row.selected ? "border-accent-cta" : "border-profile-muted"
                 }`}
               >
-                {row.selected ? <span className="h-2.5 w-2.5 rounded-full bg-accent" /> : null}
+                {row.selected ? <span className="h-2.5 w-2.5 rounded-full bg-accent-cta" /> : null}
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-extrabold leading-snug text-profile-text">
@@ -99,7 +99,7 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
                   onClick={() => {
                     if (row.dateKey) requestProfileDaySelect(row.dateKey, row.slotKey);
                   }}
-                  className={`${ROW_CLASS} border-accent bg-accent-soft`}
+                  className={`${ROW_CLASS} border-accent-cta bg-profile-surface`}
                 >
                   {body}
                 </button>
@@ -110,7 +110,7 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
                   fill
                   className="h-full w-full rounded-2xl"
                 >
-                  <span className={`${ROW_CLASS} border-profile-border bg-profile-surface hover:border-accent`}>
+                  <span className={`${ROW_CLASS} border-profile-border bg-profile-surface hover:border-accent-cta`}>
                     {body}
                   </span>
                 </PendingLink>

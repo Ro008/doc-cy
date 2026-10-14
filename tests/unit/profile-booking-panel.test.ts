@@ -124,6 +124,19 @@ describe("the booking panel on the page", () => {
     assert.doesNotMatch(panel, /overflow-y-auto/);
   });
 
+  it("one colour for \"chosen\" and \"do this\": the CTA colour (navy in light, teal in dark; user, 2026-10-14)", () => {
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    // The chosen clinic row and its radio dot, like the chosen day and time and Continue.
+    assert.match(chooser, /\$\{ROW_CLASS\} border-accent-cta/);
+    assert.match(chooser, /rounded-full bg-accent-cta/);
+    assert.match(chooser, /"border-accent-cta" : "border-profile-muted"/);
+    assert.doesNotMatch(chooser, /border-accent bg-accent-soft|rounded-full bg-accent"/);
+    // Call is a secondary action, outlined like Open in Maps: Continue is the main one.
+    const callClass = panel.slice(panel.indexOf("<RevealPhoneButton"), panel.indexOf("/>", panel.indexOf("<RevealPhoneButton")));
+    assert.doesNotMatch(callClass, /\bbg-accent\b/);
+    assert.match(callClass, /border-2 border-profile-muted/);
+  });
+
   it("the calendar in the card is the month, above the times, then Continue", () => {
     assert.match(page, /layout="panel"/);
     const cardLayout = booking.slice(booking.search(/\n  if \(panel\) \{/));

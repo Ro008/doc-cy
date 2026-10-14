@@ -71,8 +71,8 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
                       manualId={professionalId}
                       hasPhone
                       variant="profile-call"
-                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-3.5 text-sm font-bold text-accent-on transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
-                      revealedClassName="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-3.5 text-sm font-bold tabular-nums text-accent-on transition hover:opacity-90"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border-2 border-profile-muted px-3.5 text-sm font-bold text-profile-text transition hover:border-accent disabled:cursor-wait disabled:opacity-60"
+                      revealedClassName="inline-flex min-h-10 items-center gap-2 rounded-xl border-2 border-profile-muted px-3.5 text-sm font-bold tabular-nums text-profile-text transition hover:border-accent"
                     />
                   ) : null}
                   {clinic.mapsUrl ? (
