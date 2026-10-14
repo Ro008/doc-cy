@@ -5,7 +5,8 @@ import type { ProfileSectionId } from "@/lib/public/profile-sections";
 
 type Props = {
   ariaLabel: string;
-  tabs: ReadonlyArray<{ id: ProfileSectionId; label: string }>;
+  /** `shortLabel` on a phone, so every tab fits without swiping (user, 2026-10-14). */
+  tabs: ReadonlyArray<{ id: ProfileSectionId; label: string; shortLabel: string }>;
 };
 
 /** A section is "current" once its top passes this line under the sticky nav. */
@@ -173,7 +174,7 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
       <ul
         ref={listRef}
         data-overflow-end={overflowEnd ? "true" : "false"}
-        className={`flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:px-6 lg:px-2 ${
+        className={`flex gap-0.5 overflow-x-auto sm:gap-1 px-4 [scrollbar-width:none] sm:px-6 lg:px-2 ${
           overflowEnd
             ? "[mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent)]"
             : ""
@@ -192,13 +193,14 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
                   setActive(tab.id);
                 }}
                 aria-current={current ? "location" : undefined}
-                className={`relative inline-flex min-h-[52px] items-center px-3 text-[15px] font-bold transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:origin-center after:rounded-full after:bg-accent after:transition-transform after:duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                className={`relative inline-flex min-h-[52px] items-center px-1.5 text-[15px] font-bold transition-colors after:absolute after:inset-x-1.5 after:bottom-0 sm:px-3 sm:after:inset-x-3 after:h-[3px] after:origin-center after:rounded-full after:bg-accent after:transition-transform after:duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
                   current
                     ? "text-profile-text after:scale-x-100"
                     : "text-profile-muted after:scale-x-0 hover:text-profile-text"
                 }`}
               >
-                {tab.label}
+                <span className="sm:hidden">{tab.shortLabel}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
               </a>
             </li>
           );

@@ -858,7 +858,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     hasReviews: reviews.length > 0,
   })
     .filter((tab) => tab.id !== PROFILE_SECTION_IDS.book)
-    .map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
+    .map((tab) => ({ id: tab.id, label: t(tab.labelKey), shortLabel: t(`${tab.labelKey}Short`) }));
 
   // Every district with a clinic (Nicosia · Paphos), not only the primary one.
   const districts = profileDistricts({ locations: practiceLocations, fallback: profile.district });

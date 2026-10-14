@@ -413,3 +413,40 @@ describe("public profile: an icon by each section heading (preview, 2026-10-14)"
     assert.match(chip, /bg-accent-soft/);
   });
 });
+
+describe("public profile: all section tabs fit on a phone (user, 2026-10-14)", () => {
+  const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
+  const page = read("lib/public/doctor-profile-page.tsx");
+
+  it("shows a short label on a phone and the full one from sm up", () => {
+    assert.match(nav, /<span className="sm:hidden">\{tab\.shortLabel\}<\/span>/);
+    assert.match(nav, /<span className="hidden sm:inline">\{tab\.label\}<\/span>/);
+    assert.match(page, /shortLabel: t\(`\$\{tab\.labelKey\}Short`\)/);
+  });
+
+  it("tightens the tab padding on a phone only", () => {
+    assert.match(nav, /px-1.5 [^"`]*sm:px-3/);
+    assert.match(nav, /after:inset-x-1.5 [^"`]*sm:after:inset-x-3/);
+  });
+
+  it("has short labels in English and Greek that fit 360px (measured in Inter 15px bold)", () => {
+    const expected: Record<string, Record<string, string>> = {
+      "messages/en.json": {
+        sectionTabAboutShort: "About",
+        sectionTabServicesShort: "Services",
+        sectionTabQualificationsShort: "Education",
+        sectionTabReviewsShort: "Reviews",
+      },
+      "messages/el.json": {
+        sectionTabAboutShort: "Σχετικά",
+        sectionTabServicesShort: "Υπηρεσίες",
+        sectionTabQualificationsShort: "Σπουδές",
+        sectionTabReviewsShort: "Κριτικές",
+      },
+    };
+    for (const [file, keys] of Object.entries(expected)) {
+      const messages = JSON.parse(read(file)).DoctorProfilePage;
+      for (const [key, value] of Object.entries(keys)) assert.equal(messages[key], value, `${file} ${key}`);
+    }
+  });
+});
