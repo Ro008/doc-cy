@@ -266,7 +266,7 @@
     "servicePriceMissing": "Price on request",
     "servicePriceFrom": "From {price}",
     "servicePriceFromWord": "from",
-    "servicesShowAll": "Show all {count} services",
+    "servicesShowMore": "Show {count} more services",
     "servicesShowFewer": "Show fewer",
     "serviceBook": "Book",
     "serviceBookFor": "Book {name}",

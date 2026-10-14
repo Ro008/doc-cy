@@ -114,17 +114,26 @@ describe("profile page pieces", () => {
     // One card of rows with thin lines between them, across the column: no two-column grid of cards.
     assert.match(services, /divide-y divide-profile-border/);
     assert.doesNotMatch(services, /sm:grid-cols-2/);
-    // After six, "Show all N services".
+    // Up to eight all show; from nine, six and "Show N more services" (user, 2026-10-14).
     assert.match(services, /<ProfileShowAll\b/);
     assert.match(services, /SERVICES_SHOWN = 6/);
-    assert.match(services, /t\("servicesShowAll", \{ count: services\.length \}\)/);
+    assert.match(services, /SERVICES_COLLAPSE_ABOVE = 8/);
+    assert.match(services, /collapseAbove=\{SERVICES_COLLAPSE_ABOVE\}/);
+    assert.match(services, /t\("servicesShowMore", \{ count: services\.length - SERVICES_SHOWN \}\)/);
     const showAll = read("components/doctor/profile/ProfileShowAll.tsx");
     assert.match(showAll, /aria-expanded/);
-    // The hidden rows stay in the page (search engines, find in page), only hidden.
+    assert.match(showAll, /const collapsible = total > collapseAbove;/);
+    // The hidden rows stay in the page for search engines, only hidden; the comment must not
+    // promise find-in-page (display: none is not searched).
     assert.match(showAll, /nth-child/);
+    assert.doesNotMatch(showAll, /find-in-page see them/);
+    // The button is the card's last row, full width with a chevron: part of the list, not a footnote.
+    assert.match(showAll, /<ChevronDown\b/);
+    assert.match(showAll, /border-t border-profile-border/);
     for (const file of ["messages/en.json", "messages/el.json"]) {
       const messages = JSON.parse(read(file)).DoctorProfilePage;
-      assert.match(messages.servicesShowAll, /#|\{count\}/, file);
+      assert.match(messages.servicesShowMore, /\{count\}/, file);
+      assert.equal(messages.servicesShowAll, undefined, file);
     }
     const button = read("components/doctor/profile/ProfileServiceBookButton.tsx");
     assert.match(button, /requestProfileServiceSelect\(/);
@@ -186,7 +195,7 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.doesNotMatch(page, /min-h-0 overflow-hidden"/);
     assert.match(page, /min-h-0 lg:overflow-hidden/);
     const showAll = read("components/doctor/profile/ProfileShowAll.tsx");
-    assert.match(showAll, /inline-flex min-h-11 items-center/);
+    assert.match(showAll, /flex min-h-12 w-full items-center/);
   });
 
   it("the tab highlight follows the section filling the screen, and moves quickly", () => {

@@ -209,7 +209,7 @@
     "servicePriceMissing": "Τιμή κατόπιν αιτήματος",
     "servicePriceFrom": "Από {price}",
     "servicePriceFromWord": "από",
-    "servicesShowAll": "Όλες οι υπηρεσίες ({count})",
+    "servicesShowMore": "{count} ακόμη υπηρεσίες",
     "servicesShowFewer": "Λιγότερες",
     "serviceBook": "Κράτηση",
     "serviceBookFor": "Κράτηση: {name}",

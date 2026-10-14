@@ -8,8 +8,10 @@ import { servicePriceParts } from "@/lib/public/service-price";
 
 type Service = { id: string; name: string; price: string | null };
 
-/** Rows shown before "Show all N services" (she can list up to 20). */
+/** Rows shown before "Show N more services" (she can list up to 20). */
 const SERVICES_SHOWN = 6;
+/** Up to this many, all show: folding away one or two rows saves nothing (user, 2026-10-14). */
+const SERVICES_COLLAPSE_ABOVE = 8;
 
 /**
  * "Services & prices" as a price list (user, 2026-10-14): one card, one row per service across
@@ -34,10 +36,12 @@ export async function ProfileServicesSection({ services }: { services: readonly 
       </h2>
       <ProfileShowAll
         shown={SERVICES_SHOWN}
+        collapseAbove={SERVICES_COLLAPSE_ABOVE}
         total={services.length}
-        showAllLabel={t("servicesShowAll", { count: services.length })}
+        showMoreLabel={t("servicesShowMore", { count: services.length - SERVICES_SHOWN })}
         showFewerLabel={t("servicesShowFewer")}
-        listClassName="divide-y divide-profile-border overflow-hidden rounded-2xl border border-profile-border bg-profile-surface"
+        className="overflow-hidden rounded-2xl border border-profile-border bg-profile-surface"
+        listClassName="divide-y divide-profile-border"
       >
         {services.map((service) => {
           const price = servicePriceParts(service.price);
