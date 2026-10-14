@@ -204,16 +204,35 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.doesNotMatch(join, /text-white|hover:bg-clinical-600/);
   });
 
-  it("clicking a service opens the details form with it chosen when a time is picked", () => {
+  it("clicking a service remembers it and takes the patient to the calendar, never to the form", () => {
     const events = read("lib/public/profile-booking-events.ts");
     assert.match(events, /export function requestProfileServiceSelect\(serviceId: string\): boolean/);
     assert.match(events, /cancelable: true/);
     const button = read("components/doctor/profile/ProfileServiceBookButton.tsx");
-    // The form opened: no jump to the calendar.
+    // The booking card took it on a laptop (already on screen): no jump down the page.
     assert.match(button, /if \(!requestProfileServiceSelect\(serviceId\)\) event\.preventDefault\(\)/);
     const booking = read("components/doctor/BookingSection.tsx");
     const handler = booking.slice(booking.indexOf("const onSelectService"), booking.indexOf("window.addEventListener(PROFILE_SELECT_SERVICE_EVENT"));
-    assert.match(handler, /if \(panel && selectedSlot\) \{\s*setShowContactForm\(true\);\s*event\.preventDefault\(\);/);
+    // The patient picks the time: the form never opens from a service.
+    assert.doesNotMatch(handler, /setShowContactForm/);
+    assert.match(handler, /window\.matchMedia\("\(min-width: 1024px\)"\)\.matches/);
+    assert.match(handler, /glowBookingCard\(/);
+    assert.match(handler, /event\.preventDefault\(\)/);
+    // The card glows briefly so the eye moves there; still with reduced motion.
+    const css = read("app/globals.css");
+    assert.match(css, /\.profile-booking-glow \{/);
+    assert.match(css, /@keyframes profile-booking-glow/);
+    assert.match(css, /prefers-reduced-motion: reduce[^}]*\.profile-booking-glow/);
+    // The chosen service sits on the booking card as a chip the patient can clear.
+    assert.match(booking, /data-testid="booking-service-chip"/);
+    // Right above "Book this time", which stays on screen when the column's top scrolls away.
+    const chipAt = booking.indexOf('data-testid="booking-service-chip"');
+    assert.ok(chipAt > booking.indexOf("{timesBlock}") && chipAt < booking.indexOf("ref={confirmBarRef}"));
+    assert.match(booking, /aria-label=\{t\("clearService", \{ service: bookingServiceName \}\)\}/);
+    assert.match(booking, /onClick=\{\(\) => setServiceChoice\(""\)\}/);
+    for (const locale of ["en", "el"] as const) {
+      assert.match(messages(locale).BookingPage.clearService ?? "", /\{service\}/, locale);
+    }
     // The form says which service, at the top, next to the time and the clinic.
     assert.match(booking, /data-testid="booking-form-service"/);
   });

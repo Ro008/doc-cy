@@ -835,6 +835,27 @@ html:has(.doccy-profile) {
     opacity: 0;
   }
 }
+/* The booking card, when a service is picked on a laptop: a soft teal ring for a moment so the
+ * eye moves to the calendar (user, 2026-10-14). Steady, not pulsing, with reduced motion. */
+.profile-booking-glow {
+  animation: profile-booking-glow 1.4s ease-out;
+}
+@keyframes profile-booking-glow {
+  0%,
+  35% {
+    box-shadow: 0 0 0 4px var(--p-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-booking-glow {
+    animation-duration: 1.4s;
+    animation-timing-function: steps(1, end);
+  }
+}
+
 .profile-rise {
   animation: profile-rise 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: calc(var(--rise-i, 0) * 45ms);

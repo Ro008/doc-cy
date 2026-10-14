@@ -11,7 +11,7 @@ import {
 import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Loader2, X } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { TurnstileWidget } from "@/components/booking/TurnstileWidget";
 import { waitForTurnstileToken } from "@/lib/turnstile";
@@ -67,6 +67,16 @@ const BOX_ERROR_CLASS =
  * label's text stays exactly "Email" for assistive tech and tests; `required` on the
  * field is what screen readers announce.
  */
+/** A soft ring around the profile booking card for a moment (app/globals.css). */
+function glowBookingCard(from: HTMLElement | null) {
+  const card = from?.closest<HTMLElement>("[data-testid=\"profile-booking-panel\"]");
+  if (!card) return;
+  card.classList.remove("profile-booking-glow");
+  void card.offsetWidth; // restart the animation on a second click
+  card.classList.add("profile-booking-glow");
+  card.addEventListener("animationend", () => card.classList.remove("profile-booking-glow"), { once: true });
+}
+
 function RequiredMark() {
   return (
     <span
@@ -462,6 +472,7 @@ export function BookingSection({
   // Picking a time brings the Confirm bar into view (above the bottom fade), unless it
   // already is; instant for people who reduce motion.
   const confirmBarRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!selectedSlot || showContactForm || panel) return;
     const bar = confirmBarRef.current;
@@ -491,23 +502,25 @@ export function BookingSection({
     return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
   }, [upcomingSlots, takenSet]);
 
-  // A row of "Services & prices" picks that service in the details form and, when a time is
-  // already picked (the calendar opens on the next free one), opens the form straight away
-  // (user, 2026-10-14). Cancelling the event tells the row not to jump to the calendar.
+  // A row of "Services & prices" remembers that service; the patient then picks the date and
+  // time, and the details form opens with it chosen (user, 2026-10-14: never straight to the
+  // form, the time is theirs to pick). On a laptop the booking card is already on screen: it
+  // glows instead of the page jumping (cancelling the event keeps the row's link from
+  // scrolling); on a phone the row's link scrolls down to the calendar.
   React.useEffect(() => {
     const onSelectService = (event: Event) => {
       const serviceId = parseProfileServiceSelectDetail((event as CustomEvent).detail);
       if (!serviceId || !services.some((service) => service.id === serviceId)) return;
       setServiceChoice(serviceId);
       setFieldErrors(({ professionalService: _gone, ...rest }) => rest);
-      if (panel && selectedSlot) {
-        setShowContactForm(true);
+      if (panel && window.matchMedia("(min-width: 1024px)").matches) {
+        glowBookingCard(panelRef.current);
         event.preventDefault();
       }
     };
     window.addEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
     return () => window.removeEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
-  }, [services, panel, selectedSlot]);
+  }, [services, panel]);
 
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
@@ -1434,12 +1447,7 @@ export function BookingSection({
 
   if (panel) {
     return (
-      <div data-booking-layout="panel" className="flex min-w-0 flex-col gap-4 lg:gap-3">
-        {bookingServiceName ? (
-          <p data-testid="booking-for-service" className="text-sm font-semibold text-profile-text">
-            {t("bookingForService", { service: bookingServiceName })}
-          </p>
-        ) : null}
+      <div ref={panelRef} data-booking-layout="panel" className="flex min-w-0 flex-col gap-4 lg:gap-3">
         {error ? (
           <div data-testid="booking-error-message" className={BOX_ERROR_CLASS}>
             {error}
@@ -1450,6 +1458,26 @@ export function BookingSection({
 
         <div className="min-w-0">{timesBlock}</div>
 
+        {bookingServiceName ? (
+          // The service picked in "Services & prices", right above "Book this time" (on screen on a
+          // laptop, where the column's top can scroll away), kept until she sends; ✕ clears it.
+          <p
+            data-testid="booking-service-chip"
+            className="profile-rise inline-flex max-w-full items-center gap-1 self-start rounded-full bg-accent-soft py-1 pl-3.5 pr-1 text-sm font-semibold text-profile-text"
+          >
+            <span data-testid="booking-for-service" className="min-w-0 truncate">
+              {t("bookingForService", { service: bookingServiceName })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setServiceChoice("")}
+              aria-label={t("clearService", { service: bookingServiceName })}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-profile-muted transition hover:bg-profile-surface hover:text-profile-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </p>
+        ) : null}
         {selectedSlot ? (
           <div ref={confirmBarRef} className="profile-rise flex flex-col gap-2">
             <button

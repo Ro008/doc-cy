@@ -36,6 +36,7 @@
     "bookThisTime": "Κράτηση αυτής της ώρας",
     "detailsStep": "Βήμα 2 από 2",
     "bookingForService": "Κράτηση για: {service}",
+    "clearService": "Αφαίρεση: {service}",
     "locationClinicsHeading": "Κλινικές",
     "locationClinicsHint": "Ο ίδιος επαγγελματίας, διαφορετικά μέρη. Κλείστε την κλινική που θα επισκεφθείτε.",
     "availabilityNotPublished": "{doctorName} δεν έχει δημοσιεύσει ακόμα διαθεσιμότητα.",

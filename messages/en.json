@@ -93,6 +93,7 @@
     "bookThisTime": "Book this time",
     "detailsStep": "Step 2 of 2",
     "bookingForService": "Booking: {service}",
+    "clearService": "Remove {service}",
     "locationClinicsHeading": "Clinics",
     "locationClinicsHint": "Same professional, different places. Book the clinic you will visit.",
     "availabilityNotPublished": "{doctorName} has not published availability yet.",
