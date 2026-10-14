@@ -1012,11 +1012,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         <div className="contents lg:block lg:min-w-0">
         <div
           data-profile-pin
-          className="contents lg:sticky lg:top-0 lg:z-20 lg:block lg:bg-profile-bg lg:pb-3 lg:pt-3"
+          className="group/pin contents lg:sticky lg:top-0 lg:z-20 lg:block lg:bg-profile-bg lg:pb-3 lg:pt-3"
         >
-        <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6">
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5">
-            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28">
+        {/* After the first scroll the pinned hero keeps only her photo, name and specialties
+            (ProfileSectionNav marks the pin `data-compact`), so her sections get the screen. */}
+        <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:rounded-2xl lg:group-data-[compact]/pin:px-4 lg:group-data-[compact]/pin:py-3">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:gap-x-3">
+            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:h-12 lg:group-data-[compact]/pin:w-12 lg:group-data-[compact]/pin:rounded-xl">
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
@@ -1028,14 +1030,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 />
               ) : (
                 <div
-                  className="flex h-full w-full items-center justify-center text-4xl font-extrabold sm:text-5xl"
+                  className="flex h-full w-full items-center justify-center text-4xl font-extrabold sm:text-5xl lg:group-data-[compact]/pin:text-lg"
                   aria-hidden
                 >
                   {getInitials(profile.name)}
                 </div>
               )}
             </div>
-            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px] lg:text-4xl">
+            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px] lg:text-4xl lg:group-data-[compact]/pin:text-2xl">
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span>{profile.name}</span>
                   {profile.is_gesy ? (
@@ -1050,6 +1052,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 district={profileDistrictLabel}
                 pillClassName="inline-flex max-w-full items-center rounded-full bg-accent-on px-3 py-1.5 text-left text-sm font-bold text-accent transition hover:opacity-90"
               />
+              <div
+                data-hero-more
+                className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]"
+              >
+              <div className="min-h-0 overflow-hidden">
               {customization.headline ? (
                 <p className="mt-3 max-w-xl text-lg font-semibold leading-snug">
                   {customization.headline}
@@ -1119,6 +1126,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   ))}
                 </div>
               ) : null}
+              </div>
+              </div>
             </div>
           </div>
         </header>

@@ -21,6 +21,9 @@ function pinnedBottom(): number | null {
   if (!pin || window.getComputedStyle(pin).position !== "sticky") return null;
   return pin.getBoundingClientRect().bottom;
 }
+/** The pinned hero shrinks once the page has scrolled past this, and grows back near the top. */
+const COMPACT_AFTER_PX = 24;
+const EXPAND_BELOW_PX = 4;
 /** Scroll quiet time that ends a tab click's smooth scroll. */
 const SCROLL_IDLE_MS = 180;
 
@@ -74,6 +77,27 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
       observer.disconnect();
       window.removeEventListener("resize", update);
       root.style.removeProperty(PIN_HEIGHT_VAR);
+    };
+  }, []);
+
+  // After the first scroll the hero keeps only her photo, name and specialties (the page
+  // styles the pin by `data-compact`). Two thresholds, so the height change can't flicker.
+  React.useEffect(() => {
+    const pin = document.querySelector<HTMLElement>(PIN_SELECTOR);
+    if (!pin) return;
+    const update = () => {
+      const stuck = window.getComputedStyle(pin).position === "sticky";
+      const y = window.scrollY;
+      if (!stuck || y < EXPAND_BELOW_PX) delete pin.dataset.compact;
+      else if (y > COMPACT_AFTER_PX) pin.dataset.compact = "";
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      delete pin.dataset.compact;
     };
   }, []);
 

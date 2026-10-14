@@ -205,6 +205,20 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(page, /tab\.id !== PROFILE_SECTION_IDS\.book/);
   });
 
+  it("the pinned hero shrinks to photo, name and specialties after the first scroll (user, 2026-10-14)", () => {
+    const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
+    // The tabs mark the pinned block compact once the page has scrolled, and back at the top.
+    assert.match(nav, /data-compact|dataset\.compact/);
+    assert.match(nav, /COMPACT_AFTER_PX/);
+    assert.match(nav, /EXPAND_BELOW_PX/);
+    // The hero reads the mark through a named group.
+    assert.match(page, /data-profile-pin\s+className="[^"]*group\/pin/);
+    assert.match(page, /group-data-\[compact\]\/pin:h-12/);
+    // The rest (headline, districts, rating, languages) folds away.
+    assert.match(page, /data-hero-more/);
+    assert.match(page, /group-data-\[compact\]\/pin:grid-rows-\[0fr\]/);
+  });
+
   it("lets a next-availability day open that day in the booking calendar", () => {
     const booking = read("components/doctor/BookingSection.tsx");
     assert.match(booking, /PROFILE_SELECT_DAY_EVENT/);
