@@ -40,16 +40,40 @@ describe("public profile: one page with anchor tabs", () => {
     assert.equal(page.includes("LanguageSwitcher"), false);
   });
 
-  it("hero: what is clickable looks clickable, languages are one calm chip", () => {
-    // District links to the finder; no clinic count (the picker and the tab say it; user, 2026-10-13).
-    assert.match(page, /<FinderDistrictLink[\s\S]*?className="[^"]*underline[^"]*"/);
+  it("hero: name, rating, specialties with GeSY, headline, one quiet line (user, 2026-10-14)", () => {
+    const at = (needle: string) => {
+      const i = page.indexOf(needle);
+      assert.ok(i > 0, needle);
+      return i;
+    };
+    // Photo at the top, next to her name; the name a step smaller on a wide page.
+    assert.match(page, /<header[\s\S]*?className="grid [^"]*items-start/);
+    assert.match(page, /<h1 className="[^"]*lg:text-\[30px\]/);
+    // Top to bottom: name, rating, specialties (+ GeSY), headline, the facts line.
+    const name = at("{profile.name}</h1>");
+    const rating = at('data-testid="profile-hero-rating"');
+    const specialties = at("<DoctorProfileSpecialties");
+    const gesy = at('data-testid="profile-hero-gesy"');
+    const headline = at("{customization.headline}");
+    const facts = at('data-testid="profile-hero-facts"');
+    assert.ok(name < rating && rating < specialties && specialties < gesy && gesy < headline && headline < facts);
+    // GeSY in words, as one more pill next to the specialties, not a lone logo under the name.
+    assert.match(page, /t\("heroAcceptsGesy"\)/);
+    assert.doesNotMatch(page, /<GesyProviderBadge/);
+    // Districts and languages are plain text: no pills, no links away from the page.
+    assert.doesNotMatch(page, /<FinderDistrictLink/);
+    assert.doesNotMatch(page, /LANGUAGE_CHIP_ON_ACCENT|t\("speaksLabel"\)/);
+    assert.match(page, /t\("heroSpeaks", \{ languages:/);
+    assert.match(page, /canonicalLanguageLabel\(/);
     assert.equal(page.includes("profile-hero-clinics-link"), false);
     // Hero links take the hero's text colour, never the default link teal (2026-10-10).
     assert.match(page, /className=\{`text-accent-on \$\{heroLinkClass\}`\}/);
-    // One chip for every language, in the hero's own text colour (user, 2026-10-13).
-    assert.match(page, /canonicalLanguageLabel\(/);
-    assert.match(page, /LANGUAGE_CHIP_ON_ACCENT/);
     assert.doesNotMatch(page, /languageThemeForLabel|\.pillClass/);
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      const messages = JSON.parse(read(file)).DoctorProfilePage;
+      assert.equal(typeof messages.heroAcceptsGesy, "string", file);
+      assert.match(messages.heroSpeaks, /\{languages\}/, file);
+    }
     // No "Show phone" / "Directions" buttons: the clinics section has each clinic's.
     assert.equal(page.includes("heroShowPhone"), false);
     assert.equal(page.includes("heroDirections"), false);
@@ -108,7 +132,7 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(clinicCard, /data-testid="profile-clinic-hours"/);
   });
 
-  it("hero names every district with a clinic, each a link", () => {
+  it("hero names every district with a clinic, as plain text", () => {
     assert.match(page, /profileDistricts\(/);
     assert.match(page, /districts\.map\(/);
   });

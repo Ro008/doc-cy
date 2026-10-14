@@ -723,7 +723,7 @@ export function BookingSection({
   if (onlineBookingsPaused) {
     return (
       <div className={stateCardClass}>
-        <h2 className={`font-extrabold text-profile-text ${panel ? "text-base" : "text-xl"}`}>
+        <h2 className={`font-semibold text-profile-text ${panel ? "text-base" : "text-xl"}`}>
           {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-profile-muted">
@@ -745,7 +745,7 @@ export function BookingSection({
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
       <div className={stateCardClass}>
-        <h2 className="text-xl font-extrabold text-profile-text">
+        <h2 className="text-xl font-semibold text-profile-text">
           {t("title")}
         </h2>
         <p className="mt-2 text-sm text-profile-muted">
@@ -758,7 +758,7 @@ export function BookingSection({
   if (upcomingSlots.length === 0) {
     return (
       <div className={stateCardClass}>
-        <h2 className="text-xl font-extrabold text-profile-text">
+        <h2 className="text-xl font-semibold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-profile-muted">
@@ -818,7 +818,7 @@ export function BookingSection({
               aria-hidden
             />
           </div>
-          <h2 className="mt-6 text-2xl font-extrabold tracking-tight text-profile-text sm:text-3xl">
+          <h2 className="mt-6 text-2xl font-semibold tracking-tight text-profile-text sm:text-3xl">
             {checkEmailAddress ? t("checkEmailTitle") : t("requestSubmittedTitle")}
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-profile-body">
@@ -860,7 +860,7 @@ export function BookingSection({
                 {t("detailsStep")}
               </p>
             ) : null}
-            <h2 className="text-xl font-extrabold text-profile-text">
+            <h2 className="text-xl font-semibold text-profile-text">
               {t("yourDetails")}
             </h2>
             <p className="mt-1 text-sm text-profile-muted">
@@ -1460,7 +1460,7 @@ export function BookingSection({
       <div className="border-b border-profile-border px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight text-profile-text sm:text-2xl">
+            <h2 className="text-xl font-semibold tracking-tight text-profile-text sm:text-2xl">
               {t("title")}
             </h2>
             {/* The clinic itself is named right above, by the clinic switch. */}

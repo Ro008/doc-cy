@@ -193,6 +193,8 @@
     "patientsAll": "Ενήλικες και παιδιά",
     "qualificationsHeading": "Τίτλοι σπουδών",
     "speaksLabel": "Μιλά",
+    "heroAcceptsGesy": "Δέχεται ΓεΣΥ",
+    "heroSpeaks": "Μιλά {languages}",
     "servicesHeading": "Υπηρεσίες & τιμές",
     "reviewsHeading": "Αξιολογήσεις ασθενών",
     "reviewsSummary": "{count, plural, one {# αξιολόγηση} other {# αξιολογήσεις}}",

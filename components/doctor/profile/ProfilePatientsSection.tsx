@@ -19,7 +19,7 @@ export async function ProfilePatientsSection({ patientAges }: { patientAges: Pat
     >
       <h2
         id="profile-patients-heading"
-        className="text-2xl font-extrabold tracking-tight text-profile-text sm:text-[28px]"
+        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
         {t("patientsSeenHeading")}
       </h2>

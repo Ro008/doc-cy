@@ -277,7 +277,6 @@ describe("the profile reads reviews and shows them", () => {
     assert.match(heroLink, /decoration-1\b/);
     assert.match(heroLink, /hover:decoration-2\b/);
     assert.doesNotMatch(page, /\[&_span\]:decoration-2/);
-    assert.match(page, /\[&_span\]:decoration-1/);
   });
 
   it("the hero shows five stars, the average and the count as a link to the reviews, once there are enough", () => {
@@ -294,13 +293,12 @@ describe("the profile reads reviews and shows them", () => {
     assert.match(row, /<a\s+href=\{`#\$\{PROFILE_SECTION_IDS\.reviews\}`\}[\s\S]*?reviewsSummary/);
   });
 
-  it("the hero rating has its own line: after the district and the mobile, before the languages", () => {
+  it("the hero rating has its own line, right under her name (user, 2026-10-14)", () => {
     const page = read("lib/public/doctor-profile-page.tsx");
-    const district = page.indexOf("<FinderDistrictLink");
-    const mobile = page.indexOf("<RevealMobileButton");
+    const name = page.indexOf("{profile.name}</h1>");
     const rating = page.indexOf('data-testid="profile-hero-rating"');
-    const languages = page.indexOf('t("speaksLabel")');
-    assert.ok(district < mobile && mobile < rating && rating < languages);
+    const specialties = page.indexOf("<DoctorProfileSpecialties");
+    assert.ok(name > 0 && name < rating && rating < specialties);
     // Its own row, not one more item of the facts row.
     assert.match(page, /<div\s+data-testid="profile-hero-rating"/);
   });

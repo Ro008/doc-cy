@@ -110,11 +110,11 @@ describe("profile hero: Show mobile", () => {
   });
 
   it("shows the button in the hero's facts row, only when she switched it on", () => {
-    assert.match(page, /\{hasPersonalMobile \? \(\s*<RevealMobileButton\b/);
-    const facts = page.indexOf("<FinderDistrictLink");
+    assert.match(page, /\{hasPersonalMobile \? \(\s*<span className="inline-flex[^"]*">\s*<span aria-hidden[^>]*>·<\/span>\s*<RevealMobileButton\b/);
+    const facts = page.indexOf('data-testid="profile-hero-facts"');
+    const languages = page.indexOf('t("heroSpeaks"');
     const mobile = page.indexOf("<RevealMobileButton");
-    const languages = page.indexOf('t("speaksLabel")');
-    assert.ok(facts > 0 && facts < mobile && mobile < languages, "after the district, before the languages");
+    assert.ok(facts > 0 && facts < languages && languages < mobile, "last on the facts line");
     assert.match(page, /label=\{t\("heroShowMobile"\)\}/);
   });
 

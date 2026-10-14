@@ -250,6 +250,8 @@
     "patientsAll": "Adults and children",
     "qualificationsHeading": "Qualifications",
     "speaksLabel": "Speaks",
+    "heroAcceptsGesy": "Accepts GeSY",
+    "heroSpeaks": "Speaks {languages}",
     "servicesHeading": "Services & prices",
     "reviewsHeading": "Patient reviews",
     "reviewsSummary": "{count, plural, one {# review} other {# reviews}}",

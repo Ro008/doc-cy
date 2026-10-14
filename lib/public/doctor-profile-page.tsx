@@ -27,7 +27,6 @@ import { ProfileReviewsSection } from "@/components/doctor/profile/ProfileReview
 import { cache } from "react";
 import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
-import { LANGUAGE_CHIP_ON_ACCENT } from "@/lib/language-chips";
 import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { loadProfileDetails } from "@/lib/profile-details-server";
 import { ProfilePatientsSection } from "@/components/doctor/profile/ProfilePatientsSection";
@@ -77,7 +76,7 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { MapPin } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import {
   buildShareDescription,
   heroRatingFromReviews,
@@ -98,14 +97,10 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
-import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { ManualDirectoryProfessionalLanding } from "@/components/finder/ManualDirectoryProfessionalLanding";
-import {
-  FinderDistrictLink,
-} from "@/components/finder/FinderSpecialtyLink";
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
 import { getTranslations } from "next-intl/server";
 import {
@@ -1018,7 +1013,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         {/* After the first scroll the pinned hero keeps only her photo, name and specialties
             (ProfileSectionNav marks the pin `data-compact`), so her sections get the screen. */}
         <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:rounded-2xl lg:group-data-[compact]/pin:px-4 lg:group-data-[compact]/pin:py-3">
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:gap-x-3">
+          {/* Top to bottom (user, 2026-10-14): name, rating, specialties with GeSY, headline,
+              then one quiet line (districts, languages, mobile). The photo sits at the top. */}
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:items-center lg:group-data-[compact]/pin:gap-x-3 lg:group-data-[compact]/pin:gap-y-0">
             <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:h-12 lg:group-data-[compact]/pin:w-12 lg:group-data-[compact]/pin:rounded-xl">
               {avatarUrl ? (
                 <Image
@@ -1038,96 +1035,96 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 </div>
               )}
             </div>
-            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px] lg:text-4xl lg:group-data-[compact]/pin:text-2xl">
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>{profile.name}</span>
-                  {profile.is_gesy ? (
-                    <GesyProviderBadge size="xs" language="el" className="shrink-0" />
-                  ) : null}
-                </span>
-            </h1>
-            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:self-start">
+            <div className="min-w-0 self-center sm:self-start lg:group-data-[compact]/pin:self-center">
+              <h1 className="text-balance text-[26px] font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-[30px] lg:group-data-[compact]/pin:text-2xl">{profile.name}</h1>
+              {showHeroRating(reviews.length) ? (
+                <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
+                  <div className="min-h-0 overflow-hidden">
+                    <div
+                      data-testid="profile-hero-rating"
+                      className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold"
+                    >
+                      <ProfileStars
+                        rating={reviewSummary.average ?? 0}
+                        label={t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}
+                        size="h-[18px] w-[18px]"
+                        emptyClassName="text-accent-on"
+                      />
+                      <span className="inline-flex items-center gap-x-2 whitespace-nowrap">
+                        <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
+                        <span aria-hidden>·</span>
+                        <a
+                          href={`#${PROFILE_SECTION_IDS.reviews}`}
+                          className={`text-accent-on ${heroLinkClass}`}
+                        >
+                          {t("reviewsSummary", { count: reviewSummary.count })}
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
               <DoctorProfileSpecialties
                 specialties={profileSpecialtyLabels}
                 specialty={profile.specialty}
                 district={profileDistrictLabel}
+                className="!mt-0"
                 pillClassName="inline-flex max-w-full items-center rounded-full bg-accent-on px-3 py-1.5 text-left text-sm font-bold text-accent transition hover:opacity-90"
-              />
-              <div
-                data-hero-more
-                className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]"
               >
-              <div className="min-h-0 overflow-hidden">
-              {customization.headline ? (
-                <p className="mt-3 max-w-xl text-lg font-semibold leading-snug">
-                  {customization.headline}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] font-bold">
-                <span className="inline-flex flex-wrap items-center gap-x-1.5">
-                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-                  {districts.length > 0 ? (
-                    districts.map((district, index) => (
-                      <span key={district} className="inline-flex items-center gap-x-1.5">
-                        {index > 0 ? <span aria-hidden>·</span> : null}
-                        <FinderDistrictLink
-                          district={district}
-                          className={`text-accent-on ${heroLinkClass} [&_span]:underline [&_span]:decoration-1 [&_span]:underline-offset-4`}
+                {profile.is_gesy ? (
+                  <span
+                    data-testid="profile-hero-gesy"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-current px-3 py-1 text-sm font-bold"
+                  >
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    {t("heroAcceptsGesy")}
+                  </span>
+                ) : null}
+              </DoctorProfileSpecialties>
+              <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
+                <div className="min-h-0 overflow-hidden">
+                  {customization.headline ? (
+                    <p className="mt-3 max-w-xl text-lg font-medium leading-snug">
+                      {customization.headline}
+                    </p>
+                  ) : null}
+                  <div
+                    data-testid="profile-hero-facts"
+                    className="mt-3 flex flex-col items-start gap-y-1 text-[15px] font-medium sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2"
+                  >
+                    <span className="inline-flex items-center gap-x-2">
+                    <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      {districts.length > 0
+                        ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
+                        : profileHeadingCity}
+                    </span>
+                    </span>
+                    {/* Each separator travels with the item after it, so a wrapped line
+                        never ends on a lone dot; on a phone each item has its own line. */}
+                    {languageChips.length > 0 ? (
+                      <span className="inline-flex gap-x-2">
+                        <span aria-hidden className="hidden sm:inline">·</span>
+                        <span>{t("heroSpeaks", { languages: languageChips.join(", ") })}</span>
+                      </span>
+                    ) : null}
+                    {hasPersonalMobile ? (
+                      <span className="inline-flex items-center gap-x-2">
+                        <span aria-hidden className="hidden sm:inline">·</span>
+                        <RevealMobileButton
+                          professionalId={profile.id}
+                          label={t("heroShowMobile")}
+                          loadingLabel={t("heroShowMobileLoading")}
+                          errorLabel={t("heroShowMobileError")}
+                          className={`text-accent-on ${heroLinkClass}`}
+                          testId="profile-hero-mobile"
                         />
                       </span>
-                    ))
-                  ) : (
-                    <span>{profileHeadingCity}</span>
-                  )}
-                </span>
-                {hasPersonalMobile ? (
-                  <RevealMobileButton
-                    professionalId={profile.id}
-                    label={t("heroShowMobile")}
-                    loadingLabel={t("heroShowMobileLoading")}
-                    errorLabel={t("heroShowMobileError")}
-                    className={`text-accent-on ${heroLinkClass}`}
-                    testId="profile-hero-mobile"
-                  />
-                ) : null}
-              </div>
-              {showHeroRating(reviews.length) ? (
-                <div
-                  data-testid="profile-hero-rating"
-                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-bold"
-                >
-                  <ProfileStars
-                    rating={reviewSummary.average ?? 0}
-                    label={t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}
-                    size="h-[18px] w-[18px]"
-                    emptyClassName="text-accent-on"
-                  />
-                  <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
-                  <span aria-hidden>·</span>
-                  <a
-                    href={`#${PROFILE_SECTION_IDS.reviews}`}
-                    className={`text-accent-on ${heroLinkClass}`}
-                  >
-                    {t("reviewsSummary", { count: reviewSummary.count })}
-                  </a>
+                    ) : null}
+                  </div>
                 </div>
-              ) : null}
-              {languageChips.length > 0 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.14em]">
-                    {t("speaksLabel")}
-                  </span>
-                  {languageChips.map((label) => (
-                    <span
-                      key={label}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${LANGUAGE_CHIP_ON_ACCENT}`}
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              </div>
               </div>
             </div>
           </div>

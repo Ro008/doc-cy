@@ -18,7 +18,7 @@ export async function ProfileServicesSection({ services }: { services: readonly 
     >
       <h2
         id="profile-services-heading"
-        className="text-2xl font-extrabold tracking-tight text-profile-text sm:text-[28px]"
+        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
         {t("servicesHeading")}
       </h2>

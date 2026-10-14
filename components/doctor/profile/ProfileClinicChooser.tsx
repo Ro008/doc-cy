@@ -47,7 +47,7 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
     <nav aria-labelledby="profile-clinic-chooser-heading" data-testid="profile-clinic-chooser">
       <h2
         id="profile-clinic-chooser-heading"
-        className="mb-2 text-base font-extrabold text-profile-text"
+        className="mb-2 text-base font-semibold text-profile-text"
       >
         {labels.title}
       </h2>

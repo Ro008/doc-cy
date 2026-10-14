@@ -12,6 +12,8 @@ type DoctorProfileSpecialtiesProps = {
   className?: string;
   /** Pill style override (the profile hero paints them in the profile's accent). */
   pillClassName?: string;
+  /** Shown after the pills on the same row (the profile hero's "Accepts GeSY"). */
+  children?: React.ReactNode;
 };
 
 /**
@@ -24,6 +26,7 @@ export function DoctorProfileSpecialties({
   district = null,
   className,
   pillClassName = PROFILE_PILL_CLASS,
+  children,
 }: DoctorProfileSpecialtiesProps) {
   const parts =
     specialties.length > 0
@@ -49,6 +52,7 @@ export function DoctorProfileSpecialties({
           <span className="whitespace-normal break-words leading-snug">{label}</span>
         </FinderSpecialtyLink>
       ))}
+      {children}
     </div>
   );
 }

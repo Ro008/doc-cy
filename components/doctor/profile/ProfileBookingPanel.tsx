@@ -38,7 +38,7 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
             ) : null}
             <h2
               id="profile-booking-clinic-heading"
-              className="text-lg font-extrabold leading-snug tracking-tight text-profile-text"
+              className="text-lg font-semibold leading-snug tracking-tight text-profile-text"
             >
               {clinic.title}
             </h2>

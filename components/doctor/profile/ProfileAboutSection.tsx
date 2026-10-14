@@ -19,7 +19,7 @@ export async function ProfileAboutSection({ firstName, bio }: Props) {
     >
       <h2
         id="profile-about-heading"
-        className="text-2xl font-extrabold tracking-tight text-profile-text sm:text-[28px]"
+        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
         {t("aboutHeading", { name: firstName })}
       </h2>
