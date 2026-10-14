@@ -18,9 +18,9 @@ const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
 
 describe("patients she sees, on the public profile", () => {
   it("has a message for each of the three choices and none when not chosen", () => {
-    assert.equal(patientAgesMessageKey("adults"), "patientsAdults");
-    assert.equal(patientAgesMessageKey("children"), "patientsChildren");
-    assert.equal(patientAgesMessageKey("all"), "patientsAll");
+    assert.equal(patientAgesMessageKey("adults"), "heroSeesAdults");
+    assert.equal(patientAgesMessageKey("children"), "heroSeesChildren");
+    assert.equal(patientAgesMessageKey("all"), "heroSeesAll");
     assert.equal(patientAgesMessageKey(null), null);
   });
 
@@ -29,7 +29,7 @@ describe("patients she sees, on the public profile", () => {
     assert.doesNotMatch(about, /patientAges|profile-patients-seen/);
     const page = read("lib/public/doctor-profile-page.tsx");
     const facts = page.indexOf('data-testid="profile-hero-facts"');
-    const languages = page.indexOf('t("heroFactLanguages")');
+    const languages = page.indexOf('t("heroSpeaks"');
     const patients = page.indexOf('data-testid="profile-patients-seen"');
     const mobile = page.indexOf("<RevealMobileButton");
     assert.ok(facts > 0 && facts < languages && languages < patients && patients < mobile);
@@ -108,9 +108,9 @@ describe("the page reads and places them", () => {
       for (const key of [
         "sectionTabQualifications",
         "qualificationsHeading",
-        "patientsAdults",
-        "patientsChildren",
-        "patientsAll",
+        "heroSeesAdults",
+        "heroSeesChildren",
+        "heroSeesAll",
       ]) {
         assert.equal(typeof messages[key], "string", `${file} ${key}`);
       }
