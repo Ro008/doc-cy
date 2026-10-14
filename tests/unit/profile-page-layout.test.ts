@@ -62,7 +62,13 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(page, /t\("heroAcceptsGesy"\)/);
     const gesyPill = page.slice(gesy, gesy + 700);
     assert.match(gesyPill, /<GesyProviderBadge\b/);
-    assert.match(gesyPill, /bg-white/);
+    // On the hero's own colour (transparent logo), outlined like a label, not a white chip.
+    assert.doesNotMatch(gesyPill, /bg-white/);
+    assert.match(gesyPill, /border border-current/);
+    // One-colour navy logo: the logo's teal corner would vanish on the teal hero.
+    assert.match(gesyPill, /variant="mono"/);
+    const badge = read("components/brand/GesyProviderBadge.tsx");
+    assert.match(badge, /gesy-logo-el-navy\.png/);
     assert.equal((page.match(/<GesyProviderBadge\b/g) ?? []).length, 1);
     // Districts and languages are plain text: no pills, no links away from the page.
     assert.doesNotMatch(page, /<FinderDistrictLink/);

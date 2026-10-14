@@ -1076,10 +1076,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 {profile.is_gesy ? (
                   <span
                     data-testid="profile-hero-gesy"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-white py-0.5 pl-2 pr-3 text-sm font-bold text-ink-800"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-current py-0.5 pl-2 pr-3 text-sm font-bold"
                   >
-                    {/* The official mark (made for a light surface), its explanation on hover. */}
-                    <GesyProviderBadge size="xs" language="el" className="[&_img]:h-7" />
+                    {/* The official mark (transparent, on the hero's colour), its explanation on hover. */}
+                    <GesyProviderBadge size="xs" language="el" variant="mono" className="[&_img]:h-7" />
                     {t("heroAcceptsGesy")}
                   </span>
                 ) : null}

@@ -6,8 +6,11 @@ type GesyProviderBadgeProps = {
   size?: "xs" | "sm" | "md";
   /** Instant custom tooltip on hover (not the delayed native `title`). */
   title?: string;
-  /** `light` for white/pale surfaces; `dark` for ink/slate backgrounds */
-  variant?: "light" | "dark";
+  /**
+   * `light` for white/pale surfaces; `dark` for ink/slate backgrounds; `mono` = the Greek
+   * mark in one navy, for coloured surfaces where its teal corner would vanish (profile hero).
+   */
+  variant?: "light" | "dark" | "mono";
   /**
    * Logo language. Finder lists use English; individual profile pages use Greek.
    * Defaults to English.
@@ -33,6 +36,10 @@ const LOGO = {
     src: "/brand/gesy-logo-dark.png",
     aspect: 197 / 112,
   },
+  mono: {
+    src: "/brand/gesy-logo-el-navy.png",
+    aspect: 600 / 450,
+  },
 } as const;
 
 const DEFAULT_GESY_TOOLTIP =
@@ -52,7 +59,9 @@ export function GesyProviderBadge({
   const logo =
     variant === "dark"
       ? LOGO.dark
-      : language === "el"
+      : variant === "mono"
+        ? LOGO.mono
+        : language === "el"
         ? LOGO.light.el
         : LOGO.light.en;
   const width = Math.round(height * logo.aspect);
@@ -72,7 +81,9 @@ export function GesyProviderBadge({
         className={`w-auto max-w-full object-contain object-left ${heightClass} ${scaleClass} ${
           variant === "dark"
             ? "mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]"
-            : "mix-blend-multiply"
+            : variant === "mono"
+              ? ""
+              : "mix-blend-multiply"
         }`}
         priority={false}
       />
