@@ -137,11 +137,13 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     expect(items.filter((id) => id !== "userbar-link-public-profile")).toEqual([
       "userbar-link-account",
       "userbar-link-plan",
+      "userbar-link-help",
       "userbar-action-support",
       "userbar-action-logout",
     ]);
     await expect(menu.getByTestId("userbar-link-account")).toHaveText("Account");
     await expect(menu.getByTestId("userbar-link-plan")).toHaveText("Plan & billing");
+    await expect(menu.getByTestId("userbar-link-help")).toHaveText("Help & tutorials");
     await expect(menu.getByTestId("userbar-action-logout")).toHaveText("Log out");
     await expect(menu.getByRole("separator")).toHaveCount(1);
     // Manual booking stays on the Dashboard and the Agenda; Promote is a Settings section.
@@ -201,6 +203,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     expect(items.filter((id) => id !== "userbar-mobile-more-link-public-profile")).toEqual([
       "userbar-mobile-more-link-account",
       "userbar-mobile-more-link-plan",
+      "userbar-mobile-more-link-help",
       "userbar-mobile-more-action-support",
       "userbar-mobile-more-action-logout",
     ]);

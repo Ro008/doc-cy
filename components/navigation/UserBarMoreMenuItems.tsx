@@ -8,6 +8,7 @@ import {
   CreditCard,
   LifeBuoy,
   LogOut,
+  PlayCircle,
   UserCircle,
   UserCog,
 } from "lucide-react";
@@ -84,6 +85,17 @@ export function UserBarMoreMenuItems({
                 View public profile
               </UserMenuNavLink>
             ) : null;
+          case "help":
+            return (
+              <UserMenuNavLink
+                key={item}
+                href="/help"
+                data-testid={`${testIdPrefix}-link-help`}
+                icon={<PlayCircle className={iconClass} aria-hidden />}
+              >
+                Help &amp; tutorials
+              </UserMenuNavLink>
+            );
           case "support":
             return (
               <button

@@ -42,6 +42,8 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/settings/",
       "/dashboard",
       "/dashboard/appointments/abc",
+      "/help",
+      "/help/",
       "/login",
       "/login/",
       "/register",

@@ -2,6 +2,9 @@ import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status-path";
 /** Where a signed-in professional lands after login. */
 export const DOCTOR_HOME_PATH = "/dashboard";
 
+/** The help manual: how-to videos and steps for professionals (docs/help-manual.md). */
+export const DOCTOR_HELP_PATH = "/help";
+
 export type DoctorNavTabId = "dashboard" | "agenda" | "visits" | "settings" | "insights";
 
 export type DoctorNavTab = {
@@ -62,7 +65,9 @@ export function isDoctorProductPath(pathname: string): boolean {
     path === "/agenda" ||
     path.startsWith("/agenda/") ||
     path === "/settings" ||
-    path.startsWith("/settings/")
+    path.startsWith("/settings/") ||
+    path === DOCTOR_HELP_PATH ||
+    path.startsWith(`${DOCTOR_HELP_PATH}/`)
   );
 }
 
@@ -113,6 +118,7 @@ export type AccountMenuItemId =
   | "account"
   | "plan"
   | "public-profile"
+  | "help"
   | "support"
   | "logout";
 
@@ -121,7 +127,8 @@ export type AccountMenuItemId =
  * phone (user, 2026-10-12). It is about her account: no "Promote" shortcut (a Settings
  * section). Manual booking is offered only outside her private space (finder, public
  * pages), where nothing else leads to it; inside, the Dashboard and the Agenda have
- * the button. Applicants get Support and Log out only (user, 2026-09-28).
+ * the button. "Help & tutorials" opens the how-to manual (user, 2026-10-13). Applicants get
+ * Support and Log out only (user, 2026-09-28).
  */
 export function accountMenuItems({
   applicant,
@@ -139,6 +146,6 @@ export function accountMenuItems({
   if (!insidePrivateSpace) items.push("manual-booking");
   items.push("account", "plan");
   if (hasPublicProfile && !onOwnProfile) items.push("public-profile");
-  items.push("support", "logout");
+  items.push("help", "support", "logout");
   return items;
 }
