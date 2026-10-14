@@ -109,12 +109,15 @@ describe("profile hero: Show mobile", () => {
     assert.equal((page.match(/loadPublicPersonalMobile\(/g) ?? []).length, 1);
   });
 
-  it("shows the button in the hero's facts row, only when she switched it on", () => {
-    assert.match(page, /\{hasPersonalMobile \? \(\s*<RevealMobileButton\b/);
+  it("shows the button as the last fact of the hero's band, only when she switched it on", () => {
+    assert.match(page, /\{hasPersonalMobile \? \(\s*<div>\s*<dt[^>]*>\{t\("heroFactMobile"\)\}<\/dt>\s*<dd[^>]*>\s*<RevealMobileButton\b/);
     const facts = page.indexOf('data-testid="profile-hero-facts"');
-    const languages = page.indexOf('t("heroSpeaks"');
+    const languages = page.indexOf('t("heroFactLanguages")');
     const mobile = page.indexOf("<RevealMobileButton");
-    assert.ok(facts > 0 && facts < languages && languages < mobile, "last on the facts line");
+    assert.ok(facts > 0 && facts < languages && languages < mobile && mobile < page.indexOf("</dl>", facts), "last fact");
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      assert.equal(typeof JSON.parse(read(file)).DoctorProfilePage.heroFactMobile, "string", file);
+    }
     assert.match(page, /label=\{t\("heroShowMobile"\)\}/);
   });
 

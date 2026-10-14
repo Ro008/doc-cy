@@ -76,7 +76,6 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { Languages, MapPin, Users } from "lucide-react";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   buildShareDescription,
@@ -1012,10 +1011,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         >
         {/* After the first scroll the pinned hero keeps only her photo, name and specialties
             (ProfileSectionNav marks the pin `data-compact`), so her sections get the screen. */}
-        <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:rounded-2xl lg:group-data-[compact]/pin:px-4 lg:group-data-[compact]/pin:py-3">
-          {/* Top to bottom (user, 2026-10-14): name, rating, specialties with GeSY, headline,
-              then one quiet line (districts, languages, mobile). The photo sits at the top. */}
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:items-center lg:group-data-[compact]/pin:gap-x-3 lg:group-data-[compact]/pin:gap-y-0">
+        <header className="order-1 overflow-hidden rounded-[2rem] border border-profile-border lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:rounded-2xl">
+          {/* Two parts (user, 2026-10-14). The teal part is who she is: photo, name, rating,
+              specialties with the GeSY logo, headline, with room around them. A lighter band
+              under it holds the quick facts (where, languages, patients) and her mobile. */}
+          <div className="bg-accent p-5 text-accent-on sm:p-7 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:px-4 lg:group-data-[compact]/pin:py-3">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:gap-y-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:items-center lg:group-data-[compact]/pin:gap-x-3 lg:group-data-[compact]/pin:gap-y-0">
             <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:h-12 lg:group-data-[compact]/pin:w-12 lg:group-data-[compact]/pin:rounded-xl">
               {avatarUrl ? (
                 <Image
@@ -1042,7 +1043,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   <div className="min-h-0 overflow-hidden">
                     <div
                       data-testid="profile-hero-rating"
-                      className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold"
+                      className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold"
                     >
                       <ProfileStars
                         rating={reviewSummary.average ?? 0}
@@ -1074,61 +1075,69 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 pillClassName="inline-flex max-w-full items-center rounded-full bg-accent-on px-3 py-1.5 text-left text-sm font-bold text-accent transition hover:opacity-90"
               >
                 {profile.is_gesy ? (
-                  <span
-                    data-testid="profile-hero-gesy"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-current py-0.5 pl-2 pr-3 text-sm font-bold"
-                  >
-                    {/* The official mark (transparent, on the hero's colour), its explanation on hover. */}
-                    <GesyProviderBadge size="xs" language={locale === "el" ? "el" : "en"} variant="mono" className={locale === "el" ? "[&_img]:h-7" : "[&_img]:h-6"} />
-                    {t("heroAcceptsGesy")}
+                  <span data-testid="profile-hero-gesy" className="inline-flex items-center px-1">
+                    {/* The official mark alone (user, 2026-10-14), transparent on the hero's colour;
+                        "accepts GeSY patients" in its alt text and on hover. */}
+                    <GesyProviderBadge size="xs" language={locale === "el" ? "el" : "en"} variant="mono" className={locale === "el" ? "[&_img]:h-8" : "[&_img]:h-7"} />
                   </span>
                 ) : null}
               </DoctorProfileSpecialties>
               <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
                 <div className="min-h-0 overflow-hidden">
                   {customization.headline ? (
-                    <p className="mt-3 max-w-xl text-lg font-medium leading-snug">
+                    <p className="mt-4 max-w-xl text-lg font-medium leading-snug">
                       {customization.headline}
                     </p>
                   ) : null}
-                  <div
-                    data-testid="profile-hero-facts"
-                    className="mt-3 flex flex-col items-start gap-y-1 text-[15px] font-medium sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5"
-                  >
-                    {/* Each fact has its own icon, no dots between them: a wrapped line never
-                        starts or ends on a lone dot; on a phone each fact has its own line. */}
-                    <span className="inline-flex items-center gap-x-2">
-                      <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-                      <span>
-                        {districts.length > 0
-                          ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
-                          : profileHeadingCity}
-                      </span>
-                    </span>
-                    {languageChips.length > 0 ? (
-                      <span className="inline-flex items-start gap-x-2">
-                        <Languages className="mt-[3px] h-4 w-4 shrink-0" aria-hidden />
-                        <span>{t("heroSpeaks", { languages: languageChips.join(", ") })}</span>
-                      </span>
-                    ) : null}
-                    {patientsKey ? (
-                      <span data-testid="profile-patients-seen" className="inline-flex items-center gap-x-2">
-                        <Users className="h-4 w-4 shrink-0" aria-hidden />
-                        <span>{t(patientsKey)}</span>
-                      </span>
-                    ) : null}
-                    {hasPersonalMobile ? (
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+          <div data-hero-more className="grid grid-rows-[1fr] bg-profile-surface text-profile-text lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
+            <div className="min-h-0 overflow-hidden">
+              <div className="px-5 py-4 sm:px-7">
+                <dl
+                  data-testid="profile-hero-facts"
+                  className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:gap-x-6"
+                >
+                  <div>
+                    <dt className="text-[13px] font-medium text-profile-muted">{t("heroFactWhere")}</dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold">
+                      {districts.length > 0
+                        ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
+                        : profileHeadingCity}
+                    </dd>
+                  </div>
+                  {languageChips.length > 0 ? (
+                    <div>
+                      <dt className="text-[13px] font-medium text-profile-muted">{t("heroFactLanguages")}</dt>
+                      <dd className="mt-0.5 text-[15px] font-semibold">{languageChips.join(", ")}</dd>
+                    </div>
+                  ) : null}
+                  {patientsKey ? (
+                    <div data-testid="profile-patients-seen">
+                      <dt className="text-[13px] font-medium text-profile-muted">{t("heroFactPatients")}</dt>
+                      <dd className="mt-0.5 text-[15px] font-semibold">{t(patientsKey)}</dd>
+                    </div>
+                  ) : null}
+                  {/* Her personal mobile, as one more fact: shown on a click (user, 2026-10-14). */}
+                  {hasPersonalMobile ? (
+                    <div>
+                      <dt className="text-[13px] font-medium text-profile-muted">{t("heroFactMobile")}</dt>
+                      <dd className="mt-0.5 text-[15px] font-semibold">
                         <RevealMobileButton
                           professionalId={profile.id}
                           label={t("heroShowMobile")}
                           loadingLabel={t("heroShowMobileLoading")}
                           errorLabel={t("heroShowMobileError")}
-                          className={`text-accent-on ${heroLinkClass}`}
+                          className="text-accent-link underline decoration-1 underline-offset-4 hover:decoration-2"
                           testId="profile-hero-mobile"
                         />
-                    ) : null}
-                  </div>
-                </div>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
               </div>
             </div>
           </div>

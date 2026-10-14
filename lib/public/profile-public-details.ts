@@ -6,9 +6,9 @@ import type { PatientAges } from "@/lib/settings-profile-details";
  */
 
 const PATIENT_AGES_MESSAGE_KEYS: Record<PatientAges, string> = {
-  adults: "heroSeesAdults",
-  children: "heroSeesChildren",
-  all: "heroSeesAll",
+  adults: "patientsAdults",
+  children: "patientsChildren",
+  all: "patientsAll",
 };
 
 /** Key in the `DoctorProfilePage` messages, or null when she has not chosen. */

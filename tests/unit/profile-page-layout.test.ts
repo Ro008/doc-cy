@@ -57,14 +57,12 @@ describe("public profile: one page with anchor tabs", () => {
     const headline = at("{customization.headline}");
     const facts = at('data-testid="profile-hero-facts"');
     assert.ok(name < rating && rating < specialties && specialties < gesy && gesy < headline && headline < facts);
-    // GeSY as one more pill next to the specialties, not a lone logo under the name: the
-    // official logo (with its explanation on hover) and the words (user, 2026-10-14).
-    assert.match(page, /t\("heroAcceptsGesy"\)/);
+    // GeSY next to the specialties: the official logo alone, its explanation on hover and
+    // in its alt text; no "Accepts GeSY" words, no outline (user, 2026-10-14).
+    assert.doesNotMatch(page, /heroAcceptsGesy/);
     const gesyPill = page.slice(gesy, gesy + 700);
     assert.match(gesyPill, /<GesyProviderBadge\b/);
-    // On the hero's own colour (transparent logo), outlined like a label, not a white chip.
-    assert.doesNotMatch(gesyPill, /bg-white/);
-    assert.match(gesyPill, /border border-current/);
+    assert.doesNotMatch(gesyPill, /bg-white|border border-current/);
     // One-colour navy logo: the logo's teal corner would vanish on the teal hero.
     assert.match(gesyPill, /variant="mono"/);
     const badge = read("components/brand/GesyProviderBadge.tsx");
@@ -77,12 +75,22 @@ describe("public profile: one page with anchor tabs", () => {
     // Districts and languages are plain text: no pills, no links away from the page.
     assert.doesNotMatch(page, /<FinderDistrictLink/);
     assert.doesNotMatch(page, /LANGUAGE_CHIP_ON_ACCENT|t\("speaksLabel"\)/);
-    assert.match(page, /t\("heroSpeaks", \{ languages:/);
-    // Each fact has its own small icon instead of dots between them, so a wrapped line never
-    // starts or ends on a lone dot (user, 2026-10-14).
-    const factsLine = page.slice(facts, page.indexOf("</div>", facts));
-    assert.doesNotMatch(factsLine, />·</);
-    for (const icon of ["<MapPin", "<Languages", "<Users"]) assert.ok(factsLine.includes(icon), icon);
+    // The quick facts are a lighter band along the bottom of the hero card (user,
+    // 2026-10-14): Where, Languages, Patients, each a small grey label above its value, so
+    // they no longer look alike; it folds away with the rest when the hero is pinned.
+    const band = page.slice(facts - 600, page.indexOf("</dl>", facts));
+    assert.match(band, /data-hero-more/);
+    assert.match(band, /bg-profile-surface/);
+    assert.match(page, /<dl\s+data-testid="profile-hero-facts"/);
+    for (const key of ["heroFactWhere", "heroFactLanguages", "heroFactPatients"]) {
+      assert.match(band, new RegExp(`<dt[^>]*>\\{t\\("${key}"\\)\\}</dt>`), key);
+    }
+    assert.match(band, /languageChips\.join\(", "\)/);
+    assert.doesNotMatch(band, /<MapPin|<Languages|<Users|heroSpeaks/);
+    // The facts are not in the teal part any more: it keeps who she is, with room around it.
+    const teal = page.slice(page.indexOf("<header"), facts);
+    assert.match(teal, /bg-accent/);
+    assert.match(page, /\{customization\.headline\}/);
     assert.match(page, /canonicalLanguageLabel\(/);
     assert.equal(page.includes("profile-hero-clinics-link"), false);
     // Hero links take the hero's text colour, never the default link teal (2026-10-10).
@@ -90,8 +98,11 @@ describe("public profile: one page with anchor tabs", () => {
     assert.doesNotMatch(page, /languageThemeForLabel|\.pillClass/);
     for (const file of ["messages/en.json", "messages/el.json"]) {
       const messages = JSON.parse(read(file)).DoctorProfilePage;
-      assert.equal(typeof messages.heroAcceptsGesy, "string", file);
-      assert.match(messages.heroSpeaks, /\{languages\}/, file);
+      assert.equal(messages.heroAcceptsGesy, undefined, file);
+      assert.equal(messages.heroSpeaks, undefined, file);
+      for (const key of ["heroFactWhere", "heroFactLanguages", "heroFactPatients"]) {
+        assert.equal(typeof messages[key], "string", `${file} ${key}`);
+      }
     }
     // No "Show phone" / "Directions" buttons: the clinics section has each clinic's.
     assert.equal(page.includes("heroShowPhone"), false);
