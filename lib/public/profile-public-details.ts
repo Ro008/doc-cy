@@ -1,14 +1,14 @@
 import type { PatientAges } from "@/lib/settings-profile-details";
 
 /**
- * What the public profile shows of Settings › Profile: "Patients I see" (a line of About)
+ * What the public profile shows of Settings › Profile: "Patients I see" (a fact of the hero)
  * and the qualifications (their own section). Nothing shows for what she has not filled in.
  */
 
 const PATIENT_AGES_MESSAGE_KEYS: Record<PatientAges, string> = {
-  adults: "patientsAdults",
-  children: "patientsChildren",
-  all: "patientsAll",
+  adults: "heroSeesAdults",
+  children: "heroSeesChildren",
+  all: "heroSeesAll",
 };
 
 /** Key in the `DoctorProfilePage` messages, or null when she has not chosen. */

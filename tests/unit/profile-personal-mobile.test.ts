@@ -110,7 +110,7 @@ describe("profile hero: Show mobile", () => {
   });
 
   it("shows the button in the hero's facts row, only when she switched it on", () => {
-    assert.match(page, /\{hasPersonalMobile \? \(\s*<span className="inline-flex[^"]*">\s*<span aria-hidden[^>]*>·<\/span>\s*<RevealMobileButton\b/);
+    assert.match(page, /\{hasPersonalMobile \? \(\s*<RevealMobileButton\b/);
     const facts = page.indexOf('data-testid="profile-hero-facts"');
     const languages = page.indexOf('t("heroSpeaks"');
     const mobile = page.indexOf("<RevealMobileButton");

@@ -50,6 +50,7 @@ import {
   formatOpeningDays,
   formatOpeningRanges,
 } from "@/lib/public/clinic-opening-hours";
+import { patientAgesMessageKey } from "@/lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
@@ -75,7 +76,7 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { MapPin } from "lucide-react";
+import { Languages, MapPin, Users } from "lucide-react";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   buildShareDescription,
@@ -939,6 +940,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : null;
 
   // Links in the hero look like links (underline); plain facts do not.
+  const patientsKey = patientAgesMessageKey(profileDetails.patientAges);
   const heroLinkClass =
     "underline decoration-1 underline-offset-4 transition hover:decoration-2 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
 
@@ -1093,27 +1095,31 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   ) : null}
                   <div
                     data-testid="profile-hero-facts"
-                    className="mt-3 flex flex-col items-start gap-y-1 text-[15px] font-medium sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2"
+                    className="mt-3 flex flex-col items-start gap-y-1 text-[15px] font-medium sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5"
                   >
+                    {/* Each fact has its own icon, no dots between them: a wrapped line never
+                        starts or ends on a lone dot; on a phone each fact has its own line. */}
                     <span className="inline-flex items-center gap-x-2">
-                    <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-                    <span>
-                      {districts.length > 0
-                        ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
-                        : profileHeadingCity}
+                      <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                      <span>
+                        {districts.length > 0
+                          ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
+                          : profileHeadingCity}
+                      </span>
                     </span>
-                    </span>
-                    {/* Each separator travels with the item after it, so a wrapped line
-                        never ends on a lone dot; on a phone each item has its own line. */}
                     {languageChips.length > 0 ? (
-                      <span className="inline-flex gap-x-2">
-                        <span aria-hidden className="hidden sm:inline">·</span>
+                      <span className="inline-flex items-start gap-x-2">
+                        <Languages className="mt-[3px] h-4 w-4 shrink-0" aria-hidden />
                         <span>{t("heroSpeaks", { languages: languageChips.join(", ") })}</span>
                       </span>
                     ) : null}
+                    {patientsKey ? (
+                      <span data-testid="profile-patients-seen" className="inline-flex items-center gap-x-2">
+                        <Users className="h-4 w-4 shrink-0" aria-hidden />
+                        <span>{t(patientsKey)}</span>
+                      </span>
+                    ) : null}
                     {hasPersonalMobile ? (
-                      <span className="inline-flex items-center gap-x-2">
-                        <span aria-hidden className="hidden sm:inline">·</span>
                         <RevealMobileButton
                           professionalId={profile.id}
                           label={t("heroShowMobile")}
@@ -1122,7 +1128,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                           className={`text-accent-on ${heroLinkClass}`}
                           testId="profile-hero-mobile"
                         />
-                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -1134,7 +1139,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         </div>
 
         <div data-profile-sections className="order-4 flex min-w-0 flex-col gap-14 lg:pt-6">
-        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} patientAges={profileDetails.patientAges} />
+        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
         <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
         <ProfileReviewsSection reviews={reviews} locale={locale} />

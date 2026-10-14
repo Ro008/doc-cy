@@ -74,6 +74,11 @@ describe("public profile: one page with anchor tabs", () => {
     assert.doesNotMatch(page, /<FinderDistrictLink/);
     assert.doesNotMatch(page, /LANGUAGE_CHIP_ON_ACCENT|t\("speaksLabel"\)/);
     assert.match(page, /t\("heroSpeaks", \{ languages:/);
+    // Each fact has its own small icon instead of dots between them, so a wrapped line never
+    // starts or ends on a lone dot (user, 2026-10-14).
+    const factsLine = page.slice(facts, page.indexOf("</div>", facts));
+    assert.doesNotMatch(factsLine, />·</);
+    for (const icon of ["<MapPin", "<Languages", "<Users"]) assert.ok(factsLine.includes(icon), icon);
     assert.match(page, /canonicalLanguageLabel\(/);
     assert.equal(page.includes("profile-hero-clinics-link"), false);
     // Hero links take the hero's text colour, never the default link teal (2026-10-10).

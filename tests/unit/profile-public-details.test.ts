@@ -18,21 +18,23 @@ const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
 
 describe("patients she sees, on the public profile", () => {
   it("has a message for each of the three choices and none when not chosen", () => {
-    assert.equal(patientAgesMessageKey("adults"), "patientsAdults");
-    assert.equal(patientAgesMessageKey("children"), "patientsChildren");
-    assert.equal(patientAgesMessageKey("all"), "patientsAll");
+    assert.equal(patientAgesMessageKey("adults"), "heroSeesAdults");
+    assert.equal(patientAgesMessageKey("children"), "heroSeesChildren");
+    assert.equal(patientAgesMessageKey("all"), "heroSeesAll");
     assert.equal(patientAgesMessageKey(null), null);
   });
 
-  it("is one line of About, under the bio, shown only when she chose (user, 2026-10-14)", () => {
+  it("is a fact of the hero, 'Sees adults and children', not a line of About (user, 2026-10-14)", () => {
     const about = read("components/doctor/profile/ProfileAboutSection.tsx");
-    assert.match(about, /patientAgesMessageKey\(patientAges\)/);
-    assert.match(about, /patientsKey \? \(/);
-    assert.match(about, /data-testid="profile-patients-seen"/);
-    assert.match(about, /t\("patientsSeenHeading"\)/);
-    // A label, not a heading: no section of its own any more.
-    assert.doesNotMatch(about, /<h3/);
-    assert.ok(about.indexOf("{bioText ||") < about.indexOf('data-testid="profile-patients-seen"'));
+    assert.doesNotMatch(about, /patientAges|profile-patients-seen/);
+    const page = read("lib/public/doctor-profile-page.tsx");
+    const facts = page.indexOf('data-testid="profile-hero-facts"');
+    const languages = page.indexOf('t("heroSpeaks"');
+    const patients = page.indexOf('data-testid="profile-patients-seen"');
+    const mobile = page.indexOf("<RevealMobileButton");
+    assert.ok(facts > 0 && facts < languages && languages < patients && patients < mobile);
+    assert.match(page, /patientAgesMessageKey\(profileDetails\.patientAges\)/);
+    assert.match(page, /patientsKey \? \(/);
     assert.equal(
       fs.existsSync(join(process.cwd(), "components/doctor/profile/ProfilePatientsSection.tsx")),
       false,
@@ -95,7 +97,6 @@ describe("the page reads and places them", () => {
     const qualifications = page.indexOf("<ProfileQualificationsSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
     assert.ok(about > 0 && about < services && services < qualifications && qualifications < reviews);
-    assert.match(page.slice(about, services), /patientAges=\{profileDetails\.patientAges\}/);
     assert.doesNotMatch(page, /<ProfilePatientsSection\b/);
     // Her clinics are in the booking column, next to these sections.
     assert.doesNotMatch(page, /<ProfileClinicsSection\b/);
@@ -107,10 +108,9 @@ describe("the page reads and places them", () => {
       for (const key of [
         "sectionTabQualifications",
         "qualificationsHeading",
-        "patientsSeenHeading",
-        "patientsAdults",
-        "patientsChildren",
-        "patientsAll",
+        "heroSeesAdults",
+        "heroSeesChildren",
+        "heroSeesAll",
       ]) {
         assert.equal(typeof messages[key], "string", `${file} ${key}`);
       }
