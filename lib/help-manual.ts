@@ -10,6 +10,20 @@
 /** Where the manual lives. Login-gated like the rest of the professional's pages (lib/doctor-routes.ts). */
 export const HELP_PATH = "/help";
 
+/**
+ * Where the product points into the manual (the Dashboard's tour card and its "How does this work?"
+ * links). A test checks every slug here is a published article with a video, so renaming or removing
+ * one cannot leave a dead link behind.
+ */
+export const HELP_LINKS = {
+  dashboardTour: "dashboard",
+  answerRequests: "accept-or-decline",
+  suggestTimes: "suggest-other-times",
+} as const;
+
+/** The tour card on the Dashboard stays closed on this device once she closes it (see useDeviceDismissals). */
+export const HELP_TOUR_DISMISSED_KEY = "doccy:dashboard:help-tour-dismissed";
+
 export type HelpVideo = {
   /** Id of the video on DocCy's YouTube channel (the 11 characters after `youtu.be/`). */
   youtubeId: string;
@@ -106,6 +120,30 @@ export const HELP_ARTICLES: readonly HelpArticle[] = HELP_MANUAL.flatMap((sectio
 
 export function findHelpArticle(slug: string): HelpArticle | undefined {
   return HELP_ARTICLES.find((article) => article.slug === slug);
+}
+
+/**
+ * The manual narrowed to what a search matches: every word has to appear in the article's title,
+ * summary or steps (any order, any case). Sections left empty are dropped; the order is kept.
+ */
+export function filterHelpManual(sections: readonly HelpSection[], query: string): readonly HelpSection[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return sections;
+  return sections
+    .map((section) => ({
+      ...section,
+      articles: section.articles.filter((article) => {
+        const text = [article.title, article.summary, ...article.steps].join(" ").toLowerCase();
+        return words.every((word) => text.includes(word));
+      }),
+    }))
+    .filter((section) => section.articles.length > 0);
+}
+
+/** The article after this one in the manual, to keep the reader going. */
+export function nextHelpArticle(slug: string): HelpArticle | undefined {
+  const index = HELP_ARTICLES.findIndex((article) => article.slug === slug);
+  return index === -1 ? undefined : HELP_ARTICLES[index + 1];
 }
 
 /** The page plus the article's anchor: the link to share a section as it is. */

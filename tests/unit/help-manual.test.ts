@@ -5,10 +5,14 @@ import { describe, it } from "node:test";
 
 import {
   HELP_ARTICLES,
+  HELP_LINKS,
   HELP_MANUAL,
   HELP_PATH,
+  HELP_TOUR_DISMISSED_KEY,
+  filterHelpManual,
   findHelpArticle,
   helpArticlePath,
+  nextHelpArticle,
 } from "../../lib/help-manual";
 import { isYouTubeVideoId } from "../../lib/youtube-embed";
 
@@ -73,6 +77,59 @@ describe("HELP_MANUAL", () => {
       }
     });
   }
+});
+
+describe("HELP_LINKS (where the product points into the manual)", () => {
+  it("every link goes to a published article that has a video", () => {
+    for (const [where, slug] of Object.entries(HELP_LINKS)) {
+      const article = findHelpArticle(slug);
+      assert.ok(article, `${where} points at #${slug}, which is not in the manual`);
+      assert.ok(article.video, `${where} points at #${slug}, which has no video`);
+      assert.ok(PUBLISHED_SLUGS.includes(slug), `${where}: #${slug} is not in PUBLISHED_SLUGS`);
+    }
+  });
+
+  it("the dashboard tour card remembers it was closed under its own key", () => {
+    assert.match(HELP_TOUR_DISMISSED_KEY, /^doccy:dashboard:/);
+  });
+});
+
+describe("filterHelpManual", () => {
+  const articleCount = (sections: typeof HELP_MANUAL) => sections.reduce((n, s) => n + s.articles.length, 0);
+
+  it("returns everything for an empty or blank search", () => {
+    assert.equal(articleCount(filterHelpManual(HELP_MANUAL, "")), HELP_ARTICLES.length);
+    assert.equal(articleCount(filterHelpManual(HELP_MANUAL, "   ")), HELP_ARTICLES.length);
+  });
+
+  it("matches the title, the summary and the steps, ignoring case", () => {
+    const byTitle = filterHelpManual(HELP_MANUAL, "DECLINE");
+    assert.ok(byTitle.flatMap((s) => s.articles).some((a) => a.slug === "accept-or-decline"));
+    const bySummary = filterHelpManual(HELP_MANUAL, "free times");
+    assert.ok(bySummary.flatMap((s) => s.articles).every((a) => a.slug !== "dashboard"));
+    const byStep = filterHelpManual(HELP_MANUAL, "marker for the current time");
+    assert.deepEqual(byStep.flatMap((s) => s.articles).map((a) => a.slug), ["dashboard"]);
+  });
+
+  it("needs every word of the search, in any order", () => {
+    const hit = filterHelpManual(HELP_MANUAL, "patient decline");
+    assert.ok(hit.flatMap((s) => s.articles).some((a) => a.slug === "accept-or-decline"));
+    assert.equal(articleCount(filterHelpManual(HELP_MANUAL, "decline zzzzzz")), 0);
+  });
+
+  it("drops sections with no match and keeps the order of the rest", () => {
+    const hit = filterHelpManual(HELP_MANUAL, "suggest");
+    assert.deepEqual(hit.map((s) => s.id), ["requests"]);
+    assert.deepEqual(filterHelpManual(HELP_MANUAL, "zzzzzz"), []);
+  });
+});
+
+describe("nextHelpArticle", () => {
+  it("is the article after this one, in the manual's order, and none after the last", () => {
+    assert.equal(nextHelpArticle(HELP_ARTICLES[0].slug)?.slug, HELP_ARTICLES[1].slug);
+    assert.equal(nextHelpArticle(HELP_ARTICLES[HELP_ARTICLES.length - 1].slug), undefined);
+    assert.equal(nextHelpArticle("nope"), undefined);
+  });
 });
 
 describe("findHelpArticle", () => {
