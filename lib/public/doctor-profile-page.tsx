@@ -29,7 +29,6 @@ import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
 import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
 import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { loadProfileDetails } from "@/lib/profile-details-server";
-import { ProfilePatientsSection } from "@/components/doctor/profile/ProfilePatientsSection";
 import { ProfileQualificationsSection } from "@/components/doctor/profile/ProfileQualificationsSection";
 import { profileThemeStyle } from "@/lib/profile-theme";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
@@ -1135,9 +1134,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         </div>
 
         <div data-profile-sections className="order-4 flex min-w-0 flex-col gap-14 lg:pt-6">
-        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
+        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} patientAges={profileDetails.patientAges} />
         <ProfileServicesSection services={services} />
-        <ProfilePatientsSection patientAges={profileDetails.patientAges} />
         <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
         <ProfileReviewsSection reviews={reviews} locale={locale} />
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import fs, { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { patientAgesMessageKey, qualificationDetail } from "../../lib/public/profile-public-details";
@@ -21,15 +21,19 @@ describe("patients she sees, on the public profile", () => {
     assert.equal(patientAgesMessageKey(null), null);
   });
 
-  it("is its own section with a heading, shown only when she chose", () => {
-    const section = read("components/doctor/profile/ProfilePatientsSection.tsx");
-    assert.match(section, /patientAgesMessageKey\(patientAges\)/);
-    assert.match(section, /if \(!patientsKey\) return null/);
-    assert.match(section, /<h2[\s\S]*?t\("patientsSeenHeading"\)/);
-    assert.match(section, /data-testid="profile-patients-seen"/);
-    // Not a line of About any more.
+  it("is one line of About, under the bio, shown only when she chose (user, 2026-10-14)", () => {
     const about = read("components/doctor/profile/ProfileAboutSection.tsx");
-    assert.doesNotMatch(about, /patientAges|patientsSeen/);
+    assert.match(about, /patientAgesMessageKey\(patientAges\)/);
+    assert.match(about, /patientsKey \? \(/);
+    assert.match(about, /data-testid="profile-patients-seen"/);
+    assert.match(about, /t\("patientsSeenHeading"\)/);
+    // A label, not a heading: no section of its own any more.
+    assert.doesNotMatch(about, /<h3/);
+    assert.ok(about.indexOf("{bioText ||") < about.indexOf('data-testid="profile-patients-seen"'));
+    assert.equal(
+      fs.existsSync(join(process.cwd(), "components/doctor/profile/ProfilePatientsSection.tsx")),
+      false,
+    );
   });
 });
 
@@ -72,17 +76,16 @@ describe("the page reads and places them", () => {
     assert.match(page, /hasQualifications:/);
   });
 
-  it("orders the left column: About, Services, Patients seen, Qualifications, then reviews", () => {
+  it("orders the left column: About (with the patients she sees), Services, Qualifications, then reviews", () => {
     const about = page.indexOf("<ProfileAboutSection");
     const services = page.indexOf("<ProfileServicesSection");
     const qualifications = page.indexOf("<ProfileQualificationsSection");
     const reviews = page.indexOf("<ProfileReviewsSection");
-    const patients = page.indexOf("<ProfilePatientsSection");
-    assert.ok(about > 0 && about < services && services < patients && patients < qualifications);
-    assert.ok(qualifications < reviews);
+    assert.ok(about > 0 && about < services && services < qualifications && qualifications < reviews);
+    assert.match(page.slice(about, services), /patientAges=\{profileDetails\.patientAges\}/);
+    assert.doesNotMatch(page, /<ProfilePatientsSection\b/);
     // Her clinics are in the booking column, next to these sections.
     assert.doesNotMatch(page, /<ProfileClinicsSection\b/);
-    assert.match(page.slice(patients, qualifications), /patientAges=\{/);
   });
 
   it("has the copy in English and Greek", () => {
