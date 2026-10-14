@@ -37,8 +37,8 @@ const LOGO = {
     aspect: 197 / 112,
   },
   mono: {
-    src: "/brand/gesy-logo-el-navy.png",
-    aspect: 600 / 450,
+    en: { src: "/brand/gesy-logo-en-navy.png", aspect: 786 / 450 },
+    el: { src: "/brand/gesy-logo-el-navy.png", aspect: 600 / 450 },
   },
 } as const;
 
@@ -60,7 +60,7 @@ export function GesyProviderBadge({
     variant === "dark"
       ? LOGO.dark
       : variant === "mono"
-        ? LOGO.mono
+        ? LOGO.mono[language]
         : language === "el"
         ? LOGO.light.el
         : LOGO.light.en;

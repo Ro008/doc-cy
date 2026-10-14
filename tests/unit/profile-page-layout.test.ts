@@ -69,6 +69,10 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(gesyPill, /variant="mono"/);
     const badge = read("components/brand/GesyProviderBadge.tsx");
     assert.match(badge, /gesy-logo-el-navy\.png/);
+    // The English mark on the English page, the Greek one on the Greek page (user, 2026-10-14).
+    assert.match(badge, /gesy-logo-en-navy\.png/);
+    assert.match(gesyPill, /language=\{locale === "el" \? "el" : "en"\}/);
+    assert.ok(fs.existsSync(path.join(repoRoot, "public/brand/gesy-logo-en-navy.png")));
     assert.equal((page.match(/<GesyProviderBadge\b/g) ?? []).length, 1);
     // Districts and languages are plain text: no pills, no links away from the page.
     assert.doesNotMatch(page, /<FinderDistrictLink/);

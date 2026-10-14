@@ -1079,7 +1079,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     className="inline-flex items-center gap-1.5 rounded-full border border-current py-0.5 pl-2 pr-3 text-sm font-bold"
                   >
                     {/* The official mark (transparent, on the hero's colour), its explanation on hover. */}
-                    <GesyProviderBadge size="xs" language="el" variant="mono" className="[&_img]:h-7" />
+                    <GesyProviderBadge size="xs" language={locale === "el" ? "el" : "en"} variant="mono" className={locale === "el" ? "[&_img]:h-7" : "[&_img]:h-6"} />
                     {t("heroAcceptsGesy")}
                   </span>
                 ) : null}
