@@ -231,9 +231,12 @@ test.describe("Integration: online booking confirmed by email", { tag: "@pr-e2e"
   // has proved the email yet.
   test("sending again replaces the earlier unconfirmed link", async ({ request, page }) => {
     const email = `again-${nonce}@integration.test`;
-    const { token: earlier } = await draftFor(weekdayLocal(11, 5), email);
-    const { token: other } = await draftFor(weekdayLocal(11, 6), `other-${nonce}@integration.test`);
-    const { token: newest } = await draftFor(weekdayLocal(12, 5), email.toUpperCase());
+    // These slots are more than a week ahead on purpose: weekdayLocal skips weekends, so near days
+    // can land on the same Monday as the other tests' slots. On a Wednesday "+3" and "+5" both
+    // became Monday at 12:00 and the newest link got a 409.
+    const { token: earlier } = await draftFor(weekdayLocal(11, 9), email);
+    const { token: other } = await draftFor(weekdayLocal(11, 10), `other-${nonce}@integration.test`);
+    const { token: newest } = await draftFor(weekdayLocal(12, 9), email.toUpperCase());
 
     const res = await request.post("/api/booking/confirm", { data: { token: earlier } });
     expect(res.status()).toBe(410);
