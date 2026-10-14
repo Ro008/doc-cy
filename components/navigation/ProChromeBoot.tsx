@@ -65,9 +65,8 @@ export function ProChromeBoot() {
         data-testid="userbar-toggle-boot"
         className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 no-underline shadow-sm shadow-ink-900/40"
       >
-        <span className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-ink-800 text-xs font-semibold text-clinical-200 sm:h-9 sm:w-9">
-          DC
-        </span>
+        {/* An empty circle until her photo loads; no letters (user, 2026-10-14). */}
+        <span className="relative flex h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9" />
         <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
       </a>
 
@@ -94,9 +93,7 @@ export function ProChromeBoot() {
             </nav>
           </div>
           <span className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40">
-            <span className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-ink-800 text-xs font-semibold text-clinical-200 sm:h-9 sm:w-9">
-              DC
-            </span>
+            <span className="relative flex h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9" />
             <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
           </span>
         </div>
