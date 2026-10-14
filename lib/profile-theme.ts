@@ -59,12 +59,12 @@ export const PROFILE_SURFACES: { light: ProfileSurfaces; dark: ProfileSurfaces }
     muted: "#4A5F73",
     off: "#A9B8C6",
   },
-  // DocCy's navy, as on the professional's dashboard (user, 2026-10-10): ink-900 page,
-  // slate-900/70 cards and slate-700/70 borders flattened over it, slate text.
+  // A deep, quiet navy page with slightly lighter cards in front of it (preview, 2026-10-14;
+  // was the dashboard's ink-900 page with darker cards, which read as holes in the page).
   dark: {
-    bg: "#062F61",
-    surface: "#0C1E3B",
-    border: "#263C59",
+    bg: "#08142A",
+    surface: "#11264A",
+    border: "#22385A",
     text: "#F8FAFC",
     body: "#E2E8F0",
     muted: "#94A3B8",
