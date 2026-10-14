@@ -12,7 +12,7 @@ type Props = {
 
 /**
  * Phones only: once the booking column (the clinic choice and the calendar) has scrolled
- * away, a bar keeps "Request appointment" at hand (as on the big booking sites). Sits
+ * away, a bar keeps "Book" at hand (as on the big booking sites). Sits
  * above the pro tab bar when shown.
  */
 export function ProfileMobileBookBar({ next, cta }: Props) {

@@ -137,11 +137,29 @@ describe("the booking panel on the page", () => {
     assert.match(callClass, /border-2 border-profile-muted/);
   });
 
-  it("the calendar in the card is the month, above the times, then Continue", () => {
+  it("one verb from first click to last: Book (user, 2026-10-14)", () => {
+    const en = JSON.parse(read("messages/en.json"));
+    assert.equal(en.DoctorProfilePage.serviceBook, "Book");
+    assert.equal(en.DoctorProfilePage.bookCta, "Book");
+    assert.equal(en.BookingPage.bookThisTime, "Book this time");
+    assert.equal(en.BookingPage.sendRequestButton, "Send booking request");
+    assert.equal("requestAppointmentCta" in en.DoctorProfilePage, false);
+    const el = JSON.parse(read("messages/el.json"));
+    for (const key of ["bookCta", "serviceBook"]) assert.equal(typeof el.DoctorProfilePage[key], "string", key);
+    assert.equal(typeof el.BookingPage.bookThisTime, "string");
+    // The Greek submit button was still in English.
+    assert.notEqual(el.BookingPage.sendRequestButton, en.BookingPage.sendRequestButton);
+    // The phone's bottom bar and the calendar card say it.
+    assert.match(page, /<ProfileMobileBookBar next=\{mobileBarNext\} cta=\{t\("bookCta"\)\}/);
+    const cardLayout = booking.slice(booking.search(/\n  if \(panel\) \{/));
+    assert.match(cardLayout, /t\("bookThisTime"\)/);
+  });
+
+  it("the calendar in the card is the month, above the times, then Book this time", () => {
     assert.match(page, /layout="panel"/);
     const cardLayout = booking.slice(booking.search(/\n  if \(panel\) \{/));
     assert.ok(cardLayout.indexOf("{monthPicker}") < cardLayout.indexOf("{timesBlock}"));
-    assert.ok(cardLayout.indexOf("{timesBlock}") < cardLayout.indexOf('t("continueButton")'));
+    assert.ok(cardLayout.indexOf("{timesBlock}") < cardLayout.indexOf('t("bookThisTime")'));
     assert.doesNotMatch(booking, /booking-day-chip|booking-more-dates/);
     for (const file of ["messages/en.json", "messages/el.json"]) {
       const messages = JSON.parse(read(file));

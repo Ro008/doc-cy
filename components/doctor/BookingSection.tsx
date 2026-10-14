@@ -1446,7 +1446,8 @@ export function BookingSection({
               onClick={() => setShowContactForm(true)}
               className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
-              {t("continueButton")}
+              {/* One verb from the services' "Book" to "Send booking request" (user, 2026-10-14). */}
+              {t("bookThisTime")}
             </button>
           </div>
         ) : null}

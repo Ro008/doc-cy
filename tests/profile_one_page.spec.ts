@@ -305,14 +305,14 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(hours.first()).toContainText(/\d{2}:\d{2}–\d{2}:\d{2}/);
   });
 
-  test("on phones a Request appointment bar appears once the hero scrolls away", async ({ page }) => {
+  test("on phones a Book bar appears once the hero scrolls away", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
     const bar = page.getByTestId("profile-mobile-book-bar");
     await expect(bar).toHaveAttribute("data-visible", "false", { timeout: 15000 });
     await page.evaluate(() => document.getElementById("about")?.scrollIntoView({ behavior: "instant" }));
     await expect(bar).toHaveAttribute("data-visible", "true");
-    await expect(bar.getByRole("link", { name: /Request appointment/ })).toHaveAttribute("href", "#book");
+    await expect(bar.getByRole("link", { name: /^Book$/ })).toHaveAttribute("href", "#book");
     // Hidden again while the booking calendar itself is on screen.
     await page.evaluate(() => document.getElementById("book")?.scrollIntoView({ behavior: "instant" }));
     await expect(bar).toHaveAttribute("data-visible", "false");

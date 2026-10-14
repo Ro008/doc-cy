@@ -1222,7 +1222,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       </div>
       {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
       {viewerMode === "patient" ? (
-        <ProfileMobileBookBar next={mobileBarNext} cta={t("requestAppointmentCta")} />
+        <ProfileMobileBookBar next={mobileBarNext} cta={t("bookCta")} />
       ) : null}
       <ProfileScrollFade />
     </main>

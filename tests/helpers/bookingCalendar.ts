@@ -20,7 +20,7 @@ export async function expectBookingCalendar(page: Page, timeout = 10_000): Promi
   await expect(bookingCalendar(page)).toBeVisible({ timeout });
 }
 
-/** The button after picking a time: "Continue" (older form: "Confirm"). */
+/** The button after picking a time: "Book this time" on the profile ("Continue" / "Confirm" elsewhere). */
 export function continueButton(page: Page): Locator {
-  return page.getByRole("button", { name: /^(Continue|Confirm)$/ }).first();
+  return page.getByRole("button", { name: /^(Book this time|Continue|Confirm)$/ }).first();
 }
