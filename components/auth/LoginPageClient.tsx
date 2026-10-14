@@ -177,7 +177,7 @@ export function LoginPageClient({
               <PendingLink href="/" className="inline-flex shrink-0 transition hover:opacity-90">
                 <DocCyWordmark variant="dark" size="sm" />
               </PendingLink>
-              <span>· Practitioner login</span>
+              <span>· Professional login</span>
             </p>
             {emailSentTo ? (
               <>

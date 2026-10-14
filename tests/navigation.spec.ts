@@ -50,7 +50,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(header).toBeVisible({ timeout: 30_000 });
 
     const joinLink = header.getByRole("link", { name: /join as a professional/i });
-    const loginLink = header.getByRole("link", { name: /practitioner login/i });
+    const loginLink = header.getByRole("link", { name: /professional login/i });
     await expect(joinLink).toHaveAttribute("href", "/register");
     await expect(loginLink).toHaveAttribute("href", "/login");
 
@@ -87,7 +87,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
       "href",
       "/register",
     );
-    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveAttribute(
+    await expect(header.getByRole("link", { name: /professional login/i })).toHaveAttribute(
       "href",
       "/login",
     );
@@ -106,7 +106,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     const joinLink = header.getByRole("link", { name: /join as a professional/i });
     await expect(joinLink).toBeVisible();
     await expect(joinLink).toHaveAttribute("href", "/register");
-    await expect(header.getByRole("link", { name: /practitioner login/i })).toBeHidden();
+    await expect(header.getByRole("link", { name: /professional login/i })).toBeHidden();
   });
 
   test("sales header has no guest CTAs; hero keeps the conversion CTAs", async ({ page }) => {
@@ -119,7 +119,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
 
     await expect(page.getByRole("link", { name: /list my practice/i }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /practitioner login/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /professional login/i }).first()).toBeVisible();
   });
 
   test("finder 'Are you a healthcare professional?' CTA opens /register", async ({ page }) => {

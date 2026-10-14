@@ -22,7 +22,7 @@ type FinderPublicHeaderProps = {
 /**
  * Thin public chrome for finder / clinics / public profiles / sales.
  * Mobile: one acquisition CTA (Join → /register).
- * Desktop: Practitioner login + Join (space for both).
+ * Desktop: Professional login + Join (space for both).
  * Signed-in professionals use the global user bar; this header stays logo-only.
  */
 export function FinderPublicHeader({
@@ -67,7 +67,7 @@ export function FinderPublicHeader({
               href="/login"
               className={`${loginLinkClass} hidden md:inline-flex`}
             >
-              Practitioner login
+              Professional login
             </PendingLink>
             <PendingLink
               href="/register"
