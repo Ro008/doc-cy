@@ -333,6 +333,23 @@ describe("the profile reads reviews and shows them", () => {
     assert.equal(reviewsShownAfterMore(40, 40), 40);
   });
 
+  it("one card of rows, like Services and Qualifications, not two columns of cards (user, 2026-10-14)", () => {
+    const list = read("components/doctor/profile/ProfileReviewsList.tsx");
+    assert.match(list, /divide-y divide-profile-border/);
+    assert.doesNotMatch(list, /sm:grid-cols-2/);
+    const section = read("components/doctor/profile/ProfileReviewsSection.tsx");
+    const row = section.slice(section.indexOf('data-testid="profile-review"'), section.indexOf("</li>"));
+    // A row, not a card of its own.
+    assert.doesNotMatch(row, /rounded-2xl|border border-profile-border/);
+    // Stars and name on the first line, the date on the right, then the comment.
+    assert.ok(row.indexOf("<ProfileStars") < row.indexOf("{review.name}"));
+    assert.ok(row.indexOf("{review.name}") < row.indexOf("<time"));
+    assert.ok(row.indexOf("<time") < row.indexOf("{review.comment}"));
+    // "Show more reviews" is a link under the card, as "Show all 8 services".
+    assert.match(list, /text-accent-link/);
+    assert.doesNotMatch(list, /rounded-full border-2/);
+  });
+
   it("the list has one button, only while reviews are left, and no way back to fewer", () => {
     const list = read("components/doctor/profile/ProfileReviewsList.tsx");
     assert.match(list, /^"use client";/);

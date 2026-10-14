@@ -29,18 +29,18 @@ export async function ProfileReviewsSection({
     <li
       key={review.id}
       data-testid="profile-review"
-      className="flex flex-col gap-2 rounded-2xl border border-profile-border bg-profile-surface px-5 py-4"
+      className="flex flex-col gap-2 px-5 py-4"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <ProfileStars rating={review.rating} label={t("reviewRatingLabel", { rating: review.rating })} />
-        <time dateTime={review.createdAt} className="text-sm font-medium text-profile-muted">
+        <span className="text-sm font-bold text-profile-text">{review.name}</span>
+        <time dateTime={review.createdAt} className="ml-auto text-sm font-medium text-profile-muted">
           {format(utcToZonedTime(new Date(review.createdAt), CY_TZ), "d MMM yyyy", { locale: dateLocale })}
         </time>
       </div>
-      <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-profile-body">
+      <p className="max-w-prose whitespace-pre-wrap break-words text-[15px] leading-relaxed text-profile-body">
         {review.comment}
       </p>
-      <p className="text-sm font-bold text-profile-text">{review.name}</p>
     </li>
   );
 

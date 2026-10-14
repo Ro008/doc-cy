@@ -10,20 +10,23 @@ type Props = {
 };
 
 /**
- * The review cards: the first few, then the next ones with each "Show more reviews".
- * There is no way back to fewer; the section is the last one on the page.
+ * The reviews as one card of rows, like Services and Qualifications (user, 2026-10-14): the
+ * first few, then the next ones with each "Show more reviews". There is no way back to fewer;
+ * the section is the last one on the page.
  */
 export function ProfileReviewsList({ items, moreLabel }: Props) {
   const [shown, setShown] = useState(PROFILE_REVIEWS_SHOWN_FIRST);
   return (
-    <div className="flex flex-col gap-3">
-      <ul className="grid gap-3 sm:grid-cols-2">{items.slice(0, shown)}</ul>
+    <div className="flex flex-col gap-1">
+      <ul className="divide-y divide-profile-border rounded-2xl border border-profile-border bg-profile-surface">
+        {items.slice(0, shown)}
+      </ul>
       {shown < items.length ? (
         <button
           type="button"
           data-testid="profile-reviews-more"
           onClick={() => setShown((n) => reviewsShownAfterMore(n, items.length))}
-          className="inline-flex min-h-11 items-center self-start rounded-full border-2 border-accent-soft px-5 text-sm font-bold text-profile-text transition hover:border-accent-cta focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cta"
+          className="inline-flex min-h-11 items-center self-start rounded-md text-sm font-bold text-accent-link underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {moreLabel}
         </button>
