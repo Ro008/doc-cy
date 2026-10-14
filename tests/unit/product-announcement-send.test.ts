@@ -96,8 +96,9 @@ describe("buildAnnouncementMessage", () => {
       assert.ok(attachment, `${feature.id} attachment`);
       assert.equal(attachment.filename, feature.gif.file);
       assert.equal(attachment.contentType, "image/gif");
-      assert.ok(Buffer.isBuffer(attachment.content));
-      assert.equal((attachment.content as Buffer).toString(), `GIF89a-${feature.gif.file}`);
+      // base64 text, not a Buffer: with a Buffer the Resend SDK (6.9.4) waits until it times out.
+      assert.equal(typeof attachment.content, "string");
+      assert.equal(Buffer.from(attachment.content, "base64").toString(), `GIF89a-${feature.gif.file}`);
     }
   });
 

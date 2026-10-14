@@ -87,7 +87,7 @@ export type AnnouncementMessage = {
   html: string;
   text: string;
   tags: { name: string; value: string }[];
-  attachments?: { filename: string; content: Buffer; contentType: string; contentId: string }[];
+  attachments?: { filename: string; content: string; contentType: string; contentId: string }[];
 };
 
 /**
@@ -120,7 +120,8 @@ export function buildAnnouncementMessage(opts: {
     inlineHtml = inlineHtml.split(`src="${opts.siteUrl}/email/${feature.gif.file}"`).join(`src="cid:${contentId}"`);
     return {
       filename: feature.gif.file,
-      content: opts.readGif(feature.gif.file),
+      // base64 text: with a Buffer the Resend SDK (6.9.4) waits until it times out.
+      content: opts.readGif(feature.gif.file).toString("base64"),
       contentType: "image/gif",
       contentId,
     };
