@@ -62,9 +62,10 @@ describe("qualifications, on the public profile", () => {
     assert.match(section, /id=\{PROFILE_SECTION_IDS\.qualifications\}/);
     assert.match(section, /qualificationsNewestFirst\(qualifications\)/);
     assert.match(section, /data-testid="profile-qualification-year"/);
-    // One card with rows, like Services & prices; no icon on every row.
+    // One card with rows, like Services & prices; no icon on every row (only by the heading).
     assert.match(section, /divide-y divide-profile-border/);
-    assert.doesNotMatch(section, /GraduationCap|sm:grid-cols-2/);
+    const rows = section.slice(section.indexOf("</h2>"));
+    assert.doesNotMatch(rows, /GraduationCap|sm:grid-cols-2/);
     assert.doesNotMatch(section, /dangerouslySetInnerHTML/);
   });
 

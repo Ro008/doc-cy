@@ -1,4 +1,6 @@
+import { UserRound } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { ProfileHeadingIcon } from "@/components/doctor/profile/ProfileHeadingIcon";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 
 type Props = {
@@ -22,8 +24,9 @@ export async function ProfileAboutSection({ firstName, bio }: Props) {
     >
       <h2
         id="profile-about-heading"
-        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
+        className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
+        <ProfileHeadingIcon icon={UserRound} />
         {t("aboutHeading", { name: firstName })}
       </h2>
       <p

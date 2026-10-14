@@ -384,3 +384,24 @@ describe("doctor settings: headline", () => {
     assert.match(page, /profileHeadline=\{/);
   });
 });
+
+describe("public profile: an icon by each section heading (preview, 2026-10-14)", () => {
+  const sections: Array<[string, string]> = [
+    ["ProfileAboutSection", "UserRound"],
+    ["ProfileServicesSection", "Receipt"],
+    ["ProfileQualificationsSection", "GraduationCap"],
+    ["ProfileReviewsSection", "Star"],
+  ];
+  for (const [file, icon] of sections) {
+    it(`${file}: the same small icon chip inside its h2, hidden from screen readers`, () => {
+      const source = read(`components/doctor/profile/${file}.tsx`);
+      const h2 = source.slice(source.indexOf("<h2"), source.indexOf("</h2>"));
+      assert.match(h2, new RegExp(`<ProfileHeadingIcon icon=\{${icon}\} />`), file);
+    });
+  }
+  it("the chip is decorative", () => {
+    const chip = read("components/doctor/profile/ProfileHeadingIcon.tsx");
+    assert.match(chip, /aria-hidden/);
+    assert.match(chip, /bg-accent-soft/);
+  });
+});

@@ -1,4 +1,6 @@
+import { GraduationCap } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { ProfileHeadingIcon } from "@/components/doctor/profile/ProfileHeadingIcon";
 import { qualificationsNewestFirst } from "@/lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 import type { SavedQualification } from "@/lib/settings-profile-details";
@@ -24,8 +26,9 @@ export async function ProfileQualificationsSection({
     >
       <h2
         id="profile-qualifications-heading"
-        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
+        className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
+        <ProfileHeadingIcon icon={GraduationCap} />
         {t("qualificationsHeading")}
       </h2>
       <ul className="divide-y divide-profile-border rounded-2xl border border-profile-border bg-profile-surface">

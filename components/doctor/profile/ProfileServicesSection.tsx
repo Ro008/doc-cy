@@ -1,5 +1,6 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Receipt } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { ProfileHeadingIcon } from "@/components/doctor/profile/ProfileHeadingIcon";
 import { ProfileServiceBookButton } from "@/components/doctor/profile/ProfileServiceBookButton";
 import { ProfileShowAll } from "@/components/doctor/profile/ProfileShowAll";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
@@ -26,8 +27,9 @@ export async function ProfileServicesSection({ services }: { services: readonly 
     >
       <h2
         id="profile-services-heading"
-        className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
+        className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
       >
+        <ProfileHeadingIcon icon={Receipt} />
         {t("servicesHeading")}
       </h2>
       <ProfileShowAll

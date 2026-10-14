@@ -1,7 +1,9 @@
 import { format } from "date-fns";
 import { enGB, el as elLocale } from "date-fns/locale";
 import { utcToZonedTime } from "date-fns-tz";
+import { Star } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { ProfileHeadingIcon } from "@/components/doctor/profile/ProfileHeadingIcon";
 import { CY_TZ } from "@/lib/appointments";
 import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
@@ -53,8 +55,9 @@ export async function ProfileReviewsSection({
       <div>
         <h2
           id="profile-reviews-heading"
-          className="text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
+          className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-profile-text sm:text-[28px]"
         >
+          <ProfileHeadingIcon icon={Star} />
           {t("reviewsHeading")}
         </h2>
         <div className="mt-3 flex items-center gap-3" data-testid="profile-reviews-summary">
