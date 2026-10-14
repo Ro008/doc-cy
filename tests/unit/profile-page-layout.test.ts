@@ -188,11 +188,24 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(page, /data-profile-pin\s+className="[^"]*lg:sticky[^"]*lg:top-0/);
     assert.ok(page.indexOf("data-profile-pin") < page.indexOf("<ProfileSectionNav"));
     assert.ok(page.indexOf("<ProfileSectionNav") < page.indexOf("data-profile-sections"));
-    // The clinic choice is pinned on its own; the clinic card under it scrolls.
-    assert.match(page, /className="[^"]*lg:sticky[^"]*"\s*>\s*<ProfileClinicChooser/);
+    // The whole booking column stays on screen (user, 2026-10-14): pinned at the top when it
+    // fits, and by its bottom edge when it is taller than the screen, so Continue is always
+    // visible. No scrollbar of its own.
+    assert.match(page, /<ProfileStickyColumn\b/);
+    assert.doesNotMatch(page, /className="[^"]*lg:sticky[^"]*"\s*>\s*<ProfileClinicChooser/);
+    const column = read("components/doctor/profile/ProfileStickyColumn.tsx");
+    assert.match(column, /--profile-book-h/);
+    assert.match(column, /ResizeObserver/);
+    assert.match(column, /lg:sticky/);
+    assert.match(column, /lg:self-start/);
+    assert.match(column, /lg:top-\[min\(0px,calc\(100vh_-_var\(--profile-book-h/);
+    assert.doesNotMatch(column, /overflow-y-auto/);
+    // Scrolling back up brings its top (the clinic rows) back right away, not only at the page top.
+    assert.match(column, /addEventListener\("scroll"/);
+    assert.match(column, /lastScrollY/);
     // On a phone: hero, booking column, tabs, sections.
     assert.match(page, /<header className="order-1 /);
-    assert.match(page, /data-testid="profile-booking-column"\s+className="order-2 /);
+    assert.match(page, /testId="profile-booking-column"\s+className="order-2 /);
     assert.match(page, /data-profile-sections className="order-4 /);
     const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
     assert.match(nav, /order-3/);

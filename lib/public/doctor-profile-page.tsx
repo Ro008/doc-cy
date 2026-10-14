@@ -14,6 +14,7 @@ import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
 import { ProfileBookingPanel } from "@/components/doctor/profile/ProfileBookingPanel";
 import { ProfileClinicChooser } from "@/components/doctor/profile/ProfileClinicChooser";
+import { ProfileStickyColumn } from "@/components/doctor/profile/ProfileStickyColumn";
 import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
 import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
 import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
@@ -1156,15 +1157,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         </div>
         </div>
 
-        <div
+        <ProfileStickyColumn
           id={PROFILE_SECTION_IDS.book}
-          role="region"
-          aria-label={t("sectionTabBook")}
-          data-testid="profile-booking-column"
-          className="order-2 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:gap-1"
+          ariaLabel={t("sectionTabBook")}
+          testId="profile-booking-column"
+          className="order-2 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:pb-4"
         >
           {chooserRows.length > 1 ? (
-            <div className="lg:sticky lg:top-0 lg:z-10 lg:bg-profile-bg lg:pb-3 lg:pt-3">
+            <div>
               <ProfileClinicChooser
                 rows={chooserRows}
                 labels={{
@@ -1175,9 +1175,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 }}
               />
             </div>
-          ) : (
-            <div className="hidden lg:block lg:h-2" />
-          )}
+          ) : null}
           <ProfileBookingStepProvider>
             <ProfileBookingPanel
               professionalId={profile.id}
@@ -1223,7 +1221,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               )}
             </ProfileBookingPanel>
           </ProfileBookingStepProvider>
-        </div>
+        </ProfileStickyColumn>
       </div>
       {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
       {viewerMode === "patient" ? (
