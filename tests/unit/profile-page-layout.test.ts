@@ -57,9 +57,13 @@ describe("public profile: one page with anchor tabs", () => {
     const headline = at("{customization.headline}");
     const facts = at('data-testid="profile-hero-facts"');
     assert.ok(name < rating && rating < specialties && specialties < gesy && gesy < headline && headline < facts);
-    // GeSY in words, as one more pill next to the specialties, not a lone logo under the name.
+    // GeSY as one more pill next to the specialties, not a lone logo under the name: the
+    // official logo (with its explanation on hover) and the words (user, 2026-10-14).
     assert.match(page, /t\("heroAcceptsGesy"\)/);
-    assert.doesNotMatch(page, /<GesyProviderBadge/);
+    const gesyPill = page.slice(gesy, gesy + 700);
+    assert.match(gesyPill, /<GesyProviderBadge\b/);
+    assert.match(gesyPill, /bg-white/);
+    assert.equal((page.match(/<GesyProviderBadge\b/g) ?? []).length, 1);
     // Districts and languages are plain text: no pills, no links away from the page.
     assert.doesNotMatch(page, /<FinderDistrictLink/);
     assert.doesNotMatch(page, /LANGUAGE_CHIP_ON_ACCENT|t\("speaksLabel"\)/);

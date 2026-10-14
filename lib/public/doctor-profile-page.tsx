@@ -76,7 +76,8 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
-import { Check, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   buildShareDescription,
   heroRatingFromReviews,
@@ -1076,9 +1077,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 {profile.is_gesy ? (
                   <span
                     data-testid="profile-hero-gesy"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-current px-3 py-1 text-sm font-bold"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white py-0.5 pl-2 pr-3 text-sm font-bold text-ink-800"
                   >
-                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    {/* The official mark (made for a light surface), its explanation on hover. */}
+                    <GesyProviderBadge size="xs" language="el" className="[&_img]:h-7" />
                     {t("heroAcceptsGesy")}
                   </span>
                 ) : null}
