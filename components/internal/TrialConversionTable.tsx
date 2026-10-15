@@ -1,4 +1,10 @@
-import { format } from "date-fns";
+"use client";
+
+import { formatInTimeZone } from "date-fns-tz";
+
+import { CY_TZ } from "@/lib/appointments";
+import { TablePagination } from "@/components/internal/TablePagination";
+import { useTablePagination } from "@/components/internal/useTablePagination";
 import { computeTrialDaysRemaining, getTrialStatus } from "@/lib/trial-period";
 
 type TrialRow = {
@@ -14,6 +20,9 @@ type TrialRow = {
 type Props = {
   doctors: TrialRow[];
 };
+
+/** Cyprus days, so the server render and the browser agree (this table pages in the browser). */
+const day = (date: Date) => formatInTimeZone(date, CY_TZ, "dd MMM yyyy");
 
 function statusBadge(daysRemaining: number): { label: string; className: string } {
   const status = getTrialStatus(daysRemaining);
@@ -49,6 +58,7 @@ export function TrialConversionTable({ doctors }: Props) {
       };
     })
     .sort((a, b) => a.trialEnd.getTime() - b.trialEnd.getTime());
+  const paged = useTablePagination(rows);
 
   return (
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm">
@@ -74,11 +84,11 @@ export function TrialConversionTable({ doctors }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {paged.rows.map((row) => {
               const urgent = row.daysRemaining < 3;
               const isExpired = row.daysRemaining <= 0;
               const badge = statusBadge(row.daysRemaining);
-              const registeredAt = format(new Date(row.created_at as string), "dd MMM yyyy");
+              const registeredAt = day(new Date(row.created_at as string));
 
               return (
                 <tr
@@ -93,7 +103,7 @@ export function TrialConversionTable({ doctors }: Props) {
                     <p className="text-xs text-slate-400">{row.email ?? "No email"}</p>
                   </td>
                   <td className="px-3 py-3 text-slate-300">{registeredAt}</td>
-                  <td className="px-3 py-3 text-slate-300">{format(row.trialEnd, "dd MMM yyyy")}</td>
+                  <td className="px-3 py-3 text-slate-300">{day(row.trialEnd)}</td>
                   <td className="px-3 py-3">
                     <p className={isExpired ? "font-medium text-red-200" : "text-slate-200"}>
                       {isExpired ? `Expired (${Math.abs(row.daysRemaining)}d ago)` : `${row.daysRemaining} days`}
@@ -110,6 +120,14 @@ export function TrialConversionTable({ doctors }: Props) {
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={paged.page}
+        pageCount={paged.pageCount}
+        total={paged.total}
+        from={paged.from}
+        to={paged.to}
+        onPageChange={paged.setPage}
+          />
     </section>
   );
 }

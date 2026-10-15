@@ -1,5 +1,8 @@
 "use client";
 
+import { TablePagination } from "@/components/internal/TablePagination";
+import { useTablePagination } from "@/components/internal/useTablePagination";
+
 export type FinderInvitationRequestRow = {
   requestedName: string;
   specialty: string | null;
@@ -25,8 +28,12 @@ function formatShortDate(iso: string) {
 }
 
 export function FinderInvitationRequestsSection({ rows }: Props) {
+  const paged = useTablePagination(rows);
   return (
-    <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5">
+    <section
+      data-testid="finder-invitations"
+      className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5"
+    >
       <div className="border-b border-emerald-500/20 pb-4">
         <h2 className="text-sm font-semibold text-emerald-100">
           Finder: patients looking for unlisted professionals
@@ -44,6 +51,7 @@ export function FinderInvitationRequestsSection({ rows }: Props) {
       </div>
 
       {rows.length > 0 ? (
+        <>
         <div className="relative mt-5 -mx-4 max-w-[calc(100%+2rem)] overflow-x-auto overflow-y-visible scroll-smooth overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:max-w-none sm:px-0">
           <table className="w-full min-w-[480px] text-left text-xs sm:min-w-[600px]">
             <thead>
@@ -56,7 +64,7 @@ export function FinderInvitationRequestsSection({ rows }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {paged.rows.map((row) => (
                 <tr
                   key={`${row.requestedName}|${row.specialty ?? ""}|${row.district ?? ""}`}
                   className="border-b border-slate-800/60 text-slate-200"
@@ -87,6 +95,15 @@ export function FinderInvitationRequestsSection({ rows }: Props) {
             </tbody>
           </table>
         </div>
+          <TablePagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            total={paged.total}
+            from={paged.from}
+            to={paged.to}
+            onPageChange={paged.setPage}
+          />
+        </>
       ) : (
         <p className="mt-5 text-xs text-slate-400">
           No missing-doctor requests in the last 90 days yet. They appear when patients use the
