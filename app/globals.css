@@ -904,17 +904,6 @@ html:has(.doccy-profile) {
   }
 }
 
-/* Finder hero (professionals): the picture has a heart-and-stethoscope drawn in at about 20% / 29%
- * (spanning roughly 14-25% across, 20-37% down). From sm to lg the copy overlaps that part of the
- * picture and the heart lands under "the island"; hide it there with a soft elliptical mask
- * (user, 2026-10-11). From lg up the copy no longer reaches it and the picture stays whole. */
-@media (min-width: 640px) and (max-width: 1023.98px) {
-  .finder-hero-no-heart {
-    -webkit-mask-image: radial-gradient(ellipse 11% 19% at 19.7% 29%, transparent 56%, #000 100%);
-    mask-image: radial-gradient(ellipse 11% 19% at 19.7% 29%, transparent 56%, #000 100%);
-  }
-}
-
 /* Settings (design B1): subtle enter/leave for sections, the clinic editor and dialogs. */
 @keyframes settings-fade-up {
   from { opacity: 0; transform: translateY(6px); }

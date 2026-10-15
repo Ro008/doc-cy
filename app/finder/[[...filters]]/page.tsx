@@ -1042,11 +1042,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       </div>
 
       <FinderSearchBar
-        className={
-          hasSpecificFilters
-            ? "mt-1"
-            : "relative z-20 mt-2 sm:-mt-10 lg:-mt-16"
-        }
+        className={hasSpecificFilters ? "mt-1" : ""}
       >
         <FinderAudienceToggle active="professionals" variant="bar" className="mb-5" />
         <FinderFilters

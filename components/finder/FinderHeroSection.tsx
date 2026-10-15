@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { FINDER_HERO_COPY_TOP_CLASS } from "@/components/finder/FinderHeroBookingFlow";
 import { FINDER_PROFESSIONALS_HERO_SRC } from "@/lib/finder-hero-images";
 
 type FinderHeroSectionProps = {
@@ -13,6 +12,11 @@ type FinderHeroSectionProps = {
   children?: React.ReactNode;
 };
 
+/**
+ * A short hero so the search bar and the first results show without scrolling (user,
+ * 2026-10-15): copy on the left, the picture on the right standing on the search bar.
+ * The picture never sits under the copy. Phones and small tablets show the copy only.
+ */
 export function FinderHeroSection({
   title,
   subtitle,
@@ -37,35 +41,29 @@ export function FinderHeroSection({
 
   return (
     <div>
-      <div className="relative pb-2 sm:pb-6 lg:pb-8">
-        {/* sm+ — decorative hero image (hidden on mobile for readable copy) */}
-        <div className="relative hidden aspect-[16/11] w-full overflow-visible sm:ml-[24%] sm:block sm:w-[76%] lg:ml-[40%] lg:w-[62%] lg:aspect-[2.15/1]">
-          <Image
-            src={heroImageSrc}
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 640px) 0px, 860px"
-            className={`object-contain object-right object-top ${
-              // The picture's heart-and-stethoscope sits under the copy from sm to lg: hidden there.
-              heroImageSrc === FINDER_PROFESSIONALS_HERO_SRC ? "finder-hero-no-heart" : ""
-            }`}
-            aria-hidden
-          />
-        </div>
-
-        {/* Copy — in document flow on mobile; overlays image from sm up */}
-        <header
-          className={`mb-2 max-w-2xl sm:absolute sm:mb-0 sm:left-0 sm:z-10 sm:flex sm:w-[min(100%,27rem)] sm:flex-col sm:pb-3 sm:pr-4 lg:w-[45%] lg:max-w-xl lg:pb-4 lg:pl-1 lg:pr-6 ${FINDER_HERO_COPY_TOP_CLASS}`}
-        >
+      <div data-testid="finder-hero" className="flex items-end justify-between gap-8">
+        <header className="min-w-0 max-w-2xl pb-6 pt-4 sm:pb-8 sm:pt-6 lg:pb-9 lg:pt-6">
           <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight text-ink-900 sm:text-3xl lg:text-[2.35rem] lg:leading-[1.12]">
             {title}
           </h1>
           <p className={subtitleClassName}>{subtitle}</p>
         </header>
 
-        {children ? <div className="relative z-20 sm:-mt-4 lg:-mt-6">{children}</div> : null}
+        {/* Decorative; its bottom edge rests on the search bar. 1515 × 1038 picture. */}
+        <div className="relative hidden shrink-0 md:block md:h-[200px] md:w-[292px] lg:h-[230px] lg:w-[336px]">
+          <Image
+            src={heroImageSrc}
+            alt=""
+            fill
+            priority
+            sizes="336px"
+            className="object-contain object-bottom"
+            aria-hidden
+          />
+        </div>
       </div>
+
+      {children ? <div className="relative z-20">{children}</div> : null}
     </div>
   );
 }
