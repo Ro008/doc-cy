@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+  FOUNDER_LISTING_SOURCES,
   USER_EVENTS_TABLE,
   USER_EVENT_TYPES,
   isUniqueViolation,
@@ -281,16 +282,20 @@ describe("phone reveals: what was revealed and where (user, 2026-10-15)", () => 
     }
   });
 
-  it("the founders' tools ask for the new name; the old one is named in one place until step 2", () => {
+  it("the founders' tools use the new names only (step 2: the old rows are renamed)", () => {
     const page = read("app/internal/directory/page.tsx");
     assert.match(page, /p_event_type: "show_clinic_phone_number"/);
     const csv = read("app/api/internal/directory-clicks.csv/route.ts");
-    assert.match(csv, /\.in\("event_type", CLINIC_PHONE_EVENT_TYPES\)/);
+    assert.match(csv, /\.eq\("event_type", "show_clinic_phone_number"\)/);
     assert.match(csv, /\.in\("source", FOUNDER_LISTING_SOURCES\)/);
+    assert.deepEqual(
+      [...FOUNDER_LISTING_SOURCES],
+      ["unregistered_professional_finder_card", "unregistered_professional_profile_page"],
+    );
     const files = ["app", "lib", "components"].flatMap((dir) => sourceFiles(path.join(root, dir)));
     const offenders = files
-      .filter((file) => readFileSync(file, "utf8").includes('"show_phone_number"'))
+      .filter((file) => readFileSync(file, "utf8").includes("show_phone_number"))
       .map((file) => path.relative(root, file).split(path.sep).join("/"));
-    assert.deepEqual(offenders, ["lib/user-events.ts"]);
+    assert.deepEqual(offenders, []);
   });
 });

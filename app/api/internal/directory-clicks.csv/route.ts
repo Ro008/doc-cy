@@ -17,7 +17,7 @@ import {
 } from "@/lib/founder-directory-clicks-csv";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
-import { CLINIC_PHONE_EVENT_TYPES, FOUNDER_LISTING_SOURCES, USER_EVENTS_TABLE } from "@/lib/user-events";
+import { FOUNDER_LISTING_SOURCES, USER_EVENTS_TABLE } from "@/lib/user-events";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
           let q = supabase
             .from(USER_EVENTS_TABLE)
             .select("professional_id, source, created_at")
-            .in("event_type", CLINIC_PHONE_EVENT_TYPES)
+            .eq("event_type", "show_clinic_phone_number")
             .in("source", FOUNDER_LISTING_SOURCES)
             .order("created_at", { ascending: false });
           if (phoneSince) q = q.gte("created_at", phoneSince);

@@ -1,5 +1,3 @@
-import { isClinicPhoneEventName } from "@/lib/user-events";
-
 export type ManualVotesRangeKey = "7d" | "30d" | "90d" | "all";
 
 export type CallToBookRangeKey = "7d" | "30d" | "90d" | "all";
@@ -143,9 +141,7 @@ export type DirectoryClicksCsvActionFilter =
 export function parseDirectoryClicksCsvAction(
   value: string | null | undefined,
 ): DirectoryClicksCsvActionFilter | null {
-  // The old name too, for links saved before 2026-10-15.
-  if (isClinicPhoneEventName(value)) return "show_clinic_phone_number";
-  if (value === "request_online_appointment") return value;
+  if (value === "show_clinic_phone_number" || value === "request_online_appointment") return value;
   return null;
 }
 

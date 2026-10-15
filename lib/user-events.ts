@@ -36,28 +36,12 @@ export function userEventSourceFor(place: CallToBookSource, isRegistered: boolea
 }
 
 /**
- * The name clinic phone reveals had until 2026-10-15. Rows written before the new code went
- * live still carry it until step 2 of migration *_user_events_reveal_sources renames them;
- * until then the founders' tools read both names.
- */
-const LEGACY_SHOW_PHONE_NUMBER = "show_phone_number";
-export const CLINIC_PHONE_EVENT_TYPES = ["show_clinic_phone_number", LEGACY_SHOW_PHONE_NUMBER] as const;
-
-/** Accepts the old name as the new one (founders' links bookmarked before 2026-10-15). */
-export function isClinicPhoneEventName(value: string | null | undefined): boolean {
-  return (CLINIC_PHONE_EVENT_TYPES as readonly string[]).includes(String(value ?? ""));
-}
-
-/**
  * The founders' call-to-book and vote counts are about unregistered listings (the demand to
- * show them before they sign up); `finder_card` / `professional_profile_page` are the old
- * names of the unregistered ones, until step 2.
+ * show them before they sign up).
  */
 export const FOUNDER_LISTING_SOURCES = [
   "unregistered_professional_finder_card",
   "unregistered_professional_profile_page",
-  "finder_card",
-  "professional_profile_page",
 ] as const;
 
 /** What a visitor typed in the finder's "can't find your professional?" card. */

@@ -8,6 +8,7 @@ import {
   getManualVotesRangeLabel,
   getManualVotesWindowDays,
   nextCallToBookSort,
+  parseDirectoryClicksCsvAction,
   parseFounderDashboardQuery,
 } from "../../lib/founder-dashboard-query";
 
@@ -73,5 +74,14 @@ describe("parseFounderDashboardQuery", () => {
       founderDirectoryClicksCsvHref(q, "request_online_appointment"),
       "/api/internal/directory-clicks.csv?action=request_online_appointment&manualVotesRange=7d",
     );
+  });
+});
+
+describe("parseDirectoryClicksCsvAction", () => {
+  it("takes the two actions by their names, and the old phone name no more (step 2, 2026-10-15)", () => {
+    assert.equal(parseDirectoryClicksCsvAction("show_clinic_phone_number"), "show_clinic_phone_number");
+    assert.equal(parseDirectoryClicksCsvAction("request_online_appointment"), "request_online_appointment");
+    assert.equal(parseDirectoryClicksCsvAction("show_phone_number"), null);
+    assert.equal(parseDirectoryClicksCsvAction(null), null);
   });
 });
