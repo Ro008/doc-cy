@@ -290,8 +290,12 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
     const fade = page.getByTestId("profile-scroll-fade");
     await expect(fade).toHaveAttribute("data-visible", "true", { timeout: 15000 });
-    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
-    await expect(fade).toHaveAttribute("data-visible", "false");
+    // On a short profile the first jump stops short: the pinned hero shrinks as the page
+    // scrolls and the end moves, so keep scrolling to the real bottom (as a reader would).
+    await expect(async () => {
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+      await expect(fade).toHaveAttribute("data-visible", "false", { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await expect(fade).toHaveAttribute("data-visible", "true");
   });
