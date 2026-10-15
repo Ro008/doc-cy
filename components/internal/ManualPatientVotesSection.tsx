@@ -1,6 +1,8 @@
 "use client";
 
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
+import { TablePagination } from "@/components/internal/TablePagination";
+import { useTablePagination } from "@/components/internal/useTablePagination";
 import type {
   FounderDashboardQuery,
   ManualVotesRangeKey,
@@ -61,6 +63,9 @@ const headerBtn =
 
 export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Props) {
   const { navigate } = useDirectoryNav();
+  const paged = useTablePagination(rows, {
+    resetKey: `${query.manualVotesRange}|${query.manualVotesCol}|${query.manualVotesDir}`,
+  });
   const rangeLabel = getManualVotesRangeLabel(query.manualVotesRange);
   const medal = (r: 1 | 2 | 3) => (r === 1 ? "🥇" : r === 2 ? "🥈" : "🥉");
   const tierClass = (r: 1 | 2 | 3) =>
@@ -192,6 +197,7 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
       ) : null}
 
       {rows.length > 0 ? (
+        <>
         <div className="relative mt-6 -mx-4 max-w-[calc(100%+2rem)] overflow-x-auto overflow-y-visible scroll-smooth overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:max-w-none sm:px-0">
           <table className="w-full min-w-[520px] text-left text-xs sm:min-w-[640px]">
             <thead>
@@ -264,7 +270,7 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {paged.rows.map((r) => (
                 <tr key={r.manualId} className="border-b border-slate-800/60 text-slate-200">
                   <td className="max-w-[140px] truncate py-2.5 pr-2 font-medium text-slate-100 sm:max-w-[200px] sm:py-2 sm:pr-3">
                     {r.name}
@@ -289,6 +295,15 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
             </tbody>
           </table>
         </div>
+          <TablePagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            total={paged.total}
+            from={paged.from}
+            to={paged.to}
+            onPageChange={paged.setPage}
+          />
+        </>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
           {query.manualVotesRange === "all"

@@ -1,6 +1,8 @@
 "use client";
 
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
+import { TablePagination } from "@/components/internal/TablePagination";
+import { useTablePagination } from "@/components/internal/useTablePagination";
 import type {
   CallToBookRangeKey,
   CallToBookSortCol,
@@ -63,6 +65,9 @@ export function CallToBookClicksSection({
   rows,
 }: Props) {
   const { navigate } = useDirectoryNav();
+  const paged = useTablePagination(rows, {
+    resetKey: `${query.callToBookRange}|${query.callToBookCol}|${query.callToBookDir}`,
+  });
   const rangeLabel = getCallToBookRangeLabel(query.callToBookRange);
 
   return (
@@ -139,6 +144,7 @@ export function CallToBookClicksSection({
       </div>
 
       {rows.length > 0 ? (
+        <>
         <div className="relative mt-6 -mx-4 max-w-[calc(100%+2rem)] overflow-x-auto overflow-y-visible scroll-smooth overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:max-w-none sm:px-0">
           <table className="w-full min-w-[640px] text-left text-xs">
             <thead>
@@ -230,7 +236,7 @@ export function CallToBookClicksSection({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {paged.rows.map((r) => (
                 <tr key={r.manualId} className="border-b border-slate-800/60 text-slate-200">
                   <td className="max-w-[180px] truncate py-2.5 pr-3 font-medium text-slate-100">
                     {r.name}
@@ -252,6 +258,15 @@ export function CallToBookClicksSection({
             </tbody>
           </table>
         </div>
+          <TablePagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            total={paged.total}
+            from={paged.from}
+            to={paged.to}
+            onPageChange={paged.setPage}
+          />
+        </>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
           {query.callToBookRange === "all"

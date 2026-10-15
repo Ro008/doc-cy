@@ -10,6 +10,8 @@ import {
 } from "@/lib/cyprus-languages";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
+import { TablePagination } from "@/components/internal/TablePagination";
+import { useTablePagination } from "@/components/internal/useTablePagination";
 
 export type DirectoryDoctorRow = {
   id: string;
@@ -94,6 +96,10 @@ export function InternalDirectoryClient({
       return true;
     });
   }, [doctors, nameQ, specialtyFilter, languageFilter]);
+
+  const paged = useTablePagination(filtered, {
+    resetKey: `${nameQ}|${specialtyFilter}|${languageFilter}`,
+  });
 
   const hasActiveFilters = Boolean(
     nameQ.trim() || specialtyFilter || languageFilter
@@ -240,7 +246,7 @@ export function InternalDirectoryClient({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((d) => {
+            {paged.rows.map((d) => {
               const busy = busyId === d.id;
               return (
                 <tr
@@ -301,6 +307,14 @@ export function InternalDirectoryClient({
           </tbody>
         </table>
       </div>
+      <TablePagination
+        page={paged.page}
+        pageCount={paged.pageCount}
+        total={paged.total}
+        from={paged.from}
+        to={paged.to}
+        onPageChange={paged.setPage}
+          />
 
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">
