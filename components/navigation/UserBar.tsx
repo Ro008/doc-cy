@@ -66,8 +66,9 @@ function UserAvatar({
 /** On <html> while the desktop sticky header shows (globals.css sets `--doccy-top-chrome`). */
 const STICKY_HEADER_ATTR = "data-doccy-sticky-header";
 
+/** Her initials once her name has loaded; empty before, so the circle stays blank (user, 2026-10-14). */
 function getInitials(name: string | null): string {
-  if (!name) return "DC";
+  if (!name) return "";
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0]?.[0]?.toUpperCase() ?? "D";
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();

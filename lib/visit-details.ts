@@ -14,6 +14,8 @@ export type AgendaAppointmentRow = {
   patient_birthdate?: string | null;
   is_new_patient?: boolean | null;
   reason?: string | null;
+  /** The service the patient picked when booking (user, 2026-10-09). */
+  service_name?: string | null;
   appointment_datetime: string;
   status?: string | null;
   duration_minutes?: number | null;

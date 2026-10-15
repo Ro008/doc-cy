@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import {
   MAX_SERVICES,
+  SERVICES_COUNT_SHOWN_FROM,
   formatServicePrice,
+  servicesCountLabel,
   parseSavedServices,
   parseServicePrice,
   serviceFromBody,
@@ -159,4 +164,26 @@ describe("parseSavedServices", () => {
 
 describe("MAX_SERVICES", () => {
   it("is 20", () => assert.equal(MAX_SERVICES, 20));
+});
+
+describe("servicesCountLabel (the counter only appears near the limit; user, 2026-10-13)", () => {
+  it("says nothing while there is plenty of room", () => {
+    assert.equal(SERVICES_COUNT_SHOWN_FROM, 15);
+    for (const count of [0, 1, 2, 10, 14]) assert.equal(servicesCountLabel(count), null, String(count));
+  });
+
+  it("says how many of the 20 are used from 15 on, up to the limit", () => {
+    assert.equal(servicesCountLabel(15), "15 of 20 services");
+    assert.equal(servicesCountLabel(19), "19 of 20 services");
+    assert.equal(servicesCountLabel(20), "20 of 20 services");
+  });
+
+  it("is shown by the price list card in place of the always-on counter", () => {
+    const card = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../components/dashboard/settings/ServicesCard.tsx"),
+      "utf8",
+    );
+    assert.match(card, /servicesCountLabel\(items\.length\)/);
+    assert.doesNotMatch(card, /\{items\.length\} of \{MAX_SERVICES\}/);
+  });
 });

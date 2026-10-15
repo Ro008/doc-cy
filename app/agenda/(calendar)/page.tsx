@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
+import { loadOwnServices } from "@/lib/load-own-services";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import {
   DOCTOR_FIRST_LOGIN_PATH,
@@ -123,7 +124,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  const [locationRows, accessEnded, holidayRes] = await Promise.all([
+  const [locationRows, accessEnded, holidayRes, services] = await Promise.all([
     loadDoctorLocations(doctor.id),
     loadProAccessEnded(supabase, doctor.id),
     supabase
@@ -131,6 +132,8 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
       .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
       .eq("professional_id", doctor.id)
       .maybeSingle(),
+    // Her services, for the optional choice in "Add manual booking".
+    loadOwnServices(supabase, doctor.id),
   ]);
   // Holiday mode, running or announced, is said here too (user, 2026-10-11).
   const holidayRow = holidayRes.data as {
@@ -191,6 +194,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           initialAppointments={(appointments as any[]) ?? []}
           workingHours={workingHours}
           clinics={clinics}
+          services={services}
           initialDateKey={searchParams?.date ?? null}
           initialView={searchParams?.view ?? null}
           openManualBooking={searchParams?.manual === "1"}

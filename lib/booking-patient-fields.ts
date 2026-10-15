@@ -3,7 +3,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { parseIsNewPatient } from "@/lib/patient-visit-status";
 import { isValidRegisterEmail } from "@/lib/register-email";
-import { manualPhoneProblem } from "@/lib/phone-number";
+import { manualPhoneProblem, onlineBookingPhoneProblem } from "@/lib/phone-number";
 import { normalizeAppointmentReason } from "@/lib/visit-types";
 
 /**
@@ -37,6 +37,17 @@ export type BookingPatientFieldsResult =
 
 const EARLIEST_BIRTHDATE = "1900-01-01";
 
+/**
+ * Longest values taken (2026-10-15), the same in the database checks on appointments and
+ * appointment_drafts: a request sent without the form cannot store a huge name in her
+ * Agenda and the emails. 254 is the longest valid email address.
+ */
+export const PATIENT_NAME_MAX_LENGTH = 200;
+export const PATIENT_EMAIL_MAX_LENGTH = 254;
+export const PATIENT_PHONE_MAX_LENGTH = 32;
+/** Each of the online form's two name boxes; both, joined with a space, stay within the limit. */
+export const PATIENT_NAME_PART_MAX_LENGTH = 99;
+
 function clean(value: unknown): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
@@ -65,18 +76,32 @@ export function parseBookingPatientFields(
 ): BookingPatientFieldsResult {
   const patientName = clean(raw.patientName);
   if (!patientName) return { ok: false, message: "Please enter the patient's full name." };
+  if (patientName.length > PATIENT_NAME_MAX_LENGTH) {
+    return { ok: false, message: "The patient's name is too long." };
+  }
+  // Online the form has two boxes and the clinic needs the surname; manual bookings take one name.
+  if (source === "online" && patientName.split(" ").length < 2) {
+    return { ok: false, message: "Please enter the patient's first and last name." };
+  }
 
   const emailRaw = clean(raw.patientEmail);
   if (!emailRaw && source === "online") return { ok: false, message: "Please enter an email address." };
-  if (emailRaw && !isValidRegisterEmail(emailRaw)) {
+  if (emailRaw && (emailRaw.length > PATIENT_EMAIL_MAX_LENGTH || !isValidRegisterEmail(emailRaw))) {
     return { ok: false, message: "Please enter a valid email address." };
   }
 
   const patientPhone = clean(raw.patientPhone);
   if (!patientPhone) return { ok: false, message: "Please enter a phone number." };
+  if (patientPhone.length > PATIENT_PHONE_MAX_LENGTH) {
+    return { ok: false, message: "Please enter a valid mobile number." };
+  }
   // Typed by the professional (no phone widget): a real mobile number with its country code.
   if (source === "manual" && manualPhoneProblem(patientPhone)) {
     return { ok: false, message: "Please enter a valid mobile number with its country code." };
+  }
+  // Online too (2026-10-10): the form checks the same before sending.
+  if (source === "online" && onlineBookingPhoneProblem(patientPhone)) {
+    return { ok: false, message: "Please enter a valid mobile number." };
   }
 
   // Manual bookings: only name, phone and reason are required; the rest is checked when

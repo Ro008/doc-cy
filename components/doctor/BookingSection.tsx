@@ -11,8 +11,10 @@ import {
 import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Loader2, MapPin, X } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import { TurnstileWidget } from "@/components/booking/TurnstileWidget";
+import { waitForTurnstileToken } from "@/lib/turnstile";
 import { CY_TZ } from "@/lib/appointments";
 import {
   bookingSlotDateFromKey,
@@ -21,16 +23,88 @@ import {
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
-import { type PatientGender } from "@/lib/booking-patient-fields";
+import {
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_NAME_PART_MAX_LENGTH,
+  type PatientGender,
+} from "@/lib/booking-patient-fields";
 import { BOOKING_SLOT_REFRESH_MS, bookingRefusal, hideRefusedSlot } from "@/lib/booking-refusal";
 import {
-  firstBookingFormError,
-  type BookingFormError,
+  allBookingFormErrors,
+  type BookingFormErrorKey,
   type BookingFormField,
 } from "@/lib/booking-form-validation";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
+import { isValidRegisterEmail, suggestRegisterEmail } from "@/lib/register-email";
+import { birthdateFromParts, fullPatientName } from "@/lib/booking-form-parts";
+import {
+  BOOKING_SERVICE_OTHER,
+  bookingServiceOptions,
+  bookingServiceRequest,
+  type BookingServiceItem,
+} from "@/lib/booking-service-choice";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
+import {
+  PROFILE_SELECT_DAY_EVENT,
+  parseProfileDaySelectDetail,
+  parseProfileSlotSelectDetail,
+} from "@/lib/public/profile-day-select";
+import {
+  PROFILE_SELECT_SERVICE_EVENT,
+  parseProfileServiceSelectDetail,
+} from "@/lib/public/profile-booking-events";
+import { useIsomorphicLayoutEffect, useProfileBookingStep } from "@/components/doctor/profile/ProfileBookingStep";
+import { ProfileBookingDialog } from "@/components/doctor/profile/ProfileBookingDialog";
+
+// Public profile theme tokens (light/dark + DocCy's accent, see lib/profile-theme.ts).
+const CARD_CLASS =
+  "rounded-3xl border border-profile-border bg-profile-surface p-6 text-profile-body shadow-sm";
+const LABEL_CLASS = "text-sm font-semibold text-profile-text";
+const FIELD_ERROR_CLASS =
+  "text-sm font-semibold text-red-600 [.doccy-profile[data-scheme=dark]_&]:text-red-400";
+const BOX_ERROR_CLASS =
+  "rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800";
+
+/**
+ * Every booking field is required (user, 2026-10-02). The star is drawn by CSS, so a
+ * label's text stays exactly "Email" for assistive tech and tests; `required` on the
+ * field is what screen readers announce.
+ */
+/** A soft ring around the profile booking card for a moment (app/globals.css). */
+function glowBookingCard(from: HTMLElement | null) {
+  const card = from?.closest<HTMLElement>("[data-testid=\"profile-booking-panel\"]");
+  if (!card) return;
+  card.classList.remove("profile-booking-glow");
+  void card.offsetWidth; // restart the animation on a second click
+  card.classList.add("profile-booking-glow");
+  card.addEventListener("animationend", () => card.classList.remove("profile-booking-glow"), { once: true });
+}
+
+function RequiredMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-0.5 text-red-600 after:content-['*'] [.doccy-profile[data-scheme=dark]_&]:text-red-400"
+    />
+  );
+}
+
+const CHOICE_CLASS = (selected: boolean, invalid: boolean) =>
+  `flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-medium transition ${
+    selected
+      ? "border-accent bg-accent-soft text-profile-text"
+      : invalid
+        ? "border-red-500 bg-profile-surface text-profile-body"
+        : "border-profile-border bg-profile-surface text-profile-body hover:border-accent"
+  }`;
+
+const INPUT_CLASS = (invalid: boolean) =>
+  `w-full rounded-2xl border bg-profile-bg px-3 py-2.5 text-base text-profile-text placeholder:text-profile-muted focus:outline-none focus:ring-2 focus:ring-accent ${
+    invalid ? "border-red-500" : "border-profile-border"
+  }`;
+
+const RADIO_CLASS = "h-4 w-4 accent-[var(--p-accent-cta)]";
 
 type WeeklySlot = {
   id: string;
@@ -66,6 +140,16 @@ type BookingSectionProps = {
   locationId?: string | null;
   locationLabel?: string | null;
   locationScopedPause?: boolean;
+  /** Her services: when there are any, the patient picks one (or Other). No prices here. */
+  services?: BookingServiceItem[];
+  /**
+   * "panel": inside the profile's clinic card (a narrow column): the month above the times,
+   * the clinic's next free time already picked, and the details form and the "check your
+   * email" card open as a dialog. "page" is the wide card with the month beside the times.
+   */
+  layout?: "page" | "panel";
+  /** Panel only: shown next to the details form in the dialog ("What to expect"). */
+  detailsAside?: React.ReactNode;
 };
 
 type SlotOption = {
@@ -96,7 +180,13 @@ export function BookingSection({
   locationId = null,
   locationLabel = null,
   locationScopedPause = false,
+  services = [],
+  layout = "page",
+  detailsAside = null,
 }: BookingSectionProps) {
+  const panel = layout === "panel";
+  // The panel is already a card: its states are plain blocks inside it.
+  const stateCardClass = panel ? "text-profile-body" : CARD_CLASS;
   const onlineBookingsPaused = onlineBookingsPausedProp || onlineBookingsUnavailable;
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
     bookingHorizonDays
@@ -122,26 +212,55 @@ export function BookingSection({
     null
   );
   const [showContactForm, setShowContactForm] = React.useState(false);
-  const [patientName, setPatientName] = React.useState("");
+  // First and last name in two boxes (2026-10-10); sent joined as patientName.
+  const [patientFirstName, setPatientFirstName] = React.useState("");
+  const [patientLastName, setPatientLastName] = React.useState("");
   const [patientEmail, setPatientEmail] = React.useState("");
+  // Same checks as /register's email: "Did you mean …?" for a typo in a common provider
+  // (sdf@gmai.com → sdf@gmail.com), shown on leaving the field.
+  const [emailSuggestion, setEmailSuggestion] = React.useState<string | null>(null);
   const [patientPhone, setPatientPhone] = React.useState("");
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
   const [visitReason, setVisitReason] = React.useState("");
+  const serviceOptions = bookingServiceOptions(services, t("serviceOther"));
+  /** null: no picker (she lists no services); "": nothing chosen yet; a service id or "other". */
+  const [serviceChoice, setServiceChoice] = React.useState<string | null>(
+    serviceOptions.length > 0 ? "" : null,
+  );
+  // The free text is optional once one of her services is picked; required with Other,
+  // with nothing picked yet, or when she lists no services.
+  const bookingServiceName = services.find((service) => service.id === serviceChoice)?.name ?? null;
+  const reasonOptional =
+    serviceChoice !== null && serviceChoice !== "" && serviceChoice !== BOOKING_SERVICE_OTHER;
   const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
-  const [patientBirthdate, setPatientBirthdate] = React.useState("");
+  // Day / Month / Year boxes (2026-10-10): easier than a calendar for a birth date.
+  const [birthParts, setBirthParts] = React.useState({ day: "", month: "", year: "" });
+  const patientBirthdate = birthdateFromParts(birthParts);
   /** Set once the request is saved: the patient confirms it from the email (user, 2026-10-02). */
   const [checkEmailAddress, setCheckEmailAddress] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  // Cloudflare Turnstile (lib/turnstile.ts): only where the site key is set (Production).
+  // A person, not a script, sends the request; each token works once, so reset after a send.
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+  // A ref, not state: Send may wait for the token (~2s), and the wait reads the latest one.
+  const turnstileTokenRef = React.useRef("");
+  const setTurnstileToken = React.useCallback((token: string) => {
+    turnstileTokenRef.current = token;
+  }, []);
+  const [turnstileReset, setTurnstileReset] = React.useState(0);
+  const [turnstileTheme, setTurnstileTheme] = React.useState<"light" | "dark">("light");
   const [error, setError] = React.useState<string | null>(null);
-  /** The first field the patient still has to fix; its message shows under that field. */
-  const [fieldError, setFieldError] = React.useState<BookingFormError | null>(null);
+  /** Every field the patient still has to fix; each message shows under its field. */
+  const [fieldErrors, setFieldErrors] = React.useState<Partial<Record<BookingFormField, BookingFormErrorKey>>>({});
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
     null
   );
-  const appliedInitialSlotRef = React.useRef(false);
+  // The deep-linked time already opened (one per clinic and time, so a hero row for
+  // another clinic opens its own after this one has been used).
+  const appliedInitialSlotRef = React.useRef<string | null>(null);
   const successRef = React.useRef<HTMLDivElement | null>(null);
 
   // The success card replaces the taller form, so it can land above or below the fold:
@@ -275,15 +394,16 @@ export function BookingSection({
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
 
   React.useEffect(() => {
-    if (appliedInitialSlotRef.current) return;
     if (onlineBookingsPaused) return;
 
     const slotKey = parseBookingSlotParam(initialSlotKey);
     if (!slotKey) return;
+    const appliedKey = `${locationId ?? ""}|${slotKey}`;
+    if (appliedInitialSlotRef.current === appliedKey) return;
 
     // Wait until we know whether this doctor has any bookable slots.
     if (!weeklySlots || weeklySlots.length === 0) return;
-    appliedInitialSlotRef.current = true;
+    appliedInitialSlotRef.current = appliedKey;
 
     const clearSlotQuery = () => {
       if (typeof window === "undefined") return;
@@ -320,6 +440,92 @@ export function BookingSection({
     t,
   ]);
 
+  // The clinic picker above steps aside while the details are filled in. Set in a layout effect:
+  // it hides in the same task the form appears, before the scroll below measures anything.
+  const { setStep: setBookingStep } = useProfileBookingStep();
+  useIsomorphicLayoutEffect(() => {
+    setBookingStep(showContactForm ? "details" : "time");
+  }, [showContactForm, setBookingStep]);
+
+  // Continue opens the details form: bring its top ("Your details") into view.
+  const contactFormRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!showContactForm || panel) return;
+    const card = contactFormRef.current;
+    if (!card) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => {
+        card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
+  }, [showContactForm, panel]);
+
+  // Turnstile's box (when it has to show) follows the profile's Light/Dark switch.
+  React.useEffect(() => {
+    if (!showContactForm) return;
+    const scheme = document.querySelector(".doccy-profile")?.getAttribute("data-scheme");
+    setTurnstileTheme(scheme === "dark" ? "dark" : "light");
+  }, [showContactForm]);
+
+  // Picking a time brings the Confirm bar into view (above the bottom fade), unless it
+  // already is; instant for people who reduce motion.
+  const confirmBarRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!selectedSlot || showContactForm || panel) return;
+    const bar = confirmBarRef.current;
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    const hiddenBelow = rect.bottom > window.innerHeight - 80;
+    if (!hiddenBelow && rect.top >= 0) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bar.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+  }, [selectedSlot, showContactForm, panel]);
+
+  // A next-availability day card in the profile hero opens that day here.
+  React.useEffect(() => {
+    const onSelectDay = (event: Event) => {
+      const dateKey = parseProfileDaySelectDetail((event as CustomEvent).detail);
+      if (!dateKey) return;
+      const [y, m, d] = dateKey.split("-").map(Number);
+      setSelectedDate(new Date(y, m - 1, d));
+      setError(null);
+      // With a time that is still free, that time is picked: "Continue" opens the form.
+      const slotKey = parseProfileSlotSelectDetail((event as CustomEvent).detail);
+      const match = slotKey ? upcomingSlots.find((slot) => slot.slotKey === slotKey) : undefined;
+      setSelectedSlot(match && !takenSet.has(match.slotKey) ? match : null);
+      setShowContactForm(false);
+    };
+    window.addEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
+    return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
+  }, [upcomingSlots, takenSet]);
+
+  // A row of "Services & prices" remembers that service; the patient then picks the date and
+  // time, and the details form opens with it chosen (user, 2026-10-14: never straight to the
+  // form, the time is theirs to pick). On a laptop the booking card is already on screen: it
+  // glows instead of the page jumping (cancelling the event keeps the row's link from
+  // scrolling); on a phone the row's link scrolls down to the calendar.
+  React.useEffect(() => {
+    const onSelectService = (event: Event) => {
+      const serviceId = parseProfileServiceSelectDetail((event as CustomEvent).detail);
+      if (!serviceId || !services.some((service) => service.id === serviceId)) return;
+      setServiceChoice(serviceId);
+      setFieldErrors(({ professionalService: _gone, ...rest }) => rest);
+      if (panel && window.matchMedia("(min-width: 1024px)").matches) {
+        glowBookingCard(panelRef.current);
+        event.preventDefault();
+      }
+    };
+    window.addEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
+    return () => window.removeEventListener(PROFILE_SELECT_SERVICE_EVENT, onSelectService);
+  }, [services, panel]);
+
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
     const dateSet = new Set<string>();
@@ -334,6 +540,24 @@ export function BookingSection({
     });
   }, [upcomingSlots, takenSet]);
 
+  // The calendar opens on the first day with times, so the times are already on screen (no empty
+  // half-card to explain); a picked day can't be un-picked (`required` on the DayPicker). Not with
+  // a deep-linked slot, which picks its own day, nor while the form or success card is showing.
+  React.useEffect(() => {
+    if (selectedDate || bookingSuccess || showContactForm || availableDates.length === 0) return;
+    if (parseBookingSlotParam(initialSlotKey)) return;
+    setSelectedDate(availableDates[0]);
+    // In the clinic card the next free time is picked too (user, 2026-10-13): the patient
+    // only has to press "Continue", or pick another day or time.
+    if (panel) {
+      const firstKey = format(availableDates[0], "yyyy-MM-dd");
+      const first = upcomingSlots.find(
+        (slot) => slot.dateKey === firstKey && !takenSet.has(slot.slotKey),
+      );
+      if (first) setSelectedSlot(first);
+    }
+  }, [selectedDate, bookingSuccess, showContactForm, availableDates, initialSlotKey, panel, upcomingSlots, takenSet]);
+
   // Slots for the currently selected date (only available ones)
   const slotsForSelectedDay = React.useMemo(() => {
     if (!selectedDate) return [];
@@ -345,12 +569,14 @@ export function BookingSection({
 
   /** Field id to focus for each form field (radio groups: their first option). */
   const FIELD_FOCUS_ID: Record<BookingFormField, string> = {
-    patientName: "name",
+    patientFirstName: "firstName",
+    patientLastName: "lastName",
     patientEmail: "email",
     patientPhone: "phone",
     isNewPatient: "visitHistory-first",
     patientGender: "patientGender-female",
-    patientBirthdate: "patientBirthdate",
+    patientBirthdate: "patientBirthdate-day",
+    professionalService: "professionalService",
     visitReason: "visitReason",
   };
 
@@ -372,11 +598,17 @@ export function BookingSection({
 
   /** Clears the field's message as soon as the patient changes that field. */
   function fixed(field: BookingFormField) {
-    setFieldError((current) => (current?.field === field ? null : current));
+    setFieldErrors((current) => {
+      if (!(field in current)) return current;
+      const { [field]: _gone, ...rest } = current;
+      return rest;
+    });
   }
 
-  const errorFor = (field: BookingFormField) =>
-    fieldError?.field === field ? t(`errors.${fieldError.messageKey}`) : null;
+  const errorFor = (field: BookingFormField) => {
+    const key = fieldErrors[field];
+    return key ? t(`errors.${key}`) : null;
+  };
 
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
@@ -386,45 +618,58 @@ export function BookingSection({
         setError(t("errors.selectTimeSlot"));
         return;
       }
-      // Say exactly what is missing, under that field, and take the patient there.
-      const problem = firstBookingFormError({
-        patientName,
+      // Say what is missing, under every field at once, and take the patient to the first.
+      const problems = allBookingFormErrors({
+        patientFirstName,
+        patientLastName,
         patientEmail,
         patientPhone,
         phoneValid,
         isNewPatient,
         patientGender,
         patientBirthdate,
+        serviceChoice,
         visitReason,
       });
-      if (problem) {
-        setFieldError(problem);
-        focusField(problem.field);
+      if (problems.length > 0) {
+        setFieldErrors(Object.fromEntries(problems.map((p) => [p.field, p.messageKey])));
+        focusField(problems[0].field);
         return;
       }
-      setFieldError(null);
+      setFieldErrors({});
       const reasonTrim = visitReason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
+        // Send pressed before Cloudflare handed over its token (~2s): wait, showing "Sending…".
+        const turnstileToken = turnstileSiteKey
+          ? await waitForTurnstileToken(() => turnstileTokenRef.current)
+          : "";
+        if (turnstileSiteKey && !turnstileToken) {
+          setError(t("errors.botCheckPending"));
+          return;
+        }
         const res = await fetch("/api/appointments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             doctorId,
-            patientName,
+            patientName: fullPatientName(patientFirstName, patientLastName),
             patientEmail,
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
-            reason: reasonTrim,
+            ...bookingServiceRequest({ choice: serviceChoice, services, visitReason: reasonTrim }),
             isNewPatient,
             patientGender,
             patientBirthdate,
             ...(locationId ? { locationId } : {}),
+            ...(turnstileSiteKey ? { turnstileToken } : {}),
           }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
+          // The token was spent on this send: get a fresh one for the next try.
+          if (turnstileSiteKey) setTurnstileReset((n) => n + 1);
           // Plain words instead of the server's technical message; a time that is no longer
           // offered sends the patient back to the calendar (details stay filled in).
           const refusal = bookingRefusal(res.status, data?.code);
@@ -455,16 +700,19 @@ export function BookingSection({
         setSelectedSlot(null);
         setSelectedDate(null);
         setShowContactForm(false);
-        setPatientName("");
+        setPatientFirstName("");
+        setPatientLastName("");
         setPatientEmail("");
         setPatientPhone("");
         setIsNewPatient(null);
         setVisitReason("");
+        setServiceChoice(serviceOptions.length > 0 ? "" : null);
         setPatientGender("");
-        setPatientBirthdate("");
+        setBirthParts({ day: "", month: "", year: "" });
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
+        if (turnstileSiteKey) setTurnstileReset((n) => n + 1);
         setError(t("errors.somethingWentWrong"));
       } finally {
         // If we already navigated to the request-sent page, keep the button in the
@@ -476,7 +724,9 @@ export function BookingSection({
     },
     [
       selectedSlot,
-      patientName,
+      turnstileSiteKey,
+      patientFirstName,
+      patientLastName,
       patientEmail,
       patientPhone,
       phoneValid,
@@ -484,6 +734,8 @@ export function BookingSection({
       visitReason,
       patientGender,
       patientBirthdate,
+      serviceChoice,
+      services,
       doctorId,
       doctorName,
       locationId,
@@ -493,11 +745,11 @@ export function BookingSection({
 
   if (onlineBookingsPaused) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={stateCardClass}>
+        <h2 className={`font-semibold text-profile-text ${panel ? "text-base" : "text-xl"}`}>
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {onlineBookingsUnavailable
             ? t("appointmentsUnavailable")
             : locationScopedPause
@@ -505,7 +757,7 @@ export function BookingSection({
               : t("appointmentsPaused")}
         </p>
         {publicPhoneAvailable ? (
-          <p className="mt-2 text-sm font-medium text-ink-700">
+          <p className="mt-2 text-sm font-medium text-profile-body">
             {t("appointmentsPausedCallHint")}
           </p>
         ) : null}
@@ -515,11 +767,11 @@ export function BookingSection({
 
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={stateCardClass}>
+        <h2 className="text-xl font-semibold text-profile-text">
           {t("title")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {t("availabilityNotPublished", {doctorName})}
         </p>
       </div>
@@ -528,11 +780,11 @@ export function BookingSection({
 
   if (upcomingSlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={stateCardClass}>
+        <h2 className="text-xl font-semibold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {holidayActive && holidayStartDate && holidayEndDate
             ? t("calendarBlockedFromTo", {
                 start: formatDateDDMMYYYY(holidayStartDate),
@@ -561,108 +813,186 @@ export function BookingSection({
     }
   }
 
+  /** In the panel, the second step and its result open over the page. */
+  const overPage = (label: string, onClose: () => void, node: React.ReactElement, aside?: React.ReactNode) =>
+    panel ? (
+      <ProfileBookingDialog label={label} onClose={onClose} aside={aside}>
+        {node}
+      </ProfileBookingDialog>
+    ) : (
+      node
+    );
+
   if (bookingSuccess) {
-    return (
+    return overPage(
+      checkEmailAddress ? t("checkEmailTitle") : t("requestSubmittedTitle"),
+      startOver,
       <div
         ref={successRef}
         data-testid="booking-success-message"
         data-appointment-id={lastAppointmentId ?? ""}
-        className="scroll-mt-24 rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(245,158,11,0.12)] sm:p-10"
+        className="scroll-mt-24 rounded-3xl border border-profile-border bg-accent-soft p-8 text-profile-body sm:p-10"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative">
-            <div className="absolute inset-0 scale-150 rounded-full bg-amber-400/20 blur-2xl" />
             <Clock
-              className="relative h-20 w-20 text-amber-400 sm:h-24 sm:w-24"
+              className="relative h-20 w-20 text-accent-link sm:h-24 sm:w-24"
               strokeWidth={1.5}
               aria-hidden
             />
           </div>
-          <h2 className="mt-6 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+          <h2 className="mt-6 text-2xl font-semibold tracking-tight text-profile-text sm:text-3xl">
             {checkEmailAddress ? t("checkEmailTitle") : t("requestSubmittedTitle")}
           </h2>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-600">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-profile-body">
             {checkEmailAddress
               ? t("checkEmailMessage", { email: checkEmailAddress, doctorName })
               : t("requestSubmittedMessage", { doctorName })}
           </p>
           {checkEmailAddress ? (
-            <p className="mt-2 max-w-sm text-xs leading-relaxed text-ink-500">{t("checkEmailHint")}</p>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-profile-muted">{t("checkEmailHint")}</p>
           ) : null}
           {/* Done shows the calendar again in place: a link to this same profile URL did nothing. */}
           <button
             type="button"
             onClick={startOver}
             data-testid="booking-success-done"
-            className="mt-8 w-full max-w-xs rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
+            className="mt-8 w-full max-w-xs rounded-2xl bg-accent-cta px-6 py-3 text-sm font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             {t("doneButton")}
           </button>
         </div>
-      </div>
+      </div>,
     );
   }
 
   // Contact form step (after Confirm on time slot)
   if (showContactForm && selectedSlot) {
-    return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <div className="mb-6 flex items-center justify-between gap-3">
+    const backToTimes = () => {
+      setShowContactForm(false);
+      setError(null);
+    };
+    return overPage(
+      t("yourDetails"),
+      backToTimes,
+      <div ref={contactFormRef} className={`${CARD_CLASS} scroll-mt-20`}>
+        {/* "← Change time" goes back to the calendar; ✕ closes the form (user, 2026-10-14).
+            Over the page the bar stays at the top while the long form scrolls, so both stay
+            within reach on a phone. What she typed is kept either way. */}
+        <div
+          data-testid="booking-form-bar"
+          className={
+            panel
+              ? "sticky -top-4 z-10 -mx-6 -mt-6 mb-3 flex items-center justify-between gap-3 rounded-t-3xl border-b border-profile-border bg-profile-surface px-4 py-1.5 sm:-top-10"
+              : "-ml-2 mb-3 flex items-center"
+          }
+        >
+          <button
+            type="button"
+            onClick={backToTimes}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-accent-link transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            {t("changeTime")}
+          </button>
+          {panel ? (
+            <button
+              type="button"
+              onClick={backToTimes}
+              aria-label={t("closeForm")}
+              data-testid="booking-form-close"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-profile-muted transition hover:bg-accent-soft hover:text-profile-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        <div className="mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-ink-900">
+            {locationLabel ? (
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
+                {t("detailsStep")}
+              </p>
+            ) : null}
+            <h2 className="text-xl font-semibold text-profile-text">
               {t("yourDetails")}
             </h2>
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-sm text-profile-muted">
               {selectedSlot.labelFull} · {t("cyprusTime")}
               {locationLabel ? ` · ${locationLabel}` : ""}
             </p>
+            {bookingServiceName ? (
+              <p data-testid="booking-form-service" className="mt-0.5 text-sm font-semibold text-profile-text">
+                {t("bookingForService", { service: bookingServiceName })}
+              </p>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowContactForm(false);
-              setError(null);
-            }}
-            className="text-xs font-medium text-ink-500 transition hover:text-clinical-700"
-          >
-            {t("changeTime")}
-          </button>
         </div>
         {/* noValidate: our own messages under each field, not the browser's generic bubble. */}
         <form className="space-y-4" noValidate onSubmit={handleSubmit}>
-          <div id="field-patientName" className="scroll-mt-24 space-y-2">
-            <label
-              htmlFor="name"
-              className="text-xs font-semibold text-ink-800"
-            >
-              {t("patientFullNameLabel")}
-            </label>
-            <input
-              id="name"
-              type="text"
-              required
-              value={patientName}
-              onChange={(e) => {
-                setPatientName(e.target.value);
-                fixed("patientName");
-              }}
-              aria-invalid={errorFor("patientName") ? true : undefined}
-              aria-describedby={errorFor("patientName") ? "name-error" : undefined}
-              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientName") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
-              placeholder={t("patientFullNamePlaceholder")}
-            />
-            {errorFor("patientName") ? (
-              <p id="name-error" role="alert" className="text-xs font-medium text-red-600">
-                {errorFor("patientName")}
-              </p>
-            ) : null}
+          {/* Two boxes, both required, nothing else checked: the clinic needs the surname to
+              find the record, and "Alexander G" is fine (user, 2026-10-10). */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div id="field-patientFirstName" className="scroll-mt-24 space-y-2">
+              <label htmlFor="firstName" className={LABEL_CLASS}>
+                {t("firstNameLabel")}
+                <RequiredMark />
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                required
+                value={patientFirstName}
+                onChange={(e) => {
+                  setPatientFirstName(e.target.value);
+                  fixed("patientFirstName");
+                }}
+                aria-invalid={errorFor("patientFirstName") ? true : undefined}
+                aria-describedby={errorFor("patientFirstName") ? "firstName-error" : undefined}
+                maxLength={PATIENT_NAME_PART_MAX_LENGTH}
+                autoComplete="given-name"
+                className={INPUT_CLASS(Boolean(errorFor("patientFirstName")))}
+              />
+              {errorFor("patientFirstName") ? (
+                <p id="firstName-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("patientFirstName")}
+                </p>
+              ) : null}
+            </div>
+            <div id="field-patientLastName" className="scroll-mt-24 space-y-2">
+              <label htmlFor="lastName" className={LABEL_CLASS}>
+                {t("lastNameLabel")}
+                <RequiredMark />
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                required
+                value={patientLastName}
+                onChange={(e) => {
+                  setPatientLastName(e.target.value);
+                  fixed("patientLastName");
+                }}
+                aria-invalid={errorFor("patientLastName") ? true : undefined}
+                aria-describedby={errorFor("patientLastName") ? "lastName-error" : undefined}
+                maxLength={PATIENT_NAME_PART_MAX_LENGTH}
+                autoComplete="family-name"
+                className={INPUT_CLASS(Boolean(errorFor("patientLastName")))}
+              />
+              {errorFor("patientLastName") ? (
+                <p id="lastName-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("patientLastName")}
+                </p>
+              ) : null}
+            </div>
           </div>
           <div id="field-patientEmail" className="scroll-mt-24 space-y-2">
             <label
               htmlFor="email"
-              className="text-xs font-semibold text-ink-800"
+              className={LABEL_CLASS}
             >
               {t("emailLabel")}
+              <RequiredMark />
             </label>
             <input
               id="email"
@@ -671,23 +1001,63 @@ export function BookingSection({
               value={patientEmail}
               onChange={(e) => {
                 setPatientEmail(e.target.value);
+                setEmailSuggestion(null);
                 fixed("patientEmail");
               }}
+              onBlur={(e) => {
+                const value = e.currentTarget.value;
+                setEmailSuggestion(suggestRegisterEmail(value));
+                // A malformed address is flagged on leaving the field, not only on send.
+                if (value.trim() && !isValidRegisterEmail(value)) {
+                  setFieldErrors((prev) => ({ ...prev, patientEmail: "validEmail" }));
+                }
+              }}
+              maxLength={PATIENT_EMAIL_MAX_LENGTH}
+              autoComplete="email"
               aria-invalid={errorFor("patientEmail") ? true : undefined}
               aria-describedby={errorFor("patientEmail") ? "email-error" : undefined}
-              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientEmail") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
+              className={INPUT_CLASS(Boolean(errorFor("patientEmail")))}
               placeholder={t("emailPlaceholder")}
             />
             {errorFor("patientEmail") ? (
-              <p id="email-error" role="alert" className="text-xs font-medium text-red-600">
+              <p id="email-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("patientEmail")}
+              </p>
+            ) : null}
+            {emailSuggestion ? (
+              <p
+                data-testid="booking-email-suggestion"
+                role="status"
+                className="text-sm text-profile-body"
+              >
+                {t("emailDidYouMean")}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPatientEmail(emailSuggestion);
+                    setEmailSuggestion(null);
+                    fixed("patientEmail");
+                  }}
+                  className="font-bold text-accent-link underline underline-offset-2"
+                >
+                  {emailSuggestion}
+                </button>
+                ?
               </p>
             ) : null}
           </div>
           <div id="field-patientPhone" className="scroll-mt-24 space-y-2">
             <PhoneInput
               id="phone"
-              label={t("phonePriorityContactLabel")}
+              label={
+                <>
+                  {t("mobilePhoneLabel")}
+                  <RequiredMark />
+                </>
+              }
+              hint={t("mobilePhoneHint")}
+              fixedDialCode
+              tone="profile"
               value={patientPhone}
               onChange={(val, isValid) => {
                 setPatientPhone(val);
@@ -705,25 +1075,19 @@ export function BookingSection({
             aria-invalid={errorFor("isNewPatient") ? true : undefined}
             aria-describedby={errorFor("isNewPatient") ? "visitHistory-error" : undefined}
           >
-            <legend className="text-xs font-semibold text-ink-800">
-              {t("visitHistoryLabel", { doctorName })}{" "}
-              <span className="text-red-600">*</span>
+            <legend className={LABEL_CLASS}>
+              {t("visitHistoryLabel", { doctorName })}
+              <RequiredMark />
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
-                  isNewPatient === true
-                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : errorFor("isNewPatient")
-                      ? "border-red-400 bg-white text-ink-800"
-                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
-                }`}
+                className={CHOICE_CLASS(isNewPatient === true, Boolean(errorFor("isNewPatient")))}
               >
                 <input
                   id="visitHistory-first"
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                  className={RADIO_CLASS}
                   checked={isNewPatient === true}
                   onChange={() => {
                     setIsNewPatient(true);
@@ -733,18 +1097,12 @@ export function BookingSection({
                 {t("visitHistoryFirstTime")}
               </label>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
-                  isNewPatient === false
-                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : errorFor("isNewPatient")
-                      ? "border-red-400 bg-white text-ink-800"
-                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
-                }`}
+                className={CHOICE_CLASS(isNewPatient === false, Boolean(errorFor("isNewPatient")))}
               >
                 <input
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                  className={RADIO_CLASS}
                   checked={isNewPatient === false}
                   onChange={() => {
                     setIsNewPatient(false);
@@ -755,7 +1113,7 @@ export function BookingSection({
               </label>
             </div>
             {errorFor("isNewPatient") ? (
-              <p id="visitHistory-error" role="alert" className="text-xs font-medium text-red-600">
+              <p id="visitHistory-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("isNewPatient")}
               </p>
             ) : null}
@@ -766,8 +1124,9 @@ export function BookingSection({
             aria-invalid={errorFor("patientGender") ? true : undefined}
             aria-describedby={errorFor("patientGender") ? "patientGender-error" : undefined}
           >
-            <legend className="text-xs font-semibold text-ink-800">
-              {t("genderLabel")} <span className="text-red-600">*</span>
+            <legend className={LABEL_CLASS}>
+              {t("genderLabel")}
+              <RequiredMark />
             </legend>
             <div className="grid gap-2 sm:grid-cols-3">
               {(
@@ -779,20 +1138,14 @@ export function BookingSection({
               ).map(([value, label]) => (
                 <label
                   key={value}
-                  className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
-                    patientGender === value
-                      ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                      : errorFor("patientGender")
-                        ? "border-red-400 bg-white text-ink-800"
-                        : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
-                  }`}
+                  className={CHOICE_CLASS(patientGender === value, Boolean(errorFor("patientGender")))}
                 >
                   <input
                     id={`patientGender-${value}`}
                     type="radio"
                     name="patientGender"
                     value={value}
-                    className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                    className={RADIO_CLASS}
                     checked={patientGender === value}
                     onChange={() => {
                       setPatientGender(value);
@@ -804,50 +1157,153 @@ export function BookingSection({
               ))}
             </div>
             {errorFor("patientGender") ? (
-              <p id="patientGender-error" role="alert" className="text-xs font-medium text-red-600">
+              <p id="patientGender-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("patientGender")}
               </p>
             ) : null}
           </fieldset>
-          <div id="field-patientBirthdate" className="scroll-mt-24 space-y-2">
-            <label htmlFor="patientBirthdate" className="text-xs font-semibold text-ink-800">
-              {t("birthdateLabel")} <span className="text-red-600">*</span>
-            </label>
-            <input
-              id="patientBirthdate"
-              type="date"
-              required
-              min="1900-01-01"
-              max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
-              value={patientBirthdate}
-              onChange={(e) => {
-                setPatientBirthdate(e.target.value);
-                fixed("patientBirthdate");
-              }}
-              aria-invalid={errorFor("patientBirthdate") ? true : undefined}
-              aria-describedby={errorFor("patientBirthdate") ? "patientBirthdate-error" : undefined}
-              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientBirthdate") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
-            />
+          {/* Day / Month / Year, as GOV.UK and the NHS ask for a birth date: no calendar to
+              scroll back through decades, numeric keypad on phones (user, 2026-10-10). */}
+          <fieldset
+            id="field-patientBirthdate"
+            className="scroll-mt-24 space-y-2"
+            aria-describedby={
+              errorFor("patientBirthdate") ? "patientBirthdate-hint patientBirthdate-error" : "patientBirthdate-hint"
+            }
+          >
+            <legend className={LABEL_CLASS}>
+              {t("birthdateLabel")}
+              <RequiredMark />
+            </legend>
+            <p id="patientBirthdate-hint" className="text-sm text-profile-muted">
+              {t("birthdateHint")}
+            </p>
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-day" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateDay")}
+                </label>
+                <input
+                  id="patientBirthdate-day"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  autoComplete="bday-day"
+                  value={birthParts.day}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    setBirthParts((prev) => ({ ...prev, day: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-16 text-center tabular-nums`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-month" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateMonth")}
+                </label>
+                <input
+                  id="patientBirthdate-month"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  autoComplete="bday-month"
+                  value={birthParts.month}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    setBirthParts((prev) => ({ ...prev, month: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-16 text-center tabular-nums`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="patientBirthdate-year" className="block text-xs font-semibold text-profile-muted">
+                  {t("birthdateYear")}
+                </label>
+                <input
+                  id="patientBirthdate-year"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  autoComplete="bday-year"
+                  value={birthParts.year}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setBirthParts((prev) => ({ ...prev, year: digits }));
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  className={`${INPUT_CLASS(Boolean(errorFor("patientBirthdate")))} !w-24 text-center tabular-nums`}
+                />
+              </div>
+            </div>
             {errorFor("patientBirthdate") ? (
-              <p id="patientBirthdate-error" role="alert" className="text-xs font-medium text-red-600">
+              <p id="patientBirthdate-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("patientBirthdate")}
               </p>
             ) : null}
-            <p className="text-[11px] leading-relaxed text-ink-500">
+            <p className="text-xs leading-relaxed text-profile-muted">
               {t("personalDetailsPrivacyNote", { doctorName })}
             </p>
-          </div>
+          </fieldset>
+          {serviceChoice !== null ? (
+            <div id="field-professionalService" className="scroll-mt-24 space-y-2">
+              <label htmlFor="professionalService" className={LABEL_CLASS}>
+                {t("serviceLabel")}
+                <RequiredMark />
+              </label>
+              <select
+                id="professionalService"
+                required
+                value={serviceChoice}
+                onChange={(e) => {
+                  setServiceChoice(e.target.value);
+                  fixed("professionalService");
+                  fixed("visitReason");
+                }}
+                aria-invalid={errorFor("professionalService") ? true : undefined}
+                aria-describedby={errorFor("professionalService") ? "professionalService-error" : undefined}
+                className={`${INPUT_CLASS(Boolean(errorFor("professionalService")))} [color-scheme:inherit] ${
+                  serviceChoice === "" ? "text-profile-muted" : ""
+                }`}
+              >
+                <option value="" disabled>
+                  {t("servicePlaceholder")}
+                </option>
+                {serviceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {errorFor("professionalService") ? (
+                <p id="professionalService-error" role="alert" className={FIELD_ERROR_CLASS}>
+                  {errorFor("professionalService")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {/* Always there: the patient's own words. Optional once she picked one of the
+              professional's services; required with Other or when there are no services
+              (user, 2026-10-09). */}
           <div id="field-visitReason" className="scroll-mt-24 space-y-2">
-            <label
-              htmlFor="visitReason"
-              className="text-xs font-semibold text-ink-800"
-            >
-              {t("visitReasonLabel")}{" "}
-              <span className="text-red-600">*</span>
+            <label htmlFor="visitReason" className={LABEL_CLASS}>
+              {reasonOptional
+                ? t("visitNotesOptionalLabel", { doctorName })
+                : serviceChoice === BOOKING_SERVICE_OTHER
+                  ? t("serviceOtherReasonLabel")
+                  : t("visitReasonLabel")}
+              {reasonOptional ? null : <RequiredMark />}
             </label>
             <textarea
               id="visitReason"
-              required
+              required={!reasonOptional}
               rows={4}
               maxLength={APPOINTMENT_REASON_MAX_LENGTH}
               value={visitReason}
@@ -857,22 +1313,30 @@ export function BookingSection({
               }}
               aria-invalid={errorFor("visitReason") ? true : undefined}
               aria-describedby={errorFor("visitReason") ? "visitReason-error" : undefined}
-              placeholder={t("visitReasonPlaceholder")}
-              className={`w-full resize-y rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("visitReason") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
+              placeholder={reasonOptional ? t("visitNotesOptionalPlaceholder") : t("visitReasonPlaceholder")}
+              className={`${INPUT_CLASS(Boolean(errorFor("visitReason")))} resize-y`}
             />
             {errorFor("visitReason") ? (
-              <p id="visitReason-error" role="alert" className="text-xs font-medium text-red-600">
+              <p id="visitReason-error" role="alert" className={FIELD_ERROR_CLASS}>
                 {errorFor("visitReason")}
               </p>
             ) : null}
-            <p className="text-right text-[11px] text-ink-500">
+            <p className="text-right text-xs text-profile-muted">
               {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
           </div>
+          {turnstileSiteKey ? (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              onToken={setTurnstileToken}
+              resetKey={turnstileReset}
+              theme={turnstileTheme}
+            />
+          ) : null}
           {error && (
             <div
               data-testid="booking-error-message"
-              className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+              className={BOX_ERROR_CLASS}
             >
               {error}
             </div>
@@ -880,7 +1344,7 @@ export function BookingSection({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:bg-ink-300 disabled:text-ink-500"
+            className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-accent-cta px-4 py-3 text-base font-bold text-accent-on-cta transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? (
               <>
@@ -892,169 +1356,251 @@ export function BookingSection({
             )}
           </button>
         </form>
-      </div>
+      </div>,
+      detailsAside,
     );
   }
 
-  // Two-column: calendar + time slots
+  // Calendar + time chips
   const isDateAvailable = (date: Date) =>
     availableDates.some(
       (d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
     );
+  const selectedDayKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+
+  const monthPicker = (
+    <DayPicker
+      mode="single"
+      required
+      selected={selectedDate ?? undefined}
+      onSelect={(d) => {
+        setSelectedDate(d ?? null);
+        setSelectedSlot(null);
+        setError(null);
+      }}
+      fromDate={new Date()}
+      toDate={addDays(new Date(), normalizedBookingHorizonDays)}
+      disabled={(date) => !isDateAvailable(date)}
+      locale={dateFnsLocale}
+      captionLayout="buttons"
+      className="rdp-profile"
+      classNames={{
+        root: "p-0",
+        caption: panel ? "flex justify-between items-center mb-4 lg:mb-2" : "flex justify-between items-center mb-4",
+        caption_label: "text-base font-bold",
+        nav: "flex gap-1",
+        nav_button_previous: "rounded-xl p-2 transition hover:opacity-80",
+        nav_button_next: "rounded-xl p-2 transition hover:opacity-80",
+        month: "w-full",
+        // A step smaller in the booking column on a wide screen, so the times and "Book this
+        // time" come up in a laptop's first screen (user, 2026-10-14); phones keep 40px for thumbs.
+        day: `m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent${
+          panel ? " lg:h-9 lg:w-9" : ""
+        }`,
+      }}
+      modifiers={{
+        available: availableDates,
+      }}
+      modifiersClassNames={{
+        available: "rdp-day_available",
+        selected: "rdp-day_selected",
+        disabled: "rdp-day_disabled",
+        today: "rdp-day_today",
+      }}
+      components={{
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
+      }}
+    />
+  );
+
+  const timesBlock =
+    !selectedDate ? (
+      <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-profile-border px-4 py-12 text-center">
+        <p className="text-sm font-semibold text-profile-text">
+          {t("selectDateOnCalendar")}
+        </p>
+        <p className="mt-1 text-sm text-profile-muted">
+          {t("availableTimesHere")}
+        </p>
+      </div>
+    ) : (
+      <>
+        <p
+          data-testid="booking-selected-day"
+          data-date={selectedDayKey ?? ""}
+          className="mb-3 text-base font-bold capitalize text-profile-text"
+        >
+          {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
+        </p>
+        {/* The clinic under the day: on a laptop "Choose a clinic" scrolls off the top, and the
+            times should still say where (user, 2026-10-14). Only when she has more than one. */}
+        {panel && locationLabel ? (
+          <p
+            data-testid="booking-selected-clinic"
+            className="-mt-2 mb-3 flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-profile-muted"
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{locationLabel}</span>
+          </p>
+        ) : null}
+        {slotsForSelectedDay.length === 0 ? (
+          <p className="py-6 text-sm text-profile-muted">
+            {t("noAvailableTimesThisDay")}
+          </p>
+        ) : (
+          <div
+            key={selectedDayKey ?? "none"}
+            className={panel ? "grid grid-cols-3 gap-2" : "grid grid-cols-3 gap-2 sm:grid-cols-4"}
+          >
+            {slotsForSelectedDay.map((slot, index) => {
+              const isSelected = selectedSlot?.key === slot.key;
+              return (
+                <button
+                  key={slot.key}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setSelectedSlot(isSelected ? null : slot);
+                    setError(null);
+                  }}
+                  style={{ "--rise-i": Math.min(index, 12) } as React.CSSProperties}
+                  className={`profile-rise min-h-12 rounded-2xl border-2 text-base font-bold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    isSelected
+                      ? "profile-pop border-accent-cta bg-accent-cta text-accent-on-cta"
+                      : "border-accent-soft bg-profile-surface text-profile-text hover:border-accent"
+                  }`}
+                >
+                  {slot.labelTime}
+                  <span className="sr-only">
+                    {" "}
+                    {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </>
+    );
+
+  if (panel) {
+    return (
+      <div ref={panelRef} data-booking-layout="panel" className="flex min-w-0 flex-col gap-4 lg:gap-3">
+        {error ? (
+          <div data-testid="booking-error-message" className={BOX_ERROR_CLASS}>
+            {error}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 justify-center">{monthPicker}</div>
+
+        <div className="min-w-0">{timesBlock}</div>
+
+        {bookingServiceName ? (
+          // The service picked in "Services & prices", right above "Book this time" (on screen on a
+          // laptop, where the column's top can scroll away), kept until she sends; ✕ clears it.
+          <p
+            data-testid="booking-service-chip"
+            className="profile-rise inline-flex max-w-full items-center gap-1 self-start rounded-full bg-accent-soft py-1 pl-3.5 pr-1 text-sm font-semibold text-profile-text"
+          >
+            <span data-testid="booking-for-service" className="min-w-0 truncate">
+              {t("bookingForService", { service: bookingServiceName })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setServiceChoice("")}
+              aria-label={t("clearService", { service: bookingServiceName })}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-profile-muted transition hover:bg-profile-surface hover:text-profile-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </p>
+        ) : null}
+        {selectedSlot ? (
+          <div ref={confirmBarRef} className="profile-rise flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setShowContactForm(true)}
+              className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            >
+              {/* One verb from the services' "Book" to "Send booking request" (user, 2026-10-14). */}
+              {t("bookThisTime")}
+            </button>
+          </div>
+        ) : null}
+        <p className="text-[13px] text-profile-muted">{t("allTimesInCyprus")}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-      <div className="border-b border-ink-200 px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-center justify-between gap-3">
+    <div className="rounded-3xl border border-profile-border bg-profile-surface text-profile-body shadow-sm">
+      <div className="border-b border-profile-border px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-ink-900">
-                {t("title")}
+            <h2 className="text-xl font-semibold tracking-tight text-profile-text sm:text-2xl">
+              {t("title")}
             </h2>
+            {/* The clinic itself is named right above, by the clinic switch. */}
             {locationLabel ? (
-              <>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-clinical-700">
-                  {t("pickTimeStep")}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-ink-800">
-                  {t("timesOnlyForClinic", { clinic: locationLabel })}
-                </p>
-              </>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
+                {t("pickTimeStep")}
+              </p>
             ) : null}
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-sm text-profile-muted">
               {t("allTimesInCyprusHint")}
             </p>
+            {bookingServiceName ? (
+              <p data-testid="booking-for-service" className="mt-1 text-sm font-semibold text-profile-text">
+                {t("bookingForService", { service: bookingServiceName })}
+              </p>
+            ) : null}
           </div>
-          <span className="rounded-full bg-clinical-100 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-clinical-700">
+          <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-profile-text">
             {t("requestBadge")}
           </span>
         </div>
         {error ? (
           <div
             data-testid="booking-error-message"
-            className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            className={`mt-3 ${BOX_ERROR_CLASS}`}
           >
             {error}
           </div>
         ) : null}
       </div>
 
-      <div className="grid gap-6 p-4 sm:grid-cols-2 sm:p-6">
-        {/* Left: calendar */}
-        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+      <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-[auto_minmax(0,1fr)]">
+        <div>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-profile-muted">
             {t("selectDate")}
           </p>
-          <DayPicker
-            mode="single"
-            selected={selectedDate ?? undefined}
-            onSelect={(d) => {
-              setSelectedDate(d ?? null);
-              setSelectedSlot(null);
-              setError(null);
-            }}
-            fromDate={new Date()}
-            toDate={addDays(new Date(), normalizedBookingHorizonDays)}
-            disabled={(date) => !isDateAvailable(date)}
-            locale={dateFnsLocale}
-            captionLayout="buttons"
-            className="rdp-light"
-            classNames={{
-              root: "p-0",
-              caption: "flex justify-between items-center mb-4",
-              caption_label: "text-sm font-semibold text-ink-800",
-              nav: "flex gap-1",
-              nav_button_previous: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
-              nav_button_next: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
-              month: "w-full",
-              day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-clinical-400/60 focus:ring-offset-2 focus:ring-offset-white",
-            }}
-            modifiers={{
-              available: availableDates,
-            }}
-            modifiersClassNames={{
-              available: "rdp-day_available",
-              selected: "rdp-day_selected",
-              disabled: "rdp-day_disabled",
-              today: "rdp-day_today",
-            }}
-            components={{
-              IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-              IconRight: () => <ChevronRight className="h-4 w-4" />,
-            }}
-          />
+          {monthPicker}
         </div>
 
-        {/* Right: time slots (only when date selected) */}
-        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
-          {!selectedDate ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm font-medium text-ink-500">
-                {t("selectDateOnCalendar")}
-              </p>
-              <p className="mt-1 text-xs text-ink-500">
-                {t("availableTimesHere")}
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
-              </p>
-              {slotsForSelectedDay.length === 0 ? (
-                <p className="py-6 text-sm text-ink-500">
-                  {t("noAvailableTimesThisDay")}
-                </p>
-              ) : (
-                <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
-                  {slotsForSelectedDay.map((slot) => {
-                    const isSelected = selectedSlot?.key === slot.key;
-                    return (
-                      <div
-                        key={slot.key}
-                        className={`rounded-2xl border transition-all duration-200 ${
-                          isSelected
-                            ? "border-clinical-400 bg-clinical-50 shadow-sm"
-                            : "border-ink-200 bg-white hover:border-clinical-300 hover:bg-clinical-50/60"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 p-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSlot(isSelected ? null : slot);
-                              setError(null);
-                            }}
-                            className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-ink-800"
-                          >
-                            <span
-                              className="font-mono text-ink-600"
-                              style={{ minWidth: "3rem" }}
-                            >
-                              {slot.labelTime}
-                            </span>
-                            <span>
-                              {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
-                            </span>
-                          </button>
-                          {isSelected && (
-                            <button
-                              type="button"
-                              onClick={() => setShowContactForm(true)}
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-clinical-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/50 disabled:opacity-70"
-                            >
-                              Confirm
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+        <div className="min-w-0">
+          {timesBlock}
         </div>
       </div>
+
+      {selectedSlot ? (
+        <div
+          ref={confirmBarRef}
+          className="profile-rise flex scroll-mb-24 flex-col gap-3 border-t border-profile-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-sm font-semibold text-profile-text">
+            {selectedSlot.labelFull}
+            {locationLabel ? ` · ${locationLabel}` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowContactForm(true)}
+            className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            {t("continueButton")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

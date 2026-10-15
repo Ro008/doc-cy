@@ -23,7 +23,7 @@ export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
   const subject = "[DocCy] Reset your password";
   const text =
     `Reset your DocCy password\n\n` +
-    `We received a request to choose a new password for your DocCy practitioner account.\n\n` +
+    `We received a request to choose a new password for your DocCy professional account.\n\n` +
     `This link expires shortly and can only be used once:\n${resetUrl}\n\n` +
     `If you did not ask for a new password, you can ignore this email. Your current password stays the same.\n\n` +
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
@@ -32,7 +32,7 @@ export function buildPasswordResetEmailContent(opts: { resetUrl: string }): {
 ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Reset your DocCy password</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      We received a request to choose a new password for your DocCy practitioner account.
+      We received a request to choose a new password for your DocCy professional account.
     </p>
     <a href="${escapeHtml(resetUrl)}" style="${EMAIL_PRIMARY_BTN}">Choose a new password</a>
     <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { parseCallToBookSource } from "@/lib/call-to-book";
+import { parseCallToBookSource, type CallToBookSource } from "@/lib/call-to-book";
 import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
-import { USER_EVENTS_TABLE, showPhoneNumberEvent } from "@/lib/user-events";
+import { USER_EVENTS_TABLE, showClinicPhoneNumberEvent, userEventSourceFor } from "@/lib/user-events";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const UUID_RE =
@@ -44,11 +44,16 @@ async function clinicPhone(
   };
 }
 
-async function professionalLinkedToClinic(
+/**
+ * Whether the professional works at this clinic, and whether she is registered right now
+ * (stored with the click: a listing that signs up later keeps its earlier clicks as
+ * unregistered). Null when she is not linked to the clinic or a lookup failed.
+ */
+async function professionalAtClinic(
   supabase: SupabaseClient,
   manualId: string,
   clinicId: string,
-): Promise<boolean> {
+): Promise<{ isRegistered: boolean } | null> {
   const { data: link, error: linkErr } = await supabase
     .from("professional_clinics")
     .select("clinic_id")
@@ -57,26 +62,45 @@ async function professionalLinkedToClinic(
     .maybeSingle();
   if (linkErr) {
     console.error("[DocCy][contact-reveal] clinic_link_lookup_failed", linkErr.message);
-    return false;
+    return null;
   }
-  return Boolean(link);
+  if (!link) return null;
+  const { data: professional, error: proErr } = await supabase
+    .from("professionals")
+    .select("is_registered")
+    .eq("id", manualId)
+    .maybeSingle();
+  if (proErr || !professional) {
+    if (proErr) console.error("[DocCy][contact-reveal] professional_lookup_failed", proErr.message);
+    return null;
+  }
+  return { isRegistered: Boolean((professional as { is_registered?: boolean | null }).is_registered) };
 }
 
-async function logCallToBookClick(input: {
+/** Records the reveal in user_events: what (a clinic's phone) and where (user, 2026-10-15). */
+async function logClinicPhoneReveal(input: {
   supabase: SupabaseClient;
+  place: CallToBookSource;
+  clinicId: string;
   manualId: string;
-  clinicId: string | null;
-  source: "finder_card" | "professional_profile_page";
 }): Promise<void> {
-  const { error } = await input.supabase.from(USER_EVENTS_TABLE).insert(
-    showPhoneNumberEvent({
+  let event;
+  if (input.place === "clinic_page") {
+    // A clinic's own page: the clinic, no professional.
+    event = showClinicPhoneNumberEvent({ professionalId: null, clinicId: input.clinicId, source: "clinic_page" });
+  } else {
+    if (!input.manualId) return;
+    const professional = await professionalAtClinic(input.supabase, input.manualId, input.clinicId);
+    if (!professional) return;
+    event = showClinicPhoneNumberEvent({
       professionalId: input.manualId,
       clinicId: input.clinicId,
-      source: input.source,
-    }),
-  );
+      source: userEventSourceFor(input.place, professional.isRegistered),
+    });
+  }
+  const { error } = await input.supabase.from(USER_EVENTS_TABLE).insert(event);
   if (error) {
-    console.error("[DocCy][contact-reveal] call_to_book_log_failed", error.message);
+    console.error("[DocCy][contact-reveal] reveal_log_failed", error.message);
   }
 }
 
@@ -84,8 +108,8 @@ async function logCallToBookClick(input: {
  * Reveal a clinic's phone after an intentional click. Every public phone is the clinic's
  * (user, 2026-09-29): listings and registered professionals alike, and the scraped
  * `professionals.phone` is never shown. Keeps phone out of SSR HTML / RSC props
- * (anti-scraping P1). Call to Book CTAs pass `source` and the professional
- * (`manualId`) so the click is stored for the founder dashboard.
+ * (anti-scraping P1). Every phone button passes `source` (where it is) and, except on a
+ * clinic's own page, the professional (`manualId`), so each reveal is stored in user_events.
  */
 export async function POST(req: Request) {
   const limited = enforcePublicApiRateLimit(req, "contactReveal", {
@@ -125,18 +149,8 @@ export async function POST(req: Request) {
     const phone = looked.phone;
     const linkedManualId = UUID_RE.test(manualIdFromBody) ? manualIdFromBody : "";
 
-    if (
-      source &&
-      phone &&
-      linkedManualId &&
-      (await professionalLinkedToClinic(supabase, linkedManualId, id))
-    ) {
-      await logCallToBookClick({
-        supabase,
-        manualId: linkedManualId,
-        clinicId: id,
-        source,
-      });
+    if (source && phone) {
+      await logClinicPhoneReveal({ supabase, place: source, clinicId: id, manualId: linkedManualId });
     }
 
     return NextResponse.json({ ok: true, phone });

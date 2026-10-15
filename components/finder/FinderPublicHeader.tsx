@@ -8,7 +8,7 @@ const loginLinkClass =
   "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold leading-none text-ink-800 transition hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
 
 const joinLinkClass =
-  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-clinical-500 px-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_1px_2px_rgba(18,184,192,0.22)] transition hover:border-clinical-600 hover:bg-clinical-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
+  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-clinical-500 px-2.5 text-[13px] font-bold leading-none text-ink-900 shadow-[0_1px_2px_rgba(18,184,192,0.22)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
 
 type FinderPublicHeaderProps = {
   /** Server-read hint so we never paint guest CTAs for a signed-in professional. */
@@ -22,7 +22,7 @@ type FinderPublicHeaderProps = {
 /**
  * Thin public chrome for finder / clinics / public profiles / sales.
  * Mobile: one acquisition CTA (Join → /register).
- * Desktop: Practitioner login + Join (space for both).
+ * Desktop: Professional Login + Join (space for both).
  * Signed-in professionals use the global user bar; this header stays logo-only.
  */
 export function FinderPublicHeader({
@@ -35,7 +35,15 @@ export function FinderPublicHeader({
   const isSales = variant === "sales";
   const showGuestNav = !isSales && !hideGuestCtas;
 
-  const logo = <DocCyWordmark variant="light" size={isSales ? "xl" : "md"} />;
+  const logoSize = isSales ? "xl" : "md";
+  // On a public profile in dark mode the bar is dark: the reverse artwork (white "my"),
+  // as on the dashboard. The mode switches without a reload, so CSS picks the artwork.
+  const logo = (
+    <>
+      <DocCyWordmark variant="light" size={logoSize} className="[.doccy-profile[data-scheme=dark]_&]:hidden" />
+      <DocCyWordmark variant="dark" size={logoSize} className="hidden [.doccy-profile[data-scheme=dark]_&]:inline-flex" />
+    </>
+  );
 
   return (
     <header
@@ -59,7 +67,7 @@ export function FinderPublicHeader({
               href="/login"
               className={`${loginLinkClass} hidden md:inline-flex`}
             >
-              Practitioner login
+              Professional Login
             </PendingLink>
             <PendingLink
               href="/register"

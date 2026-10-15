@@ -67,7 +67,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, clinic_id"
+      "id, professional_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, service_name, duration_minutes, clinic_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -188,6 +188,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       appointmentDatetimeIso: String(appt.appointment_datetime),
       durationMinutes,
       reason: (appt as { reason?: string | null }).reason ?? null,
+      serviceName: (appt as { service_name?: string | null }).service_name ?? null,
       doctor: {
         name: doctor.name,
         specialty: specialtyName,

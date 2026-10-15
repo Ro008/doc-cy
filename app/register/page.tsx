@@ -737,7 +737,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         <div className="flex min-w-0 flex-col gap-4 px-4 pb-4 sm:px-8 lg:gap-3 lg:px-14 lg:pb-8">
           <header className="flex h-16 items-center justify-between lg:h-14">
             <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
-              <DocCyWordmark size="lg" />
+              <DocCyWordmark />
             </a>
             <p className="text-sm text-ink-600">
               <span className="hidden sm:inline">Already have an account? </span>

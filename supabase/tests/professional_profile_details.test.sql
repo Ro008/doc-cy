@@ -5,7 +5,8 @@
 -- "How you help patients" (bio), languages and qualifications all change as she
 -- pleases, with no founder, and every change is recorded in request_log:
 -- - patients_seen and qualifications are new columns on professionals;
--- - qualifications is a list of at most 6 lines (title, institution, optional year),
+-- - qualifications is a list of at most 20 lines (title, institution, optional year;
+--   6 until 2026-10-15, raised by *_professional_qualifications_cap),
 --   each added or removed on its own.
 --
 -- Run against TESTING only. One transaction that ALWAYS rolls back: the final error
@@ -191,16 +192,16 @@ begin
     'FAIL: the year is optional';
   v_checks := v_checks + 4;
 
-  for v_i in 3..6 loop
+  for v_i in 3..20 loop
     perform public.professional_qualification_add(v_pro, 'Course ' || v_i, 'Somewhere', 2000 + v_i);
   end loop;
   perform pg_temp.expect_error(
-    format('select public.professional_qualification_add(%L, %L, %L, 2010)', v_pro, 'Seventh', 'Uni'),
-    '23514', 'at most 6 qualifications');
+    format('select public.professional_qualification_add(%L, %L, %L, 2010)', v_pro, 'Twenty-first', 'Uni'),
+    '23514', 'at most 20 qualifications');
   perform pg_temp.expect_error(
     format('update public.professionals set qualifications = qualifications || %L::jsonb where id = %L',
            '[{"title": "x"}]', v_pro),
-    '23514', 'the column itself refuses a seventh');
+    '23514', 'the column itself refuses a twenty-first');
   v_checks := v_checks + 2;
 
   ---------------------------------------------------------------- qualifications: remove
@@ -211,9 +212,9 @@ begin
   select * into v_row from public.request_log where id = v_req;
   assert v_row.request_type = 'professional_qualification_removal' and v_row.status = 'recorded'
     and v_row.details ->> 'id' = v_qid::text and v_row.details ->> 'title' = 'MD, Medicine'
-    and jsonb_array_length(v_row.before_snapshot -> 'qualifications') = 6,
+    and jsonb_array_length(v_row.before_snapshot -> 'qualifications') = 20,
     'FAIL: removing is recorded at once with the line and the list before';
-  assert (select jsonb_array_length(qualifications) = 5
+  assert (select jsonb_array_length(qualifications) = 19
             and not qualifications @> jsonb_build_array(jsonb_build_object('id', v_qid))
           from public.professionals where id = v_pro),
     'FAIL: the removed line is gone and the others stay';

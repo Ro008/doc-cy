@@ -294,9 +294,12 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
         { intervals: [700], timeout: 15_000 },
       )
       .toBe(true);
-    const scrollable = await page.evaluate(
-      () => document.documentElement.scrollHeight > window.innerHeight + 16,
-    );
+    // From the top: more than 24px below means the fade shows, exactly as ScrollFade decides.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const scrollable = await page.evaluate(() => {
+      const root = document.documentElement;
+      return root.scrollHeight - (window.scrollY + window.innerHeight) > 24;
+    });
     test.skip(!scrollable, "Dashboard fits the viewport for this account; nothing to fade.");
 
     await expect(fade).toHaveAttribute("data-visible", "true");

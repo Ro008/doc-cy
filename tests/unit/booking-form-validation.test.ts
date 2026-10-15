@@ -3,12 +3,19 @@ import { describe, it } from "node:test";
 
 import {
   BOOKING_FORM_FIELDS,
+  allBookingFormErrors,
   firstBookingFormError,
   type BookingFormValues,
 } from "../../lib/booking-form-validation";
+import {
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_NAME_MAX_LENGTH,
+  PATIENT_NAME_PART_MAX_LENGTH,
+} from "../../lib/booking-patient-fields";
 
 const complete: BookingFormValues = {
-  patientName: "Maria Georgiou",
+  patientFirstName: "Maria",
+  patientLastName: "Georgiou",
   patientEmail: "maria@example.test",
   patientPhone: "+35799123456",
   phoneValid: true,
@@ -24,9 +31,13 @@ describe("firstBookingFormError", () => {
   });
 
   it("names the exact field that is missing, with its own message", () => {
-    assert.deepEqual(firstBookingFormError({ ...complete, patientName: "  " }), {
-      field: "patientName",
-      messageKey: "nameRequired",
+    assert.deepEqual(firstBookingFormError({ ...complete, patientFirstName: "  " }), {
+      field: "patientFirstName",
+      messageKey: "firstNameRequired",
+    });
+    assert.deepEqual(firstBookingFormError({ ...complete, patientLastName: "" }), {
+      field: "patientLastName",
+      messageKey: "lastNameRequired",
     });
     assert.deepEqual(firstBookingFormError({ ...complete, patientEmail: "" }), {
       field: "patientEmail",
@@ -69,6 +80,25 @@ describe("firstBookingFormError", () => {
     });
   });
 
+  it("names are not policed beyond being there: an initial is a last name too", () => {
+    assert.equal(firstBookingFormError({ ...complete, patientFirstName: "Alexander", patientLastName: "G" }), null);
+  });
+
+  it("wants a real mobile number, like manual booking (libphonenumber)", () => {
+    // 7 digits after +357 is not a Cyprus mobile, though the phone box's length check let it through.
+    assert.deepEqual(firstBookingFormError({ ...complete, patientPhone: "+357 99 99999" }), {
+      field: "patientPhone",
+      messageKey: "validMobileCy",
+    });
+    // A Cyprus landline is not a mobile either.
+    assert.equal(firstBookingFormError({ ...complete, patientPhone: "+357 22 123456" })?.messageKey, "validMobileCy");
+    assert.deepEqual(firstBookingFormError({ ...complete, patientPhone: "+44 7400 12" }), {
+      field: "patientPhone",
+      messageKey: "validMobile",
+    });
+    assert.equal(firstBookingFormError({ ...complete, patientPhone: "+44 7400 123456" }), null);
+  });
+
   it("tells an invalid phone apart from a missing one", () => {
     assert.deepEqual(firstBookingFormError({ ...complete, phoneValid: false }), {
       field: "patientPhone",
@@ -85,12 +115,14 @@ describe("firstBookingFormError", () => {
 
   it("reports the first problem in the order the fields appear on screen", () => {
     assert.deepEqual(BOOKING_FORM_FIELDS, [
-      "patientName",
+      "patientFirstName",
+      "patientLastName",
       "patientEmail",
       "patientPhone",
       "isNewPatient",
       "patientGender",
       "patientBirthdate",
+      "professionalService",
       "visitReason",
     ]);
     // Gender sits above the reason, so it is reported first.
@@ -102,5 +134,110 @@ describe("firstBookingFormError", () => {
       firstBookingFormError({ ...complete, patientPhone: "", patientGender: "" })?.field,
       "patientPhone",
     );
+  });
+
+  // The service picker (user, 2026-10-09): shown only when the professional lists services.
+  describe("service choice", () => {
+    const serviceId = "6a1f8a52-2b8f-4c1e-9d55-0f3c2a7b9e10";
+
+    it("asks for nothing when the professional lists no services (reason only, as before)", () => {
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: null }), null);
+      assert.equal(firstBookingFormError({ ...complete }), null);
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: null, visitReason: "" }), {
+        field: "visitReason",
+        messageKey: "reasonRequired",
+      });
+    });
+
+    it("requires a choice when there are services", () => {
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: "" }), {
+        field: "professionalService",
+        messageKey: "serviceRequired",
+      });
+    });
+
+    it("a chosen service makes the free text optional", () => {
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: serviceId, visitReason: "" }), null);
+    });
+
+    it("Other asks for the free text", () => {
+      assert.deepEqual(firstBookingFormError({ ...complete, serviceChoice: "other", visitReason: " " }), {
+        field: "visitReason",
+        messageKey: "reasonRequired",
+      });
+      assert.equal(firstBookingFormError({ ...complete, serviceChoice: "other" }), null);
+    });
+
+    it("sits below the date of birth", () => {
+      assert.equal(
+        firstBookingFormError({ ...complete, serviceChoice: "", patientBirthdate: "" })?.field,
+        "patientBirthdate",
+      );
+    });
+  });
+});
+
+// Every problem at once (2026-10-11): marking one field per press made a patient press Send up to
+// nine times to learn what was missing.
+describe("allBookingFormErrors", () => {
+  const empty: BookingFormValues = {
+    patientFirstName: "",
+    patientLastName: "",
+    patientEmail: "",
+    patientPhone: "+357",
+    phoneValid: false,
+    isNewPatient: null,
+    patientGender: "",
+    patientBirthdate: "",
+    serviceChoice: "",
+    visitReason: "",
+  };
+
+  it("lists every missing field once, in the order they appear on screen", () => {
+    assert.deepEqual(
+      allBookingFormErrors(empty).map((e) => [e.field, e.messageKey]),
+      [
+        ["patientFirstName", "firstNameRequired"],
+        ["patientLastName", "lastNameRequired"],
+        ["patientEmail", "emailRequired"],
+        ["patientPhone", "phoneRequired"],
+        ["isNewPatient", "selectVisitHistory"],
+        ["patientGender", "genderRequired"],
+        ["patientBirthdate", "birthdateRequired"],
+        ["professionalService", "serviceRequired"],
+      ],
+    );
+  });
+
+  it("without a service picker, the reason is the last field asked", () => {
+    const errors = allBookingFormErrors({ ...empty, serviceChoice: null });
+    assert.equal(errors.at(-1)?.field, "visitReason");
+    assert.equal(errors.some((e) => e.field === "professionalService"), false);
+  });
+
+  it("reports only the fields that are wrong", () => {
+    assert.deepEqual(allBookingFormErrors({ ...complete, patientEmail: "maria@", patientGender: "" }).map((e) => e.field), [
+      "patientEmail",
+      "patientGender",
+    ]);
+    assert.deepEqual(allBookingFormErrors(complete), []);
+  });
+
+  it("is what firstBookingFormError takes its answer from", () => {
+    assert.deepEqual(firstBookingFormError(empty), allBookingFormErrors(empty)[0]);
+    assert.equal(firstBookingFormError(complete), null);
+  });
+});
+
+describe("allBookingFormErrors: length limits, as the server (2026-10-15)", () => {
+  it("flags an email longer than the server takes", () => {
+    const tooLong = `${"m".repeat(PATIENT_EMAIL_MAX_LENGTH)}@example.com`;
+    assert.deepEqual(allBookingFormErrors({ ...complete, patientEmail: tooLong }), [
+      { field: "patientEmail", messageKey: "validEmail" },
+    ]);
+  });
+
+  it("keeps the two name boxes, joined with a space, within the server's limit", () => {
+    assert.ok(PATIENT_NAME_PART_MAX_LENGTH * 2 + 1 <= PATIENT_NAME_MAX_LENGTH);
   });
 });

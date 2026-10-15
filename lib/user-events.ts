@@ -8,12 +8,57 @@ import type { CallToBookSource } from "@/lib/call-to-book";
 export const USER_EVENTS_TABLE = "user_events";
 
 export const USER_EVENT_TYPES = [
-  "show_phone_number",
+  "show_clinic_phone_number",
+  "show_personal_mobile_number",
   "request_online_appointment",
   "missing_professional_report",
 ] as const;
 
 export type UserEventType = (typeof USER_EVENT_TYPES)[number];
+
+/**
+ * Where a click was, and whether the professional was registered at that moment
+ * (user, 2026-10-15): a listing that signs up later keeps its earlier clicks as unregistered.
+ */
+export type UserEventSource =
+  | "registered_professional_profile_page"
+  | "unregistered_professional_profile_page"
+  | "registered_professional_finder_card"
+  | "unregistered_professional_finder_card"
+  | "clinic_page"
+  | "finder_empty_state";
+
+/** The stored source for a phone button's place. */
+export function userEventSourceFor(place: CallToBookSource, isRegistered: boolean): UserEventSource {
+  if (place === "clinic_page") return "clinic_page";
+  const who = isRegistered ? "registered" : "unregistered";
+  return place === "finder_card" ? `${who}_professional_finder_card` : `${who}_professional_profile_page`;
+}
+
+/**
+ * The name clinic phone reveals had until 2026-10-15. Rows written before the new code went
+ * live still carry it until step 2 of migration *_user_events_reveal_sources renames them;
+ * until then the founders' tools read both names.
+ */
+const LEGACY_SHOW_PHONE_NUMBER = "show_phone_number";
+export const CLINIC_PHONE_EVENT_TYPES = ["show_clinic_phone_number", LEGACY_SHOW_PHONE_NUMBER] as const;
+
+/** Accepts the old name as the new one (founders' links bookmarked before 2026-10-15). */
+export function isClinicPhoneEventName(value: string | null | undefined): boolean {
+  return (CLINIC_PHONE_EVENT_TYPES as readonly string[]).includes(String(value ?? ""));
+}
+
+/**
+ * The founders' call-to-book and vote counts are about unregistered listings (the demand to
+ * show them before they sign up); `finder_card` / `professional_profile_page` are the old
+ * names of the unregistered ones, until step 2.
+ */
+export const FOUNDER_LISTING_SOURCES = [
+  "unregistered_professional_finder_card",
+  "unregistered_professional_profile_page",
+  "finder_card",
+  "professional_profile_page",
+] as const;
 
 /** What a visitor typed in the finder's "can't find your professional?" card. */
 export type MissingProfessionalReportDetails = {
@@ -29,7 +74,7 @@ export type UserEventInsert = {
   visitor_key: string | null;
   professional_id: string | null;
   clinic_id: string | null;
-  source: string;
+  source: UserEventSource;
   details: Record<string, unknown>;
 };
 
@@ -39,14 +84,17 @@ function textOrNull(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-/** A "Show phone number" click on a finder card or a professional's profile. */
-export function showPhoneNumberEvent(input: {
-  professionalId: string;
-  clinicId: string | null;
-  source: CallToBookSource;
+/**
+ * A clinic's phone revealed: on a finder card or a profile (the professional and the clinic),
+ * or on the clinic's own page (the clinic only).
+ */
+export function showClinicPhoneNumberEvent(input: {
+  professionalId: string | null;
+  clinicId: string;
+  source: UserEventSource;
 }): UserEventInsert {
   return {
-    event_type: "show_phone_number",
+    event_type: "show_clinic_phone_number",
     actor_type: "visitor",
     visitor_key: null,
     professional_id: input.professionalId,
@@ -56,7 +104,23 @@ export function showPhoneNumberEvent(input: {
   };
 }
 
-/** A visitor's vote for online appointments with a listing (one per visitor, enforced by the database). */
+/** Her personal mobile revealed ("Show mobile" on her profile; registered professionals only). */
+export function showPersonalMobileNumberEvent(input: { professionalId: string }): UserEventInsert {
+  return {
+    event_type: "show_personal_mobile_number",
+    actor_type: "visitor",
+    visitor_key: null,
+    professional_id: input.professionalId,
+    clinic_id: null,
+    source: "registered_professional_profile_page",
+    details: {},
+  };
+}
+
+/**
+ * A visitor's vote for online appointments with a listing (one per visitor, enforced by the
+ * database). Only unregistered listings take votes.
+ */
 export function onlineAppointmentRequestEvent(input: {
   professionalId: string;
   clinicId: string | null;
@@ -69,7 +133,7 @@ export function onlineAppointmentRequestEvent(input: {
     visitor_key: textOrNull(input.visitorKey),
     professional_id: input.professionalId,
     clinic_id: input.clinicId,
-    source: input.source,
+    source: userEventSourceFor(input.source, false),
     details: {},
   };
 }

@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
 
   // Optional: one of her services (user, 2026-10-04).
   let professionalServiceId: string | null = null;
+  let professionalServiceName: string | null = null;
   try {
     const requested = await resolveRequestedService(
       supabase,
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
     );
     if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
     professionalServiceId = requested.service?.id ?? null;
+    professionalServiceName = requested.service?.name ?? null;
   } catch (err) {
     console.error("[DocCy] manual booking service check", err);
     return NextResponse.json({ message: "Error creating appointment." }, { status: 500 });
@@ -324,6 +326,7 @@ export async function POST(req: NextRequest) {
         appointmentDatetimeIso: String(inserted.appointment_datetime),
         durationMinutes: slotDuration,
         reason,
+        serviceName: professionalServiceName,
         doctor: {
           name: doctor.name,
           specialty: specialtyName,
@@ -346,7 +349,7 @@ export async function POST(req: NextRequest) {
   const calendarDetails = getDoctorCalendarEventDetails(
     { patient_name: patientName, patient_phone: patientPhone || null },
     { name: doctor.name, clinic_address: clinic.address },
-    { reason },
+    { reason, serviceName: professionalServiceName },
   );
   const googleCalendarUrl = buildGoogleCalendarUrl({
     title: calendarDetails.title,

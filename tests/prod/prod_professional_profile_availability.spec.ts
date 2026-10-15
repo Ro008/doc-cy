@@ -88,7 +88,7 @@ test.describe("Prod smoke: professional profile availability", { tag: "@nightly-
     // asserting a calendar specifically would go red for reasons that are not faults.
     const knownBookingState = page
       .getByText(
-        /Select a date on the calendar|Bookings temporarily unavailable|Appointments are paused|has not published availability yet|No available times right now/i,
+        /Select a date|Bookings temporarily unavailable|Appointments are paused|has not published availability yet|No available times right now/i,
       )
       .first();
     await expect(knownBookingState).toBeVisible({ timeout: 20_000 });

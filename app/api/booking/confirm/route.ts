@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
         patientName: draft.patient_name,
         appointmentIso: slot.appointmentUtc.toISOString(),
         reason: draft.reason,
+        serviceName: draft.service_name,
         isNewPatient: draft.is_new_patient,
         clinic: emailClinicFromLocation(slot.bookingLocation),
         reviewUrl: new URL(`/dashboard/appointments/${encodeURIComponent(appointmentId)}`, siteUrl).toString(),

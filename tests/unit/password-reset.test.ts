@@ -73,7 +73,7 @@ describe("password reset email copy", () => {
       resetUrl: "https://www.mydoccy.com/auth/callback?token_hash=tok&type=recovery",
     });
     assert.equal(content.subject, "[DocCy] Reset your password");
-    assert.match(content.text, /DocCy practitioner account/);
+    assert.match(content.text, /DocCy professional account/);
     assert.match(content.html, /Reset your DocCy password/);
     assert.match(content.html, /Choose a new password/);
     assert.match(content.html, /www\.mydoccy\.com\/brand\/doccy-logo-on-dark\.png/);

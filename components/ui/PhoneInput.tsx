@@ -8,19 +8,30 @@ import {
 } from "react-international-phone";
 import "react-international-phone/style.css";
 import { useTranslations } from "next-intl";
+import { mobilePlaceholder } from "@/lib/booking-form-parts";
 
 export type PhoneInputProps = {
   value: string;
   onChange: (value: string, isValid: boolean) => void;
   defaultCountry?: string; // e.g. "cy"
-  label?: string;
+  label?: React.ReactNode;
   id?: string;
   /** When true, show validation error only after submit attempt (never on load). */
   showValidationError?: boolean;
   /** A message from the form (e.g. "phone required"); replaces the built-in one. */
   errorMessage?: string | null;
-  /** "dark" for the professional's dark modals (manual booking). */
-  tone?: "light" | "dark";
+  /**
+   * "dark" for the professional's dark modals (manual booking); "profile" for the public
+   * profile theme (light/dark + DocCy's accent, set as CSS variables in globals.css).
+   */
+  tone?: "light" | "dark" | "profile";
+  /**
+   * The dial code sits fixed next to the flag (change the country with the flag) and the box
+   * shows an example mobile of that country, so erasing everything never loses the country.
+   */
+  fixedDialCode?: boolean;
+  /** A short line under the label. */
+  hint?: React.ReactNode;
 };
 
 /** Digits allowed after the country code (same rule as the validity check below). */
@@ -54,7 +65,10 @@ export function PhoneInput({
   showValidationError = false,
   errorMessage = null,
   tone = "light",
+  fixedDialCode = false,
+  hint = null,
 }: PhoneInputProps) {
+  const [countryIso2, setCountryIso2] = React.useState(defaultCountry);
   const [isValid, setIsValid] = React.useState(true);
   /** Dial code length of the selected country (Cyprus "357" until the patient changes it). */
   const dialLenRef = React.useRef(3);
@@ -64,6 +78,7 @@ export function PhoneInput({
     const digits = phone.replace(/\D/g, "");
     const dialLen = meta.country.dialCode.length;
     dialLenRef.current = dialLen;
+    setCountryIso2(meta.country.iso2);
     const minLen = dialLen + MIN_NATIONAL_DIGITS;
     const maxLen = dialLen + MAX_NATIONAL_DIGITS;
 
@@ -93,12 +108,27 @@ export function PhoneInput({
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={id} className="text-xs font-semibold text-ink-800">
+        <label
+          htmlFor={id}
+          className={
+            tone === "profile"
+              ? "text-sm font-semibold text-profile-text"
+              : "text-xs font-semibold text-ink-800"
+          }
+        >
           {label}
         </label>
       )}
+      {hint ? (
+        <p id={id ? `${id}-hint` : undefined} className={tone === "profile" ? "text-sm text-profile-muted" : "text-xs text-ink-500"}>
+          {hint}
+        </p>
+      ) : null}
       <IntlPhoneInput
         defaultCountry={defaultCountry}
+        disableDialCodeAndPrefix={fixedDialCode}
+        showDisabledDialCodeAndPrefix={fixedDialCode}
+        placeholder={fixedDialCode ? mobilePlaceholder(countryIso2) : undefined}
         value={value}
         onChange={handleChange}
         className="w-full"
@@ -112,20 +142,34 @@ export function PhoneInput({
             ? {
                 id,
                 "aria-invalid": errorMessage ? true : undefined,
-                "aria-describedby": errorMessage ? `${id}-error` : undefined,
+                "aria-describedby":
+                  [errorMessage ? `${id}-error` : "", hint ? `${id}-hint` : ""].filter(Boolean).join(" ") ||
+                  undefined,
                 onBeforeInput: blockExtraDigits,
               }
             : { onBeforeInput: blockExtraDigits }
         }
-        inputClassName={`w-full rounded-md border px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 ${
-          showError ? "border-red-500" : "border-ink-200"
-        }`}
+        inputClassName={
+          tone === "profile"
+            ? `w-full rounded-r-2xl border bg-profile-bg px-3 py-2.5 text-base text-profile-text focus:outline-none focus:ring-2 focus:ring-accent ${
+                showError ? "border-red-500" : "border-profile-border"
+              }`
+            : `w-full rounded-md border px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 ${
+                showError ? "border-red-500" : "border-ink-200"
+              }`
+        }
       />
       {errorMessage ? (
         <p
           id={id ? `${id}-error` : undefined}
           role="alert"
-          className={`text-xs font-medium ${tone === "dark" ? "text-red-300" : "text-red-600"}`}
+          className={`font-medium ${
+            tone === "dark"
+              ? "text-xs text-red-300"
+              : tone === "profile"
+                ? "text-sm text-red-600 [.doccy-profile[data-scheme=dark]_&]:text-red-400"
+                : "text-xs text-red-600"
+          }`}
         >
           {errorMessage}
         </p>

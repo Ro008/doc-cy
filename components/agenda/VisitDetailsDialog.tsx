@@ -22,6 +22,7 @@ import type { AgendaAppointmentRow, VisitDetails } from "@/lib/visit-details";
 import { AgendaPreviousVisits } from "@/components/agenda/AgendaPreviousVisits";
 import { VisitNotesBox } from "@/components/agenda/VisitNotesBox";
 import { PatientDetails } from "@/components/dashboard/PatientDetails";
+import { visitPurpose } from "@/lib/visit-purpose";
 
 function firstNameOf(fullName: string | null | undefined): string {
   return String(fullName ?? "").trim().split(/\s+/)[0] || "the patient";
@@ -70,6 +71,7 @@ export function VisitDetailsDialog({
 
   const nowMs = Date.now();
   const selectedStatus = String(selected.status ?? "").toUpperCase();
+  const purpose = visitPurpose({ serviceName: selected.service_name, reason: selected.reason });
   const selectedPast = isVisitSlotEnded(
         selected.gridStartIso,
         selected.rowDurationMinutes,
@@ -318,6 +320,15 @@ export function VisitDetailsDialog({
           phone={selected.patient_phone}
           email={selected.patient_email}
         />
+        {purpose.service ? (
+          <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Service</p>
+            <p data-testid="visit-details-service" className="mt-1 text-sm font-semibold text-slate-100">
+              {purpose.service}
+            </p>
+          </div>
+        ) : null}
+        {purpose.service && !purpose.reason ? null : (
         <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
             Reason for visit
@@ -327,9 +338,10 @@ export function VisitDetailsDialog({
               selected.reason ? "text-slate-200" : "text-amber-300"
             }`}
           >
-            {selected.reason || "Missing reason (data issue)."}
+            {purpose.reason || "Missing reason (data issue)."}
           </p>
         </div>
+        )}
         {selected.isCounterOfferHold &&
         String(selected.status ?? "").toUpperCase() ===
           "NEEDS_RESCHEDULE" ? (

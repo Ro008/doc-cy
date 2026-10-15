@@ -9,6 +9,7 @@ import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2,
 import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { ScrollFade } from "@/components/navigation/ScrollFade";
+import type { BookingServiceItem } from "@/lib/booking-service-choice";
 import { CY_TZ } from "@/lib/appointments";
 import { visitCancelNoticeHours } from "@/lib/visit-cancel-notice";
 import {
@@ -52,6 +53,7 @@ import {
   selectMissedRequests,
 } from "@/lib/missed-requests";
 import { splitMonthDayItems } from "@/lib/agenda-calendar";
+import { visitPurpose } from "@/lib/visit-purpose";
 import { settingsSectionHref } from "@/lib/settings-sections";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
@@ -67,6 +69,8 @@ type Props = {
   appointments: DashboardAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics: AgendaClinic[];
+  /** Her own services, for the optional choice in "Add manual booking". */
+  services?: BookingServiceItem[];
   todayWindow: TodayWorkingWindow | null;
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
@@ -104,6 +108,7 @@ export function DoctorDashboard({
   appointments,
   workingHours,
   clinics,
+  services = [],
   todayWindow,
   pausedNotices,
   accessEnded = false,
@@ -426,6 +431,7 @@ export function DoctorDashboard({
         appointments={rows}
         workingHours={workingHours}
         clinics={clinics}
+        services={services}
         preferredClinicId={clinics[0]?.id ?? null}
         accessEnded={accessEnded}
         onClose={() => setManualOpen(false)}
@@ -785,7 +791,9 @@ function PendingRequestItem({
 
   const start = new Date(row.appointment_datetime);
   const ago = requestedAgoLabel(row.created_at, nowMs);
-  const details = [row.reason?.trim(), `${durationMinutes} min`].filter(Boolean).join(" · ");
+  // The service she offers comes first; the patient's own words only when they add to it.
+  const purpose = visitPurpose({ serviceName: row.service_name, reason: row.reason });
+  const details = [purpose.service, purpose.reason, `${durationMinutes} min`].filter(Boolean).join(" · ");
   const locked = busy !== null || exit !== null;
 
   async function accept() {

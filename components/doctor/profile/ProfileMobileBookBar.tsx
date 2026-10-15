@@ -1,0 +1,73 @@
+"use client";
+
+import * as React from "react";
+import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
+import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
+
+type Props = {
+  /** "Next: Mon 5 Oct · 09:00", or null when there is no free time online. */
+  next: string | null;
+  /** The clinic that time is at, when she has more than one; otherwise null. */
+  clinic: string | null;
+  cta: string;
+};
+
+/**
+ * Phones only: once the booking column (the clinic choice and the calendar) has scrolled
+ * away, a bar keeps "Book" at hand (as on the big booking sites). Sits
+ * above the pro tab bar when shown.
+ */
+export function ProfileMobileBookBar({ next, clinic, cta }: Props) {
+  const [visible, setVisible] = React.useState(false);
+  const { showProChrome } = useDoctorSession();
+
+  React.useEffect(() => {
+    const book = document.getElementById(PROFILE_SECTION_IDS.book);
+    if (!book || typeof IntersectionObserver === "undefined") return;
+    // Its last pixels under the sticky tabs do not count as "on screen".
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(!entry.isIntersecting),
+      { rootMargin: "-80px 0px -80px 0px" },
+    );
+    observer.observe(book);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      data-testid="profile-mobile-book-bar"
+      data-visible={visible ? "true" : "false"}
+      aria-hidden={!visible}
+      className={`fixed inset-x-0 z-30 border-t border-profile-border bg-profile-surface px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition duration-300 lg:hidden ${
+        showProChrome ? "bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "bottom-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
+      } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-full opacity-0"}`}
+    >
+      <div className="mx-auto flex max-w-xl items-center gap-3">
+        {next ? (
+          // The time, and under it where (user, 2026-10-14): with several clinics the next
+          // free time belongs to one of them.
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-semibold text-profile-text">{next}</span>
+            {clinic ? (
+              <span
+                data-testid="profile-mobile-book-bar-clinic"
+                className="truncate text-[13px] font-medium text-profile-muted"
+              >
+                {clinic}
+              </span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="flex-1" />
+        )}
+        <a
+          href={`#${PROFILE_SECTION_IDS.book}`}
+          tabIndex={visible ? undefined : -1}
+          className="inline-flex min-h-12 shrink-0 items-center rounded-2xl bg-accent-cta px-5 text-[15px] font-extrabold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        >
+          {cta}
+        </a>
+      </div>
+    </div>
+  );
+}

@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Doctor profile mobile layout", () => {
-  test("shows booking above the fold and keeps details collapsed", async ({
+  test("shows booking near the top and every section on the same page", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 640 });
@@ -25,22 +25,18 @@ test.describe("Doctor profile mobile layout", () => {
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
-    // Booking panel should be visible without scrolling far
-    const bookingHeading = page.getByRole("heading", {
-      name: /Book an appointment/i,
-      level: 2,
-    });
-    await expect(bookingHeading).toBeVisible({ timeout: 10000 });
+    // Anchor tabs instead of separate pages or a collapsed accordion
+    const nav = page.getByRole("navigation", { name: "Profile sections" });
+    await expect(nav.getByRole("link", { name: "Book" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "About" })).toBeVisible();
 
-    // Accordion button for details exists and is collapsed by default
-    const accordionButton = page.getByRole("button", {
-      name: /About/i,
-    });
-    await expect(accordionButton).toBeVisible();
-    await expect(accordionButton).toHaveAttribute("aria-expanded", "false");
+    // Booking panel is part of the page
+    await expect(
+      page.getByRole("heading", { name: /Book an appointment/i, level: 2 })
+    ).toBeAttached({ timeout: 10000 });
 
-    // Location should now be rendered as a standalone section (outside About accordion).
-    await expect(page.getByRole("heading", { name: /^Location$/i })).toBeVisible();
+    // The bio is shown openly: no "About" accordion button any more
+    await expect(page.getByRole("heading", { name: /^About /, level: 2 })).toBeAttached();
+    await expect(page.locator("[aria-controls='doctor-details-panel']")).toHaveCount(0);
   });
 });
-

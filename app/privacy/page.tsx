@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mb-8">
           <PendingLink href="/" className="inline-flex hover:opacity-90">
-            <DocCyWordmark variant="light" size="lg" />
+            <DocCyWordmark variant="light" />
           </PendingLink>
           <h1 className="mt-6 text-3xl font-semibold tracking-tight text-ink-900">Privacy</h1>
           <p className="mt-2 text-sm text-ink-500">Last updated: {LAST_UPDATED}</p>

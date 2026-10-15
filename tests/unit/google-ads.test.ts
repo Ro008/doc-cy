@@ -203,7 +203,14 @@ describe("Google Ads wiring", () => {
       path.join(repoRoot, "lib/public/doctor-profile-page.tsx"),
       "utf8",
     );
-    assert.equal(profilePage.includes('kind="clinic"'), true);
+    // The profile's phone button is in the clinic card of the booking column.
+    const profileClinics = fs.readFileSync(
+      path.join(repoRoot, "components/doctor/profile/ProfileBookingPanel.tsx"),
+      "utf8",
+    );
+    assert.equal(profilePage.includes("<ProfileBookingPanel"), true);
+    assert.equal(profileClinics.includes('kind="clinic"'), true);
+    assert.equal(profileClinics.includes("publicTelHref"), false);
     assert.equal(profilePage.includes("publicTelHref"), false);
 
     const registeredFinder = fs.readFileSync(
@@ -214,7 +221,7 @@ describe("Google Ads wiring", () => {
     assert.equal(registeredFinder.includes('variant="show-phone-number"'), true);
     assert.equal(registeredFinder.includes('variant="profile-call"'), false);
     assert.equal(registeredFinder.includes('variant="call-to-book"'), false);
-    assert.equal(profilePage.includes('variant="profile-call"'), true);
+    assert.equal(profileClinics.includes('variant="profile-call"'), true);
   });
 
   it("fires Request Online Booking after a new vote on finder and professional profile", () => {

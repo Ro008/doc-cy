@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { promoteBookingNotice } from "@/lib/promote-booking-notice";
 import { createPortal } from "react-dom";
-import { Clock, ExternalLink, Lock, Save, X } from "lucide-react";
+import { CalendarCheck, Clock, Euro, ExternalLink, Lock, PhoneOff, Save, Stethoscope, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { AccessEndedBanner } from "@/components/dashboard/AccessEndedBanner";
@@ -277,6 +277,8 @@ type SettingsFormProps = {
   sidebarHeader?: React.ReactNode;
   /** Extra Profile rows rendered by the page (e.g. the GESY switch). */
   profileExtra?: React.ReactNode;
+  /** "Your public page" (colour + headline): a set-once look, so the last card of Profile. */
+  profileHeadline?: React.ReactNode;
   /** The Account section: sign-in & security. */
   account?: React.ReactNode;
   /** The Promote section: QR, print sign, scripts. */
@@ -385,6 +387,30 @@ function resolveInitialClinicLocation(initial: DoctorSettingsFormData): ClinicLo
   });
 }
 
+/** The points under "What are services?" in Settings › Services & prices. */
+const SERVICES_WHY_POINTS = [
+  {
+    Icon: Stethoscope,
+    title: "Patients know you can help",
+    body: "Your specialty says what you are; your services say exactly what you treat.",
+  },
+  {
+    Icon: Euro,
+    title: "No surprises on price",
+    body: "Knowing the cost up front makes patients more confident to book.",
+  },
+  {
+    Icon: PhoneOff,
+    title: "Fewer calls to your clinic",
+    body: "“Do you do this?” and “How much is it?” are answered on your profile.",
+  },
+  {
+    Icon: CalendarCheck,
+    title: "You know why they’re coming",
+    body: "When booking, patients can pick one of your services, and you see it with the visit.",
+  },
+] as const;
+
 const SECTION_CARD_CLASS = SETTINGS_CARD_CLASS;
 const SECTION_EYEBROW_CLASS = SETTINGS_EYEBROW_CLASS;
 
@@ -393,6 +419,7 @@ export function SettingsForm({
   section: initialSection,
   sidebarHeader,
   profileExtra,
+  profileHeadline,
   account,
   promote,
   publicProfileHref,
@@ -1853,35 +1880,33 @@ export function SettingsForm({
         "Treatments on your public profile. Prices are in euros (€) and the same at every clinic.",
         previewProfileLink,
       )}
-      {/* Why list services (user, 2026-10-09). */}
+      {/* Why list services (user, 2026-10-09). Four points, each a small card with its icon (2026-10-13). */}
       <section
         className="rounded-3xl border border-clinical-400/20 bg-clinical-500/[0.06] p-5 sm:p-6"
         data-testid="settings-services-why"
       >
-        <p className="text-sm font-semibold text-slate-100">What are services?</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-300">
+        <p className="text-base font-semibold text-slate-50">What are services?</p>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-300">
           The treatments and consultations you offer, each with its price. They appear on your public profile, so
           patients see them before they book.
         </p>
-        <ul className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
-          <li>
-            <span className="block font-semibold text-slate-100">Patients know you can help</span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
-              Your specialty says what you are; your services say exactly what you treat.
-            </span>
-          </li>
-          <li>
-            <span className="block font-semibold text-slate-100">No surprises on price</span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
-              Knowing the cost up front makes patients more confident to book.
-            </span>
-          </li>
-          <li>
-            <span className="block font-semibold text-slate-100">Fewer calls to your clinic</span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
-              &ldquo;Do you do this?&rdquo; and &ldquo;How much is it?&rdquo; are answered on your profile.
-            </span>
-          </li>
+        <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+          {SERVICES_WHY_POINTS.map(({ Icon, title, body }) => (
+            <li
+              key={title}
+              className="rounded-2xl border border-clinical-400/15 bg-ink-900/40 p-4 transition hover:border-clinical-400/35 hover:bg-ink-900/60"
+            >
+              <span
+                data-testid="services-why-icon"
+                aria-hidden="true"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-clinical-400/15 text-clinical-300"
+              >
+                <Icon className="h-5 w-5" strokeWidth={2} />
+              </span>
+              <span className="mt-3 block font-semibold text-slate-50">{title}</span>
+              <span className="mt-1 block text-[13px] leading-relaxed text-slate-300">{body}</span>
+            </li>
+          ))}
         </ul>
       </section>
       <ServicesCard initial={parseSavedServices(initial.services)} />
@@ -2121,6 +2146,8 @@ export function SettingsForm({
           />
         </div>
       </section>
+      {/* The line under her name on the public page, so it follows the name here too. */}
+      {profileHeadline}
       {specialtiesCard}
       {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
       {profileExtra}

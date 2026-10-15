@@ -1,4 +1,5 @@
 import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
+import { visitPurpose } from "@/lib/visit-purpose";
 
 /** Minimal appointment shape for shared calendar copy (datetime reserved for future use). */
 export type PatientCalendarAppointment = {
@@ -33,6 +34,8 @@ export type PatientCalendarVisitReason = {
   visitType?: string | null | undefined;
   visitNotes?: string | null;
   reason?: string | null;
+  /** The service the patient picked (appointments.service_name). */
+  serviceName?: string | null;
 };
 
 export type PatientCalendarEventOptions = {
@@ -72,13 +75,14 @@ export function getCalendarEventDetails(
     ? "To change or cancel your visit, please contact the clinic directly."
     : "Manage this visit through DocCy. You will receive email updates; please do not arrange changes outside the app until your visit is confirmed.";
 
-  const reason = String(visit?.reason ?? "").trim();
+  const { service, reason } = visitPurpose({ serviceName: visit?.serviceName, reason: visit?.reason });
   const vt = String(visit?.visitType ?? "").trim();
   const vn = String(visit?.visitNotes ?? "").trim();
   const visitLines: string[] = [];
+  if (service) visitLines.push(`Service: ${service}`);
   if (reason) {
     visitLines.push(`Reason: ${reason}`);
-  } else if (vt) {
+  } else if (vt && !service) {
     visitLines.push(`Visit type: ${vt}`);
   }
   if (vn) {

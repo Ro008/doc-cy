@@ -31,6 +31,7 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import type { BookingServiceItem } from "@/lib/booking-service-choice";
 import { VisitDetailsDialog } from "@/components/agenda/VisitDetailsDialog";
 import type { AgendaAppointmentRow } from "@/lib/visit-details";
 import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
@@ -116,6 +117,7 @@ function agendaRowFromSupabasePayload(
       raw.patient_birthdate == null || raw.patient_birthdate === "" ? null : String(raw.patient_birthdate),
     is_new_patient: typeof raw.is_new_patient === "boolean" ? raw.is_new_patient : null,
     reason: patientVisitReasonFromAppointmentRow(raw),
+    service_name: raw.service_name == null || raw.service_name === "" ? null : String(raw.service_name),
     appointment_datetime: String(raw.appointment_datetime ?? ""),
     status: raw.status == null || raw.status === "" ? null : String(raw.status),
     duration_minutes:
@@ -308,6 +310,7 @@ export function AgendaRealtime({
   initialAppointments,
   workingHours,
   clinics = [],
+  services = [],
   initialDateKey,
   initialView,
   openManualBooking,
@@ -320,6 +323,8 @@ export function AgendaRealtime({
   initialAppointments: AgendaAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
+  /** Her own services, for the optional choice in "Add manual booking". */
+  services?: BookingServiceItem[];
   initialDateKey?: string | null;
   initialView?: string | null;
   openManualBooking?: boolean;
@@ -1319,6 +1324,7 @@ export function AgendaRealtime({
         appointments={appointments}
         workingHours={workingHours}
         clinics={clinics}
+        services={services}
         preferredClinicId={[...visibleClinicIds][0] ?? clinics[0]?.id ?? null}
         accessEnded={accessEnded}
         onClose={() => setManualBookingOpen(false)}

@@ -115,9 +115,15 @@ begin
     'FAIL: joining and leaving a clinic: 5 in 30 days each';
   assert not exists (select 1 from public.request_types
       where not requires_approval and is_edit and name like 'professional\_%'
-        and name not in ('professional_clinic_join', 'professional_clinic_leave', 'professional_email_change')
+        and name not in ('professional_clinic_join', 'professional_clinic_leave', 'professional_email_change',
+                         'professional_headline_change')
         and (limit_count is distinct from 20 or limit_window is distinct from interval '1 day')),
     'FAIL: every everyday setting: 20 a day';
+  -- The headline is public text under her name (migration *_professional_headline_change).
+  assert not exists (select 1 from public.request_types
+      where name = 'professional_headline_change'
+        and (limit_count is distinct from 5 or limit_window is distinct from interval '30 days')),
+    'FAIL: the headline: 5 in 30 days';
   assert (select count(*) from public.request_types
       where name in ('professional_clinic_hours_change', 'professional_clinic_limits_change',
                      'professional_clinic_online_booking_change')
@@ -130,7 +136,7 @@ begin
       where name in ('professional_registration', 'professional_email_change')
         and (limit_count is not null or limit_window is not null or wait_after_approval is not null)),
     'FAIL: registration and the email change carry no limit';
-  v_checks := v_checks + 8;
+  v_checks := v_checks + 9;
 
   -- A limit is a count with its window, or neither.
   v_out := pg_temp.outcome(

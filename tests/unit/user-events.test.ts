@@ -9,7 +9,9 @@ import {
   missingProfessionalReportEvent,
   onlineAppointmentRequestEvent,
   parseMissingProfessionalReportDetails,
-  showPhoneNumberEvent,
+  showClinicPhoneNumberEvent,
+  showPersonalMobileNumberEvent,
+  userEventSourceFor,
 } from "@/lib/user-events";
 
 // Point E4: clicks, votes and missing-professional reports go to one `user_events`
@@ -39,35 +41,64 @@ const DROPPED = [
 ];
 
 describe("user event rows", () => {
-  it("names the table and the three event types", () => {
+  it("names the table and the four event types (user, 2026-10-15)", () => {
     assert.equal(USER_EVENTS_TABLE, "user_events");
     assert.deepEqual(
       [...USER_EVENT_TYPES],
-      ["show_phone_number", "request_online_appointment", "missing_professional_report"],
+      [
+        "show_clinic_phone_number",
+        "show_personal_mobile_number",
+        "request_online_appointment",
+        "missing_professional_report",
+      ],
     );
   });
 
-  it("a Show phone number click is a visitor event on the professional and clinic", () => {
+  it("the source says where the click was and whether she was registered at that moment", () => {
+    assert.equal(userEventSourceFor("finder_card", true), "registered_professional_finder_card");
+    assert.equal(userEventSourceFor("finder_card", false), "unregistered_professional_finder_card");
+    assert.equal(userEventSourceFor("professional_profile_page", true), "registered_professional_profile_page");
+    assert.equal(userEventSourceFor("professional_profile_page", false), "unregistered_professional_profile_page");
+    assert.equal(userEventSourceFor("clinic_page", true), "clinic_page");
+    assert.equal(userEventSourceFor("clinic_page", false), "clinic_page");
+  });
+
+  it("a clinic phone click is a visitor event on the professional and clinic", () => {
     assert.deepEqual(
-      showPhoneNumberEvent({ professionalId: "p1", clinicId: "c1", source: "finder_card" }),
+      showClinicPhoneNumberEvent({
+        professionalId: "p1",
+        clinicId: "c1",
+        source: "registered_professional_finder_card",
+      }),
       {
-        event_type: "show_phone_number",
+        event_type: "show_clinic_phone_number",
         actor_type: "visitor",
         visitor_key: null,
         professional_id: "p1",
         clinic_id: "c1",
-        source: "finder_card",
+        source: "registered_professional_finder_card",
         details: {},
       },
     );
-    assert.equal(
-      showPhoneNumberEvent({ professionalId: "p1", clinicId: null, source: "professional_profile_page" })
-        .clinic_id,
-      null,
-    );
+    // On a clinic's own page: the clinic, no professional.
+    const onClinicPage = showClinicPhoneNumberEvent({ professionalId: null, clinicId: "c1", source: "clinic_page" });
+    assert.equal(onClinicPage.professional_id, null);
+    assert.equal(onClinicPage.source, "clinic_page");
   });
 
-  it("an online-appointment vote carries the visitor key", () => {
+  it("a personal mobile click names her, no clinic, on her registered profile", () => {
+    assert.deepEqual(showPersonalMobileNumberEvent({ professionalId: "p1" }), {
+      event_type: "show_personal_mobile_number",
+      actor_type: "visitor",
+      visitor_key: null,
+      professional_id: "p1",
+      clinic_id: null,
+      source: "registered_professional_profile_page",
+      details: {},
+    });
+  });
+
+  it("an online-appointment vote carries the visitor key; listings only, so unregistered", () => {
     assert.deepEqual(
       onlineAppointmentRequestEvent({
         professionalId: "p1",
@@ -81,19 +112,18 @@ describe("user event rows", () => {
         visitor_key: "abc",
         professional_id: "p1",
         clinic_id: null,
-        source: "professional_profile_page",
+        source: "unregistered_professional_profile_page",
         details: {},
       },
     );
-    assert.equal(
-      onlineAppointmentRequestEvent({
-        professionalId: "p1",
-        clinicId: "c1",
-        source: "finder_card",
-        visitorKey: "  ",
-      }).visitor_key,
-      null,
-    );
+    const fromFinder = onlineAppointmentRequestEvent({
+      professionalId: "p1",
+      clinicId: "c1",
+      source: "finder_card",
+      visitorKey: "  ",
+    });
+    assert.equal(fromFinder.visitor_key, null);
+    assert.equal(fromFinder.source, "unregistered_professional_finder_card");
   });
 
   it("a missing-professional report keeps what the visitor typed in details", () => {
@@ -210,5 +240,57 @@ describe("everything reads and writes user_events (Point E4)", () => {
   it("purging a professional deletes their user events", () => {
     const purge = read("lib/purge-registered-professional.ts");
     assert.ok(purge.includes('"user_events"'));
+  });
+});
+
+describe("phone reveals: what was revealed and where (user, 2026-10-15)", () => {
+  it("a clinic phone reveal records the place, registered or not from the database, and clinic pages", () => {
+    const route = read("app/api/directory/contact-reveal/route.ts");
+    assert.match(route, /showClinicPhoneNumberEvent\(/);
+    assert.match(route, /userEventSourceFor\(/);
+    // Registered or not is read from the database at the click, not taken from the page.
+    assert.match(route, /select\("is_registered"\)/);
+    // A clinic's own page names the clinic only.
+    assert.match(route, /place === "clinic_page"/);
+    assert.match(route, /professionalId: null/);
+  });
+
+  it("a personal mobile reveal is recorded, only when the number was shown", () => {
+    const route = read("app/api/directory/professional-mobile-reveal/route.ts");
+    assert.match(route, /USER_EVENTS_TABLE/);
+    assert.match(route, /showPersonalMobileNumberEvent\(\{ professionalId: id \}\)/);
+    assert.ok(route.indexOf("showPersonalMobileNumberEvent(") > route.indexOf('reason: "not_found"'));
+  });
+
+  it("every phone button says where it is, and sends it whatever its look", () => {
+    const button = read("components/finder/RevealPhoneButton.tsx");
+    assert.match(button, /source: analyticsSource,/);
+    assert.doesNotMatch(button, /source: variant === "call-to-book" \? analyticsSource : null/);
+    // The Google Ads conversion stays on the listings' call-to-book button only.
+    assert.match(button, /if \(variant === "call-to-book"\) \{\s*reportGoogleAdsConversion/);
+    for (const [file, place] of [
+      ["components/finder/FinderRegisteredCardAvailability.tsx", "finder_card"],
+      ["components/doctor/profile/ProfileBookingPanel.tsx", "professional_profile_page"],
+      ["components/finder/ClinicContactActions.tsx", "clinic_page"],
+      ["app/clinics/[[...filters]]/page.tsx", "clinic_page"],
+    ] as const) {
+      const src = read(file);
+      const at = src.indexOf("<RevealPhoneButton");
+      assert.ok(at >= 0, file);
+      assert.ok(src.slice(at, src.indexOf("/>", at)).includes(`source="${place}"`), `${file}: source="${place}"`);
+    }
+  });
+
+  it("the founders' tools ask for the new name; the old one is named in one place until step 2", () => {
+    const page = read("app/internal/directory/page.tsx");
+    assert.match(page, /p_event_type: "show_clinic_phone_number"/);
+    const csv = read("app/api/internal/directory-clicks.csv/route.ts");
+    assert.match(csv, /\.in\("event_type", CLINIC_PHONE_EVENT_TYPES\)/);
+    assert.match(csv, /\.in\("source", FOUNDER_LISTING_SOURCES\)/);
+    const files = ["app", "lib", "components"].flatMap((dir) => sourceFiles(path.join(root, dir)));
+    const offenders = files
+      .filter((file) => readFileSync(file, "utf8").includes('"show_phone_number"'))
+      .map((file) => path.relative(root, file).split(path.sep).join("/"));
+    assert.deepEqual(offenders, ["lib/user-events.ts"]);
   });
 });

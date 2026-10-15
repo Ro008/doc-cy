@@ -1,6 +1,10 @@
 import type { UserEventStatRow } from "@/lib/user-events";
 
-export const CALL_TO_BOOK_SOURCES = ["finder_card", "professional_profile_page"] as const;
+/**
+ * Where a phone button is, as the page sends it. The server adds whether the professional
+ * is registered (`userEventSourceFor` in lib/user-events.ts) before it stores the click.
+ */
+export const CALL_TO_BOOK_SOURCES = ["finder_card", "professional_profile_page", "clinic_page"] as const;
 
 export type CallToBookSource = (typeof CALL_TO_BOOK_SOURCES)[number];
 

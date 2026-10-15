@@ -1,3 +1,4 @@
+import { visitPurpose } from "@/lib/visit-purpose";
 import type {
   PatientCalendarDoctor,
   PatientCalendarEventDetails,
@@ -21,7 +22,7 @@ export function getDoctorCalendarEventDetails(
   const patientName =
     String(appointment.patient_name ?? "").trim() || "Patient";
 
-  const reason = String(visit?.reason ?? "").trim();
+  const { service, reason } = visitPurpose({ serviceName: visit?.serviceName, reason: visit?.reason });
   const vt = String(visit?.visitType ?? "").trim();
   const title = patientName;
 
@@ -30,9 +31,10 @@ export function getDoctorCalendarEventDetails(
     "Booked through DocCy.",
     "",
   ];
+  if (service) lines.push(`Service: ${service}`);
   if (reason) {
     lines.push(`Reason: ${reason}`);
-  } else if (vt) {
+  } else if (vt && !service) {
     lines.push(`Visit type: ${vt}`);
   }
   if (vn) {

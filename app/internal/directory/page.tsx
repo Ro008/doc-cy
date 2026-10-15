@@ -666,7 +666,7 @@ export default async function FounderDashboardPage({
     // Per-professional click/finder/profile counts computed in SQL instead of
     // fetching every click row.
     const { data: clickStats, error: clickErr } = await supabase.rpc("founder_user_event_stats", {
-      p_event_type: "show_phone_number",
+      p_event_type: "show_clinic_phone_number",
       p_since: sinceIso,
     });
     if (!clickErr && clickStats?.length) {

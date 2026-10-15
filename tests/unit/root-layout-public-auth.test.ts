@@ -77,3 +77,18 @@ describe("PendingLink does not bail out static prerender", () => {
     );
   });
 });
+
+describe("the professional's avatar while the page loads (user, 2026-10-14)", () => {
+  const read = (file: string) => fs.readFileSync(path.join(repoRoot, file), "utf8");
+
+  it("the server stand-in shows an empty circle, not \"DC\"", () => {
+    const boot = read("components/navigation/ProChromeBoot.tsx");
+    assert.doesNotMatch(boot, />\s*DC\s*</);
+  });
+
+  it("the user bar shows no initials until her name has loaded", () => {
+    const bar = read("components/navigation/UserBar.tsx");
+    assert.doesNotMatch(bar, /"DC"/);
+    assert.match(bar, /if \(!name\) return "";/);
+  });
+});

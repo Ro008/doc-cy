@@ -1728,7 +1728,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await form.getByRole("button", { name: "Add service" }).click();
     await expect(toastText("Service added to your price list.")).toBeVisible({ timeout: 20_000 });
     await expect(rows).toHaveText([/First consultation.*€60/]);
-    await expect(card.getByTestId("settings-services-count")).toHaveText("1 of 20");
+    // The "N of 20" counter only shows from 15 services on.
+    await expect(card.getByTestId("settings-services-count")).toHaveCount(0);
     await expect(form).toHaveCount(0);
 
     // A starting price reads "From €80".

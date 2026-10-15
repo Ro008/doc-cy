@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
         appointmentDatetimeIso: slot,
         durationMinutes: duration,
         reason: ctx.appointment.reason,
+        serviceName: ctx.appointment.service_name,
         doctor: {
           name: ctx.professional.name,
           specialty: await loadPrimarySpecialtyName(service, ctx.professional.id),

@@ -179,6 +179,7 @@ function RegisteredClinicCallButton({
   return (
     <RevealPhoneButton
       kind="clinic"
+      source="finder_card"
       id={clinicId}
       hasPhone
       manualId={doctorId}

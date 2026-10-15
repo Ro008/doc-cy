@@ -8,12 +8,17 @@ type DocCyWordmarkProps = {
   className?: string;
   /** Surface the logo sits on: `dark` uses the reverse artwork (white "my"). */
   variant?: "light" | "dark";
-  /** `sm` = compact headers; `md` = default; `lg` = blog / marketing; `xl` = finder (~1.5× md) */
-  size?: "sm" | "md" | "lg" | "xl";
+  /**
+   * `md` = every header (user, 2026-10-15: one size site-wide, 32px from tablets up, 28px on
+   * a phone so "Join as a professional" still fits beside it); `xl` = the for-professionals
+   * sales page.
+   */
+  size?: "md" | "xl";
 };
 
-const HEIGHT_PX = { sm: 24, md: 28, lg: 36, xl: 42 } as const;
-const HEIGHT_CLASS = { sm: "h-6", md: "h-7", lg: "h-9", xl: "h-[42px]" } as const;
+/** The larger of each size's heights: the image file is fetched at least this tall. */
+const HEIGHT_PX = { md: 32, xl: 42 } as const;
+const HEIGHT_CLASS = { md: "h-7 sm:h-8", xl: "h-[42px]" } as const;
 
 export function DocCyWordmark({
   className = "",
@@ -31,7 +36,7 @@ export function DocCyWordmark({
         width={width}
         height={height}
         className={`w-auto object-contain object-left ${HEIGHT_CLASS[size]}`}
-        priority={size === "lg"}
+        priority
       />
     </span>
   );

@@ -27,6 +27,7 @@ export function ClinicContactActions({
       ) : null}
       <RevealPhoneButton
         kind="clinic"
+        source="clinic_page"
         id={clinicId}
         hasPhone={hasPhone}
         className="inline-flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm font-semibold text-ink-800 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700 disabled:cursor-wait disabled:opacity-60"

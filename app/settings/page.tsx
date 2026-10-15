@@ -17,6 +17,8 @@ import type {
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
+import { ProfileHeadlineCard } from "@/components/dashboard/ProfileHeadlineCard";
+import { loadProfileHeadline } from "@/lib/profile-headline-server";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
 import { loadPendingEmailChange } from "@/lib/account-email-change-server";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -339,6 +341,10 @@ export default async function AgendaSettingsPage({
         return null;
       })
     : null;
+  // The line under her name on her public page (Profile → Headline).
+  const profileHeadline = specialtyService
+    ? await loadProfileHeadline(specialtyService, doctor.id).catch(() => null)
+    : null;
 
   const holidayRow = settings as {
     holiday_mode_enabled?: boolean | null;
@@ -473,6 +479,7 @@ export default async function AgendaSettingsPage({
             </div>
           }
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
+          profileHeadline={<ProfileHeadlineCard initial={{ headline: profileHeadline }} />}
           account={<AccountSecurityCard email={user.email ?? ""} initialPendingEmail={pendingEmailChange?.email ?? null} />}
           promote={
             <div id="promote-practice">

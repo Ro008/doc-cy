@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { bookingCalendar, continueButton } from "../helpers/bookingCalendar";
+import { fillBirthdate, fillPatientName, phoneBox } from "../helpers/bookingForm";
+import { fillVisitReason } from "../helpers/fillVisitReason";
+import { fillBookingPatientDetails } from "../helpers/fillBookingPatientDetails";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import {
@@ -37,7 +41,7 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       await page.goto(`/en/${doctorSlug}`);
       await waitForCloudflareChallengeToClear(page);
       await dismissCookieConsentIfPresent(page);
-      await expect(page.getByText("Select a date on the calendar")).toBeVisible({
+      await expect(bookingCalendar(page)).toBeVisible({
         timeout: 20000,
       });
 
@@ -48,16 +52,15 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       const selectSlotBtn = page.getByRole("button", { name: /Select/i }).first();
       await expect(selectSlotBtn).toBeVisible({ timeout: 10000 });
       await selectSlotBtn.click();
-      await page.getByRole("button", { name: /Confirm/i }).first().click();
+      await continueButton(page).click();
 
-      await page.getByLabel("Full name", { exact: true }).fill(patientName);
+      await fillPatientName(page, patientName);
       await page.getByLabel("Email", { exact: true }).fill(patientEmail);
-      const phoneInput = page.getByRole("textbox", {
-        name: /Phone.*priority contact/i,
-      });
+      const phoneInput = phoneBox(page);
       await phoneInput.fill("99123456");
+      await fillBookingPatientDetails(page);
       await page.getByRole("radio", { name: /This is my first visit/i }).check();
-      await page.locator("#visitReason").fill("Prod smoke — brief reason for visit.");
+      await fillVisitReason(page, "Prod smoke — brief reason for visit.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
       // Patient URLs use locale prefix (next-intl localePrefix: "always").

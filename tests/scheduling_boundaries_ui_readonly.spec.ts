@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { expectBookingCalendar } from "./helpers/bookingCalendar";
 import { addHours, format } from "date-fns";
 import { utcToZonedTime } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
@@ -53,9 +54,7 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
     );
 
     await page.goto(`/${doctor.slug}`);
-    await expect(page.getByText("Select a date on the calendar")).toBeVisible({
-      timeout: 10000,
-    });
+    await expectBookingCalendar(page);
 
     // 1) Booking horizon boundary via calendar navigation limits
     const nowCy = utcToZonedTime(new Date(), CY_TZ);

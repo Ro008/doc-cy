@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { continueButton, expectBookingCalendar, isBookingCalendarVisible } from "./helpers/bookingCalendar";
+import { fillBirthdate, fillPatientName, phoneBox } from "./helpers/bookingForm";
+import { fillVisitReason } from "./helpers/fillVisitReason";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
 
@@ -24,7 +27,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       await page.goto(`/${d.slug}`);
       // If the doctor has no published availability yet, BookingSection hides the calendar.
       if (
-        await page.getByText("Select a date on the calendar").isVisible()
+        await isBookingCalendarVisible(page)
       ) {
         chosenDoctorSlug = d.slug;
         break;
@@ -37,11 +40,9 @@ test.describe("Booking backend errors @booking-creates", () => {
     await expect(
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expectBookingCalendar(page);
 
-    const calendar = page.locator(".rdp-light");
+    const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -51,20 +52,17 @@ test.describe("Booking backend errors @booking-creates", () => {
     const selectSlotBtn = page.getByRole("button", { name: /Select/i });
     await expect(selectSlotBtn.first()).toBeVisible({ timeout: 5000 });
     await selectSlotBtn.first().click();
-    await page.getByRole("button", { name: /Confirm/i }).first().click();
+    await continueButton(page).click();
 
     // Contact form
-    const nameInput = page.getByLabel("Full name", { exact: true });
-    await expect(nameInput).toBeVisible();
-    await nameInput.fill("Error E2E");
+    await expect(page.locator("#firstName, #name").first()).toBeVisible();
+    await fillPatientName(page, "Error E2E");
 
     const emailInput = page.getByLabel("Email", { exact: true });
     await expect(emailInput).toBeVisible();
     await emailInput.fill("error.e2e@example.com");
 
-    const phoneInput = page.getByRole("textbox", {
-      name: /Phone.*priority contact/i,
-    });
+    const phoneInput = phoneBox(page);
     await expect(phoneInput).toBeVisible();
     await phoneInput.click();
     await phoneInput.pressSequentially("99123456", { delay: 50 });
@@ -74,10 +72,10 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
-    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await fillBirthdate(page, "1990-01-01");
 
     // Force backend error by intercepting the booking request.
     // Using an appointmentLocal outside typical working hours ensures:
@@ -156,7 +154,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     for (const d of doctors) {
       if (!d?.slug) continue;
       await page.goto(`/${d.slug}`);
-      if (await page.getByText("Select a date on the calendar").isVisible()) {
+      if (await isBookingCalendarVisible(page)) {
         chosenDoctorSlug = d.slug;
         break;
       }
@@ -170,11 +168,9 @@ test.describe("Booking backend errors @booking-creates", () => {
     await expect(
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
+    await expectBookingCalendar(page);
 
-    const calendar = page.locator(".rdp-light");
+    const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -184,20 +180,17 @@ test.describe("Booking backend errors @booking-creates", () => {
     const selectSlotBtn = page.getByRole("button", { name: /Select/i });
     await expect(selectSlotBtn.first()).toBeVisible({ timeout: 5000 });
     await selectSlotBtn.first().click();
-    await page.getByRole("button", { name: /Confirm/i }).first().click();
+    await continueButton(page).click();
 
     // Contact form
-    const nameInput = page.getByLabel("Full name", { exact: true });
-    await expect(nameInput).toBeVisible();
-    await nameInput.fill("Error E2E 403");
+    await expect(page.locator("#firstName, #name").first()).toBeVisible();
+    await fillPatientName(page, "Error E2E 403");
 
     const emailInput = page.getByLabel("Email", { exact: true });
     await expect(emailInput).toBeVisible();
     await emailInput.fill("error403.e2e@example.com");
 
-    const phoneInput = page.getByRole("textbox", {
-      name: /Phone.*priority contact/i,
-    });
+    const phoneInput = phoneBox(page);
     await expect(phoneInput).toBeVisible();
     await phoneInput.click();
     await phoneInput.pressSequentially("99123456", { delay: 50 });
@@ -208,10 +201,10 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await fillVisitReason(page, "E2E backend error path — visit reason.");
     await page.getByRole("radio", { name: /This is my first visit/i }).check();
     await page.getByRole("radio", { name: /Prefer not to say/i }).check();
-    await page.locator("#patientBirthdate").fill("1990-01-01");
+    await fillBirthdate(page, "1990-01-01");
 
     // Force backend: override doctorId to a pending/rejected professional.
     await page.route("**/api/appointments", async (route) => {

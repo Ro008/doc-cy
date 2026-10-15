@@ -18,6 +18,7 @@ export type ProposalAppointment = {
   duration_minutes: number | null;
   clinic_id: string | null;
   reason: string | null;
+  service_name: string | null;
 };
 
 export type PatientProposalContext =
@@ -52,7 +53,7 @@ export async function loadPatientProposalContext(
 
   const { data: appt } = await service
     .from("appointments")
-    .select("id, professional_id, patient_name, patient_email, status, duration_minutes, clinic_id, reason, proposed_slots")
+    .select("id, professional_id, patient_name, patient_email, status, duration_minutes, clinic_id, reason, service_name, proposed_slots")
     .eq("id", link.appointment_id)
     .maybeSingle();
   if (!appt) return { kind: "invalid" };

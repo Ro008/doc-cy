@@ -13,7 +13,7 @@ export const DIRECTORY_CLICKS_CSV_HEADERS = [
   "source",
 ] as const;
 
-export type DirectoryClickCsvAction = "show_phone_number" | "request_online_appointment";
+export type DirectoryClickCsvAction = "show_clinic_phone_number" | "request_online_appointment";
 
 export type DirectoryClickCsvEvent = {
   clickedAtIso: string;
@@ -87,7 +87,7 @@ export function directoryClicksCsvFilename(params: {
   callToBookRange: string;
   manualVotesRange: string;
 }): string {
-  if (params.action === "show_phone_number") {
+  if (params.action === "show_clinic_phone_number") {
     return `doccy-show-phone-clicks-${params.callToBookRange}.csv`;
   }
   if (params.action === "request_online_appointment") {

@@ -5,14 +5,53 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { stringifyJsonLd } from "@/lib/json-ld";
+import { HideInstallBanner } from "@/components/pwa/HideInstallBanner";
+import { ProfileBookingStepProvider } from "@/components/doctor/profile/ProfileBookingStep";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
-import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
-import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
-import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
-import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
-import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
+import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
+import { ProfileBookingPanel } from "@/components/doctor/profile/ProfileBookingPanel";
+import { ProfileClinicChooser } from "@/components/doctor/profile/ProfileClinicChooser";
+import { ProfileStickyColumn } from "@/components/doctor/profile/ProfileStickyColumn";
+import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
+import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
+import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
+import { ProfileMobileBookBar } from "@/components/doctor/profile/ProfileMobileBookBar";
+import { ProfileReportLink } from "@/components/doctor/profile/ProfileReportLink";
+import { ProfileShareButton } from "@/components/doctor/profile/ProfileShareButton";
+import { ProfileSectionNav } from "@/components/doctor/profile/ProfileSectionNav";
+import { ProfileServicesSection } from "@/components/doctor/profile/ProfileServicesSection";
+import { ProfileReviewsSection } from "@/components/doctor/profile/ProfileReviewsSection";
+import { cache } from "react";
+import { loadPublishedReviews } from "@/lib/public/load-profile-reviews";
+import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
+import { loadProfileHeadline } from "@/lib/profile-headline-server";
+import { loadProfileDetails } from "@/lib/profile-details-server";
+import { ProfileQualificationsSection } from "@/components/doctor/profile/ProfileQualificationsSection";
+import { profileThemeStyle } from "@/lib/profile-theme";
+import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
+import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
+import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
+import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
+import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
+import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
+import { buildBookingPanelClinics } from "@/lib/public/profile-booking-panel";
+import {
+  clinicChooserRows,
+  widestBookingHorizonDays,
+} from "@/lib/public/profile-clinic-availability";
+import { profileDistricts } from "@/lib/public/profile-districts";
+import { profileBreadcrumbs } from "@/lib/public/profile-breadcrumbs";
+import { buildProfileStructuredData } from "@/lib/public/profile-structured-data";
+import {
+  clinicOpeningHours,
+  formatOpeningDays,
+  formatOpeningRanges,
+} from "@/lib/public/clinic-opening-hours";
+import { patientAgesMessageKey } from "@/lib/public/profile-public-details";
+import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import {
@@ -29,11 +68,28 @@ import {
   takenSlotTimesFor,
   type OccupiedRow,
 } from "@/lib/public/load-doctor-next-available-slot";
-import { settingsToWeeklySlots } from "@/lib/doctor-settings";
+import {
+  buildWeeklyScheduleFromSettings,
+  settingsToWeeklySlots,
+  type DayKey,
+} from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
+import { el as elLocale, enGB } from "date-fns/locale";
+import { Languages, MapPin, Users } from "lucide-react";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import {
+  buildShareDescription,
+  heroRatingFromReviews,
+  showHeroRating,
+  summariseReviews,
+} from "@/lib/public/profile-reviews";
+import {
+  PROFILE_SHARE_CARD_SIZE,
+  profileShareCardPath,
+  profileShareCardVersion,
+} from "@/lib/public/profile-share-card";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
@@ -42,22 +98,15 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
-import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { ManualDirectoryProfessionalLanding } from "@/components/finder/ManualDirectoryProfessionalLanding";
-import {
-  FinderDistrictLink,
-} from "@/components/finder/FinderSpecialtyLink";
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
-import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
 import {
   buildRegisteredProfileMetaDescription,
   buildRegisteredProfileMetaTitle,
-  buildShareImageMetadata,
   formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
   resolveShareAvatarUrl,
@@ -297,100 +346,6 @@ async function fetchPublicDoctorBySlug(
 
 export const revalidate = 0;
 
-type PhysicianStructuredData = {
-  "@context": "https://schema.org";
-  "@type": "Physician";
-  name: string;
-  url?: string;
-  sameAs?: string;
-  areaServed: "Cyprus";
-  address: {
-    "@type": "PostalAddress";
-    streetAddress?: string;
-    addressLocality?: string;
-    addressRegion?: string;
-    addressCountry: "CY";
-  };
-  image?: string;
-  medicalSpecialty?: string;
-  telephone?: string;
-  knowsLanguage?: string[];
-  description?: string;
-};
-
-function parseAddressParts(address: string): { streetAddress?: string; addressLocality?: string } {
-  const parts = address
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return {};
-  if (parts.length === 1) return { streetAddress: parts[0] };
-  return {
-    streetAddress: parts[0],
-    addressLocality: parts.slice(1).join(", "),
-  };
-}
-
-function buildPhysicianStructuredData(input: {
-  name: string;
-  specialty?: string | null;
-  bio?: string | null;
-  clinicAddress?: string | null;
-  district?: string | null;
-  phone?: string | null;
-  languages?: string[] | null;
-  imageUrl?: string | null;
-  profileUrl?: string | null;
-  sameAs?: string | null;
-}): PhysicianStructuredData {
-  const name = input.name.trim();
-  const specialty = (input.specialty ?? "").trim();
-  const bio = (input.bio ?? "").trim();
-  const district = (input.district ?? "").trim();
-  const phone = (input.phone ?? "").trim();
-  const languages = Array.isArray(input.languages)
-    ? input.languages.map((l) => String(l).trim()).filter(Boolean)
-    : [];
-  const addressRaw = stripPlusCodePrefix((input.clinicAddress ?? "").trim());
-  const addressParts = parseAddressParts(addressRaw);
-
-  const address: PhysicianStructuredData["address"] = {
-    "@type": "PostalAddress",
-    addressCountry: "CY",
-    ...(addressParts.streetAddress ? { streetAddress: addressParts.streetAddress } : {}),
-    ...(addressParts.addressLocality
-      ? { addressLocality: addressParts.addressLocality }
-      : district
-        ? { addressLocality: district }
-        : {}),
-    ...(district ? { addressRegion: district } : {}),
-  };
-
-  const description =
-    bio ||
-    (specialty
-      ? `${name} provides ${specialty} services in Cyprus via DocCy.`
-      : `${name} provides healthcare services in Cyprus via DocCy.`);
-
-  const profileUrl = String(input.profileUrl ?? "").trim();
-  const sameAs = String(input.sameAs ?? "").trim();
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Physician",
-    name,
-    ...(profileUrl ? { url: profileUrl } : {}),
-    ...(sameAs ? { sameAs } : {}),
-    ...(input.imageUrl ? { image: input.imageUrl } : {}),
-    ...(specialty ? { medicalSpecialty: specialty } : {}),
-    address,
-    ...(phone ? { telephone: phone } : {}),
-    ...(languages.length > 0 ? { knowsLanguage: languages } : {}),
-    areaServed: "Cyprus",
-    ...(description ? { description } : {}),
-  };
-}
-
 function resolvePublicAvatarUrl(
   supabase: SupabaseClient,
   avatarPathOrUrl: string | null | undefined,
@@ -400,12 +355,25 @@ function resolvePublicAvatarUrl(
   );
 }
 
+/** "Dr. Eleni Georgiou" → "Eleni" for "About Eleni". */
+function profileFirstName(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = words.find((word) => !/^(dr|prof|mr|mrs|ms|mx)\.?$/i.test(word));
+  return first ?? words[0] ?? name;
+}
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 }
+
+/** One read of a professional's reviews per request: the metadata and the page both need it. */
+const loadReviewsOnce = cache(async (professionalId: string) => {
+  const db = getPublicDirectoryDb();
+  return db ? loadPublishedReviews(db, professionalId) : [];
+});
 
 export async function generateMetadata({
   params,
@@ -443,6 +411,7 @@ export async function generateMetadata({
   const meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
 
   const doctor = meta.data as {
+    id?: string;
     name?: string;
     specialty?: string;
     district?: string | null;
@@ -520,34 +489,56 @@ export async function generateMetadata({
     districtLabel,
   });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
+  // The root layout's canonical is "/": without this every profile claimed to be the
+  // home page. English is the canonical copy (the Greek one is not reviewed yet).
+  const canonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
   const dynamicDescription = buildRegisteredProfileMetaDescription({
     doctorName,
     specialtyForSeo,
     cityLabel,
   });
 
-  const shareImageUrl = supabase
-    ? resolvePublicAvatarUrl(supabase, doctor.avatar_url)
-    : null;
-  const shareImages = buildShareImageMetadata(shareImageUrl);
+  // The shared preview leads with the note (3+ reviews); the description Google reads stays
+  // dynamicDescription.
+  const shareRating = heroRatingFromReviews(doctor.id ? await loadReviewsOnce(doctor.id) : []);
+  const shareDescription = buildShareDescription({
+    doctorName,
+    specialtyForSeo: specialtyForSeo || specialty,
+    cityLabel,
+    rating: shareRating,
+  });
+  // The picture under the link is drawn per version of what is on it (photo, name,
+  // specialties, place, the note): the same facts the route reads, so its `v` matches.
+  const shareCardVersion = profileShareCardVersion({
+    name: String(doctor.name ?? ""),
+    avatarPath: String(doctor.avatar_url ?? "").trim() || null,
+    specialties: specialtyLabels,
+    district: districtLabel,
+    rating: shareRating,
+  });
+  const shareCardUrl = `${siteBaseUrl()}${profileShareCardPath(params.slug, shareCardVersion)}`;
+  const shareCardImage = {
+    url: shareCardUrl,
+    ...PROFILE_SHARE_CARD_SIZE,
+    alt: `${doctorName}${specialtyForSeo ? `, ${specialtyForSeo}` : ""} on DocCy`,
+  };
 
   return {
     title: dynamicTitle,
     description: dynamicDescription,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: dynamicTitle,
-      description: dynamicDescription,
+      description: shareDescription,
       type: "website",
       url: profileUrl,
-      ...(shareImages.openGraphImages
-        ? { images: shareImages.openGraphImages }
-        : {}),
+      images: [shareCardImage],
     },
     twitter: {
-      card: shareImages.twitterCard,
+      card: "summary_large_image",
       title: dynamicTitle,
-      description: dynamicDescription,
-      ...(shareImages.twitterImages ? { images: shareImages.twitterImages } : {}),
+      description: shareDescription,
+      images: [shareCardUrl],
     },
   };
 }
@@ -602,7 +593,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     isOwnerView,
   );
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
-  const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
   let accessEnded = false;
   const contactLookup = await supabase
@@ -624,13 +614,17 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     console.error("[DocCy] public contact lookup failed:", contactLookup.error);
   }
 
-  const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
+  const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
 
   // Account settings (holiday); the schedule and the booking limits are the clinic link's.
   const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
     supabase,
     profile.id,
   );
+
+  // Her personal mobile, when she chose to show it (user, 2026-10-13): the page knows
+  // only that there is one; the number comes from the reveal route on the click.
+  const hasPersonalMobile = Boolean(await loadPublicPersonalMobile(supabase, profile.id));
 
   const [practiceLocations, registeredClinics] = await Promise.all([
     loadDoctorLocations(profile.id),
@@ -681,11 +675,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const nowUtc = new Date();
   const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  // How far ahead is the selected clinic's own limit (user, 2026-10-11).
-  const horizonRaw = locationSettings?.booking_horizon_days ?? 90;
-  const maxHorizonDays = [14, 30, 90, 180].includes(horizonRaw)
-    ? horizonRaw
-    : 90;
+  // Each clinic has its own limit (user, 2026-10-11); her busy times are loaded once,
+  // far enough ahead for the longest one, because the hero shows every clinic's next time.
+  const settingsRowFor = (location: (typeof practiceLocations)[number]) =>
+    locationToSettingsRow(location, normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK);
+  const maxHorizonDays = widestBookingHorizonDays(
+    practiceLocations.map((location) => settingsRowFor(location).booking_horizon_days),
+  );
   const todayCyprus = utcToZonedTime(nowUtc, CY_TZ);
   const lastBookableDay = addDays(todayCyprus, maxHorizonDays);
   // End of the day after last bookable date (Cyprus): covers late slots + long visit durations vs POST /api/appointments.
@@ -731,6 +727,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     }))
     .filter((row) => row.name.length > 0);
 
+  // Verified patient reviews (professional_reviews): read only, published ones.
+  const reviews = await loadReviewsOnce(profile.id);
+  const reviewSummary = summariseReviews(reviews);
+
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
   const profileHeadingCity =
     profileDistrictLabel ?? t("profileHeadingCityFallback");
@@ -744,22 +744,217 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const hasPublicPhone = selectedClinic
     ? Boolean(selectedClinic.hasPhone)
     : callClinics.length > 0;
-  const structuredData = buildPhysicianStructuredData({
-    name: profile.name,
-    specialty: profileSpecialtySeo || profile.specialty,
-    bio: profile.bio,
-    clinicAddress: clinicAddress,
-    district: profile.district ?? null,
-    phone: null,
-    languages: profile.languages ?? null,
-    imageUrl: avatarUrl,
-    profileUrl: profileCanonicalUrl,
-    sameAs: mapsUrl || null,
+
+  // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
+  const customization = { headline: await loadProfileHeadline(supabase, profile.id) };
+  // "Patients I see" and her qualifications, as saved in Settings › Profile.
+  const profileDetails = await loadProfileDetails(supabase, profile.id);
+  // Light unless this visitor switched to dark (cookie, so no flash on load).
+  const scheme = parseProfileScheme(cookies().get(PROFILE_SCHEME_COOKIE)?.value);
+  const accountSettings = normalizedSettings as {
+    holiday_mode_enabled?: boolean | null;
+    holiday_start_date?: string | null;
+    holiday_end_date?: string | null;
+  } | null;
+  // No clinic, no schedule: nothing to book online.
+  const onlineBookingsPaused =
+    !locationSettings || Boolean(locationSettings.pause_online_bookings);
+  const holidayModeEnabled = Boolean(accountSettings?.holiday_mode_enabled);
+  const holidayStartDate = accountSettings?.holiday_start_date ?? null;
+  const holidayEndDate = accountSettings?.holiday_end_date ?? null;
+  // The booking limits are the selected clinic's own (user, 2026-10-11).
+  const bookingHorizonDays = locationSettings?.booking_horizon_days ?? 90;
+  const minimumNoticeHours = locationSettings?.minimum_notice_hours ?? 2;
+  const breakStartHm = breakStart ? breakStart.slice(0, 5) : undefined;
+  const breakEndHm = breakEnd ? breakEnd.slice(0, 5) : undefined;
+
+  const locale = profileLocale(params);
+  const dayLabelLocale = locale === "el" ? elLocale : enGB;
+  // Each clinic's next free time for "Choose a clinic", by the same slot rules as
+  // BookingSection and that clinic's own schedule, notice and horizon.
+  const clinicSources = practiceLocations.map((location, index) => {
+      const row = settingsRowFor(location);
+      const paused = Boolean(row.pause_online_bookings);
+      return {
+        id: location.id,
+        title: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
+        place: String(location.town ?? "").trim() || String(location.district ?? "").trim() || null,
+        paused,
+        days:
+          paused || accessEnded
+            ? []
+            : computePublicAvailabilityCalendar({
+                weeklySlots: settingsToWeeklySlots(row),
+                takenSlotTimes,
+                breakStart: row.break_start ? row.break_start.slice(0, 5) : undefined,
+                breakEnd: row.break_end ? row.break_end.slice(0, 5) : undefined,
+                holidayModeEnabled,
+                holidayStartDate,
+                holidayEndDate,
+                bookingHorizonDays: row.booking_horizon_days ?? 90,
+                minimumNoticeHours: row.minimum_notice_hours ?? 2,
+              }).days,
+      };
+  });
+  // "Choose a clinic": every clinic of hers, each with its next free time.
+  const chooserRows = clinicChooserRows({
+    clinics: clinicSources,
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+    locale,
+    slug: params.slug,
+  }).map((row) => {
+    let day: string | null = null;
+    if (row.next) {
+      const [y, m, d] = row.next.dateKey.split("-").map(Number);
+      day = row.next.isToday
+        ? t("nextAvailabilityToday")
+        : format(new Date(y, m - 1, d), "EEE d MMM", { locale: dayLabelLocale });
+    }
+    return {
+      id: row.id,
+      title: row.title,
+      place: row.place,
+      selected: row.selected,
+      bookable: row.bookable,
+      day,
+      time: row.next?.fromTime ?? null,
+      dateKey: row.next?.dateKey ?? null,
+      slotKey: row.next?.slotKey ?? null,
+      href: row.href,
+    };
   });
 
+  const selectedLocationTitle =
+    practiceLocations.length > 1 && selectedLocation
+      ? clinicTitleOrFallback(
+          selectedLocation.label,
+          bookingT("clinicNumber", {
+            number:
+              Math.max(
+                0,
+                practiceLocations.findIndex((row) => row.id === selectedLocation.id),
+              ) + 1,
+          }),
+        )
+      : null;
+
+  const clinicCards = buildProfileClinicCards({
+    locations: practiceLocations,
+    clinicForLocation,
+    phoneClinics: callClinics,
+    selectedLocationId: selectedLocation?.id ?? null,
+    fallbackTitle: (number) => bookingT("clinicNumber", { number }),
+    missingAddress: bookingT("clinicAddressMissing"),
+    fallbackAddress: clinicAddress,
+  });
+
+  const sectionTabs = profileSectionTabs({
+    hasServices: services.length > 0,
+    hasQualifications: profileDetails.qualifications.length > 0,
+    // Her clinics are in the booking column, always next to the sections: no tab for them,
+    // nor for the booking column itself.
+    hasClinics: false,
+    hasReviews: reviews.length > 0,
+  })
+    .filter((tab) => tab.id !== PROFILE_SECTION_IDS.book)
+    .map((tab) => ({ id: tab.id, label: t(tab.labelKey), shortLabel: t(`${tab.labelKey}Short`) }));
+
+  // Every district with a clinic (Nicosia · Paphos), not only the primary one.
+  const districts = profileDistricts({ locations: practiceLocations, fallback: profile.district });
+  // One calm chip for every language (lib/language-chips).
+  const languageChips = (Array.isArray(profile.languages) ? profile.languages : [])
+    .map((raw) => String(raw).trim())
+    .filter(Boolean)
+    .map((raw) => canonicalLanguageLabel(raw));
+  // Opening hours per clinic card, from the same schedule as the bookable times.
+  const weekdayLabel = (day: DayKey) =>
+    format(
+      new Date(2026, 0, { monday: 5, tuesday: 6, wednesday: 7, thursday: 8, friday: 9, saturday: 10, sunday: 11 }[day]),
+      "EEE",
+      { locale: dayLabelLocale },
+    );
+  const openingHoursByLocation = new Map(
+    practiceLocations.map((location) => {
+      const row = locationToSettingsRow(location, normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK);
+      return [
+        location.id,
+        clinicOpeningHours(buildWeeklyScheduleFromSettings(row), {
+          breakStart: row.break_start,
+          breakEnd: row.break_end,
+        }),
+      ] as const;
+    }),
+  );
+  const openingHoursByCard: Record<string, Array<{ days: string; hours: string }>> = {};
+  for (const [locationId, groups] of openingHoursByLocation) {
+    openingHoursByCard[locationId] = groups.map((group) => ({
+      days: formatOpeningDays(group.days, weekdayLabel),
+      hours: formatOpeningRanges(group.ranges),
+    }));
+  }
+
+  // The clinic card in the booking column: the chosen clinic with what a patient needs to
+  // get there or call (address, hours, phone, map).
+  const panelClinics = buildBookingPanelClinics({
+    locations: practiceLocations,
+    cards: clinicCards,
+    openingHours: openingHoursByCard,
+    selectedId: selectedLocation?.id ?? null,
+    bookingOffEverywhere: accessEnded,
+  });
+  const panelClinic = panelClinics.find((clinic) => clinic.selected) ?? panelClinics[0] ?? null;
+
+  const breadcrumbs = profileBreadcrumbs({
+    specialty: profileSpecialtyLabels[0] ?? profile.specialty,
+    district: districts[0] ?? profileDistrictLabel,
+    name: profile.name,
+  });
+
+  const structuredData = buildProfileStructuredData({
+    name: profile.name,
+    profileUrl: profileCanonicalUrl,
+    siteUrl: siteBaseUrl(),
+    specialty: profileSpecialtySeo || profile.specialty || null,
+    description:
+      (profile.bio ?? "").trim() ||
+      `${profile.name} provides ${profileSpecialtySeo || profile.specialty || "healthcare"} services in Cyprus via DocCy.`,
+    imageUrl: avatarUrl,
+    languages: languageChips,
+    services: services.map((service) => ({ name: service.name, price: service.price })),
+    clinics: practiceLocations.map((location, index) => ({
+      name: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
+      address: stripPlusCodePrefix(String(location.clinic_address ?? "")),
+      district: normalizeDistrictForSeoTitle(location.district),
+      latitude: location.latitude ?? null,
+      longitude: location.longitude ?? null,
+      openingHours: openingHoursByLocation.get(location.id) ?? [],
+    })),
+    breadcrumbs,
+  });
+
+  // The phone bar speaks for the clinic the calendar is showing.
+  const selectedRow = chooserRows.find((row) => row.selected) ?? null;
+  const mobileBarNext = selectedRow?.day
+    ? t("mobileBarNext", { when: `${selectedRow.day} · ${selectedRow.time}` })
+    : null;
+  const mobileBarClinic = chooserRows.length > 1 && selectedRow?.day ? selectedRow.title : null;
+
+  // Links in the hero look like links (underline); plain facts do not.
+  const patientsKey = patientAgesMessageKey(profileDetails.patientAges);
+  // An invisible margin around each makes a finger-sized tap area without moving the text.
+  const heroLinkClass =
+    "relative after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] underline decoration-1 underline-offset-4 transition hover:decoration-2 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
+
   return (
-    <main className="min-h-screen bg-ink-50 text-ink-800">
-      <FinderPublicHeader proSessionHint={proSessionHint} />
+    <main
+      className="doccy-profile min-h-screen font-sans"
+      data-scheme={scheme}
+      style={profileThemeStyle()}
+    >
+      <div className="border-b border-profile-border bg-profile-surface">
+        <FinderPublicHeader proSessionHint={proSessionHint} />
+      </div>
       {!isOwnerView ? (
         <RecordRecentlyViewed
           item={{
@@ -772,262 +967,266 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           }}
         />
       ) : null}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-100/80 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-wellness-50/80 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-50 blur-3xl" />
-      </div>
+      {/* The install banner covered the availability and the form on a first visit (2026-10-11). */}
+      <HideInstallBanner />
+      {/* One script per object (Physician, BreadcrumbList), the form every reader expects. */}
+      {structuredData.map((item) => (
+        <script
+          key={String(item["@type"])}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyJsonLd(item) }}
+        />
+      ))}
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        {/* No "You are viewing your public profile" banner: the account menu now links to
-            Settings here, and the booking box says "This is how patients see your profile"
-            (user, 2026-10-08). */}
-        <header className="mb-8 flex flex-col gap-4 sm:gap-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
-              {t("profileTag")}
-            </span>
-            <LanguageSwitcher compact variant="light" />
+      {/* Two columns on a wide page (user, 2026-10-13). Left: the hero and the tabs stay on
+          screen while her sections scroll under them. Right: "Choose a clinic" stays on
+          screen, with the chosen clinic's calendar below it. On a phone the pieces follow one
+          another (user, 2026-10-14): hero, tabs (sticky), her sections, the booking column,
+          the footer; the "Book" bar at the bottom of the screen opens the booking. */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 pt-5 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-8 lg:gap-y-0 lg:px-8">
+        <div className="contents lg:block lg:min-w-0">
+        {/* Breadcrumbs, Share and Light / Dark over the left column only, so the booking
+            column starts at the top of the page (user, 2026-10-14). No "You are viewing your
+            public profile" banner: the account menu links to Settings here, and the booking
+            box says "This is how patients see your profile" (user, 2026-10-08). */}
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:mb-2">
+          <ProfileBreadcrumbs crumbs={breadcrumbs} ariaLabel={t("breadcrumbLabel")} />
+          <div className="flex items-center gap-2">
+            <ProfileShareButton
+              url={profileCanonicalUrl}
+              title={profile.name}
+              labels={{ share: t("shareLabel"), copied: t("shareCopied") }}
+            />
+            {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02). */}
+            <ProfileSchemeToggle
+              initial={scheme}
+              labels={{
+                group: t("schemeGroupLabel"),
+                light: t("schemeLight"),
+                dark: t("schemeDark"),
+              }}
+            />
           </div>
-          <div className="flex items-start gap-5">
-            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 bg-clinical-50 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
+        </div>
+        <div
+          data-profile-pin
+          className="group/pin contents lg:sticky lg:top-0 lg:z-20 lg:block lg:bg-profile-bg lg:pb-3 lg:pt-3"
+        >
+        {/* After the first scroll the pinned hero keeps only her photo, name and specialties
+            (ProfileSectionNav marks the pin `data-compact`), so her sections get the screen. */}
+        <header className="order-1 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:p-6 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:rounded-2xl lg:group-data-[compact]/pin:px-4 lg:group-data-[compact]/pin:py-3">
+          {/* Top to bottom (user, 2026-10-14): name, rating, specialties with GeSY, headline,
+              then one quiet line (districts, languages, mobile). The photo sits at the top. */}
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:group-data-[compact]/pin:grid-cols-[48px_minmax(0,1fr)] lg:group-data-[compact]/pin:items-center lg:group-data-[compact]/pin:gap-x-3 lg:group-data-[compact]/pin:gap-y-0">
+            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem] lg:h-36 lg:w-28 lg:transition-all lg:duration-300 lg:group-data-[compact]/pin:h-12 lg:group-data-[compact]/pin:w-12 lg:group-data-[compact]/pin:rounded-xl">
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
                   alt=""
                   fill
                   className="object-cover"
-                  sizes="(max-width: 640px) 144px, 176px"
+                  sizes="(max-width: 640px) 96px, 144px"
                   priority
                 />
               ) : (
                 <div
-                  className="flex h-full w-full items-center justify-center text-3xl font-semibold text-clinical-700 sm:text-4xl"
+                  className="flex h-full w-full items-center justify-center text-4xl font-extrabold sm:text-5xl lg:group-data-[compact]/pin:text-lg"
                   aria-hidden
                 >
                   {getInitials(profile.name)}
                 </div>
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-balance leading-tight">
-                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span className="text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
-                    {profile.name}
-                  </span>
-                  {profile.is_gesy ? (
-                    <GesyProviderBadge size="xs" language="el" className="shrink-0" />
-                  ) : null}
-                </span>
-                <DoctorProfileSpecialties
-                  specialties={profileSpecialtyLabels}
-                  specialty={profile.specialty}
-                  district={profileDistrictLabel}
-                />
-                {profileDistrictLabel ? (
-                  <FinderDistrictLink
-                    district={profileDistrictLabel}
-                    className="mt-1 block text-base font-medium tracking-wide text-ink-500 underline-offset-2 transition hover:text-clinical-700 hover:underline sm:text-lg"
-                  />
-                ) : (
-                  <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
-                    {profileHeadingCity}
-                  </span>
-                )}
-                {practiceLocations.length > 1 ? (
-                  <p className="mt-2 text-sm font-medium text-ink-700">
-                    {bookingT("seesPatientsAtClinics", { count: practiceLocations.length })}
-                  </p>
-                ) : null}
-              </h1>
-              {Array.isArray(profile.languages) &&
-              profile.languages.length > 0 ? (
-                <LanguagesSpoken
-                  languages={profile.languages}
-                  className="mt-2.5 w-full"
-                />
+            <div className="min-w-0 self-center sm:self-start lg:group-data-[compact]/pin:self-center">
+              <h1 className="text-balance text-[26px] font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-[30px] lg:group-data-[compact]/pin:text-2xl">{profile.name}</h1>
+              {showHeroRating(reviews.length) ? (
+                <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
+                  <div className="min-h-0 lg:overflow-hidden">
+                    <div
+                      data-testid="profile-hero-rating"
+                      className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold"
+                    >
+                      <ProfileStars
+                        rating={reviewSummary.average ?? 0}
+                        label={t("reviewRatingLabel", { rating: reviewSummary.average?.toFixed(1) ?? "0" })}
+                        size="h-[18px] w-[18px]"
+                        emptyClassName="text-accent-on"
+                      />
+                      <span className="inline-flex items-center gap-x-2 whitespace-nowrap">
+                        <span className="tabular-nums">{reviewSummary.average?.toFixed(1)}</span>
+                        <span aria-hidden>·</span>
+                        <a
+                          href={`#${PROFILE_SECTION_IDS.reviews}`}
+                          className={`text-accent-on ${heroLinkClass}`}
+                        >
+                          {t("reviewsSummary", { count: reviewSummary.count })}
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               ) : null}
-
+            </div>
+            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
+              <DoctorProfileSpecialties
+                specialties={profileSpecialtyLabels}
+                specialty={profile.specialty}
+                district={profileDistrictLabel}
+                className="!mt-0"
+                pillClassName="inline-flex max-w-full items-center rounded-full bg-accent-on px-3 py-1.5 text-left text-sm font-bold text-accent transition hover:opacity-90"
+              >
+                {profile.is_gesy ? (
+                  <span data-testid="profile-hero-gesy" className="inline-flex items-center px-1">
+                    {/* The official mark alone (user, 2026-10-14), transparent on the hero's colour;
+                        "accepts GeSY patients" in its alt text and on hover. */}
+                    <GesyProviderBadge size="xs" language={locale === "el" ? "el" : "en"} variant="mono" className={locale === "el" ? "[&_img]:h-8" : "[&_img]:h-7"} />
+                  </span>
+                ) : null}
+              </DoctorProfileSpecialties>
+              <div data-hero-more className="grid grid-rows-[1fr] lg:transition-[grid-template-rows,visibility] lg:duration-300 lg:group-data-[compact]/pin:invisible lg:group-data-[compact]/pin:grid-rows-[0fr]">
+                <div className="min-h-0 lg:overflow-hidden">
+                  {customization.headline ? (
+                    <p className="mt-3 max-w-xl text-lg font-medium leading-snug">
+                      {customization.headline}
+                    </p>
+                  ) : null}
+                  <div
+                    data-testid="profile-hero-facts"
+                    className="mt-3 flex flex-col items-start gap-y-1 text-[15px] font-medium sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5"
+                  >
+                    {/* Each fact has its own icon, no dots between them: a wrapped line never
+                        starts or ends on a lone dot; on a phone each fact has its own line. */}
+                    <span className="inline-flex items-center gap-x-2">
+                      <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                      <span>
+                        {districts.length > 0
+                          ? districts.map((district) => normalizeDistrictForSeoTitle(district) || district.trim()).join(" · ")
+                          : profileHeadingCity}
+                      </span>
+                    </span>
+                    {languageChips.length > 0 ? (
+                      <span className="inline-flex items-start gap-x-2">
+                        <Languages className="mt-[3px] h-4 w-4 shrink-0" aria-hidden />
+                        <span>{t("heroSpeaks", { languages: languageChips.join(", ") })}</span>
+                      </span>
+                    ) : null}
+                    {patientsKey ? (
+                      <span data-testid="profile-patients-seen" className="inline-flex items-center gap-x-2">
+                        <Users className="h-4 w-4 shrink-0" aria-hidden />
+                        <span>{t(patientsKey)}</span>
+                      </span>
+                    ) : null}
+                    {hasPersonalMobile ? (
+                        <RevealMobileButton
+                          professionalId={profile.id}
+                          label={t("heroShowMobile")}
+                          loadingLabel={t("heroShowMobileLoading")}
+                          errorLabel={t("heroShowMobileError")}
+                          className={`text-accent-on ${heroLinkClass}`}
+                          testId="profile-hero-mobile"
+                        />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
-
-        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-8">
-          {/* Booking first on mobile, right column on desktop */}
-          <section className="order-1 lg:order-2 lg:min-w-0">
-            {practiceLocations.length > 1 ? (
-              <DoctorProfileClinicPicker
-                slug={params.slug}
-                selectedId={selectedLocation?.id ?? null}
-                clinics={practiceLocations.map((row) => ({
-                  id: row.id,
-                  label: row.label,
-                  district: row.district,
-                  clinic_address: row.clinic_address,
-                  town: row.town,
-                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
-                }))}
-              />
-            ) : null}
-            {viewerMode !== "patient" ? (
-              <ProfessionalBookingNotice mode={viewerMode} />
-            ) : (
-              <div data-testid="booking-section">
-                <BookingSection
-                  doctorId={profile.id}
-                  doctorName={profile.name}
-                  weeklySlots={weeklySlots}
-                  takenSlotTimes={takenSlotTimes}
-                  profileSlug={params.slug}
-                  locationId={selectedLocation?.id ?? null}
-                  locationLabel={
-                    practiceLocations.length > 1 && selectedLocation
-                      ? clinicTitleOrFallback(
-                          selectedLocation.label,
-                          bookingT("clinicNumber", {
-                            number:
-                              Math.max(
-                                0,
-                                practiceLocations.findIndex((row) => row.id === selectedLocation.id),
-                              ) + 1,
-                          }),
-                        )
-                      : null
-                  }
-                  locationScopedPause={practiceLocations.length > 1}
-                  initialSlotKey={
-                    parseBookingSlotParam(
-                      Array.isArray(searchParams?.slot)
-                        ? searchParams?.slot[0]
-                        : searchParams?.slot,
-                    )
-                  }
-                  breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
-                  breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
-                  publicPhoneAvailable={hasPublicPhone}
-                  onlineBookingsUnavailable={accessEnded}
-                  onlineBookingsPaused={
-                    // No clinic, no schedule: nothing to book online.
-                    !locationSettings || Boolean(locationSettings.pause_online_bookings)
-                  }
-                  holidayModeEnabled={Boolean(
-                    (
-                      normalizedSettings as {
-                        holiday_mode_enabled?: boolean | null;
-                      } | null
-                    )?.holiday_mode_enabled,
-                  )}
-                  holidayStartDate={
-                    (
-                      normalizedSettings as {
-                        holiday_start_date?: string | null;
-                      } | null
-                    )?.holiday_start_date ?? null
-                  }
-                  holidayEndDate={
-                    (
-                      normalizedSettings as {
-                        holiday_end_date?: string | null;
-                      } | null
-                    )?.holiday_end_date ?? null
-                  }
-                  bookingHorizonDays={locationSettings?.booking_horizon_days ?? 90}
-                  minimumNoticeHours={locationSettings?.minimum_notice_hours ?? 2}
-                />
-              </div>
-            )}
-          </section>
-
-          {/* What to expect: outside About accordion so it stays visible on mobile */}
-          <div className="order-2 flex flex-col gap-4 lg:order-1">
-            <WhatToExpectCard />
-            <DoctorDetailsAccordion
-              name={profile.name}
-              bio={profile.bio}
-            />
-            {callClinics.length > 0 ? (
-              <section className="lg:min-w-0">
-                <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
-                  <h2 className="text-sm font-semibold tracking-wide text-ink-900">
-                    Contact
-                  </h2>
-                  <div className="mt-3 flex flex-col gap-3">
-                    {callClinics.map((clinic) => (
-                      <div key={clinic.id} className="flex flex-col gap-1.5">
-                        {callClinics.length > 1 ? (
-                          <p className="text-xs font-semibold text-ink-600">{clinic.name}</p>
-                        ) : null}
-                        <RevealPhoneButton
-                          kind="clinic"
-                          id={String(clinic.id)}
-                          manualId={profile.id}
-                          hasPhone
-                          variant="profile-call"
-                          className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
-                          revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            ) : null}
-            <DoctorLocationSection
-              clinicAddress={
-                stripPlusCodePrefix(
-                  selectedLocation?.clinic_address?.trim() || clinicAddress,
-                ) || clinicAddress
-              }
-              mapsUrl={
-                buildMapsUrlFromClinicLocation({
-                  address: selectedLocation?.clinic_address ?? clinicAddress,
-                  latitude: selectedLocation?.latitude,
-                  longitude: selectedLocation?.longitude,
-                  placeId: selectedLocation?.clinic_place_id,
-                }) ||
-                buildMapsUrlFromAddress(clinicAddress) ||
-                ""
-              }
-              clinics={
-                practiceLocations.length > 1
-                  ? practiceLocations.map((row, index) => {
-                      const address =
-                        stripPlusCodePrefix(String(row.clinic_address ?? "")) ||
-                        String(row.town ?? "").trim() ||
-                        String(row.district ?? "").trim() ||
-                        bookingT("clinicAddressMissing");
-                      return {
-                        title: clinicTitleOrFallback(
-                          row.label,
-                          bookingT("clinicNumber", { number: index + 1 }),
-                        ),
-                        address,
-                        mapsUrl:
-                          buildMapsUrlFromClinicLocation({
-                            address: row.clinic_address,
-                            latitude: row.latitude,
-                            longitude: row.longitude,
-                            placeId: row.clinic_place_id,
-                          }) ||
-                          buildMapsUrlFromAddress(
-                            String(row.clinic_address ?? "").trim(),
-                          ) ||
-                          "",
-                        isBookingHere: row.id === selectedLocation?.id,
-                      };
-                    })
-                  : []
-              }
-            />
-            <ServiceMenuSection services={services} />
-          </div>
+        <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
         </div>
+
+        <div data-profile-sections className="order-3 flex min-w-0 flex-col gap-14 lg:pt-6">
+        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
+        <ProfileServicesSection services={services} />
+        <ProfileQualificationsSection qualifications={profileDetails.qualifications} />
+        <ProfileReviewsSection reviews={reviews} locale={locale} />
+        </div>
+
+        <footer className="order-5 flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted lg:mt-14">
+          <a
+            href="/for-professionals"
+            className="font-semibold text-accent-link underline-offset-2 hover:underline"
+          >
+            {t("aboutDocCy")}
+          </a>
+          <ProfileReportLink
+            label={t("reportIncorrect")}
+            message={t("reportMessage", { name: profile.name, url: profileCanonicalUrl })}
+          />
+        </footer>
+        </div>
+
+        <ProfileStickyColumn
+          id={PROFILE_SECTION_IDS.book}
+          ariaLabel={t("sectionTabBook")}
+          testId="profile-booking-column"
+          className="order-4 flex min-w-0 scroll-mt-20 flex-col gap-4 lg:z-30 lg:gap-3 lg:pb-4"
+        >
+          {chooserRows.length > 1 ? (
+            <div>
+              <ProfileClinicChooser
+                rows={chooserRows}
+                labels={{
+                  title: bookingT("chooseClinic"),
+                  nextFree: t("nextFree"),
+                  callToBook: t("callToBook"),
+                  noTimes: t("nextAvailabilityNoTimes"),
+                }}
+              />
+            </div>
+          ) : null}
+          <ProfileBookingStepProvider>
+            <ProfileBookingPanel
+              professionalId={profile.id}
+              clinic={panelClinic}
+              several={practiceLocations.length > 1}
+            >
+              {viewerMode !== "patient" ? (
+                <ProfessionalBookingNotice mode={viewerMode} />
+              ) : (
+                <div data-testid="booking-section">
+                  <BookingSection
+                    key={selectedLocation?.id ?? "none"}
+                    doctorId={profile.id}
+                    doctorName={profile.name}
+                    weeklySlots={weeklySlots}
+                    takenSlotTimes={takenSlotTimes}
+                    profileSlug={params.slug}
+                    locationId={selectedLocation?.id ?? null}
+                    locationLabel={selectedLocationTitle}
+                    locationScopedPause={practiceLocations.length > 1}
+                    initialSlotKey={
+                      parseBookingSlotParam(
+                        Array.isArray(searchParams?.slot)
+                          ? searchParams?.slot[0]
+                          : searchParams?.slot,
+                      )
+                    }
+                    breakStart={breakStartHm}
+                    breakEnd={breakEndHm}
+                    publicPhoneAvailable={hasPublicPhone}
+                    onlineBookingsUnavailable={accessEnded}
+                    onlineBookingsPaused={onlineBookingsPaused}
+                    holidayModeEnabled={holidayModeEnabled}
+                    holidayStartDate={holidayStartDate}
+                    holidayEndDate={holidayEndDate}
+                    bookingHorizonDays={bookingHorizonDays}
+                    minimumNoticeHours={minimumNoticeHours}
+                    services={services.map(({ id, name }) => ({ id, name }))}
+                    layout="panel"
+                    detailsAside={<WhatToExpectCard />}
+                  />
+                </div>
+              )}
+            </ProfileBookingPanel>
+          </ProfileBookingStepProvider>
+        </ProfileStickyColumn>
       </div>
+      {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
+      {viewerMode === "patient" ? (
+        <ProfileMobileBookBar next={mobileBarNext} clinic={mobileBarClinic} cta={t("bookCta")} />
+      ) : null}
+      <ProfileScrollFade />
     </main>
   );
 }
-

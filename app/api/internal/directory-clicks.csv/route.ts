@@ -17,7 +17,7 @@ import {
 } from "@/lib/founder-directory-clicks-csv";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
-import { USER_EVENTS_TABLE } from "@/lib/user-events";
+import { CLINIC_PHONE_EVENT_TYPES, FOUNDER_LISTING_SOURCES, USER_EVENTS_TABLE } from "@/lib/user-events";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const action = parseDirectoryClicksCsvAction(url.searchParams.get("action"));
   const includePhone = action !== "request_online_appointment";
-  const includeBooking = action !== "show_phone_number";
+  const includeBooking = action !== "show_clinic_phone_number";
   const callToBookRange = parseCallToBookRange(url.searchParams.get("callToBookRange") ?? undefined);
   const manualVotesRange = parseManualVotesRange(
     url.searchParams.get("manualVotesRange") ?? undefined,
@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
           let q = supabase
             .from(USER_EVENTS_TABLE)
             .select("professional_id, source, created_at")
-            .eq("event_type", "show_phone_number")
+            .in("event_type", CLINIC_PHONE_EVENT_TYPES)
+            .in("source", FOUNDER_LISTING_SOURCES)
             .order("created_at", { ascending: false });
           if (phoneSince) q = q.gte("created_at", phoneSince);
           return q;
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest) {
     const meta = byId.get(id);
     events.push({
       clickedAtIso: String((r as { created_at?: string }).created_at ?? ""),
-      action: "show_phone_number",
+      action: "show_clinic_phone_number",
       name: meta?.name ?? null,
       slug: meta?.slug ?? null,
       specialty: meta?.specialty ?? null,

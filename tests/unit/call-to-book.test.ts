@@ -15,7 +15,8 @@ describe("CALL_TO_BOOK_BUTTON_LABEL", () => {
 });
 
 describe("parseCallToBookSource", () => {
-  it("accepts finder and professional profile-page sources", () => {
+  it("accepts finder, professional profile-page and clinic-page sources", () => {
+    assert.equal(parseCallToBookSource("clinic_page"), "clinic_page");
     assert.equal(parseCallToBookSource("finder_card"), "finder_card");
     assert.equal(parseCallToBookSource("professional_profile_page"), "professional_profile_page");
     assert.equal(parseCallToBookSource("profile_page"), "professional_profile_page");

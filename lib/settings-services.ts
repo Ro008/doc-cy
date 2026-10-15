@@ -7,6 +7,13 @@
  */
 
 export const MAX_SERVICES = 20;
+/** The "N of 20" counter only appears from here on: with room to spare it is noise (user, 2026-10-13). */
+export const SERVICES_COUNT_SHOWN_FROM = 15;
+
+/** "17 of 20 services" near the limit, null (show nothing) while there is plenty of room. */
+export function servicesCountLabel(count: number): string | null {
+  return count >= SERVICES_COUNT_SHOWN_FROM ? `${count} of ${MAX_SERVICES} services` : null;
+}
 export const SERVICE_NAME_MAX = 80;
 
 export type ServiceInput = { name: string; price: string | null };

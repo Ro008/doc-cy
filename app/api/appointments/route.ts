@@ -19,6 +19,8 @@ import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { resolveRequestedService } from "@/lib/requested-service";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { turnstileEnforced, turnstileMissingInProduction, verifyTurnstileToken } from "@/lib/turnstile";
+import { getClientIp } from "@/lib/vote-fingerprint";
 
 /**
  * A patient submits the online booking form (user, 2026-10-02).
@@ -30,7 +32,16 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * 202 { status: "check_email" } on success. 403 `professional_signed_in` when a
  * professional (or applicant) is signed in: they can't book, with anyone (user, 2026-10-06).
  */
+/** Logged once per server instance (see turnstileMissingInProduction). */
+let turnstileWarned = false;
+
 export async function POST(req: NextRequest) {
+  if (!turnstileWarned && turnstileMissingInProduction()) {
+    turnstileWarned = true;
+    console.warn(
+      "[DocCy] Turnstile is OFF in production: set NEXT_PUBLIC_TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in Vercel (Production) and redeploy.",
+    );
+  }
   const limited = enforcePublicApiRateLimit(req, "appointments", {
     body: { message: "Too many booking attempts. Please try again later." },
   });
@@ -95,12 +106,23 @@ export async function POST(req: NextRequest) {
   const fields = parsed.fields;
   const patientEmail = fields.patientEmail!;
 
+  // A person, not a script, before anything is saved or emailed (Cloudflare Turnstile,
+  // 2026-10-11). On only where TURNSTILE_SECRET_KEY is set (Vercel Production).
+  if (turnstileEnforced() && !(await verifyTurnstileToken(body.turnstileToken, getClientIp(req.headers)))) {
+    return NextResponse.json(
+      { message: "We couldn't verify this request. Please try again.", code: "bot_check_failed" },
+      { status: 400 },
+    );
+  }
+
   // Optional: one of her services (user, 2026-10-04).
   let professionalServiceId: string | null = null;
+  let professionalServiceName: string | null = null;
   try {
     const requested = await resolveRequestedService(supabase, professionalId, body.professionalServiceId);
     if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
     professionalServiceId = requested.service?.id ?? null;
+    professionalServiceName = requested.service?.name ?? null;
   } catch (err) {
     console.error("[DocCy] booking service check", err);
     return NextResponse.json({ message: "Error checking your request." }, { status: 500 });
@@ -181,6 +203,7 @@ export async function POST(req: NextRequest) {
         appointmentIso: slot.appointmentUtc.toISOString(),
         clinic: emailClinic,
         confirmUrl: appointmentLinkUrl(siteUrl, "confirm", token),
+        serviceName: professionalServiceName,
       }),
     );
   } catch (err) {
