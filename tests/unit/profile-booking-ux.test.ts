@@ -245,12 +245,15 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.doesNotMatch(nav, /after:duration-300/);
   });
 
-  it("the header's join button is navy on teal, readable (WCAG AA)", () => {
+  // Quieter than the search since the short hero (user, 2026-10-15): an outlined button,
+  // dark teal on white (#0A6B72, about 6.2:1; teal 700 is only about 4.1:1, under WCAG AA).
+  it("the header's join button is outlined, dark teal on white, readable (WCAG AA)", () => {
     const header = read("components/finder/FinderPublicHeader.tsx");
     const join = header.slice(header.indexOf("const joinLinkClass"), header.indexOf(";", header.indexOf("const joinLinkClass")));
-    assert.match(join, /bg-clinical-500/);
-    assert.match(join, /text-ink-900/);
-    assert.doesNotMatch(join, /text-white|hover:bg-clinical-600/);
+    assert.match(join, /border-clinical-500/);
+    assert.match(join, /bg-white/);
+    assert.match(join, /text-clinical-800/);
+    assert.doesNotMatch(join, /text-white|text-clinical-[5-7]00|bg-clinical-500/);
   });
 
   it("clicking a service remembers it and takes the patient to the calendar, never to the form", () => {

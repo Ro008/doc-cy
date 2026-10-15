@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
   LISTING_LOCATION_FILTER_SELECT,
   applyFinderListFilters,
+  countUnregisteredClinicCardsForFinder,
   finderSelectWithListFilters,
 } from "@/lib/finder-manual-directory-load";
 import { SPECIALTY_FILTER_SELECT } from "@/lib/specialty-catalogue";
@@ -91,5 +92,56 @@ describe("finder list filters go through the clinics (Point E5)", () => {
       assert.ok(!loader.includes(name), `loader still has ${name}`);
       assert.ok(!page.includes(name), `finder page still has ${name}`);
     }
+  });
+});
+
+// One card per professional + clinic (user, 2026-10-15): an unfiltered search pages through
+// the listings, so the total comes from counting their unarchived clinic links.
+describe("countUnregisteredClinicCardsForFinder", () => {
+  function fakeSupabase(result: { count: number | null; error: unknown }) {
+    const calls: string[] = [];
+    const query = {
+      select(columns: string, options: { count?: string; head?: boolean }) {
+        calls.push(`select ${columns} ${options.count}/${options.head}`);
+        return this;
+      },
+      eq(column: string, value: unknown) {
+        calls.push(`${column}=${String(value)}`);
+        return this;
+      },
+      then(resolve: (value: unknown) => unknown) {
+        return Promise.resolve(result).then(resolve);
+      },
+    };
+    return {
+      calls,
+      supabase: {
+        from(table: string) {
+          calls.push(`from ${table}`);
+          return query;
+        },
+      },
+    };
+  }
+
+  it("counts each unarchived clinic of an unarchived unregistered listing", async () => {
+    const { calls, supabase } = fakeSupabase({ count: 7, error: null });
+    const res = await countUnregisteredClinicCardsForFinder(supabase);
+    assert.deepEqual(res, { count: 7, error: null });
+    assert.deepEqual(calls, [
+      "from professional_clinics",
+      "select id, professionals!inner(is_registered, is_archived), clinics!inner(is_archived) exact/true",
+      "professionals.is_registered=false",
+      "professionals.is_archived=false",
+      "clinics.is_archived=false",
+    ]);
+  });
+
+  it("passes the error on", async () => {
+    const { supabase } = fakeSupabase({ count: null, error: { message: "boom" } });
+    assert.deepEqual(await countUnregisteredClinicCardsForFinder(supabase), {
+      count: 0,
+      error: { message: "boom" },
+    });
   });
 });

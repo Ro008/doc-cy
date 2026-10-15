@@ -444,11 +444,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       </div>
 
       <FinderSearchBar
-        className={
-          showClinicsHero
-            ? "relative z-20 mt-2 sm:-mt-10 lg:-mt-16"
-            : "mt-1"
-        }
+        className={showClinicsHero ? "" : "mt-1"}
       >
         <FinderAudienceToggle active="clinics" variant="bar" className="mb-5" />
         <ClinicsFilters

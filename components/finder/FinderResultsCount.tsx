@@ -29,7 +29,8 @@ export function FinderResultsCount({
   const { count, hasActiveFilters } = props;
   if (count <= 0) return null;
 
-  const professionalWord = count === 1 ? "professional" : "professionals";
+  // One card per professional + clinic (user, 2026-10-15): the count is of cards.
+  const resultWord = count === 1 ? "result" : "results";
   const filterHint = buildFilterHint(props);
   const onBar = variant === "bar";
   const resolvedClassName =
@@ -59,7 +60,7 @@ export function FinderResultsCount({
         <>
           Showing{" "}
           <span className={countClassName}>{count}</span>{" "}
-          {professionalWord}
+          {resultWord}
           {filterHint ? (
             <span className={hintMutedClass}>
               {" "}
@@ -69,8 +70,7 @@ export function FinderResultsCount({
         </>
       ) : (
         <>
-          <span className={countClassName}>{count}</span> health {professionalWord} on DocCy across
-          Cyprus
+          <span className={countClassName}>{count}</span> {resultWord} across Cyprus
         </>
       )}
     </p>

@@ -208,12 +208,12 @@ describe("the finder card shows the note", () => {
     assert.doesNotMatch(loader, /\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
 
     const finder = read("app/finder/[[...filters]]/page.tsx");
-    const visible = finder.indexOf("const visibleRegistered =");
+    const visible = finder.indexOf("const visibleRegisteredIds =");
     const load = finder.indexOf("loadPublishedRatings(");
     const card = finder.indexOf("<FinderCardRating");
     assert.ok(visible > 0 && load > visible, "loads after the page is cut to the visible cards");
     assert.ok(card > load, "the card uses what was loaded");
-    assert.match(finder, /loadPublishedRatings\(\s*supabase,\s*visibleRegistered\.map/);
+    assert.match(finder, /loadPublishedRatings\(\s*supabase,\s*visibleRegisteredIds,/);
   });
 
   it("the note is a star, the average and the count, with a text alternative", () => {

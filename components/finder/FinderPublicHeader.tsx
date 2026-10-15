@@ -4,11 +4,13 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 
+// Patients are the main audience: the professional links stay quieter than the search
+// (user, 2026-10-15). Login is a plain link, Join an outlined button.
 const loginLinkClass =
-  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold leading-none text-ink-800 transition hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
+  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg px-2 text-sm font-semibold leading-none text-ink-600 transition hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
 
 const joinLinkClass =
-  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-clinical-500 px-2.5 text-[13px] font-bold leading-none text-ink-900 shadow-[0_1px_2px_rgba(18,184,192,0.22)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
+  "inline-flex min-h-8 items-center whitespace-nowrap rounded-lg border border-clinical-500 bg-white px-2.5 text-[13px] font-semibold leading-none text-clinical-800 transition hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:px-3 sm:text-sm";
 
 type FinderPublicHeaderProps = {
   /** Server-read hint so we never paint guest CTAs for a signed-in professional. */
@@ -48,7 +50,7 @@ export function FinderPublicHeader({
   return (
     <header
       data-testid={isSales ? "sales-public-header" : "finder-public-header"}
-      className={embedded ? "" : "px-4 py-2.5 sm:px-6 lg:px-8"}
+      className={embedded ? "" : "mx-auto max-w-7xl px-4 py-2.5 sm:px-6 lg:px-8"}
     >
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         {isSales ? (

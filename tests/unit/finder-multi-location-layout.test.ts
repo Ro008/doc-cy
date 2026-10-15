@@ -87,8 +87,15 @@ describe("finder multi-location layout", () => {
     assert.equal(tokens.includes("sm:items-start"), true);
     assert.equal(tokens.includes("sm:items-stretch"), false);
     assert.equal(tokens.includes("grid items-start gap-5"), true);
-    assert.equal(slotGrid.includes("overflow-y-auto"), true);
+    // Every card the same size (user, 2026-10-15): the collapsed slot grid has a fixed
+    // height on every screen; opened, it grows (and scrolls past ~6 rows on desktop).
+    assert.match(tokens, /finderCardSlotGridCollapsedClass =\s*"h-\[190px\] overflow-hidden lg:h-\[180px\] lg:overflow-y-auto"/);
+    assert.match(tokens, /finderCardSlotGridExpandedClass = "lg:max-h-\[282px\] lg:overflow-y-auto"/);
+    assert.equal(slotGrid.includes("finderCardSlotGridCollapsedClass"), true);
+    assert.equal(slotGrid.includes("finderCardSlotGridExpandedClass"), true);
     assert.equal(slotGrid.includes("flex-1"), false);
+    // The calendar area is one box whatever it holds, so paused and preview cards match.
+    assert.match(tokens, /finderCardCalendarBoxClass =\s*"flex min-h-\[233px\] flex-col lg:min-h-\[227px\] \[&>\*\]:flex-1"/);
     assert.equal(registeredGrid.includes("overflow-hidden rounded-lg"), true);
     assert.equal(surface.includes("h-auto overflow-visible"), true);
   });

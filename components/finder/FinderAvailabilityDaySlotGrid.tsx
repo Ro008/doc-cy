@@ -3,6 +3,10 @@
 import * as React from "react";
 import { FINDER_AVAILABILITY_MAX_SLOTS_PER_DAY } from "@/lib/public/compute-public-booking-slots";
 import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
+import {
+  finderCardSlotGridCollapsedClass,
+  finderCardSlotGridExpandedClass,
+} from "@/components/finder/finder-availability-layout";
 
 export type FinderAvailabilityDaySlots = {
   dateKey: string;
@@ -23,12 +27,9 @@ type Props = {
 /** Matches the app's `lg` breakpoint — the same one the card's own two-column layout switches on. */
 const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
 /**
- * Both heights land exactly on a whole lg slot-button row (40px + 6px gap) so the last visible row is
- * never half-cut. Collapsed = 3 slots + the "+N more" badge (its natural height); expanded = 6 whole
- * slots, ~1.5x the collapsed height, capped and scrollable past that.
+ * Heights (finder-availability-layout): collapsed = 3 slots + the "+N more" badge, fixed so every
+ * card is the same size; expanded = 6 whole lg slots, capped and scrollable past that.
  */
-const DESKTOP_COLLAPSED_HEIGHT_PX = 180;
-const DESKTOP_EXPANDED_HEIGHT_PX = 282;
 /** Mobile/tablet never scrolls — each tap reveals a few more slots instead, so the card just grows. */
 const INCREMENTAL_REVEAL_STEP = 5;
 
@@ -64,15 +65,10 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
 
   return (
     <div
+      data-testid="finder-card-slot-grid"
+      data-expanded={isThisCardExpanded ? "true" : "false"}
       className={
-        isDesktop
-          ? "overflow-y-auto transition-[max-height] duration-300 ease-in-out motion-reduce:transition-none"
-          : undefined
-      }
-      style={
-        isDesktop
-          ? { maxHeight: isThisCardExpanded ? DESKTOP_EXPANDED_HEIGHT_PX : DESKTOP_COLLAPSED_HEIGHT_PX }
-          : undefined
+        isThisCardExpanded ? finderCardSlotGridExpandedClass : finderCardSlotGridCollapsedClass
       }
     >
       <div

@@ -1,3 +1,4 @@
+import { finderCardAddressClass } from "@/components/finder/finder-availability-layout";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
@@ -95,7 +96,12 @@ export function FinderClinicNameLink({
   const clinicHref = String(slug ?? "").trim() ? clinicLandingPath(String(slug).trim()) : null;
   if (!clinicHref) {
     return (
-      <p className="mb-1 text-sm font-semibold leading-snug text-ink-800">{trimmedName}</p>
+      <p
+        className="mb-1 line-clamp-1 text-sm font-semibold leading-snug text-ink-800 lg:line-clamp-2"
+        title={trimmedName}
+      >
+        {trimmedName}
+      </p>
     );
   }
 
@@ -106,7 +112,10 @@ export function FinderClinicNameLink({
       prefetch={false}
       className="mb-1 block text-sm font-semibold leading-snug text-ink-800 transition-none hover:text-clinical-600"
     >
-      {trimmedName}
+      {/* PendingLink wraps its text in an inline-flex span: the clamp goes inside. */}
+      <span className="line-clamp-1 lg:line-clamp-2" title={trimmedName}>
+        {trimmedName}
+      </span>
     </PendingLink>
   );
 }
@@ -136,7 +145,7 @@ function ClinicEntry({
   return (
     <div>
       <FinderClinicNameLink name={item.name} slug={item.slug} />
-      <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+      <p className={finderCardAddressClass} title={locationLine}>
         {locationLine}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">

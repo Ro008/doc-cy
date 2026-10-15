@@ -45,20 +45,13 @@ describe("finder hero images", () => {
     }
   });
 
-  // The professionals hero has a heart-and-stethoscope drawn into the left of the picture. From
-  // sm to lg the copy sits over that part of the picture and the heart ended up under "the island"
-  // (user, 2026-10-11): hidden there with a soft mask, left as is from lg up. Only the
-  // professionals picture has it (the clinics one is a building).
-  it("hides the picture's heart where the copy overlaps it, from sm to lg", () => {
+  // Short hero (user, 2026-10-15): the copy and the picture sit side by side, so the picture
+  // never goes under the copy (the old heart mask is gone with the overlap).
+  it("puts the picture beside the copy, never under it", () => {
     const component = fs.readFileSync(path.join(repoRoot, "components/finder/FinderHeroSection.tsx"), "utf8");
-    assert.match(component, /heroImageSrc === FINDER_PROFESSIONALS_HERO_SRC/);
-    assert.match(component, /finder-hero-no-heart/);
+    assert.doesNotMatch(component, /sm:absolute/);
+    assert.doesNotMatch(component, /finder-hero-no-heart/);
     const css = fs.readFileSync(path.join(repoRoot, "app/globals.css"), "utf8");
-    const rule = css.match(
-      /@media \(min-width: 640px\) and \(max-width: 1023\.98px\)\s*\{\s*\.finder-hero-no-heart\s*\{([\s\S]*?)\}\s*\}/,
-    );
-    assert.ok(rule, "a rule for .finder-hero-no-heart between 640px and 1023.98px");
-    assert.match(rule[1], /-webkit-mask-image:\s*radial-gradient\(/);
-    assert.match(rule[1], /(?<!-webkit-)mask-image:\s*radial-gradient\(/);
+    assert.doesNotMatch(css, /finder-hero-no-heart/);
   });
 });
