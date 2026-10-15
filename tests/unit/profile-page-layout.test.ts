@@ -266,8 +266,9 @@ describe("public profile: one page with anchor tabs", () => {
     const nav = read("components/doctor/profile/ProfileSectionNav.tsx");
     // The tabs mark the pinned block compact once the page has scrolled, and back at the top.
     assert.match(nav, /data-compact|dataset\.compact/);
-    assert.match(nav, /COMPACT_AFTER_PX/);
-    assert.match(nav, /EXPAND_BELOW_PX/);
+    // When: nextPinCompact (tests/unit/profile-pin-compact.test.ts), with the page's room.
+    assert.match(nav, /nextPinCompact\(/);
+    assert.match(nav, /room: document\.documentElement\.scrollHeight - window\.innerHeight/);
     // The hero reads the mark through a named group.
     assert.match(page, /data-profile-pin\s+className="[^"]*group\/pin/);
     assert.match(page, /group-data-\[compact\]\/pin:h-12/);

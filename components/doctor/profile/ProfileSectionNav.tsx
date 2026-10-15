@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { nextPinCompact } from "@/lib/public/profile-pin-compact";
 import type { ProfileSectionId } from "@/lib/public/profile-sections";
 
 type Props = {
@@ -25,9 +26,6 @@ function pinnedBottom(): number | null {
   if (!pin || window.getComputedStyle(pin).position !== "sticky") return null;
   return pin.getBoundingClientRect().bottom;
 }
-/** The pinned hero shrinks once the page has scrolled past this, and grows back near the top. */
-const COMPACT_AFTER_PX = 24;
-const EXPAND_BELOW_PX = 4;
 /** A scroll this far in one step is a jump (a reload part way down, the browser restoring the
  * scroll, Page Down): the hero switches at once instead of animating (user, 2026-10-14). */
 const JUMP_PX = 400;
@@ -88,7 +86,7 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
   }, []);
 
   // After the first scroll the hero keeps only her photo, name and specialties (the page
-  // styles the pin by `data-compact`). Two thresholds, so the height change can't flicker.
+  // styles the pin by `data-compact`); see nextPinCompact for when.
   React.useEffect(() => {
     const pin = document.querySelector<HTMLElement>(PIN_SELECTOR);
     if (!pin) return;
@@ -98,7 +96,13 @@ export function ProfileSectionNav({ ariaLabel, tabs }: Props) {
       const stuck = window.getComputedStyle(pin).position === "sticky";
       const y = window.scrollY;
       const wasCompact = "compact" in pin.dataset;
-      const compact = !stuck || y < EXPAND_BELOW_PX ? false : y > COMPACT_AFTER_PX ? true : wasCompact;
+      const compact = nextPinCompact({
+        stuck,
+        y,
+        wasCompact,
+        room: document.documentElement.scrollHeight - window.innerHeight,
+        pinHeight: pin.offsetHeight,
+      });
       if (compact !== wasCompact && (lastY === null || Math.abs(y - lastY) > JUMP_PX)) {
         // No shrink animation on a jump: half way through it the photo lay over the name.
         pin.dataset.instant = "";
