@@ -115,7 +115,7 @@ export function AccountSecurityCard({
   return (
     <section className={SETTINGS_CARD_CLASS} data-testid="settings-account-security">
       <h2 className={SETTINGS_EYEBROW_CLASS}>Sign-in &amp; security</h2>
-      <div className="mt-4 divide-y divide-slate-800">
+      <div className="mt-4 divide-y divide-pro-line">
         <div className="py-4 first:pt-0" data-testid="settings-account-email-row">
           <div className={`${SETTINGS_ROW_CLASS} !py-0`}>
             <div className="min-w-0">
@@ -174,7 +174,7 @@ export function AccountSecurityCard({
                   }}
                   aria-invalid={emailResult?.ok === false}
                   aria-describedby="settings-new-email-help"
-                  className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+                  className="min-w-0 flex-1 rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
                 />
                 <div className="flex gap-2">
                   <button

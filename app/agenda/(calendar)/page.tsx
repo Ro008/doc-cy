@@ -90,7 +90,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   if (!doctor) {
     return (
-      <main className="min-h-screen bg-ink-900 text-slate-50">
+      <main className="min-h-screen bg-pro-page text-slate-50">
         <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
         <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
           <p className="text-slate-200">
@@ -162,7 +162,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   return (
     <main
       data-testid="agenda-page"
-      className="min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] bg-ink-900 text-slate-50"
+      className="min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] bg-pro-page text-slate-50"
     >
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 

@@ -77,7 +77,7 @@ export function DeclineRequestDialog({
         type="button"
         onClick={onClose}
         disabled={submitting}
-        className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm disabled:cursor-wait"
+        className="absolute inset-0 bg-pro-page/70 backdrop-blur-sm disabled:cursor-wait"
         aria-label="Close"
         tabIndex={-1}
       />
@@ -86,7 +86,7 @@ export function DeclineRequestDialog({
         aria-modal="true"
         aria-labelledby="decline-request-title"
         aria-busy={submitting}
-        className="relative z-10 w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
+        className="relative z-10 w-full max-w-md rounded-3xl border border-pro-line bg-pro-card p-5 shadow-2xl"
       >
         <h2 id="decline-request-title" className="text-lg font-semibold text-slate-50">
           Decline this request?
@@ -108,7 +108,7 @@ export function DeclineRequestDialog({
           rows={4}
           disabled={submitting}
           placeholder="e.g. I am away that day. Please book another time on my profile."
-          className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+          className="mt-1.5 w-full resize-y rounded-xl border border-pro-line bg-pro-page/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
         />
         <p className="mt-1 text-xs text-slate-500">At least {REASON_MIN} characters.</p>
         {error ? <p className="mt-2 text-sm text-red-300">{error}</p> : null}
@@ -117,7 +117,7 @@ export function DeclineRequestDialog({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="h-11 flex-1 rounded-xl border border-slate-700 bg-slate-800 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:pointer-events-none disabled:opacity-50"
+            className="h-11 flex-1 rounded-xl border border-pro-line bg-pro-raised text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:pointer-events-none disabled:opacity-50"
           >
             Go back
           </button>

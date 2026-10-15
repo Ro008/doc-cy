@@ -70,7 +70,7 @@ export function PatientAgesCard({ initialValue = null }: { initialValue?: Patien
                 className={`h-9 whitespace-nowrap rounded-xl border px-3 text-sm font-medium transition active:scale-[0.98] disabled:cursor-progress ${
                   selected
                     ? "border-clinical-400/60 bg-clinical-500/15 text-clinical-50"
-                    : "border-slate-700 text-slate-300 hover:border-slate-500"
+                    : "border-pro-line text-slate-300 hover:border-slate-500"
                 }`}
               >
                 {option.label}

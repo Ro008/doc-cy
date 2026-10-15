@@ -144,7 +144,7 @@ export function PersonalMobileCard({
         Your own number for DocCy. Patients call your clinic&apos;s phone; they only see this
         one if you turn it on below.
       </p>
-      <div className="mt-2 flex rounded-xl border border-slate-700 bg-slate-950/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30">
+      <div className="mt-2 flex rounded-xl border border-pro-line bg-pro-page/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30">
         <CountryCodePicker countries={options} value={country} onChange={onCountryChange} disabled={saving} />
         <input
           id="settings-personal-mobile"
@@ -189,7 +189,7 @@ export function PersonalMobileCard({
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-start justify-between gap-4 border-t border-slate-800 pt-4">
+      <div className="mt-4 flex items-start justify-between gap-4 border-t border-pro-line pt-4">
         <div>
           <p className="text-sm font-semibold text-slate-100">Show on my profile</p>
           <p className="mt-0.5 text-xs text-slate-400">

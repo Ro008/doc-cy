@@ -1518,8 +1518,8 @@ export function SettingsForm({
     <div
       className={`rounded-3xl border p-4 transition-colors ${
         holidayModeEnabled
-          ? "border-amber-400/40 bg-amber-500/[0.08]"
-          : "border-amber-400/20 bg-amber-500/[0.04]"
+          ? "border-amber-400/40 bg-pro-card bg-[linear-gradient(rgba(245,158,11,0.08),rgba(245,158,11,0.08))]"
+          : "border-amber-400/20 bg-pro-card bg-[linear-gradient(rgba(245,158,11,0.04),rgba(245,158,11,0.04))]"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -1560,7 +1560,7 @@ export function SettingsForm({
               placeholder="DD/MM/YYYY"
               value={holidayStartInput}
               onChange={(e) => setHolidayStartInput(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
+              className="mt-1 w-full rounded-xl border border-pro-line bg-pro-page/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
             />
           </label>
           <label htmlFor="holidayEnd" className="text-[11px] font-semibold text-slate-300">
@@ -1572,7 +1572,7 @@ export function SettingsForm({
               placeholder="DD/MM/YYYY"
               value={holidayEndInput}
               onChange={(e) => setHolidayEndInput(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
+              className="mt-1 w-full rounded-xl border border-pro-line bg-pro-page/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
             />
           </label>
           {holidayDirty ? (
@@ -1653,7 +1653,7 @@ export function SettingsForm({
                   className={`h-9 rounded-xl border px-3 text-sm font-medium transition ${
                     selected
                       ? "border-clinical-400/60 bg-clinical-500/15 text-clinical-50"
-                      : "border-slate-700 text-slate-300 hover:border-slate-500"
+                      : "border-pro-line text-slate-300 hover:border-slate-500"
                   }`}
                 >
                   {n} min
@@ -1836,7 +1836,7 @@ export function SettingsForm({
           className={`rounded-3xl p-5 sm:p-6 ${
             pendingClinicAdd
               ? "border border-dashed border-amber-400/50 bg-amber-500/[0.04]"
-              : "border border-slate-800 bg-slate-900/40"
+              : "border border-pro-line bg-pro-card"
           }`}
         >
           {pendingClinicAdd ? (
@@ -1894,7 +1894,7 @@ export function SettingsForm({
           {SERVICES_WHY_POINTS.map(({ Icon, title, body }) => (
             <li
               key={title}
-              className="rounded-2xl border border-clinical-400/15 bg-ink-900/40 p-4 transition hover:border-clinical-400/35 hover:bg-ink-900/60"
+              className="rounded-2xl border border-clinical-400/15 bg-pro-page/40 p-4 transition hover:border-clinical-400/35 hover:bg-pro-page/60"
             >
               <span
                 data-testid="services-why-icon"
@@ -1925,7 +1925,7 @@ export function SettingsForm({
               return (
                 <li
                   key={label}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-600 bg-slate-950/70 text-sm font-semibold text-slate-100 ${
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-600 bg-pro-page/70 text-sm font-semibold text-slate-100 ${
                     removable ? "pl-3.5 pr-1.5" : "px-3.5"
                   }`}
                 >
@@ -2003,7 +2003,7 @@ export function SettingsForm({
         <fieldset
           disabled={specialtyChangeBusy}
           data-testid="settings-specialty-change-form"
-          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-pro-line bg-pro-page/40 p-4"
         >
           <div>
             <p className={SECTION_EYEBROW_CLASS}>
@@ -2050,10 +2050,10 @@ export function SettingsForm({
                   : "settings-specialty-change-license-help"
               }
               placeholder="e.g. Cyprus Medical Council number"
-              className={`mt-2 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2 ${
+              className={`mt-2 w-full rounded-xl border bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2 ${
                 specialtyErrors.license
                   ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/25"
-                  : "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30"
+                  : "border-pro-line focus:border-clinical-400/60 focus:ring-clinical-400/30"
               }`}
             />
             {specialtyErrors.license ? (
@@ -2112,7 +2112,7 @@ export function SettingsForm({
       <section className={SECTION_CARD_CLASS}>
         <p className={SECTION_EYEBROW_CLASS}>Name and photo</p>
         <div className="mt-3 flex flex-wrap items-center gap-4">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-pro-line bg-pro-page/70">
             {avatarPreviewUrl ? (
               <img src={avatarPreviewUrl} alt="Profile preview" className="h-full w-full object-cover" />
             ) : (
@@ -2170,7 +2170,7 @@ export function SettingsForm({
           readOnly={savingGroup === "bio"}
           aria-busy={savingGroup === "bio"}
           placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
-          className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+          className="mt-2 w-full resize-y rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
         />
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           {groupDirty({ kind: "bio" }) ? (
@@ -2594,12 +2594,12 @@ export function SettingsForm({
       {isClient && avatarCropOpen && avatarSourceUrl
         ? createPortal(
             <div
-              className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-ink-900/75 p-4"
+              className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-pro-page/75 p-4"
               role="dialog"
               aria-modal="true"
               aria-label="Crop profile photo"
             >
-              <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
+              <div className="w-full max-w-xl rounded-2xl border border-pro-line bg-pro-card p-4 shadow-2xl">
                 <p className="mb-2 text-sm font-semibold text-slate-100">Crop profile photo (1:1)</p>
                 <div className="relative h-72 overflow-hidden rounded-xl bg-ink-900">
                   <Cropper

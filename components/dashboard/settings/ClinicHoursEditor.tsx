@@ -67,7 +67,7 @@ export function ClinicHoursEditor({
       </div>
       <p className={`${SETTINGS_EYEBROW_CLASS} sm:hidden`}>Working hours</p>
 
-      <div className="mt-2 divide-y divide-slate-800">
+      <div className="mt-2 divide-y divide-pro-line">
         {DAY_NAMES.map((day) => {
           const entry = schedule[day];
           const label = DAY_LABELS[day];
@@ -87,7 +87,7 @@ export function ClinicHoursEditor({
                     type="checkbox"
                     checked={entry.enabled}
                     onChange={(event) => setDay(day, { enabled: event.target.checked })}
-                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+                    className="h-4 w-4 rounded border-slate-600 bg-pro-card text-clinical-500 focus:ring-clinical-400/60"
                   />
                   <span className={`text-sm ${entry.enabled ? "text-slate-100" : "text-slate-500"}`}>{label}</span>
                 </label>
@@ -175,7 +175,7 @@ export function ClinicHoursEditor({
                             suggestion &&
                             setDay(day, { break_start: `${suggestion.start}:00`, break_end: `${suggestion.end}:00` })
                           }
-                          className="inline-flex h-[2.375rem] items-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-slate-700 px-3 text-sm text-slate-400 transition hover:border-slate-500 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-[2.375rem] items-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-pro-line px-3 text-sm text-slate-400 transition hover:border-slate-500 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                           Add break

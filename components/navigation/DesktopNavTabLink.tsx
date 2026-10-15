@@ -50,7 +50,7 @@ export function DesktopNavTabLink({
         beginNavigation();
         router.push(href);
       }}
-      className={`relative z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm no-underline transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 ${
+      className={`relative z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm no-underline transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 focus-visible:ring-offset-2 focus-visible:ring-offset-pro-page ${
         isSelected
           ? "font-semibold text-ink-900 hover:text-ink-900"
           : "font-medium text-clinical-100 hover:bg-clinical-500/15 hover:text-white"

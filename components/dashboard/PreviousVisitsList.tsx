@@ -25,7 +25,7 @@ export function PreviousVisitsList({
         {visits.map((v) => {
           const clinic = clinicName(v.clinic_id);
           return (
-            <li key={v.id} className="rounded-xl border border-ink-700/70 bg-ink-900/40 px-3 py-2 text-sm">
+            <li key={v.id} className="rounded-xl border border-ink-700/70 bg-pro-page/40 px-3 py-2 text-sm">
               <p className="flex flex-wrap items-center gap-x-2 text-ink-200">
                 <span className="tabular-nums">
                   {formatInTimeZone(new Date(v.appointment_datetime), CY_TZ, "d MMM yyyy, HH:mm")}

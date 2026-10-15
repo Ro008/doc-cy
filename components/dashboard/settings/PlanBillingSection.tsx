@@ -79,7 +79,7 @@ export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
           </div>
         )}
 
-        <dl className="mt-5 divide-y divide-slate-800 border-t border-slate-800 pt-4" data-testid="settings-plan-terms">
+        <dl className="mt-5 divide-y divide-pro-line border-t border-pro-line pt-4" data-testid="settings-plan-terms">
           {terms.map(([label, value]) => (
             <div key={label} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
               <dt className="text-sm text-slate-400">{label}</dt>
@@ -102,7 +102,7 @@ export function PlanBillingSection({ plan }: { plan: PlanSummary }) {
         </dl>
 
         <p
-          className="mt-4 border-t border-slate-800 pt-4 text-sm leading-relaxed text-slate-300"
+          className="mt-4 border-t border-pro-line pt-4 text-sm leading-relaxed text-slate-300"
           data-testid="settings-plan-note"
         >
           {ended ? PLAN_NOTE_ENDED : PLAN_NOTE}

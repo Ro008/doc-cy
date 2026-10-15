@@ -100,7 +100,7 @@ export function AgendaPreviousVisits({
       <div
         role="status"
         data-testid="agenda-previous-visits-loading"
-        className="mt-6 flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-3 text-xs text-slate-400"
+        className="mt-6 flex items-center gap-2 rounded-xl border border-pro-line/50 bg-pro-card px-3 py-3 text-xs text-slate-400"
       >
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
         Loading previous visits…
@@ -111,7 +111,7 @@ export function AgendaPreviousVisits({
   return (
     <>
       <section
-        className="mt-6 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2"
+        className="mt-6 rounded-xl border border-pro-line/70 bg-pro-card px-3 py-2"
         data-testid="agenda-previous-visits"
         aria-label="Previous visits with this patient"
       >
@@ -143,14 +143,14 @@ export function AgendaPreviousVisits({
             type="button"
             aria-label="Close"
             onClick={() => setShowAll(false)}
-            className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-pro-page/70 backdrop-blur-sm"
           />
-          <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
+          <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-pro-card p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
               aria-label="Close"
               onClick={() => setShowAll(false)}
-              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-pro-raised hover:text-slate-200"
             >
               <X className="h-5 w-5" />
             </button>

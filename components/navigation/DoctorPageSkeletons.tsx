@@ -22,7 +22,7 @@ function SkeletonPage({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-ink-900 text-slate-50">
+    <main className="min-h-screen bg-pro-page text-slate-50">
       <div
         data-testid="page-skeleton"
         role="status"
@@ -55,7 +55,7 @@ export function DashboardSkeleton() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           <Bone className="h-7 w-48" />
-          <div className="space-y-px overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70">
+          <div className="space-y-px overflow-hidden rounded-3xl border border-pro-line/70 bg-pro-card">
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex gap-4 px-5 py-4">
                 <div className="w-20 space-y-2">
@@ -76,7 +76,7 @@ export function DashboardSkeleton() {
         </div>
         <div className="space-y-3">
           <Bone className="h-7 w-40" />
-          <div className="space-y-5 rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5">
+          <div className="space-y-5 rounded-3xl border border-pro-line/70 bg-pro-card p-5">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="flex gap-4">
                 <Bone className="h-3.5 w-3.5 rounded-full" />
@@ -103,7 +103,7 @@ export function AgendaSkeleton() {
         <Bone className="h-9 w-9" />
         <Bone className="h-9 w-9" />
       </div>
-      <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-3 rounded-3xl border border-slate-700 bg-slate-950 p-4">
+      <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-3 rounded-3xl border border-pro-line bg-pro-page p-4">
         <div className="space-y-12 pt-10">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <Bone key={i} className="h-3 w-10" />
@@ -128,7 +128,7 @@ export function SettingsSkeleton() {
         <Bone className="h-9 w-64 max-w-full" />
       </div>
       {[0, 1, 2].map((i) => (
-        <div key={i} className="space-y-4 rounded-3xl border border-slate-700/70 bg-slate-900/60 p-6">
+        <div key={i} className="space-y-4 rounded-3xl border border-pro-line/70 bg-pro-card p-6">
           <Bone className="h-5 w-44" />
           <Bone className="h-10 w-full" />
           <Bone className="h-10 w-2/3" />
@@ -162,13 +162,13 @@ export function InsightsSkeleton() {
 /** Request review / awaiting-patient card (distraction-free, no nav). */
 export function ReviewSkeleton() {
   return (
-    <main className="min-h-screen bg-ink-900 text-ink-50">
+    <main className="min-h-screen bg-pro-page text-ink-50">
       <div className="mx-auto max-w-xl px-4 py-10">
         <div
           data-testid="page-skeleton"
           role="status"
           aria-busy="true"
-          className="space-y-6 rounded-3xl border border-clinical-100/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-900/50 sm:p-8"
+          className="space-y-6 rounded-3xl border border-clinical-100/10 bg-pro-card p-6 shadow-2xl shadow-ink-900/50 sm:p-8"
         >
           <span className="sr-only">Loading request…</span>
           <div className="space-y-3">

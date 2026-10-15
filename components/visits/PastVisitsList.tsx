@@ -74,8 +74,8 @@ function VisitCard({
     <li
       data-testid="past-visit"
       data-visit-id={visit.id}
-      className={`overflow-hidden rounded-3xl border bg-slate-900/70 shadow-xl shadow-black/20 transition ${
-        editing ? "border-clinical-500/40" : "border-slate-700/70"
+      className={`overflow-hidden rounded-3xl border bg-pro-card shadow-xl shadow-black/20 transition ${
+        editing ? "border-clinical-500/40" : "border-pro-line/70"
       }`}
     >
       <div
@@ -113,7 +113,7 @@ function VisitCard({
               {clinic ? (
                 <span
                   data-testid="past-visit-clinic"
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-slate-700/80 bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-semibold text-slate-200"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-pro-line/80 bg-pro-raised/70 px-1.5 py-0.5 text-[11px] font-semibold text-slate-200"
                 >
                   {showClinicColour ? <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${clinic.swatch}`} /> : null}
                   <span className="truncate">{clinic.name}</span>
@@ -197,7 +197,7 @@ function VisitCard({
 
         <div
           ref={notesRef}
-          className="min-w-0 border-t border-slate-700/70 pt-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"
+          className="min-w-0 border-t border-pro-line/70 pt-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"
         >
           {editing ? (
             <>

@@ -280,8 +280,8 @@ export function ManualBookingFlow({
     reason: "manualReason",
   };
   const fieldClass = (field: ManualBookingField, extra = "") =>
-    `w-full rounded-2xl border bg-ink-900/40 px-3 py-2 text-sm text-slate-100 ${extra} ${
-      errorFor(field) ? "border-red-400/80 ring-1 ring-red-400/40" : "border-slate-800/80"
+    `w-full rounded-2xl border bg-pro-page/40 px-3 py-2 text-sm text-slate-100 ${extra} ${
+      errorFor(field) ? "border-red-400/80 ring-1 ring-red-400/40" : "border-pro-line/80"
     }`;
   const fieldMessage = (field: ManualBookingField) =>
     errorFor(field) ? (
@@ -415,17 +415,17 @@ export function ManualBookingFlow({
       <button
         type="button"
         onClick={onClose}
-        className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-pro-page/70 backdrop-blur-sm"
         aria-label="Close manual booking modal"
       />
       <div
         data-testid="manual-booking-modal-panel"
-        className="relative z-10 w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+        className="relative z-10 w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-3xl border border-clinical-100/10 bg-pro-card p-5 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-pro-raised hover:text-slate-200"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -441,7 +441,7 @@ export function ManualBookingFlow({
             <button
               type="button"
               onClick={onClose}
-              className="mt-6 inline-flex rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+              className="mt-6 inline-flex rounded-2xl border border-pro-line bg-pro-raised px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
             >
               Close
             </button>
@@ -481,7 +481,7 @@ export function ManualBookingFlow({
             <button
               type="button"
               onClick={onClose}
-              className="mt-6 inline-flex rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+              className="mt-6 inline-flex rounded-2xl border border-pro-line bg-pro-raised px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
             >
               Done
             </button>
@@ -520,8 +520,8 @@ export function ManualBookingFlow({
                         }}
                         className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                           selected
-                            ? "border-slate-400 bg-slate-800 text-white"
-                            : "border-slate-700 bg-transparent text-slate-400 hover:text-slate-200"
+                            ? "border-slate-400 bg-pro-raised text-white"
+                            : "border-pro-line bg-transparent text-slate-400 hover:text-slate-200"
                         }`}
                       >
                         <span className={`h-3.5 w-3.5 rounded-[3px] ${color.swatch}`} aria-hidden />
@@ -534,7 +534,7 @@ export function ManualBookingFlow({
             ) : null}
 
             <div className="grid gap-5 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-800/60 bg-ink-900/30 p-4">
+              <div className="rounded-2xl border border-pro-line/60 bg-pro-page/30 p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Date
                 </p>
@@ -557,9 +557,9 @@ export function ManualBookingFlow({
                     caption_label: "text-sm font-semibold text-slate-200",
                     nav: "flex gap-1",
                     nav_button_previous:
-                      "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
+                      "rounded-lg border border-pro-line bg-pro-raised/50 p-2 text-slate-300 hover:bg-slate-700/50",
                     nav_button_next:
-                      "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
+                      "rounded-lg border border-pro-line bg-pro-raised/50 p-2 text-slate-300 hover:bg-slate-700/50",
                     month: "w-full",
                     day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition",
                   }}
@@ -577,7 +577,7 @@ export function ManualBookingFlow({
                 />
               </div>
 
-              <div className="rounded-2xl border border-slate-800/60 bg-ink-900/30 p-4">
+              <div className="rounded-2xl border border-pro-line/60 bg-pro-page/30 p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Time
                 </p>
@@ -597,7 +597,7 @@ export function ManualBookingFlow({
                           className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
                             isSelected
                               ? "border-clinical-400/50 bg-clinical-400/10 text-clinical-100"
-                              : "border-slate-800/80 bg-slate-900/40 text-slate-200 hover:border-clinical-400/30 hover:bg-clinical-400/5"
+                              : "border-pro-line/80 bg-pro-card text-slate-200 hover:border-clinical-400/30 hover:bg-clinical-400/5"
                           }`}
                         >
                           <span>{slot.labelTime}</span>
@@ -754,7 +754,7 @@ export function ManualBookingFlow({
                   id="manualService"
                   value={serviceChoice}
                   onChange={(e) => setServiceChoice(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-2xl border border-pro-line/80 bg-pro-page/40 px-3 py-2 text-sm text-slate-100"
                 >
                   <option value="">No service</option>
                   {services.map((service) => (
@@ -819,7 +819,7 @@ export function ManualBookingFlow({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+                className="rounded-2xl border border-pro-line bg-pro-raised px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
               >
                 Cancel
               </button>
@@ -837,6 +837,6 @@ function manualChoiceClass(selected: boolean): string {
   return `flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition ${
     selected
       ? "border-clinical-400/70 bg-clinical-400/10 text-clinical-100"
-      : "border-slate-800/80 bg-ink-900/40 text-slate-200 hover:border-slate-600"
+      : "border-pro-line/80 bg-pro-page/40 text-slate-200 hover:border-slate-600"
   }`;
 }

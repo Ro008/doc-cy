@@ -1,5 +1,6 @@
 // tailwind.config.ts
 import type { Config } from "tailwindcss";
+import { PRO_SURFACES } from "./lib/pro-theme";
 
 /**
  * DocCy brand palette (teal replaces former clinical blue completely).
@@ -98,6 +99,13 @@ const config: Config = {
           700: "#33485C",
           800: "#24364B", // Body text
           900: "#062F61", // Navy 900 — headings + dark app chrome
+        },
+        // The professional's own pages: the public profile's dark palette (lib/pro-theme.ts).
+        pro: {
+          page: PRO_SURFACES.page,
+          card: PRO_SURFACES.card,
+          raised: PRO_SURFACES.raised,
+          line: PRO_SURFACES.line,
         },
         // Public profile only (.doccy-profile in globals.css; values in lib/profile-theme.ts).
         // Switch between light and dark with the patient's device setting.

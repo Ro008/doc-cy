@@ -232,7 +232,7 @@ export function PromotePracticeSection({
         className="flex flex-wrap items-center justify-between gap-3"
       >
         <p className="text-sm text-slate-300">{copy.languageLabel}</p>
-        <div className="inline-flex rounded-xl border border-slate-700 bg-slate-950/40 p-1">
+        <div className="inline-flex rounded-xl border border-pro-line bg-pro-page/40 p-1">
           {LANGUAGES.map((option) => (
             <button
               key={option.id}
@@ -263,13 +263,13 @@ export function PromotePracticeSection({
             {specialties.map((name) => (
               <label
                 key={name}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-pro-line bg-pro-page/40 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
               >
                 <input
                   type="checkbox"
                   checked={!leftOff.includes(name)}
                   onChange={(event) => toggleSpecialty(name, event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-500 bg-slate-900 accent-clinical-500"
+                  className="h-4 w-4 rounded border-slate-500 bg-pro-card accent-clinical-500"
                 />
                 {name}
               </label>

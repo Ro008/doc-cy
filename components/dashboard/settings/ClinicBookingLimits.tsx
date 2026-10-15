@@ -14,7 +14,7 @@ import { APPLY_LIMITS_NOTE } from "@/lib/clinic-hours-visits";
 import type { ClinicLimits } from "@/lib/settings-clinic-limits";
 
 const SELECT_CLASS =
-  "mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 disabled:opacity-60";
+  "mt-2 w-full rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 disabled:opacity-60";
 
 const HORIZON_LABELS: Record<number, string> = { 14: "2 weeks", 30: "1 month", 90: "3 months", 180: "6 months" };
 const NOTICE_LABELS: Record<number, string> = {

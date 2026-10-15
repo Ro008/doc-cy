@@ -52,12 +52,12 @@ export function UpcomingList({ items }: UpcomingListProps) {
 
   return (
     <>
-      <ul className="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
+      <ul className="mt-4 overflow-hidden rounded-xl border border-pro-line/60">
         {items.map((r, i) => (
           <li
             key={r.id}
-            className={`group flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-800/40 ${
-              i % 2 === 0 ? "bg-slate-900/50" : "bg-slate-800/30"
+            className={`group flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-pro-raised/40 ${
+              i % 2 === 0 ? "bg-pro-card" : "bg-pro-raised/30"
             }`}
           >
             <div className="min-w-0 flex-1">
@@ -98,17 +98,17 @@ export function UpcomingList({ items }: UpcomingListProps) {
               setToCancel(null);
               setError(null);
             }}
-            className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-pro-page/70 backdrop-blur-sm"
             aria-label="Close"
           />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl">
+          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-clinical-100/10 bg-pro-card p-6 shadow-2xl backdrop-blur-xl">
             <button
               type="button"
               onClick={() => {
                 setToCancel(null);
                 setError(null);
               }}
-              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-pro-raised hover:text-slate-200"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -135,7 +135,7 @@ export function UpcomingList({ items }: UpcomingListProps) {
                   setToCancel(null);
                   setError(null);
                 }}
-                className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                className="inline-flex flex-1 items-center justify-center rounded-2xl border border-pro-line bg-pro-raised px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
               >
                 Keep appointment
               </button>

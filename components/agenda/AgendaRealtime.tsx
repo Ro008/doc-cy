@@ -1085,7 +1085,7 @@ export function AgendaRealtime({
   return (
     <>
       {toast && (
-        <div className="fixed right-5 top-5 z-50 rounded-2xl border border-clinical-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-clinical-200 shadow-2xl shadow-ink-900/60 backdrop-blur">
+        <div className="fixed right-5 top-5 z-50 rounded-2xl border border-clinical-400/30 bg-pro-card px-4 py-3 text-xs font-medium text-clinical-200 shadow-2xl shadow-ink-900/60 backdrop-blur">
           New booking request
         </div>
       )}

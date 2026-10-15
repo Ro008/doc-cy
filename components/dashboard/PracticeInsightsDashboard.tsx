@@ -26,11 +26,11 @@ function ComingSoonPanel({
   note: string;
 }) {
   return (
-    <div className="flex h-full min-h-[220px] flex-col rounded-2xl border border-dashed border-slate-600/80 bg-ink-900/40 p-5">
+    <div className="flex h-full min-h-[220px] flex-col rounded-2xl border border-dashed border-slate-600/80 bg-pro-page/40 p-5">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-slate-500" aria-hidden />
         <p className="text-sm font-semibold text-slate-200">{title}</p>
-        <span className="ml-auto rounded-full border border-slate-600/80 bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="ml-auto rounded-full border border-slate-600/80 bg-pro-raised/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           Coming soon
         </span>
       </div>
@@ -51,7 +51,7 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <article className="rounded-2xl border border-clinical-300/15 bg-slate-900/70 p-4 shadow-[0_0_32px_-18px_rgba(18,184,192,0.35)]">
+    <article className="rounded-2xl border border-clinical-300/15 bg-pro-card p-4 shadow-[0_0_32px_-18px_rgba(18,184,192,0.35)]">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-300">
@@ -110,7 +110,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
   return (
     <div className="space-y-8">
       <section
-        className="rounded-3xl border border-clinical-300/25 bg-gradient-to-br from-clinical-500/10 via-slate-900/80 to-slate-950/90 p-6 sm:p-8"
+        className="rounded-3xl border border-clinical-300/25 bg-gradient-to-br from-clinical-500/10 via-pro-card/80 to-pro-page/90 p-6 sm:p-8"
         aria-labelledby="practice-insights-hero"
       >
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-clinical-300/90">
@@ -168,8 +168,8 @@ export function PracticeInsightsDashboard({ insights }: Props) {
           {t("charts.heading")}
         </h2>
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-5">
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-800/60 pb-4">
+          <div className="rounded-2xl border border-pro-line/80 bg-pro-card p-5">
+            <div className="mb-4 flex items-center gap-2 border-b border-pro-line/60 pb-4">
               <Clock className="h-4 w-4 text-clinical-300" aria-hidden />
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">
@@ -221,7 +221,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
               </ResponsiveContainer>
             </div>
             {insights.peakByHour.length > 0 ? (
-              <div className="mt-6 border-t border-slate-800/60 pt-4">
+              <div className="mt-6 border-t border-pro-line/60 pt-4">
                 <p className="mb-3 text-xs font-medium text-slate-400">
                   {t("charts.peakHours.subtitle")}
                 </p>

@@ -353,7 +353,7 @@ export function AppointmentReviewClient({
     `rounded-xl border px-3 py-2 text-sm font-medium transition ${
       active
         ? "border-clinical-400/70 bg-clinical-500/20 text-clinical-100"
-        : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-clinical-400/40 hover:text-slate-100"
+        : "border-pro-line bg-pro-card text-slate-300 hover:border-clinical-400/40 hover:text-slate-100"
     }`;
 
   const canAddMore = (chosen?.length ?? 0) < MAX_PROPOSED;
@@ -386,7 +386,7 @@ export function AppointmentReviewClient({
                 value={proposalClinicId ?? ""}
                 onChange={(e) => setProposalClinicId(e.target.value || null)}
                 disabled={busy}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100"
+                className="mt-1 w-full rounded-xl border border-pro-line bg-pro-page/80 px-3 py-2 text-sm text-slate-100"
                 data-testid="review-proposal-clinic"
               >
                 {clinicOptions.map((c) => (
@@ -403,7 +403,7 @@ export function AppointmentReviewClient({
             {chosen.map((iso, i) => (
               <li
                 key={iso}
-                className="flex items-center justify-between gap-2 rounded-xl border border-slate-700/80 bg-ink-900/50 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-xl border border-pro-line/80 bg-pro-page/50 px-3 py-2"
               >
                 <span>
                   <span className="text-slate-500">{i + 1}. </span>
@@ -413,7 +413,7 @@ export function AppointmentReviewClient({
                   type="button"
                   onClick={() => removeTime(iso)}
                   disabled={busy}
-                  className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-pro-raised hover:text-slate-200"
                   aria-label={`Remove ${format(appointmentToCyprusDate(iso), "EEEE, d MMM · HH:mm", { locale: enUS })}`}
                 >
                   Remove
@@ -423,7 +423,7 @@ export function AppointmentReviewClient({
           </ul>
 
           {canAddMore ? (
-            <div className="space-y-2 rounded-xl border border-slate-700/70 bg-ink-900/40 p-3">
+            <div className="space-y-2 rounded-xl border border-pro-line/70 bg-pro-page/40 p-3">
               <p className="text-xs font-medium text-slate-300">Add a time</p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -434,14 +434,14 @@ export function AppointmentReviewClient({
                     setPickDate(e.target.value);
                     setDayOptions(null);
                   }}
-                  className="rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-1.5 text-sm text-slate-100 [color-scheme:dark]"
+                  className="rounded-xl border border-pro-line bg-pro-page/80 px-3 py-1.5 text-sm text-slate-100 [color-scheme:dark]"
                   aria-label="Day"
                 />
                 <button
                   type="button"
                   onClick={() => void loadDay()}
                   disabled={busy || loadingDay || !pickDate}
-                  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                  className="rounded-xl border border-pro-line px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-pro-raised disabled:opacity-60"
                 >
                   {loadingDay ? "Loading…" : "Show free times"}
                 </button>
@@ -457,7 +457,7 @@ export function AppointmentReviewClient({
                           type="button"
                           onClick={() => addTime(iso)}
                           disabled={busy}
-                          className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs tabular-nums text-slate-200 hover:border-clinical-400/50 hover:text-clinical-100"
+                          className="rounded-lg border border-pro-line px-2.5 py-1 text-xs tabular-nums text-slate-200 hover:border-clinical-400/50 hover:text-clinical-100"
                         >
                           {format(appointmentToCyprusDate(iso), "HH:mm")}
                         </button>
@@ -525,7 +525,7 @@ export function AppointmentReviewClient({
             </span>
           ) : null}
           {clinicName ? (
-            <span className="rounded-full bg-slate-800 px-2.5 py-1 font-medium text-slate-300">{clinicName}</span>
+            <span className="rounded-full bg-pro-raised px-2.5 py-1 font-medium text-slate-300">{clinicName}</span>
           ) : null}
         </div>
       </header>
@@ -585,7 +585,7 @@ export function AppointmentReviewClient({
                 Other…
               </option>
               {OTHER_DURATIONS.map((m) => (
-                <option key={m} value={m} className="bg-slate-900 text-slate-100">
+                <option key={m} value={m} className="bg-pro-card text-slate-100">
                   {formatProfessionalDurationLabel(m)}
                 </option>
               ))}
@@ -597,7 +597,7 @@ export function AppointmentReviewClient({
       </section>
 
       {/* 6. The day around the request. */}
-      <section aria-labelledby="review-day-heading" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <section aria-labelledby="review-day-heading" className="rounded-2xl border border-pro-line bg-pro-card p-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 id="review-day-heading" className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Your day · {dayLabel}
@@ -619,7 +619,7 @@ export function AppointmentReviewClient({
             >
               <span
                 aria-hidden
-                className={`relative -ml-2 h-3 w-3 shrink-0 rounded-full ring-4 ring-slate-900 ${
+                className={`relative -ml-2 h-3 w-3 shrink-0 rounded-full ring-4 ring-pro-card ${
                   entry.isRequest
                     ? entry.overlaps
                       ? "bg-amber-400"
@@ -645,7 +645,7 @@ export function AppointmentReviewClient({
                     ? "bg-clinical-500/20 text-clinical-100"
                     : entry.overlaps
                       ? "bg-amber-500/20 text-amber-100"
-                      : "bg-slate-800 text-slate-400"
+                      : "bg-pro-raised text-slate-400"
                 }`}
               >
                 {entry.isRequest

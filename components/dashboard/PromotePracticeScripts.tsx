@@ -92,7 +92,7 @@ function ScriptText({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm leading-relaxed text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-400/30"
+        className="w-full resize-y rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2 text-sm leading-relaxed text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-400/30"
       />
       <div className="mt-2">
         <CopyButton text={value} copy={copy} />
@@ -142,7 +142,7 @@ export function PromotePracticeScripts({
   return (
     <section className={SETTINGS_CARD_CLASS}>
       <h2 className={SETTINGS_EYEBROW_CLASS}>{copy.scriptsSectionTitle}</h2>
-      <div className="mt-2 divide-y divide-slate-800">
+      <div className="mt-2 divide-y divide-pro-line">
         <ScriptRow testId="promote-voicemail-script" title={copy.voicemailTitle} hint={copy.voicemailHint}>
           <ScriptText value={voicemailText} onChange={setVoicemailText} copy={copy} />
         </ScriptRow>
@@ -153,7 +153,7 @@ export function PromotePracticeScripts({
 
         <ScriptRow testId="promote-website-script" title={copy.websiteTitle} hint={copy.websiteHint}>
           <p className="text-xs font-medium text-slate-400">{copy.websiteSendToWebPerson}</p>
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl border border-slate-700 bg-slate-950/60 p-3 font-mono text-xs leading-relaxed text-slate-300">
+          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl border border-pro-line bg-pro-page/60 p-3 font-mono text-xs leading-relaxed text-slate-300">
             {websiteBriefForWebPerson}
           </pre>
           <div className="mt-2">
@@ -166,7 +166,7 @@ export function PromotePracticeScripts({
               {copy.websiteHtmlToggle}
             </summary>
             <p className="mt-2 text-[11px] text-slate-500">{copy.websiteHtmlHint}</p>
-            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded-xl border border-slate-700 bg-slate-950/60 p-3 font-mono text-[11px] leading-relaxed text-slate-400">
+            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded-xl border border-pro-line bg-pro-page/60 p-3 font-mono text-[11px] leading-relaxed text-slate-400">
               {websiteHtml}
             </pre>
             <div className="mt-2">
