@@ -121,7 +121,8 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     page,
   }) => {
     await page.goto(`/en/${registered!.slug}`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /^Clinics & contact$/i })).toBeVisible({
+    // The clinic's card in the booking column (its address, hours and Call) since 2026-10-14.
+    await expect(page.getByTestId("profile-clinic-selected")).toBeVisible({
       timeout: 20_000,
     });
     const call = page.getByRole("button", { name: /^Call$/i });
