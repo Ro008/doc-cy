@@ -310,8 +310,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     const doctorsRes = await fetchAllSupabaseRows(() =>
       admin
         .from("professionals")
-        .select("id, name, slug, is_test_profile, email")
+        .select("id, name, slug, is_test_profile, email, professional_clinics(clinics(is_archived))")
         .eq("is_registered", true)
+        .eq("is_archived", false)
         .not("slug", "is", null)
         .order("name", { ascending: true }),
     );
@@ -320,27 +321,45 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       throw new Error(`Failed reading doctors for finder count: ${doctorsRes.error.message}`);
     }
 
+    // One card per professional + clinic (user, 2026-10-15): unregistered listings count
+    // their unarchived clinics.
     const { count: manualCount, error: manualCountError } = await admin
-      .from("professionals")
-      .select("id", { count: "exact", head: true })
-      .eq("is_archived", false)
-      .eq("is_registered", false);
+      .from("professional_clinics")
+      .select("id, professionals!inner(is_registered, is_archived), clinics!inner(is_archived)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("professionals.is_registered", false)
+      .eq("professionals.is_archived", false)
+      .eq("clinics.is_archived", false);
 
     if (manualCountError) {
       throw new Error(`Failed reading unregistered professionals for finder count: ${manualCountError.message}`);
     }
 
-    const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {
-      if (finderIncludesRegisteredTestProfiles()) {
-        return true;
-      }
-      return !isTestProfileLike({
-        name: String(row.name ?? ""),
-        slug: row.slug,
-        email: (row as { email?: string | null }).email ?? null,
-        isTestProfile: Boolean((row as { is_test_profile?: boolean | null }).is_test_profile),
-      });
-    }).length;
+    // A registered professional is one card per unarchived clinic (one if she has none).
+    const expectedRegistered = (doctorsRes.data ?? [])
+      .filter((row) => {
+        if (finderIncludesRegisteredTestProfiles()) {
+          return true;
+        }
+        return !isTestProfileLike({
+          name: String(row.name ?? ""),
+          slug: row.slug,
+          email: (row as { email?: string | null }).email ?? null,
+          isTestProfile: Boolean((row as { is_test_profile?: boolean | null }).is_test_profile),
+        });
+      })
+      .reduce((total, row) => {
+        const links = ((row as { professional_clinics?: unknown }).professional_clinics ?? []) as Array<{
+          clinics?: { is_archived?: boolean | null } | Array<{ is_archived?: boolean | null }> | null;
+        }>;
+        const open = links.filter((link) => {
+          const clinic = Array.isArray(link.clinics) ? link.clinics[0] : link.clinics;
+          return clinic && !clinic.is_archived;
+        }).length;
+        return total + Math.max(open, 1);
+      }, 0);
     const expectedManual = manualCount ?? 0;
     const expectedTotal = expectedRegistered + expectedManual;
 

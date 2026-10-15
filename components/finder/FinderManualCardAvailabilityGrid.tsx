@@ -10,6 +10,7 @@ import {
   FINDER_MANUAL_REQUEST_ATTR,
 } from "@/lib/finder-manual-slot-click";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
+import { formatFinderRequestBadgeLabel } from "@/lib/finder-booking-request-stats";
 
 export const REQUEST_ONLINE_BOOKING_BUTTON_LABEL = "Request online booking";
 
@@ -20,6 +21,11 @@ type Props = {
   seedKey?: string;
   clinicId?: string | null;
   requestSource?: string | null;
+  /**
+   * Unique patients who asked for online booking. Finder cards show it on the preview,
+   * so the card keeps its size; the listing page shows its own badge above.
+   */
+  requestCount?: number | null;
 };
 
 function CalendarPlusIcon() {
@@ -51,7 +57,9 @@ export function FinderManualCardAvailabilityGrid({
   seedKey,
   clinicId,
   requestSource,
+  requestCount = null,
 }: Props) {
+  const requestLabel = requestCount != null ? formatFinderRequestBadgeLabel(requestCount) : null;
   const previewCalendar = buildManualPreviewCalendar(
     [...dayHeaders],
     String(seedKey ?? "").trim() || manualId,
@@ -61,14 +69,15 @@ export function FinderManualCardAvailabilityGrid({
   return (
     <div
       data-testid="finder-card-calendar-preview"
+      className="flex flex-col"
       {...{ [FINDER_MANUAL_CALENDAR_ATTR]: "" }}
       data-manual-id={manualId}
       data-clinic-id={String(clinicId ?? "").trim() || undefined}
       data-request-source={String(requestSource ?? "").trim() || undefined}
     >
-      <div className="flex items-stretch overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
+      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
         <FinderAvailabilityDayArrowButton direction="prev" />
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="overflow-hidden border-b border-ink-100 bg-ink-50 opacity-50">
             <div className={finderAvailabilityWeekTrackClassName}>
               {previewCalendar.map((day) => (
@@ -76,7 +85,7 @@ export function FinderManualCardAvailabilityGrid({
               ))}
             </div>
           </div>
-          <div className="relative overflow-hidden">
+          <div className="relative flex-1 overflow-hidden">
             <div
               className={`${finderAvailabilityWeekTrackClassName} pointer-events-none items-stretch opacity-45 grayscale`}
               aria-hidden
@@ -98,6 +107,14 @@ export function FinderManualCardAvailabilityGrid({
             </div>
             <div className="absolute inset-0 z-[1] flex items-center justify-center bg-white/40 p-2">
               <div className="w-[calc(100%-0.5rem)] max-w-[18.5rem] rounded-xl border border-clinical-200/80 bg-white/95 px-3 py-3 text-center shadow-[0_8px_24px_rgba(26,43,60,0.12)]">
+                {requestLabel ? (
+                  <p
+                    className="mb-2 rounded-md border border-amber-300/80 bg-amber-50 px-2 py-1 text-[10px] font-bold leading-snug text-amber-950"
+                    role="status"
+                  >
+                    {requestLabel}
+                  </p>
+                ) : null}
                 <p className="text-balance text-[11px] font-semibold leading-snug text-ink-900">
                   Want to book an appointment online?
                 </p>

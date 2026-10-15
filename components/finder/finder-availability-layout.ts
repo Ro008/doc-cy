@@ -16,6 +16,43 @@ export const finderRegisteredCardRowClass =
 export const finderRegisteredDetailsSectionClass =
   "min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
 
+/**
+ * Every finder card is the same size until the patient opens more times (user,
+ * 2026-10-15). The calendar area is one box, whatever it holds: times, a paused
+ * clinic, nothing this week, a listing's preview, or the loading skeleton. Its height
+ * is the day header (41px, 45px from `lg`) + the collapsed slot grid below + the
+ * border.
+ */
+export const finderCardCalendarBoxClass =
+  "flex min-h-[233px] flex-col lg:min-h-[227px] [&>*]:flex-1";
+
+/**
+ * The clinic's address on a finder card: always two lines tall (one-line addresses
+ * keep the space, longer ones are cut), so the location column is the same height.
+ */
+export const finderCardAddressClass =
+  "line-clamp-2 min-h-[39px] text-xs leading-relaxed text-ink-600 break-words";
+
+/**
+ * On a phone the identity block sits above the clinic, so it reserves the height of
+ * the tallest usual one: a two-line name, two rows of specialties, GeSY and the rating,
+ * then the languages.
+ */
+export const finderCardIdentityMinHeightClass = "min-h-[206px] sm:min-h-0";
+
+/** Fixed skeleton height, the same box. */
+export const finderCardCalendarSkeletonHeightClass = "h-[233px] lg:h-[227px]";
+
+/**
+ * Collapsed slot grid: 3 times + "+N more" (44px buttons, 40px from `lg`), the same
+ * height whether a day has one time or ten.
+ */
+export const finderCardSlotGridCollapsedClass =
+  "h-[190px] overflow-hidden lg:h-[180px] lg:overflow-y-auto";
+
+/** Opened: phones grow with each tap; desktop shows ~6 rows, then scrolls. */
+export const finderCardSlotGridExpandedClass = "lg:max-h-[282px] lg:overflow-y-auto";
+
 /** Landing pages are narrower; stack location + calendar until large breakpoints. */
 export const finderLandingCardDetailsGridClass =
   "grid items-start gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";

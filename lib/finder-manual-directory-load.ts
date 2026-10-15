@@ -103,6 +103,27 @@ export async function countManualDirectoryForFinder(input: {
 }
 
 /**
+ * How many finder cards the unregistered listings make with no filter: one per
+ * unarchived clinic of an unarchived listing (user, 2026-10-15). A filtered search
+ * loads every matching listing and counts its cards in memory instead.
+ */
+export async function countUnregisteredClinicCardsForFinder(
+  supabase: any,
+): Promise<{ count: number; error: { code?: string; message?: string } | null }> {
+  const { count, error } = await supabase
+    .from("professional_clinics")
+    .select("id, professionals!inner(is_registered, is_archived), clinics!inner(is_archived)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("professionals.is_registered", false)
+    .eq("professionals.is_archived", false)
+    .eq("clinics.is_archived", false);
+  if (error) return { count: 0, error };
+  return { count: count ?? 0, error: null };
+}
+
+/**
  * Load manual directory rows for finder filters. A listing with a clinic in the
  * filtered district or town is in the result whichever clinic is its primary.
  *

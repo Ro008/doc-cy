@@ -1,4 +1,3 @@
-import { compareClinicOrder, type ClinicOrderFields } from "@/lib/clinic-order";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
@@ -50,8 +49,10 @@ import {
   finderRegisteredCardRowClass,
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
+  finderCardIdentityMinHeightClass,
 } from "@/components/finder/finder-availability-layout";
 import {
+  finderCardFooterHeightClass,
   finderCardManualFooterActionsClass,
   finderCardManualFooterClass,
 } from "@/components/finder/finder-card-cta";
@@ -99,9 +100,14 @@ import {
 } from "@/lib/finder-booking-request-stats";
 import {
   listingClinicLocations,
-  pickListingCardClinic,
   type ListingClinicLocation,
 } from "@/lib/listing-clinic-location";
+import {
+  buildFinderClinicCards,
+  orderFinderClinicCards,
+  type FinderClinicCard,
+} from "@/lib/finder-clinic-cards";
+import { manualPreviewSeedKey } from "@/lib/finder-manual-preview-calendar";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
@@ -111,7 +117,6 @@ import {
   buildFinderManualShuffleSeed,
   FINDER_RESULTS_PAGE_SIZE,
   hasMoreFinderResults,
-  orderUnifiedFinderResultsPhase1,
 } from "@/lib/finder-results-paging";
 import {
   FINDER_RESULTS_PAGE_COOKIE,
@@ -126,7 +131,7 @@ import {
 import {
   applyFinderListFilters,
   FINDER_LISTING_SELECT_WITH_SPECIALTIES,
-  countManualDirectoryForFinder,
+  countUnregisteredClinicCardsForFinder,
   fetchManualDirectoryForFinder,
 } from "@/lib/finder-manual-directory-load";
 import {
@@ -190,12 +195,15 @@ type RegisteredFinderRow = {
   latitude: number | null;
   longitude: number | null;
   locations: Array<{
+    /** professional_clinics.id */
     id: string;
+    clinicId: string;
     district: string | null;
     clinic_address: string | null;
     town: string | null;
     latitude: number | null;
     longitude: number | null;
+    pausedOnline: boolean;
   }>;
 };
 
@@ -207,45 +215,18 @@ type ManualFinderRow = {
   specialty: string;
   /** Individual GeSY specialties (for multi-specialty filter matching). */
   specialties: string[];
-  district: CyprusDistrict;
-  town?: string | null;
-  address_maps_link: string;
-  address: string | null;
   photoUrl: string;
   /** Unique patients who requested online booking (lifetime). */
   monthlyRequestCount: number;
   isGesy: boolean;
-  latitude: number | null;
-  longitude: number | null;
-  /** The listing's clinics (Point E5: its location), primary first. */
+  /** The listing's clinics (Point E5: its location), in its clinic order. */
   locations: ListingClinicLocation[];
-  clinic: { id?: string | null; name: string; slug: string } | null;
-  clinics: Array<{
-    id?: string | null;
-    name: string;
-    slug: string;
-    address?: string | null;
-    addressMapsLink?: string | null;
-    district?: string | null;
-    hasPhone?: boolean;
-  }>;
 };
 
-type UnifiedFinderResult = {
-  kind: "registered";
-  row: RegisteredFinderRow;
-  hasOnlineBooking: boolean;
-  isRegistered: true;
-  distanceKm: number | null;
-  usedDistrictFallbackForDistance: boolean;
-} | {
-  kind: "manual";
-  row: ManualFinderRow;
-  hasOnlineBooking: false;
-  isRegistered: false;
-  distanceKm: number | null;
-  usedDistrictFallbackForDistance: boolean;
-};
+/** One card per professional + clinic (user, 2026-10-15). */
+type FinderCard =
+  | (FinderClinicCard<RegisteredFinderRow> & { kind: "registered" })
+  | (FinderClinicCard<ManualFinderRow> & { kind: "manual" });
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
 const SEO_SPECIALTIES = [
@@ -545,9 +526,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
   let registeredRows: RegisteredFinderRow[] = [];
   let manualRows: ManualFinderRow[] = [];
-  let manualDirectoryTotalCount: number | null = null;
-  /** The clinic each listing's card leads with (filtered place, near-me, else primary). */
-  const manualClinicIdByRowId = new Map<string, string>();
+  /** Cards the unregistered listings make with no filter (one per clinic). */
+  let manualCardTotalCount: number | null = null;
   let finderSpecialtyOptions: FinderSpecialtyOption[] = [];
   let dataWarning: string | null = null;
   let bookingStatsById = new Map<
@@ -678,11 +658,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     registeredRows = registeredRows.map((row) => {
       const locs = (locationsByDoctor.get(row.id) ?? []).map((loc) => ({
         id: loc.id,
+        clinicId: loc.clinic_id ?? loc.id,
         district: loc.district,
         clinic_address: loc.clinic_address,
         town: loc.town,
         latitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.latitude ?? null,
         longitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.longitude ?? null,
+        pausedOnline: Boolean(loc.pause_online_bookings),
       }));
       // District, town, address and pin come from the clinics only, never from the
       // copies on professionals (Point E): the registration approval creates none.
@@ -817,22 +799,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     }
     finderSpecialtyOptions = finderSpecialtyOptionsFromCatalogue(catalogue, available);
 
-    if (!manualLoadError) {
+    // A filtered search loads every matching listing, so its cards are counted in
+    // memory; the unfiltered one pages through them and counts their clinics.
+    if (!manualLoadError && !unboundedManualFetch) {
       try {
-        manualDirectoryTotalCount = await getCachedDirectoryPayload(
-          [
-            "manual-count-professionals",
-            listFilters.district,
-            listFilters.name,
-            listFilters.specialty,
-            listFilters.town,
-          ],
+        manualCardTotalCount = await getCachedDirectoryPayload(
+          ["manual-card-count-professionals"],
           async () => {
-            const manualCountRes = await countManualDirectoryForFinder({
-              supabase,
-              filters: listFilters,
-              source: "professionals",
-            });
+            const manualCountRes = await countUnregisteredClinicCardsForFinder(supabase);
             if (manualCountRes.error) {
               throw new Error(manualCountRes.error.message ?? "manual_count_failed");
             }
@@ -840,7 +814,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           },
         );
       } catch {
-        manualDirectoryTotalCount = null;
+        manualCardTotalCount = null;
       }
     }
 
@@ -850,12 +824,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       manualRows = manualRowsRaw.map((row) => {
         const manualId = row.id as string;
         const locations = listingClinicLocations(row);
-        const place = pickListingCardClinic(locations, {
-          district: activeDistrict,
-          town: activeTown,
-          coords: userCoords,
-        });
-        if (place) manualClinicIdByRowId.set(manualId, place.clinicId);
         const specialtyParts = specialtyNamesForRow(row);
         return {
           id: manualId,
@@ -864,21 +832,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: specialtyParts[0] ?? "Specialty not set",
           specialties: specialtyParts,
-          district: place?.district as CyprusDistrict,
-          town: place?.town ?? null,
-          address_maps_link: place?.addressMapsLink ?? "",
-          address: place?.address ?? null,
           photoUrl: resolveFinderDisplayPhotoUrl({
             curatedOrCustomPhotoUrl: null,
             gender: row.gender,
           }),
           monthlyRequestCount: 0,
           isGesy: Boolean(row.is_gesy ?? false),
-          latitude: place?.latitude ?? null,
-          longitude: place?.longitude ?? null,
           locations,
-          clinic: null,
-          clinics: [],
         };
       });
     }
@@ -886,17 +846,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     dataWarning = "Finder is not configured. Missing Supabase service credentials.";
   }
 
+  // District and town are matched per clinic when the cards are built.
   const filteredRegistered = registeredRows.filter((row) => {
-    if (
-      activeDistrict &&
-      !professionalMatchesDistrictFilter({
-        district: row.district,
-        clinicDistricts: row.locations.map((loc) => loc.district),
-        activeDistrict,
-      })
-    ) {
-      return false;
-    }
     if (
       specialtyFilter &&
       !hasSpecialtySlug(row.specialties.map((name) => ({ name })), activeSpecialtySlug)
@@ -909,29 +860,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       !row.name.toLowerCase().includes(activeName.toLowerCase())
     ) {
       return false;
-    }
-    if (activeTown) {
-      const rowTown = resolveFinderTownQuery(row.town);
-      const locationTowns = row.locations.map((loc) => resolveFinderTownQuery(loc.town));
-      if (rowTown !== activeTown && !locationTowns.includes(activeTown)) {
-        return false;
-      }
     }
     return true;
   });
 
   const filteredManual = manualRows.filter((row) => {
     if (
-      activeDistrict &&
-      !professionalMatchesDistrictFilter({
-        district: null,
-        clinicDistricts: row.locations.map((loc) => loc.district),
-        activeDistrict,
-      })
-    ) {
-      return false;
-    }
-    if (
       specialtyFilter &&
       !hasSpecialtySlug(row.specialties.map((name) => ({ name })), activeSpecialtySlug)
     ) {
@@ -941,12 +875,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       activeName &&
       !row.displayName.toLowerCase().includes(activeName.toLowerCase()) &&
       !row.name.toLowerCase().includes(activeName.toLowerCase())
-    ) {
-      return false;
-    }
-    if (
-      activeTown &&
-      !row.locations.some((loc) => resolveFinderTownQuery(loc.town) === activeTown)
     ) {
       return false;
     }
@@ -957,163 +885,81 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     row.monthlyRequestCount = bookingStatsById.get(row.id)?.uniquePatients ?? 0;
   }
 
-  function computeDistanceInfo(
-    _district: string | null | undefined,
-    latitude: number | null,
-    longitude: number | null,
-  ): { distanceKm: number | null; usedDistrictFallbackForDistance: boolean } {
-    return {
-      distanceKm: computeFinderDistanceKm(userCoords, latitude, longitude),
-      usedDistrictFallbackForDistance: false,
-    };
-  }
+  const placeFilter = { district: activeDistrict, town: activeTown, coords: userCoords };
+  const registeredCards = buildFinderClinicCards(
+    filteredRegistered.map((row) => ({
+      kind: "registered" as const,
+      professionalId: row.id,
+      row,
+      places: row.locations.map((loc) => ({
+        clinicId: loc.clinicId,
+        linkId: loc.id,
+        district: loc.district,
+        town: loc.town,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        pausedOnline: loc.pausedOnline,
+      })),
+      hasProAccess: row.hasOnlineBooking,
+    })),
+    placeFilter,
+  ) as FinderCard[];
+  const manualCards = buildFinderClinicCards(
+    filteredManual.map((row) => ({
+      kind: "manual" as const,
+      professionalId: row.id,
+      row,
+      places: row.locations.map((loc) => ({
+        clinicId: loc.clinicId,
+        linkId: null,
+        district: loc.district,
+        town: loc.town,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        pausedOnline: true,
+      })),
+      hasProAccess: false,
+    })),
+    placeFilter,
+  ) as FinderCard[];
 
-  const unifiedResults = orderUnifiedFinderResultsPhase1(
-    [
-      ...filteredRegistered.map((row) => {
-        const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return {
-          kind: "registered" as const,
-          row,
-          hasOnlineBooking: row.hasOnlineBooking,
-          isRegistered: true as const,
-          ...distanceInfo,
-        };
-      }),
-      ...filteredManual.map((row) => {
-        const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return {
-          kind: "manual" as const,
-          row,
-          hasOnlineBooking: false as const,
-          isRegistered: false as const,
-          ...distanceInfo,
-        };
-      }),
-    ],
+  const orderedCards = orderFinderClinicCards<RegisteredFinderRow | ManualFinderRow>(
+    [...registeredCards, ...manualCards],
     {
       nearMe: Boolean(userCoords),
       shuffleSeed: buildFinderManualShuffleSeed(listScope, shuffleSession.seed),
       pinTestProfiles: finderIncludesRegisteredTestProfiles(),
-      getUnregisteredRequestCount: (item) =>
-        item.kind === "manual" ? item.row.monthlyRequestCount : 0,
+      getRequestCount: (card) =>
+        card.kind === "manual" ? (card.row as ManualFinderRow).monthlyRequestCount : 0,
     },
-  );
+  ) as FinderCard[];
 
-  const visibleResults = unifiedResults.slice(0, visibleLimit);
+  const visibleCards = orderedCards.slice(0, visibleLimit);
   const totalResultsCount =
-    (manualDirectoryTotalCount ?? filteredManual.length) + filteredRegistered.length;
+    registeredCards.length + (manualCardTotalCount ?? manualCards.length);
   const hasMoreResults = hasMoreFinderResults({
     totalCount: totalResultsCount,
-    visibleCount: visibleResults.length,
+    visibleCount: visibleCards.length,
     resultsPage,
     hasListFilter,
   });
-  const visibleRegistered = visibleResults.filter(
-    (item): item is Extract<UnifiedFinderResult, { kind: "registered" }> => item.kind === "registered",
+  /** Each registered professional on screen once, for the per-page loads. */
+  const visibleRegisteredIds = Array.from(
+    new Set(
+      visibleCards.filter((card) => card.kind === "registered").map((card) => card.professionalId),
+    ),
   );
-  const visibleManual = visibleResults.filter(
-    (item): item is Extract<UnifiedFinderResult, { kind: "manual" }> => item.kind === "manual",
-  );
-
-  if (supabase) {
-    const visibleManualIds = visibleManual.map((item) => item.row.id);
-
-    const loadManualCardExtras = async () => {
-      if (visibleManualIds.length === 0) return;
-      const linksRes = await fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
-        supabase
-          .from("professional_clinics")
-          .select(
-            "professional_id, sort_order, created_at, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
-          )
-          .in("professional_id", idChunk),
-      );
-
-      const clinicsByManualId = new Map<
-        string,
-        Array<{
-          id: string | null;
-          name: string;
-          slug: string;
-          address?: string | null;
-          addressMapsLink?: string | null;
-          district?: string | null;
-          hasPhone: boolean;
-        }>
-      >();
-      if (!linksRes.error && linksRes.data?.length) {
-        // The clinic the card leads with first, then the rest in the listing's clinic order.
-        const rank = (link: unknown) => {
-          const l = link as { professional_id?: string; clinics?: { id?: string } | null };
-          const lead = manualClinicIdByRowId.get(String(l.professional_id ?? ""));
-          return lead && String(l.clinics?.id ?? "") === lead ? 0 : 1;
-        };
-        const sorted = [...linksRes.data].sort(
-          (a, b) => rank(a) - rank(b) || compareClinicOrder(a as ClinicOrderFields, b as ClinicOrderFields),
-        );
-        for (const link of sorted) {
-          const manualId = String(
-            (link as { professional_id?: string }).professional_id ?? "",
-          );
-          const clinic = (
-            link as {
-              clinics?: {
-                id?: string;
-                name?: string;
-                slug?: string;
-                address?: string | null;
-                address_maps_link?: string | null;
-                district?: string | null;
-                is_archived?: boolean;
-                phone?: string | null;
-              } | null;
-            }
-          ).clinics;
-          if (!manualId || !clinic || clinic.is_archived) continue;
-          const name = String(clinic.name ?? "").trim();
-          const slug = String(clinic.slug ?? "").trim();
-          if (!name || !slug) continue;
-          const clinicId = String(clinic.id ?? "").trim() || null;
-          const entry = {
-            id: clinicId,
-            name,
-            slug,
-            address: String(clinic.address ?? "").trim() || null,
-            addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
-            district: String(clinic.district ?? "").trim() || null,
-            hasPhone: Boolean(String(clinic.phone ?? "").trim()),
-          };
-          const list = clinicsByManualId.get(manualId) ?? [];
-          if (!list.some((c) => (clinicId && c.id === clinicId) || c.slug === entry.slug)) {
-            list.push(entry);
-            clinicsByManualId.set(manualId, list);
-          }
-        }
-      }
-
-      for (const item of visibleManual) {
-        const clinics = clinicsByManualId.get(item.row.id) ?? [];
-        item.row.clinics = clinics;
-        item.row.clinic = clinics[0] ?? null;
-      }
-    };
-
-    await loadManualCardExtras();
-  }
 
   // The note on each registered card on screen (3+ published reviews): one small read,
   // only for these cards. Read only; the reviews are written by the patient's emailed link.
   const registeredRatings = supabase
     ? await loadPublishedRatings(
         supabase,
-        visibleRegistered.map((item) => item.row.id),
+        visibleRegisteredIds,
       )
     : new Map<string, FinderRating>();
 
-  const registeredAvailabilityKey = finderAvailabilityRequestKey(
-    visibleRegistered.map((item) => item.row.id),
-  );
+  const registeredAvailabilityKey = finderAvailabilityRequestKey(visibleRegisteredIds);
   const finderAvailabilityDayHeaders = buildFinderAvailabilityDayHeaders();
   const hasActiveFilters = Boolean(
     activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
@@ -1134,26 +980,32 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     districtLabel: placeLabel,
     nearYou: Boolean(userCoords),
   });
-  const schemaEntries = visibleResults.map((item) => {
+  // Each professional once, however many of her clinics are on screen.
+  const schemaCards = visibleCards.filter(
+    (card, index) =>
+      visibleCards.findIndex((c) => c.professionalId === card.professionalId) === index,
+  );
+  const schemaEntries = schemaCards.map((item) => {
     if (item.kind === "registered") {
       const row = item.row;
       const profileUrl = row.slug ? `${siteUrl}/${row.slug}` : null;
       return {
         name: row.displayName,
         specialty: row.specialty ?? "General Practice",
-        district: (row.district ?? activeDistrict) || null,
+        district: (item.place?.district ?? row.district ?? activeDistrict) || null,
         profileUrl,
         mapsUrl: null,
       };
     }
 
     const row = item.row;
+    const place = row.locations.find((loc) => loc.clinicId === item.place?.clinicId) ?? null;
     return {
       name: row.displayName,
       specialty: row.specialty,
-      district: row.district,
+      district: place?.district ?? null,
       profileUrl: null,
-      mapsUrl: row.address_maps_link,
+      mapsUrl: place?.addressMapsLink ?? "",
     };
   });
 
@@ -1231,18 +1083,22 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           <section className="mt-6">
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
               <div className="flex flex-col gap-4">
-                {visibleResults.map((item, index) => {
+                {visibleCards.map((item, index) => {
                 const imagePriority = finderCardImagePriority(index);
                 if (item.kind === "registered") {
                   const row = item.row;
                   const showRightColumn = Boolean(row.slug);
+                  const cardLocation =
+                    row.locations.find((loc) => loc.id === item.place?.linkId) ?? null;
+                  const cardAddress = cardLocation?.clinic_address ?? row.clinic_address;
                   return (
                     <article
-                      key={`registered-${row.id}`}
-                      className={`${finderResultCardClass} ${finderRegisteredCardRowClass}`}
+                      key={item.key}
+                      className={`flex flex-col gap-4 ${finderResultCardClass}`}
                     >
+                      <div className={finderRegisteredCardRowClass}>
                       <div
-                        className={`flex min-w-0 shrink-0 flex-col gap-3 ${finderRegisteredIdentityColumnClass}`}
+                        className={`flex min-w-0 shrink-0 flex-col gap-3 ${finderRegisteredIdentityColumnClass} ${finderCardIdentityMinHeightClass}`}
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           {row.slug ? (
@@ -1291,10 +1147,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               prefetch={false}
                               className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                             >
-                              {row.displayName}
+                              <span className="line-clamp-2">{row.displayName}</span>
                             </PendingLink>
                           ) : (
-                            <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+                            <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                               {row.displayName}
                             </p>
                           )}
@@ -1303,13 +1159,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             specialty={row.specialty ?? "Specialty not set"}
                             className="-ml-2"
                           />
-                          {row.isGesy ? (
-                            <div className="self-start">
-                              <GesyProviderBadge size="xs" language="en" />
+                          {row.isGesy || registeredRatings.get(row.id) ? (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              {row.isGesy ? <GesyProviderBadge size="xs" language="en" /> : null}
+                              {registeredRatings.get(row.id) ? (
+                                <FinderCardRating rating={registeredRatings.get(row.id)!} />
+                              ) : null}
                             </div>
-                          ) : null}
-                          {registeredRatings.get(row.id) ? (
-                            <FinderCardRating rating={registeredRatings.get(row.id)!} />
                           ) : null}
                           {item.distanceKm !== null ? (
                             <p className="text-xs font-semibold text-clinical-700">
@@ -1329,15 +1185,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               doctorId={row.id}
                               profileSlug={row.slug ?? ""}
                               doctorIdsKey={registeredAvailabilityKey}
-                              clinicAddress={row.clinic_address}
+                              locationId={item.place?.linkId ?? null}
+                              clinicAddress={cardAddress}
                             />
                           </Suspense>
                         ) : (
                           <div>
                             <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
-                              {row.clinic_address?.trim()
-                                ? row.clinic_address.trim()
-                                : "Not provided yet"}
+                              {cardAddress?.trim() ? cardAddress.trim() : "Not provided yet"}
                             </p>
                             <FinderRegisteredPublicCall
                               doctorId={row.id}
@@ -1346,6 +1201,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           </div>
                         )}
                       </div>
+                      </div>
+                      {/* The listing cards' footer height, so every card is the same size. */}
+                      <div aria-hidden className={finderCardFooterHeightClass} />
                     </article>
                   );
                 }
@@ -1354,15 +1212,31 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 const manualLandingHref = row.slug
                   ? publicProfessionalProfilePath(row.slug)
                   : null;
+                const manualPlace =
+                  row.locations.find((loc) => loc.clinicId === item.place?.clinicId) ?? null;
+                const manualClinic =
+                  manualPlace?.name && manualPlace.slug
+                    ? {
+                        id: manualPlace.clinicId,
+                        name: manualPlace.name,
+                        slug: manualPlace.slug,
+                        address: manualPlace.address,
+                        addressMapsLink: manualPlace.addressMapsLink,
+                        district: manualPlace.district,
+                        hasPhone: manualPlace.hasPhone,
+                      }
+                    : null;
+                const manualDistrict = manualPlace?.district ?? "";
                 return (
                   <article
-                    key={`manual-${row.id}`}
+                    key={item.key}
                     className={`flex flex-col gap-4 ${finderResultCardClass}`}
                   >
                     <div className={finderRegisteredCardRowClass}>
                       <div
-                        className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
+                        className={`flex min-w-0 shrink-0 flex-col gap-3 ${finderRegisteredIdentityColumnClass} ${finderCardIdentityMinHeightClass}`}
                       >
+                      <div className="flex min-w-0 items-start gap-3">
                       {manualLandingHref ? (
                         <PendingLink
                           href={manualLandingHref}
@@ -1397,17 +1271,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             prefetch={false}
                             className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                           >
-                            {row.displayName}
+                            <span className="line-clamp-2">{row.displayName}</span>
                           </PendingLink>
                         ) : (
-                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+                          <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                             {row.displayName}
                           </p>
                         )}
                         <FinderSpecialtyPills
                           specialties={row.specialties}
                           specialty={row.specialty}
-                          district={row.district}
+                          district={manualDistrict}
                           className="-ml-2"
                         />
                         {row.isGesy ? (
@@ -1416,18 +1290,32 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           </div>
                         ) : null}
                         {item.distanceKm !== null ? (
-                          <p className="mt-2 text-xs font-semibold text-clinical-700">
+                          <p className="text-xs font-semibold text-clinical-700">
                             {nearMeApproximate
                               ? formatApproxDistanceAway(item.distanceKm)
                               : formatDistanceAway(item.distanceKm)}
                           </p>
                         ) : null}
                       </div>
+                      </div>
                     </div>
 
                     <div className={finderRegisteredDetailsSectionClass}>
                       <FinderManualLocationCalendars
-                        listing={row}
+                        listing={{
+                          id: row.id,
+                          district: manualDistrict,
+                          address: manualPlace?.address ?? null,
+                          address_maps_link: manualPlace?.addressMapsLink ?? null,
+                          clinic: manualClinic,
+                          clinics: manualClinic ? [manualClinic] : [],
+                          monthlyRequestCount: row.monthlyRequestCount,
+                        }}
+                        previewSeedKey={
+                          row.locations.length > 1 && manualPlace
+                            ? manualPreviewSeedKey(row.id, manualPlace.clinicId)
+                            : null
+                        }
                         dayHeaders={finderAvailabilityDayHeaders}
                         callToBookSource="finder_card"
                       />
@@ -1435,19 +1323,19 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                     </div>
 
                     <div
-                      className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass}`}
+                      className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass} ${finderCardFooterHeightClass}`}
                     >
                       <ManualDirectoryDoctorClaimFooter professionalId={row.id} />
                       <ManualDirectoryReportIncorrectInfoLink
                         displayName={row.displayName}
                         specialty={row.specialty}
-                        district={row.district}
+                        district={manualDistrict}
                       />
                     </div>
                   </article>
                 );
               })}
-              {unifiedResults.length === 0 ? (
+              {orderedCards.length === 0 ? (
                 <FinderMissingDoctorCard
                   specialtyLabel={activeSpecialty ? specialtyLabel : null}
                   districtLabel={activeDistrict ? districtLabel : null}

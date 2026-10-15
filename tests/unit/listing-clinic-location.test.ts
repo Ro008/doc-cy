@@ -3,13 +3,15 @@ import { describe, it } from "node:test";
 import {
   LISTING_CLINICS_SELECT,
   listingClinicLocations,
-  pickListingCardClinic,
 } from "@/lib/listing-clinic-location";
 
 // Point E5: a listing's district, town, address, map link and pin come from its
 // clinics (`professional_clinics`), never from copies on `professionals`.
 const nicosia = {
   id: "c-nic",
+  name: "Strovolos Medical Centre",
+  slug: "strovolos-medical-centre",
+  phone: "22123456",
   district: "Nicosia",
   town: "Strovolos",
   address: "Lemesou Avenue 215, Strovolos, 2029, Nicosia",
@@ -52,7 +54,7 @@ describe("listingClinicLocations", () => {
   it("selects the clinic fields through professional_clinics", () => {
     assert.equal(
       LISTING_CLINICS_SELECT,
-      "listing_clinics:professional_clinics(sort_order, created_at, clinics(id, district, town, address, address_maps_link, latitude, longitude, is_archived))",
+      "listing_clinics:professional_clinics(sort_order, created_at, clinics(id, name, slug, phone, district, town, address, address_maps_link, latitude, longitude, is_archived))",
     );
   });
 
@@ -64,6 +66,9 @@ describe("listingClinicLocations", () => {
     );
     assert.deepEqual(locations[0], {
       clinicId: "c-nic",
+      name: "Strovolos Medical Centre",
+      slug: "strovolos-medical-centre",
+      hasPhone: true,
       district: "Nicosia",
       town: "Strovolos",
       address: "Lemesou Avenue 215, Strovolos, 2029, Nicosia",
@@ -73,6 +78,7 @@ describe("listingClinicLocations", () => {
     });
     assert.equal(locations[2]?.latitude, null);
     assert.equal(locations[2]?.addressMapsLink, null);
+    assert.equal(locations[2]?.hasPhone, false);
   });
 
   it("accepts a to-one embed as an array, skips duplicates and rows without a clinic", () => {
@@ -92,44 +98,5 @@ describe("listingClinicLocations", () => {
   it("returns nothing for a row without clinics", () => {
     assert.deepEqual(listingClinicLocations({}), []);
     assert.deepEqual(listingClinicLocations({ listing_clinics: null }), []);
-  });
-});
-
-describe("pickListingCardClinic", () => {
-  const locations = listingClinicLocations(row);
-
-  it("is the first clinic without filters", () => {
-    assert.equal(pickListingCardClinic(locations, {})?.clinicId, "c-nic");
-  });
-
-  it("is the clinic in the filtered district, first or not", () => {
-    assert.equal(pickListingCardClinic(locations, { district: "Limassol" })?.clinicId, "c-lim");
-    assert.equal(pickListingCardClinic(locations, { district: "nicosia" })?.clinicId, "c-nic");
-  });
-
-  it("is the clinic in the filtered town", () => {
-    assert.equal(
-      pickListingCardClinic(locations, { district: "Nicosia", town: "Strovolos" })?.clinicId,
-      "c-nic",
-    );
-    assert.equal(pickListingCardClinic(locations, { town: "Larnaca" })?.clinicId, "c-lar");
-  });
-
-  it("falls back to the first clinic when no clinic matches the filter", () => {
-    assert.equal(pickListingCardClinic(locations, { district: "Paphos" })?.clinicId, "c-nic");
-  });
-
-  it("is the nearest clinic with a pin for near-me", () => {
-    const nearLimassol = { latitude: 34.69, longitude: 33.0 };
-    assert.equal(pickListingCardClinic(locations, { coords: nearLimassol })?.clinicId, "c-lim");
-    // Within a district filter, distance only chooses among that district's clinics.
-    assert.equal(
-      pickListingCardClinic(locations, { district: "Nicosia", coords: nearLimassol })?.clinicId,
-      "c-nic",
-    );
-  });
-
-  it("is null without clinics", () => {
-    assert.equal(pickListingCardClinic([], { district: "Nicosia" }), null);
   });
 });

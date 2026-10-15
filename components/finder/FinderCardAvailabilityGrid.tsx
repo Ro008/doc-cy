@@ -31,8 +31,8 @@ export function FinderCardAvailabilityGrid({
 
   if (weekState.kind === "no-availability-in-window") {
     return (
-      <div data-testid="finder-card-calendar-preview">
-        <div className="overflow-hidden rounded-lg border border-ink-200 bg-white p-3 text-center">
+      <div data-testid="finder-card-calendar-preview" className="flex flex-col">
+        <div className="flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-ink-200 bg-white p-3 text-center">
           <PendingLink
             href={publicProfessionalProfilePath(profileSlug)}
             navigationReason="profile"
@@ -48,8 +48,8 @@ export function FinderCardAvailabilityGrid({
   const visibleCalendarDays = calendar.days.slice(windowStart, windowStart + visibleDayCount);
 
   return (
-    <div data-testid="finder-card-calendar-preview">
-      <div className="flex items-stretch overflow-hidden rounded-lg border border-ink-200 bg-white">
+    <div data-testid="finder-card-calendar-preview" className="flex flex-col">
+      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-ink-200 bg-white">
         <FinderAvailabilityDayArrowButton direction="prev" />
         <div className="min-w-0 flex-1">
           <div
@@ -101,7 +101,7 @@ function FinderCardNoSlotsThisWeek({
   onGoToNextAvailableWeek: (dayIndex: number) => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-2 py-4 text-center">
+    <div className="flex flex-col items-center justify-center gap-1 px-2 py-4 text-center lg:h-[180px] h-[190px]">
       <p className="text-xs font-medium text-ink-500">No availabilities this week</p>
       {nextAvailableDayIndex !== null ? (
         <button

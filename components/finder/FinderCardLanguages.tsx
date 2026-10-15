@@ -3,13 +3,14 @@ import { LANGUAGE_CHIP_ON_LIGHT } from "@/lib/language-chips";
 
 type FinderCardLanguagesProps = {
   languages: string[];
+  /** Unset shows every language (user, 2026-10-15: the finder card lists them all). */
   maxVisible?: number;
   className?: string;
 };
 
 export function FinderCardLanguages({
   languages,
-  maxVisible = 4,
+  maxVisible,
   className = "",
 }: FinderCardLanguagesProps) {
   return (
@@ -19,7 +20,7 @@ export function FinderCardLanguages({
       </p>
       {languages.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
-          {languages.slice(0, maxVisible).map((language, index) => {
+          {(maxVisible != null ? languages.slice(0, maxVisible) : languages).map((language, index) => {
             const label = canonicalLanguageLabel(language);
             return (
               <span

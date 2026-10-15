@@ -5,11 +5,14 @@ import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
-import { doctorLocationDisplayName } from "@/lib/doctor-locations";
-import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
 import { FinderClinicNameLink } from "@/components/finder/FinderClinicLocationBlock";
 import { clinicForRenderedLocation } from "@/lib/public/finder-card-clinic-match";
 import { loadFinderRegisteredClinics } from "@/lib/public/load-finder-registered-clinics";
+import {
+  finderCardAddressClass,
+  finderCardCalendarBoxClass,
+  finderCardCalendarSkeletonHeightClass,
+} from "@/components/finder/finder-availability-layout";
 
 const registeredFinderCallClass =
   "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60";
@@ -24,7 +27,9 @@ export function FinderCardAvailabilitySkeleton() {
       data-testid="finder-card-calendar-skeleton"
       aria-hidden
     >
-      <div className="h-[148px] animate-pulse rounded-lg border border-ink-200 bg-ink-50" />
+      <div
+        className={`${finderCardCalendarSkeletonHeightClass} animate-pulse rounded-lg border border-ink-200 bg-ink-50`}
+      />
     </div>
   );
 }
@@ -33,7 +38,12 @@ type FinderRegisteredCardAvailabilityProps = {
   doctorId: string;
   profileSlug: string;
   doctorIdsKey: string;
-  /** Fallback address when locations have not been loaded yet. */
+  /**
+   * The card's clinic (`professional_clinics.id`). A finder card shows one clinic
+   * (user, 2026-10-15); null only for a professional with no clinic.
+   */
+  locationId: string | null;
+  /** Fallback address when the location has not been loaded. */
   clinicAddress?: string | null;
 };
 
@@ -41,48 +51,19 @@ export async function FinderRegisteredCardAvailability({
   doctorId,
   profileSlug,
   doctorIdsKey,
+  locationId,
   clinicAddress = null,
 }: FinderRegisteredCardAvailabilityProps) {
   const [batch, registeredClinics] = await Promise.all([
     loadFinderAvailabilityForRequest(doctorIdsKey),
     loadFinderRegisteredClinics(doctorIdsKey),
   ]);
-  const locations = batch.locationsByDoctorId.get(doctorId) ?? [];
-  const isMulti = locations.length > 1;
-  // Stage 1 reused doctor_locations.id as the professional_clinics row id, so a
-  // location maps to its clinic exactly. Where the ids do not line up,
-  // clinicForRenderedLocation matches these by address instead of assuming the first
-  // one — an absorbed listing can leave a clinic nowhere near the address on screen.
   const linkedClinics = registeredClinics.byProfessionalId.get(doctorId) ?? [];
-  // With no location rows the card renders `professionals.clinic_address`, so the
-  // clinic named above it has to agree with that address just the same.
-  const clinicForClinicAddress = clinicForRenderedLocation({
-    locationId: null,
-    locationAddress: clinicAddress,
-    byLocationId: registeredClinics.byLocationId,
-    candidates: linkedClinics,
-  });
+  const location =
+    (batch.locationsByDoctorId.get(doctorId) ?? []).find((loc) => loc.id === locationId) ?? null;
 
-  if (locations.length === 0) {
-    if (batch.paused.get(doctorId)) {
-      return (
-        <FinderMultiLocationAvailability
-          rows={[
-            {
-              key: doctorId,
-              location: (
-                <RegisteredLocationCopy
-                  address={clinicAddress}
-                  clinic={clinicForClinicAddress}
-                  doctorId={doctorId}
-                />
-              ),
-              calendar: <FinderCardOnlineBookingPaused profileSlug={profileSlug} />,
-            },
-          ]}
-        />
-      );
-    }
+  if (!location) {
+    // No clinic to show: the address alone, and the professional's own pause state.
     const calendar = batch.calendars.get(doctorId);
     return (
       <FinderMultiLocationAvailability
@@ -92,73 +73,65 @@ export async function FinderRegisteredCardAvailability({
             location: (
               <RegisteredLocationCopy
                 address={clinicAddress}
-                clinic={clinicForClinicAddress}
+                clinic={clinicForRenderedLocation({
+                  locationId: null,
+                  locationAddress: clinicAddress,
+                  byLocationId: registeredClinics.byLocationId,
+                  candidates: linkedClinics,
+                })}
                 doctorId={doctorId}
               />
             ),
-            calendar:
-              calendar && profileSlug ? (
-                <FinderCardAvailabilityGrid calendar={calendar} profileSlug={profileSlug} />
-              ) : null,
+            calendar: (
+              <div className={finderCardCalendarBoxClass}>
+                {batch.paused.get(doctorId) ? (
+                  <FinderCardOnlineBookingPaused profileSlug={profileSlug} />
+                ) : calendar && profileSlug ? (
+                  <FinderCardAvailabilityGrid calendar={calendar} profileSlug={profileSlug} />
+                ) : null}
+              </div>
+            ),
           },
         ]}
       />
     );
   }
 
-  const rows = locations.map((location, index) => {
-    const availability = batch.byLocationId.get(location.id);
-    const address =
-      String(location.clinic_address ?? "").trim() ||
-      (index === 0 ? clinicAddress : null);
-    const locationScopedPause = isMulti;
-    const calendarNode = availability?.paused
-      ? (
-          <FinderCardOnlineBookingPaused
-            profileSlug={profileSlug}
-            locationScoped={locationScopedPause}
-          />
-        )
-      : availability?.calendar && profileSlug
-        ? (
-            <FinderCardAvailabilityGrid
-              calendar={availability.calendar}
-              profileSlug={profileSlug}
-              locationId={isMulti ? location.id : null}
-            />
-          )
-        : null;
-
-    return {
-      key: location.id,
-      location: (
-        <RegisteredLocationCopy
-          address={address}
-          clinic={clinicForRenderedLocation({
-            locationId: location.id,
-            locationAddress: address,
-            byLocationId: registeredClinics.byLocationId,
-            candidates: linkedClinics,
-          })}
-          latitude={location.latitude}
-          longitude={location.longitude}
-          placeId={location.clinic_place_id}
-          title={
-            isMulti
-              ? doctorLocationDisplayName(location, index, locations.length)
-              : null
-          }
-          doctorId={doctorId}
-        />
-      ),
-      calendar: calendarNode,
-    };
-  });
+  const availability = batch.byLocationId.get(location.id);
+  const address = String(location.clinic_address ?? "").trim() || clinicAddress;
+  const calendarNode = availability?.paused ? (
+    <FinderCardOnlineBookingPaused profileSlug={profileSlug} locationScoped />
+  ) : availability?.calendar && profileSlug ? (
+    <FinderCardAvailabilityGrid
+      calendar={availability.calendar}
+      profileSlug={profileSlug}
+      locationId={location.id}
+    />
+  ) : null;
 
   return (
     <FinderMultiLocationAvailability
-      countLabel={isMulti ? formatClinicCountLabel(locations.length) : null}
-      rows={rows}
+      rows={[
+        {
+          key: location.id,
+          location: (
+            <RegisteredLocationCopy
+              address={address}
+              clinic={clinicForRenderedLocation({
+                locationId: location.id,
+                locationAddress: address,
+                byLocationId: registeredClinics.byLocationId,
+                candidates: linkedClinics,
+              })}
+              latitude={location.latitude}
+              longitude={location.longitude}
+              placeId={location.clinic_place_id}
+              doctorId={doctorId}
+            />
+          ),
+          calendar: <div className={finderCardCalendarBoxClass}>{calendarNode}</div>,
+        },
+      ]}
     />
   );
 }
@@ -244,7 +217,7 @@ function RegisteredLocationCopy({
       ) : null}
       <div>
         {clinic ? <FinderClinicNameLink name={clinic.name} slug={clinic.slug} /> : null}
-        <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+        <p className={finderCardAddressClass} title={displayAddress || undefined}>
           {displayAddress || "Not provided yet"}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">

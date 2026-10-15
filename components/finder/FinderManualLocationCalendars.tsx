@@ -5,6 +5,7 @@ import { ManualDirectoryMonthlyRequestBadge } from "@/components/finder/ManualDi
 import type { CallToBookSource } from "@/lib/call-to-book";
 import { manualPreviewSeedKey } from "@/lib/finder-manual-preview-calendar";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
+import { finderCardCalendarBoxClass } from "@/components/finder/finder-availability-layout";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
 
 export type FinderManualLocationListing = {
@@ -22,6 +23,12 @@ type Props = {
   dayHeaders: readonly FinderAvailabilityDayHeader[];
   callToBookSource: CallToBookSource;
   layoutVariant?: "finder" | "landing";
+  /**
+   * Seed of the single calendar shown. A finder card shows one clinic of a listing
+   * that may have several, so it passes that clinic's seed (the one the listing
+   * page uses), not the listing's.
+   */
+  previewSeedKey?: string | null;
 };
 
 function listingLocations(listing: FinderManualLocationListing): FinderClinicRef[] {
@@ -39,9 +46,17 @@ export function FinderManualLocationCalendars({
   dayHeaders,
   callToBookSource,
   layoutVariant = "finder",
+  previewSeedKey = null,
 }: Props) {
   const locations = listingLocations(listing);
   const isMulti = locations.length > 1;
+  // A finder card is one clinic at a fixed size: the requests badge goes on the preview.
+  const inFinder = layoutVariant === "finder";
+  const calendarClass = inFinder ? finderCardCalendarBoxClass : "flex min-w-0 flex-col gap-2";
+  const badge = (show: boolean) =>
+    show && !inFinder ? (
+      <ManualDirectoryMonthlyRequestBadge monthlyRequestCount={listing.monthlyRequestCount} />
+    ) : null;
   const rows =
     locations.length > 0
       ? locations.map((clinic, index) => {
@@ -62,16 +77,15 @@ export function FinderManualLocationCalendars({
               />
             ),
             calendar: (
-              <div className="flex min-w-0 flex-col gap-2">
-                {index === 0 ? (
-                  <ManualDirectoryMonthlyRequestBadge
-                    monthlyRequestCount={listing.monthlyRequestCount}
-                  />
-                ) : null}
+              <div className={calendarClass}>
+                {badge(index === 0)}
                 <FinderManualCardAvailabilityGrid
+                  requestCount={inFinder && index === 0 ? listing.monthlyRequestCount : null}
                   manualId={listing.id}
                   seedKey={
-                    isMulti ? manualPreviewSeedKey(listing.id, locationKey) : listing.id
+                    isMulti
+                      ? manualPreviewSeedKey(listing.id, locationKey)
+                      : (previewSeedKey ?? listing.id)
                   }
                   clinicId={clinic.id}
                   requestSource={callToBookSource}
@@ -99,11 +113,10 @@ export function FinderManualLocationCalendars({
               />
             ),
             calendar: (
-              <div className="flex min-w-0 flex-col gap-2">
-                <ManualDirectoryMonthlyRequestBadge
-                  monthlyRequestCount={listing.monthlyRequestCount}
-                />
+              <div className={calendarClass}>
+                {badge(true)}
                 <FinderManualCardAvailabilityGrid
+                  requestCount={inFinder ? listing.monthlyRequestCount : null}
                   manualId={listing.id}
                   clinicId={listing.clinic?.id}
                   requestSource={callToBookSource}

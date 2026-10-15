@@ -1,6 +1,4 @@
 import { compareClinicOrder } from "@/lib/clinic-order";
-import type { Coordinates } from "@/lib/finder-distance";
-import { computeFinderDistanceKm } from "@/lib/finder-distance";
 
 /**
  * Where a listing (unregistered professional) practises, read from its clinics.
@@ -9,10 +7,14 @@ import { computeFinderDistanceKm } from "@/lib/finder-distance";
  * `professional_clinics`, like registered professionals already do.
  */
 export const LISTING_CLINICS_SELECT =
-  "listing_clinics:professional_clinics(sort_order, created_at, clinics(id, district, town, address, address_maps_link, latitude, longitude, is_archived))";
+  "listing_clinics:professional_clinics(sort_order, created_at, clinics(id, name, slug, phone, district, town, address, address_maps_link, latitude, longitude, is_archived))";
 
 export type ListingClinicLocation = {
   clinicId: string;
+  name: string | null;
+  slug: string | null;
+  /** The clinic has a public phone (the number itself is revealed on a click). */
+  hasPhone: boolean;
   district: string | null;
   town: string | null;
   address: string | null;
@@ -23,6 +25,9 @@ export type ListingClinicLocation = {
 
 type ListingClinicEmbed = {
   id?: string | null;
+  name?: string | null;
+  slug?: string | null;
+  phone?: string | null;
   district?: string | null;
   town?: string | null;
   address?: string | null;
@@ -64,6 +69,9 @@ export function listingClinicLocations(row: { listing_clinics?: unknown }): List
     const pinned = latitude != null && longitude != null;
     out.push({
       clinicId,
+      name: text(clinic.name),
+      slug: text(clinic.slug),
+      hasPhone: text(clinic.phone) != null,
       district: text(clinic.district),
       town: text(clinic.town),
       address: text(clinic.address),
@@ -73,40 +81,4 @@ export function listingClinicLocations(row: { listing_clinics?: unknown }): List
     });
   }
   return out;
-}
-
-function sameText(a: string | null, b: string | null | undefined): boolean {
-  const right = String(b ?? "").trim().toLowerCase();
-  return Boolean(right) && String(a ?? "").trim().toLowerCase() === right;
-}
-
-/**
- * The clinic a finder card leads with: among the clinics in the filtered district and
- * town (all clinics when none matches or there is no filter), the nearest one with a
- * pin for near-me, else the first (the primary when it qualifies).
- */
-export function pickListingCardClinic(
-  locations: readonly ListingClinicLocation[],
-  filters: { district?: string | null; town?: string | null; coords?: Coordinates | null },
-): ListingClinicLocation | null {
-  if (locations.length === 0) return null;
-  const matching = locations.filter(
-    (loc) =>
-      (!String(filters.district ?? "").trim() || sameText(loc.district, filters.district)) &&
-      (!String(filters.town ?? "").trim() || sameText(loc.town, filters.town)),
-  );
-  const candidates = matching.length > 0 ? matching : locations;
-  if (filters.coords) {
-    let best: ListingClinicLocation | null = null;
-    let bestKm = Infinity;
-    for (const loc of candidates) {
-      const km = computeFinderDistanceKm(filters.coords, loc.latitude, loc.longitude);
-      if (km != null && km < bestKm) {
-        best = loc;
-        bestKm = km;
-      }
-    }
-    if (best) return best;
-  }
-  return candidates[0] ?? null;
 }
