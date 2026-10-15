@@ -21,13 +21,6 @@ export function parseCallToBookSource(value: unknown): CallToBookSource | null {
     : null;
 }
 
-export type CallToBookClickEvent = {
-  manualId: string;
-  clinicId: string | null;
-  source: string;
-  createdAt: string;
-};
-
 export type CallToBookProfessionalAgg = {
   manualId: string;
   count: number;
@@ -43,51 +36,7 @@ export type CallToBookTotals = {
   byProfessional: CallToBookProfessionalAgg[];
 };
 
-/** Group raw click rows for the founder dashboard (count, last click, finder vs professional profile). */
-export function aggregateCallToBookClicks(events: readonly CallToBookClickEvent[]): CallToBookTotals {
-  const byManual = new Map<string, CallToBookProfessionalAgg>();
-  let finderCount = 0;
-  let professionalProfileCount = 0;
-
-  for (const event of events) {
-    const manualId = String(event.manualId ?? "").trim();
-    if (!manualId) continue;
-    const source = parseCallToBookSource(event.source);
-    if (source === "finder_card") finderCount += 1;
-    else if (source === "professional_profile_page") professionalProfileCount += 1;
-
-    const createdAt = String(event.createdAt ?? "");
-    const cur = byManual.get(manualId);
-    if (!cur) {
-      byManual.set(manualId, {
-        manualId,
-        count: 1,
-        lastAt: createdAt,
-        finderCount: source === "finder_card" ? 1 : 0,
-        professionalProfileCount: source === "professional_profile_page" ? 1 : 0,
-      });
-      continue;
-    }
-    cur.count += 1;
-    if (createdAt > cur.lastAt) cur.lastAt = createdAt;
-    if (source === "finder_card") cur.finderCount += 1;
-    if (source === "professional_profile_page") cur.professionalProfileCount += 1;
-  }
-
-  const byProfessional = Array.from(byManual.values()).sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return a.manualId.localeCompare(b.manualId);
-  });
-
-  return {
-    total: events.filter((e) => String(e.manualId ?? "").trim()).length,
-    finderCount,
-    professionalProfileCount,
-    byProfessional,
-  };
-}
-
-/** One row from `founder_user_event_stats('show_phone_number', …)`: every click counts. */
+/** One row from `founder_user_event_stats('show_clinic_phone_number', …)`: every click counts. */
 export type CallToBookStatRow = UserEventStatRow;
 
 /** Totals across every stat row — the database already grouped by professional, so this is a plain sum. */

@@ -1,5 +1,5 @@
--- Database tests for the phone-reveal events, step 1 of 2
--- (migration *_user_events_reveal_sources).
+-- Database tests for the phone-reveal events
+-- (migrations *_user_events_reveal_sources and *_user_events_reveal_sources_step2).
 --
 -- What a patient revealed and where (user, 2026-10-15):
 -- - event_type: show_clinic_phone_number (was show_phone_number) or
@@ -7,8 +7,8 @@
 -- - source: registered_ / unregistered_professional_profile_page,
 --   registered_ / unregistered_professional_finder_card, or clinic_page (a clinic's own
 --   page: a clinic, no professional).
--- Step 1 still accepts the old names, which the live code writes until the new code is
--- deployed; step 2 renames the old rows and stops accepting them.
+-- Step 1 accepted the old names (show_phone_number; finder_card, professional_profile_page)
+-- until the new code was deployed; step 2 renamed the old rows and refuses the old names.
 --
 -- Run against TESTING only. One transaction that ALWAYS rolls back: the final error
 -- message is the result. "ALL user_events_reveal_sources TESTS PASSED (…)" means
@@ -68,7 +68,6 @@ declare
   v_clinic uuid;
   v_src text;
   v_row record;
-  v_old record;
 begin
   ---------------------------------------------------------------- fixtures
   insert into public.professionals (name, slug, is_registered, auth_user_id, registration_email)
@@ -120,34 +119,37 @@ begin
     '23514', 'a registered professional takes bookings: no vote');
   v_checks := v_checks + 1;
 
-  ---------------------------------------------------------------- the old names (until step 2)
-  execute pg_temp.ev('show_phone_number', 'finder_card', v_listing, v_clinic);
-  execute pg_temp.ev('show_phone_number', 'professional_profile_page', v_listing, v_clinic);
-  execute pg_temp.ev('request_online_appointment', 'finder_card', v_listing, v_clinic, 'visitor-d-' || v_tag);
+  ---------------------------------------------------------------- the old names (step 2: gone)
+  assert not exists (
+    select 1 from public.user_events
+    where event_type = 'show_phone_number' or source in ('finder_card', 'professional_profile_page')
+  ), 'FAIL: step 2 renamed every row with an old name';
   v_checks := v_checks + 1;
-  perform pg_temp.expect_error(pg_temp.ev('show_phone_number', 'clinic_page', null, v_clinic),
-    '23514', 'the old event name takes the old sources only');
-  perform pg_temp.expect_error(pg_temp.ev('show_something', 'finder_card', v_listing, v_clinic),
+  perform pg_temp.expect_error(pg_temp.ev('show_phone_number', 'finder_card', v_listing, v_clinic),
+    '23514', 'the old event name is refused');
+  perform pg_temp.expect_error(pg_temp.ev('show_clinic_phone_number', 'finder_card', v_listing, v_clinic),
+    '23514', 'the old finder source is refused for a phone');
+  perform pg_temp.expect_error(pg_temp.ev('request_online_appointment', 'professional_profile_page', v_listing, v_clinic, 'visitor-d-' || v_tag),
+    '23514', 'the old profile source is refused for a vote');
+  perform pg_temp.expect_error(pg_temp.ev('show_something', 'unregistered_professional_finder_card', v_listing, v_clinic),
     '23514', 'an unknown event type is refused');
-  v_checks := v_checks + 2;
+  v_checks := v_checks + 4;
 
   ---------------------------------------------------------------- the founders' counts
-  -- Unregistered listings only (the demand to show them), old and new names together.
+  -- Unregistered listings only (the demand to show them), finder and profile apart.
   select * into v_row from public.founder_user_event_stats('show_clinic_phone_number', null) s
   where s.professional_id = v_listing;
-  assert v_row.event_count = 4 and v_row.finder_count = 2 and v_row.profile_count = 2,
-    format('FAIL: a listing''s phone clicks count old and new names, finder and profile apart (got %s)', row_to_json(v_row));
-  select * into v_old from public.founder_user_event_stats('show_phone_number', null) s
-  where s.professional_id = v_listing;
-  assert row_to_json(v_old)::text = row_to_json(v_row)::text,
-    'FAIL: the old name gives the same counts while the old dashboard is live';
+  assert v_row.event_count = 2 and v_row.finder_count = 1 and v_row.profile_count = 1,
+    format('FAIL: a listing''s phone clicks, finder and profile apart (got %s)', row_to_json(v_row));
+  assert not exists (select 1 from public.founder_user_event_stats('show_phone_number', null)),
+    'FAIL: the old name counts nothing any more';
   assert not exists (select 1 from public.founder_user_event_stats('show_clinic_phone_number', null) s
                      where s.professional_id = v_reg),
     'FAIL: registered professionals are not in the founders'' call-to-book counts';
   select * into v_row from public.founder_user_event_stats('request_online_appointment', null) s
   where s.professional_id = v_listing;
-  assert v_row.event_count = 3 and v_row.visitor_count = 3 and v_row.finder_count = 2 and v_row.profile_count = 1,
-    format('FAIL: votes count old and new sources (got %s)', row_to_json(v_row));
+  assert v_row.event_count = 2 and v_row.visitor_count = 2 and v_row.finder_count = 1 and v_row.profile_count = 1,
+    format('FAIL: votes, finder and profile apart (got %s)', row_to_json(v_row));
   v_checks := v_checks + 4;
 
   ---------------------------------------------------------------- access
