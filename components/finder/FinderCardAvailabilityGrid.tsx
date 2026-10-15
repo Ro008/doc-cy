@@ -32,11 +32,11 @@ export function FinderCardAvailabilityGrid({
   if (weekState.kind === "no-availability-in-window") {
     return (
       <div data-testid="finder-card-calendar-preview" className="flex flex-col">
-        <div className="flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-ink-200 bg-white p-3 text-center">
+        <div className="flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-site-ink-200 bg-site-white p-3 text-center">
           <PendingLink
             href={publicProfessionalProfilePath(profileSlug)}
             navigationReason="profile"
-            className="text-xs font-semibold text-clinical-700 underline-offset-2 hover:underline"
+            className="text-xs font-semibold text-site-clinical-700 underline-offset-2 hover:underline"
           >
             View full availability
           </PendingLink>
@@ -49,7 +49,7 @@ export function FinderCardAvailabilityGrid({
 
   return (
     <div data-testid="finder-card-calendar-preview" className="flex flex-col">
-      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-ink-200 bg-white">
+      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-site-ink-200 bg-site-white">
         <FinderAvailabilityDayArrowButton direction="prev" />
         <div className="min-w-0 flex-1">
           <div
@@ -102,12 +102,12 @@ function FinderCardNoSlotsThisWeek({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 px-2 py-4 text-center lg:h-[180px] h-[190px]">
-      <p className="text-xs font-medium text-ink-500">No availabilities this week</p>
+      <p className="text-xs font-medium text-site-ink-500">No availabilities this week</p>
       {nextAvailableDayIndex !== null ? (
         <button
           type="button"
           onClick={() => onGoToNextAvailableWeek(nextAvailableDayIndex)}
-          className="text-xs font-semibold text-clinical-700 underline-offset-2 hover:underline"
+          className="text-xs font-semibold text-site-clinical-700 underline-offset-2 hover:underline"
         >
           Next slots available {nextAvailableDateLabel}
         </button>

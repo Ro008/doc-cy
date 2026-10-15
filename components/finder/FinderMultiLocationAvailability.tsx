@@ -38,7 +38,7 @@ export function FinderMultiLocationAvailability({
   return (
     <div className="min-w-0 overflow-visible" data-testid="finder-multi-location-availability">
       {countLabel ? (
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-site-ink-400">
           {countLabel}
         </p>
       ) : null}

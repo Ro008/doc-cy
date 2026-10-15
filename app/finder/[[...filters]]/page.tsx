@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getSiteScheme } from "@/lib/site-default-scheme";
+import { SiteSchemeRoot } from "@/components/site/SiteSchemeRoot";
 import { permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
@@ -441,9 +443,11 @@ export async function generateMetadata({
 
 export default function FinderPage(props: FinderPageProps) {
   return (
-    <Suspense fallback={<FinderSearchRouteLoading />}>
-      <FinderPageContent {...props} />
-    </Suspense>
+    <SiteSchemeRoot>
+      <Suspense fallback={<FinderSearchRouteLoading />}>
+        <FinderPageContent {...props} />
+      </Suspense>
+    </SiteSchemeRoot>
   );
 }
 
@@ -1009,8 +1013,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     };
   });
 
+  const scheme = await getSiteScheme();
+
   return (
-    <main className="min-h-screen bg-ink-50 text-ink-800">
+    <main className="min-h-screen bg-site-ink-50 text-site-ink-800">
       <FinderShuffleSeedCookie seed={shuffleSession.seed} persist={shuffleSession.persist} />
       <FinderStructuredData
         siteUrl={siteUrl}
@@ -1023,13 +1029,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         proSessionHint={isProSessionHintValue(
           cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
         )}
+        scheme={scheme}
       />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={finderH1}
           showHeroImage={!hasSpecificFilters}
-          subtitleClassName="mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
+          subtitleClassName="mt-3 max-w-2xl text-lg leading-relaxed text-site-ink-600 sm:text-xl"
           subtitle={
             <>
               <span className="block">
@@ -1104,7 +1111,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             fill
                             prefetch={false}
                             aria-label={`View ${row.displayName} booking page`}
-                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-clinical-300 hover:ring-clinical-200"
+                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-site-clinical-300 hover:ring-clinical-200"
                           >
                             {row.avatarUrl ? (
                               <img
@@ -1114,13 +1121,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                                 {...imagePriority}
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-clinical-700">
+                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-site-clinical-700">
                                 {getInitials(row.displayName)}
                               </div>
                             )}
                           </PendingLink>
                         ) : (
-                          <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100">
+                          <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-clinical-50 ring-2 ring-clinical-100">
                             {row.avatarUrl ? (
                               <img
                                 src={row.avatarUrl}
@@ -1129,7 +1136,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                                 {...imagePriority}
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-clinical-700">
+                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-site-clinical-700">
                                 {getInitials(row.displayName)}
                               </div>
                             )}
@@ -1141,12 +1148,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               href={publicProfessionalProfilePath(row.slug)}
                               navigationReason="profile"
                               prefetch={false}
-                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
+                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900 transition-none hover:text-site-clinical-600"
                             >
                               <span className="line-clamp-2">{row.displayName}</span>
                             </PendingLink>
                           ) : (
-                            <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+                            <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900">
                               {row.displayName}
                             </p>
                           )}
@@ -1164,7 +1171,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
-                            <p className="text-xs font-semibold text-clinical-700">
+                            <p className="text-xs font-semibold text-site-clinical-700">
                               {nearMeApproximate
                                 ? formatApproxDistanceAway(item.distanceKm)
                                 : formatDistanceAway(item.distanceKm)}
@@ -1187,7 +1194,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           </Suspense>
                         ) : (
                           <div>
-                            <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+                            <p className="text-xs leading-relaxed text-site-ink-600 whitespace-pre-wrap break-words">
                               {cardAddress?.trim() ? cardAddress.trim() : "Not provided yet"}
                             </p>
                             <FinderRegisteredPublicCall
@@ -1240,7 +1247,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           fill
                           prefetch={false}
                           aria-label={`View ${row.displayName} directory profile`}
-                        className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 transition-none hover:border-clinical-300 hover:ring-clinical-200 border-clinical-200 ring-clinical-100`}
+                        className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-site-ink-50 ring-2 transition-none hover:border-site-clinical-300 hover:ring-clinical-200 border-site-clinical-200 ring-clinical-100`}
                         >
                           <img
                             src={row.photoUrl}
@@ -1250,7 +1257,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           />
                         </PendingLink>
                       ) : (
-                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 ring-2 ring-clinical-100">
+                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-ink-50 ring-2 ring-clinical-100">
                           <img
                             src={row.photoUrl}
                             alt={`${row.displayName} profile photo`}
@@ -1265,12 +1272,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             href={manualLandingHref}
                             navigationReason="profile"
                             prefetch={false}
-                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
+                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900 transition-none hover:text-site-clinical-600"
                           >
                             <span className="line-clamp-2">{row.displayName}</span>
                           </PendingLink>
                         ) : (
-                          <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+                          <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900">
                             {row.displayName}
                           </p>
                         )}
@@ -1286,7 +1293,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           </div>
                         ) : null}
                         {item.distanceKm !== null ? (
-                          <p className="text-xs font-semibold text-clinical-700">
+                          <p className="text-xs font-semibold text-site-clinical-700">
                             {nearMeApproximate
                               ? formatApproxDistanceAway(item.distanceKm)
                               : formatDistanceAway(item.distanceKm)}
@@ -1355,21 +1362,21 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             </FinderResultsAvailabilityShell>
           </section>
 
-          <footer className="mt-12 border-t border-ink-200 pt-6 pb-2">
+          <footer className="mt-12 border-t border-site-ink-200 pt-6 pb-2">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
               <section className="w-full">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-site-ink-400">
                   Popular Healthcare Searches in Cyprus
                 </h2>
 
-                <details className="mt-3 rounded-xl border border-ink-200 bg-white p-3 md:hidden">
-                  <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+                <details className="mt-3 rounded-xl border border-site-ink-200 bg-site-white p-3 md:hidden">
+                  <summary className="cursor-pointer text-sm font-semibold text-site-ink-800">
                     Explore by city and specialty
                   </summary>
                   <div className="mt-3 grid gap-4">
                     {SEO_CITIES.map((city) => (
                       <section key={`mobile-${city}`}>
-                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-600">
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-site-clinical-600">
                           {city}
                         </h3>
                         <ul className="mt-2 space-y-1.5">
@@ -1413,11 +1420,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               </section>
 
               <section className="md:max-w-sm">
-                <p className="text-xs text-ink-500">
+                <p className="text-xs text-site-ink-500">
                   Are you a healthcare professional?{" "}
                   <PendingLink
                     href="/register"
-                    className="font-semibold text-clinical-600 underline underline-offset-4 transition hover:text-clinical-500"
+                    className="font-semibold text-site-clinical-600 underline underline-offset-4 transition hover:text-site-clinical-500"
                   >
                     List your practice
                   </PendingLink>
@@ -1426,13 +1433,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <PendingLink
                     href="/terms"
-                    className="text-xs font-semibold text-ink-500 underline underline-offset-4 transition hover:text-clinical-600"
+                    className="text-xs font-semibold text-site-ink-500 underline underline-offset-4 transition hover:text-site-clinical-600"
                   >
                     Terms of Use
                   </PendingLink>
                   <PendingLink
                     href="/privacy"
-                    className="text-xs font-semibold text-ink-500 underline underline-offset-4 transition hover:text-clinical-600"
+                    className="text-xs font-semibold text-site-ink-500 underline underline-offset-4 transition hover:text-site-clinical-600"
                   >
                     Privacy
                   </PendingLink>
@@ -1440,7 +1447,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                     href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-site-ink-200 bg-site-white text-site-ink-500 transition hover:border-site-clinical-300 hover:text-site-clinical-600"
                     aria-label="Follow DocCy on Instagram"
                   >
                     <Instagram className="h-4 w-4" aria-hidden />

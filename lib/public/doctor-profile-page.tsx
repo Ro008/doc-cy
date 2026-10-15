@@ -15,7 +15,6 @@ import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSec
 import { ProfileBookingPanel } from "@/components/doctor/profile/ProfileBookingPanel";
 import { ProfileClinicChooser } from "@/components/doctor/profile/ProfileClinicChooser";
 import { ProfileStickyColumn } from "@/components/doctor/profile/ProfileStickyColumn";
-import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
 import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
 import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
 import { ProfileMobileBookBar } from "@/components/doctor/profile/ProfileMobileBookBar";
@@ -34,7 +33,8 @@ import { profileThemeStyle } from "@/lib/profile-theme";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
 import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
 import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
-import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
+import { getSiteScheme } from "@/lib/site-default-scheme";
+import { SiteSchemeRoot } from "@/components/site/SiteSchemeRoot";
 import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
 import { buildBookingPanelClinics } from "@/lib/public/profile-booking-panel";
@@ -557,11 +557,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     const unregistered = await loadUnregisteredLandingOrRedirect(params.slug, locale);
     if (unregistered) {
       return (
-        <ManualDirectoryProfessionalLanding
-          row={unregistered}
-          locale={locale}
-          proSessionHint={proSessionHint}
-        />
+        <SiteSchemeRoot>
+          <ManualDirectoryProfessionalLanding
+            row={unregistered}
+            locale={locale}
+            proSessionHint={proSessionHint}
+            scheme={await getSiteScheme()}
+          />
+        </SiteSchemeRoot>
       );
     }
     notFound();
@@ -749,8 +752,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const customization = { headline: await loadProfileHeadline(supabase, profile.id) };
   // "Patients I see" and her qualifications, as saved in Settings › Profile.
   const profileDetails = await loadProfileDetails(supabase, profile.id);
-  // Light unless this visitor switched to dark (cookie, so no flash on load).
-  const scheme = parseProfileScheme(cookies().get(PROFILE_SCHEME_COOKIE)?.value);
+  // The visitor's Light / Dark choice, else the founders' default (no flash on load).
+  const scheme = await getSiteScheme();
   const accountSettings = normalizedSettings as {
     holiday_mode_enabled?: boolean | null;
     holiday_start_date?: string | null;
@@ -953,7 +956,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       style={profileThemeStyle()}
     >
       <div className="border-b border-profile-border bg-profile-surface">
-        <FinderPublicHeader proSessionHint={proSessionHint} />
+        <FinderPublicHeader
+          proSessionHint={proSessionHint}
+          scheme={scheme}
+          schemeLabels={{ group: t("schemeGroupLabel"), light: t("schemeLight"), dark: t("schemeDark") }}
+        />
       </div>
       {!isOwnerView ? (
         <RecordRecentlyViewed
@@ -985,7 +992,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           the footer; the "Book" bar at the bottom of the screen opens the booking. */}
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 pt-5 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-8 lg:gap-y-0 lg:px-8">
         <div className="contents lg:block lg:min-w-0">
-        {/* Breadcrumbs, Share and Light / Dark over the left column only, so the booking
+        {/* Breadcrumbs and Share over the left column only, so the booking
             column starts at the top of the page (user, 2026-10-14). No "You are viewing your
             public profile" banner: the account menu links to Settings here, and the booking
             box says "This is how patients see your profile" (user, 2026-10-08). */}
@@ -997,15 +1004,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               title={profile.name}
               labels={{ share: t("shareLabel"), copied: t("shareCopied") }}
             />
-            {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02). */}
-            <ProfileSchemeToggle
-              initial={scheme}
-              labels={{
-                group: t("schemeGroupLabel"),
-                light: t("schemeLight"),
-                dark: t("schemeDark"),
-              }}
-            />
+            {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02).
+                Light / Dark is in the header, as on every public page. */}
           </div>
         </div>
         <div

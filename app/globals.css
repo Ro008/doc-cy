@@ -104,7 +104,7 @@ body {
 }
 
 a {
-  @apply text-clinical-800 underline-offset-2;
+  @apply text-site-clinical-800 underline-offset-2;
 }
 
 button {
@@ -678,6 +678,32 @@ button {
   --p-accent-cta: var(--p-accent);
   --p-accent-on-cta: var(--p-accent-on);
   color-scheme: dark;
+  /* Finder and Clinics colours in dark (lib/site-theme.ts; light is each variable's fallback). */
+  --site-bg-white: #11264A;
+  --site-bg-ink-50: #08142A;
+  --site-bg-ink-100: #1A3260;
+  --site-bg-clinical-50: #14365E;
+  --site-bg-clinical-100: #0E3D66;
+  --site-text-ink-900: #F8FAFC;
+  --site-text-ink-800: #E2E8F0;
+  --site-text-ink-700: #CBD5E1;
+  --site-text-ink-600: #B4C1D1;
+  --site-text-ink-500: #A3B1C2;
+  --site-text-ink-400: #8395AD;
+  --site-text-clinical-900: #A6EDF0;
+  --site-text-clinical-800: #7FE6EB;
+  --site-text-clinical-700: #7FE6EB;
+  --site-text-clinical-600: #6EDDE3;
+  --site-text-clinical-500: #3FCBD2;
+  --site-text-slate-900: #F8FAFC;
+  --site-text-slate-600: #B4C1D1;
+  --site-text-slate-500: #A3B1C2;
+  --site-border-ink-100: #1B3052;
+  --site-border-ink-200: #22385A;
+  --site-border-clinical-200: #22385A;
+  --site-border-clinical-300: #2F5078;
+  --site-border-clinical-400: #3F6C94;
+  --site-ring-offset-ink-50: #08142A;
 }
 
 html:has(.doccy-profile) {

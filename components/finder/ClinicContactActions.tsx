@@ -20,7 +20,7 @@ export function ClinicContactActions({
           href={mapsHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm font-semibold text-ink-800 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700"
+          className="inline-flex items-center rounded-lg border border-site-ink-200 bg-site-ink-50 px-3 py-2 text-sm font-semibold text-site-ink-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-50 hover:text-site-clinical-700"
         >
           Open in Google Maps
         </a>
@@ -30,8 +30,8 @@ export function ClinicContactActions({
         source="clinic_page"
         id={clinicId}
         hasPhone={hasPhone}
-        className="inline-flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm font-semibold text-ink-800 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700 disabled:cursor-wait disabled:opacity-60"
-        revealedClassName="inline-flex items-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800"
+        className="inline-flex items-center rounded-lg border border-site-ink-200 bg-site-ink-50 px-3 py-2 text-sm font-semibold text-site-ink-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-50 hover:text-site-clinical-700 disabled:cursor-wait disabled:opacity-60"
+        revealedClassName="inline-flex items-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-site-clinical-800"
       />
     </div>
   );

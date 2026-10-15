@@ -52,7 +52,7 @@ function buildIncorrectInfoMessage(ctx: ManualListingContext): string {
  * without changing the rendered size or shifting the footer.
  */
 const REPORT_LINK_CLASS =
-  "relative text-[11px] font-medium text-ink-500 underline decoration-ink-300 underline-offset-2 transition before:absolute before:-inset-x-2 before:-inset-y-2 before:content-[''] hover:text-clinical-700 hover:decoration-clinical-300";
+  "relative text-[11px] font-medium text-site-ink-500 underline decoration-ink-300 underline-offset-2 transition before:absolute before:-inset-x-2 before:-inset-y-2 before:content-[''] hover:text-site-clinical-700 hover:decoration-clinical-300";
 
 /** Opens the global contact / feedback form with listing context pre-filled. */
 export function ManualDirectoryReportIncorrectInfoLink({
@@ -104,10 +104,10 @@ export function ManualDirectoryDoctorClaimFooter({
     >
       <PendingLink
         href={registerClaimPath(professionalId)}
-        className="inline-block rounded-lg border border-clinical-300 bg-clinical-50 px-3 py-1.5 text-[11px] leading-snug transition hover:border-clinical-400 hover:bg-clinical-100"
+        className="inline-block rounded-lg border border-site-clinical-300 bg-site-clinical-50 px-3 py-1.5 text-[11px] leading-snug transition hover:border-site-clinical-400 hover:bg-site-clinical-100"
       >
-        <span className="font-medium text-ink-600">Are you this professional?</span>{" "}
-        <span className="font-bold text-clinical-800">Claim this Profile</span>
+        <span className="font-medium text-site-ink-600">Are you this professional?</span>{" "}
+        <span className="font-bold text-site-clinical-800">Claim this Profile</span>
       </PendingLink>
     </div>
   );

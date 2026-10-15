@@ -29,8 +29,11 @@ const HEIGHT_CLASS = {
 const LOGO = {
   light: {
     en: { src: "/brand/GesyEN.png", aspect: 786 / 450 },
+    // The same mark with white text, for a public page in dark mode (swapped by CSS).
+    enOnDark: { src: "/brand/gesy-logo-en-on-dark.png", aspect: 786 / 450 },
     // Filename bumps cache after transparency fix (old gesy-logo.png may linger in Next/Image).
     el: { src: "/brand/gesy-logo-el.png", aspect: 600 / 450 },
+    elOnDark: { src: "/brand/gesy-logo-el-on-dark.png", aspect: 600 / 450 },
   },
   dark: {
     src: "/brand/gesy-logo-dark.png",
@@ -68,6 +71,10 @@ export function GesyProviderBadge({
   // English mark reads larger than the Greek asset at the same height.
   const scaleClass =
     variant === "light" && language === "en" ? "origin-left scale-[0.69]" : "";
+  // On a dark public page the mark swaps to its white-text copy; multiply would turn
+  // any mark black there, so it applies in light only.
+  const swapsOnDark = variant === "light";
+  const onDark = language === "el" ? LOGO.light.elOnDark : LOGO.light.enOnDark;
 
   return (
     <span
@@ -83,13 +90,23 @@ export function GesyProviderBadge({
             ? "mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]"
             : variant === "mono"
               ? ""
-              : "mix-blend-multiply"
-        }`}
+              : "mix-blend-multiply [.doccy-profile[data-scheme=dark]_&]:mix-blend-normal"
+        } ${swapsOnDark ? "[.doccy-profile[data-scheme=dark]_&]:hidden" : ""}`}
         priority={false}
       />
+      {swapsOnDark ? (
+        <Image
+          src={onDark.src}
+          alt="GESY — accepts GESY patients"
+          width={width}
+          height={height}
+          className={`hidden w-auto max-w-full object-contain object-left ${heightClass} ${scaleClass} [.doccy-profile[data-scheme=dark]_&]:block`}
+          priority={false}
+        />
+      ) : null}
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-0 top-full z-20 mt-1.5 w-56 max-w-[min(14rem,calc(100vw-1.5rem))] rounded-md border border-ink-200 bg-white px-2.5 py-2 text-left text-[11px] font-medium leading-snug text-ink-700 opacity-0 shadow-md group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute left-0 top-full z-20 mt-1.5 w-56 max-w-[min(14rem,calc(100vw-1.5rem))] rounded-md border border-site-ink-200 bg-site-white px-2.5 py-2 text-left text-[11px] font-medium leading-snug text-site-ink-700 opacity-0 shadow-md group-hover:opacity-100 group-focus-within:opacity-100"
       >
         {title}
       </span>

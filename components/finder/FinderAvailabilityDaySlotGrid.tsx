@@ -72,7 +72,7 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
       }
     >
       <div
-        className="grid items-stretch gap-x-2 divide-x divide-ink-100"
+        className="grid items-stretch gap-x-2 divide-x divide-site-ink-100"
         style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
       >
         {days.map((day) => {
@@ -86,7 +86,7 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
             <div key={day.dateKey} className="flex min-h-[5.5rem] min-w-0 flex-col">
               <div className="flex flex-col gap-1.5 px-1 py-1.5">
                 {visibleSlots.length === 0 ? (
-                  <p className="pt-1 text-center text-[10px] font-medium text-ink-400">No slots</p>
+                  <p className="pt-1 text-center text-[10px] font-medium text-site-ink-400">No slots</p>
                 ) : null}
                 {visibleSlots.map((slot) => (
                   <React.Fragment key={slot.slotKey}>{renderSlot(slot, day)}</React.Fragment>
@@ -96,7 +96,7 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
                     type="button"
                     aria-label={`Show ${extraCount} more times for ${day.weekdayLabel} ${day.dateLabel}`}
                     onClick={() => revealMore(day)}
-                    className="inline-flex w-full min-h-[1.75rem] items-center justify-center rounded-md border border-clinical-200 bg-clinical-50 py-1 text-[10px] font-semibold leading-none tabular-nums text-clinical-700 transition-colors duration-200 ease-out hover:bg-clinical-100"
+                    className="inline-flex w-full min-h-[1.75rem] items-center justify-center rounded-md border border-site-clinical-200 bg-site-clinical-50 py-1 text-[10px] font-semibold leading-none tabular-nums text-site-clinical-700 transition-colors duration-200 ease-out hover:bg-site-clinical-100"
                   >
                     {`+${extraCount} more`}
                   </button>

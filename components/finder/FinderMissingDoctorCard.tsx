@@ -106,21 +106,21 @@ export function FinderMissingDoctorCard({
   return (
     <div
       data-testid="finder-missing-doctor-card"
-      className="mx-auto w-full max-w-2xl rounded-2xl border border-ink-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.08)] sm:p-8"
+      className="mx-auto w-full max-w-2xl rounded-2xl border border-site-ink-200 bg-site-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.08)] sm:p-8"
     >
       <div className="text-center">
-        <h2 className="text-lg font-bold leading-snug tracking-tight text-ink-900 sm:text-xl">
+        <h2 className="text-lg font-bold leading-snug tracking-tight text-site-ink-900 sm:text-xl">
           {headingPrimary}
-          <span className="mt-1 block text-base font-semibold text-ink-700 sm:text-lg">
+          <span className="mt-1 block text-base font-semibold text-site-ink-700 sm:text-lg">
             Missing your preferred clinic?
           </span>
         </h2>
         {districtLabel ? (
-          <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-ink-400">
+          <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-site-ink-400">
             {districtLabel}
           </p>
         ) : null}
-        <p className="mt-4 text-sm leading-relaxed text-ink-600">
+        <p className="mt-4 text-sm leading-relaxed text-site-ink-600">
           Share the doctor or clinic you had in mind. Every suggestion helps us grow DocCy and add
           more professionals you can book online in Cyprus.
         </p>
@@ -128,7 +128,7 @@ export function FinderMissingDoctorCard({
 
       <form onSubmit={submit} className="mt-6 space-y-3">
         <label className="block">
-          <span className="mb-1.5 block text-left text-xs font-semibold text-ink-700">
+          <span className="mb-1.5 block text-left text-xs font-semibold text-site-ink-700">
             Doctor or clinic name
           </span>
           <input
@@ -139,11 +139,11 @@ export function FinderMissingDoctorCard({
             maxLength={120}
             disabled={pending}
             required
-            className="w-full rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-900 placeholder:text-ink-400 transition focus:border-clinical-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-clinical-200 disabled:opacity-60"
+            className="w-full rounded-xl border border-site-ink-200 bg-site-ink-50 px-4 py-3 text-sm text-site-ink-900 placeholder:text-site-ink-400 transition focus:border-site-clinical-400 focus:bg-site-white focus:outline-none focus:ring-2 focus:ring-clinical-200 disabled:opacity-60"
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-left text-xs font-semibold text-ink-700">
+          <span className="mb-1.5 block text-left text-xs font-semibold text-site-ink-700">
             Specialty
           </span>
           <input
@@ -154,7 +154,7 @@ export function FinderMissingDoctorCard({
             maxLength={80}
             disabled={pending}
             required
-            className="w-full rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-900 placeholder:text-ink-400 transition focus:border-clinical-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-clinical-200 disabled:opacity-60"
+            className="w-full rounded-xl border border-site-ink-200 bg-site-ink-50 px-4 py-3 text-sm text-site-ink-900 placeholder:text-site-ink-400 transition focus:border-site-clinical-400 focus:bg-site-white focus:outline-none focus:ring-2 focus:ring-clinical-200 disabled:opacity-60"
           />
         </label>
         <button

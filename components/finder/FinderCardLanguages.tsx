@@ -1,5 +1,5 @@
 import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
-import { LANGUAGE_CHIP_ON_LIGHT } from "@/lib/language-chips";
+import { LANGUAGE_CHIP_ON_SITE } from "@/lib/language-chips";
 
 type FinderCardLanguagesProps = {
   languages: string[];
@@ -15,7 +15,7 @@ export function FinderCardLanguages({
 }: FinderCardLanguagesProps) {
   return (
     <div className={className} data-testid="finder-card-languages">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-site-ink-400">
         Speaks
       </p>
       {languages.length > 0 ? (
@@ -25,7 +25,7 @@ export function FinderCardLanguages({
             return (
               <span
                 key={`${label}-${index}`}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${LANGUAGE_CHIP_ON_LIGHT}`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${LANGUAGE_CHIP_ON_SITE}`}
                 title={label}
               >
                 <span>{label}</span>
@@ -34,7 +34,7 @@ export function FinderCardLanguages({
           })}
         </div>
       ) : (
-        <p className="text-xs text-ink-400">Not specified</p>
+        <p className="text-xs text-site-ink-400">Not specified</p>
       )}
     </div>
   );

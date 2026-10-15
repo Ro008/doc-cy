@@ -19,11 +19,11 @@ export function FinderAudienceToggle({
 
   const shellClass = onBar
     ? "border border-white/25 bg-clinical-700/40"
-    : "border border-clinical-200 bg-clinical-50";
-  const activeClass = "bg-white text-clinical-800 shadow-sm";
+    : "border border-site-clinical-200 bg-site-clinical-50";
+  const activeClass = "bg-site-white text-site-clinical-800 shadow-sm";
   const inactiveClass = onBar
     ? "text-white/85 hover:bg-white/10 hover:text-white"
-    : "text-clinical-700 hover:bg-white/70 hover:text-clinical-800";
+    : "text-site-clinical-700 hover:bg-white/70 hover:text-site-clinical-800";
 
   return (
     <div

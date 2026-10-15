@@ -38,7 +38,7 @@ export function ManualDirectoryLandingCard({
           <div
             className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
           >
-            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 ring-2 ring-clinical-100">
+            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-ink-50 ring-2 ring-clinical-100">
               <img
                 src={row.photoUrl}
                 alt={`${row.displayName} profile photo`}
@@ -47,7 +47,7 @@ export function ManualDirectoryLandingCard({
               />
             </div>
             <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
-              <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+              <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900">
                 {row.displayName}
               </p>
               <FinderSpecialtyPills
@@ -99,10 +99,10 @@ export function ManualDirectoryLandingBrowseLink({
   specialty,
 }: ManualDirectoryLandingBrowseLinkProps) {
   return (
-    <p className="text-sm text-ink-600">
+    <p className="text-sm text-site-ink-600">
       <PendingLink
         href={finderResultsPath(district, specialty)}
-        className="font-medium text-clinical-700 underline-offset-2 hover:underline"
+        className="font-medium text-site-clinical-700 underline-offset-2 hover:underline"
       >
         Browse all {specialty} in {district}
       </PendingLink>

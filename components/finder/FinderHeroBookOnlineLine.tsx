@@ -24,7 +24,7 @@ export function FinderHeroBookOnlineLine({
 }) {
   return (
     <span
-      className={`${bookOnlineScript.className} block text-clinical-600 ${SIZE_CLASS[size]}`}
+      className={`${bookOnlineScript.className} block text-site-clinical-600 ${SIZE_CLASS[size]}`}
     >
       {children}
     </span>

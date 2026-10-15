@@ -8,6 +8,10 @@
 /** On white or light cards: the finder cards, the registration form. */
 export const LANGUAGE_CHIP_ON_LIGHT = "bg-clinical-50 text-clinical-900 ring-1 ring-inset ring-clinical-200";
 
+/** On the public site's cards (Finder, Clinics): the light chip, or a deep teal one in dark. */
+export const LANGUAGE_CHIP_ON_SITE =
+  "bg-site-clinical-50 text-site-clinical-900 ring-1 ring-inset ring-clinical-200 [.doccy-profile[data-scheme=dark]_&]:ring-[#2F5078]";
+
 /** On the professional's dark pages: Settings. */
 export const LANGUAGE_CHIP_ON_DARK = "bg-clinical-500/15 text-clinical-50 ring-1 ring-inset ring-clinical-400/35";
 
