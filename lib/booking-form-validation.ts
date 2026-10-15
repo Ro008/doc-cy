@@ -1,4 +1,4 @@
-import { isPatientGender, parsePatientBirthdate } from "@/lib/booking-patient-fields";
+import { PATIENT_EMAIL_MAX_LENGTH, isPatientGender, parsePatientBirthdate } from "@/lib/booking-patient-fields";
 import { isValidRegisterEmail } from "@/lib/register-email";
 import { onlineBookingPhoneProblem } from "@/lib/phone-number";
 import { BOOKING_SERVICE_OTHER } from "@/lib/booking-service-choice";
@@ -67,7 +67,9 @@ export function allBookingFormErrors(v: BookingFormValues, now: Date = new Date(
   if (!v.patientLastName.trim()) add("patientLastName", "lastNameRequired");
   if (!v.patientEmail.trim()) add("patientEmail", "emailRequired");
   // Same check as the server (lib/booking-patient-fields.ts).
-  else if (!isValidRegisterEmail(v.patientEmail)) add("patientEmail", "validEmail");
+  else if (v.patientEmail.trim().length > PATIENT_EMAIL_MAX_LENGTH || !isValidRegisterEmail(v.patientEmail)) {
+    add("patientEmail", "validEmail");
+  }
   // The phone box keeps the country code (e.g. "+357") after the number is erased: that is empty too.
   if (v.patientPhone.replace(/\D/g, "").length <= 3) add("patientPhone", "phoneRequired");
   else if (!v.phoneValid) add("patientPhone", "validPhone");

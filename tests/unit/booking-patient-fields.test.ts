@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  PATIENT_EMAIL_MAX_LENGTH,
   PATIENT_GENDER_OPTIONS,
+  PATIENT_NAME_MAX_LENGTH,
+  PATIENT_PHONE_MAX_LENGTH,
   parseBookingPatientFields,
 } from "../../lib/booking-patient-fields";
+import { onlineBookingPhoneProblem } from "../../lib/phone-number";
 
 /**
  * The booking form (user, 2026-10-02): name, email, phone, first visit, reason, gender
@@ -145,5 +149,59 @@ describe("parseBookingPatientFields (manual)", () => {
     const res = parseBookingPatientFields({ ...valid, patientPhone: "+35799991351sgdfe3456 36" }, "manual", TODAY);
     assert.equal(res.ok, false);
     assert.match(res.ok ? "" : res.message.toLowerCase(), /mobile/);
+  });
+});
+
+describe("parseBookingPatientFields: first and last name, and length limits (2026-10-15)", () => {
+  it("wants a first and a last name online, as the form's two boxes do", () => {
+    for (const patientName of ["Maria", "  Maria  "]) {
+      const res = parseBookingPatientFields({ ...valid, patientName }, "online", TODAY);
+      assert.equal(res.ok, false, patientName);
+      assert.match(res.ok ? "" : res.message, /first and last name/i);
+    }
+    assert.equal(parseBookingPatientFields({ ...valid, patientName: "Alexander G" }, "online", TODAY).ok, true);
+  });
+
+  it("keeps one name enough on manual bookings (the professional knows the patient)", () => {
+    assert.equal(parseBookingPatientFields({ ...valid, patientName: "Maria" }, "manual", TODAY).ok, true);
+  });
+
+  it("refuses a name over PATIENT_NAME_MAX_LENGTH, online and manual", () => {
+    const atLimit = `Maria ${"K".repeat(PATIENT_NAME_MAX_LENGTH - 6)}`;
+    assert.equal(atLimit.length, PATIENT_NAME_MAX_LENGTH);
+    assert.equal(parseBookingPatientFields({ ...valid, patientName: atLimit }, "online", TODAY).ok, true);
+    for (const source of ["online", "manual"] as const) {
+      const res = parseBookingPatientFields({ ...valid, patientName: `${atLimit}K` }, source, TODAY);
+      assert.equal(res.ok, false, source);
+      assert.match(res.ok ? "" : res.message, /name is too long/i);
+    }
+  });
+
+  it("refuses an email over PATIENT_EMAIL_MAX_LENGTH, online and manual", () => {
+    const atLimit = `${"m".repeat(PATIENT_EMAIL_MAX_LENGTH - "@example.com".length)}@example.com`;
+    assert.equal(atLimit.length, PATIENT_EMAIL_MAX_LENGTH);
+    assert.equal(parseBookingPatientFields({ ...valid, patientEmail: atLimit }, "online", TODAY).ok, true);
+    for (const source of ["online", "manual"] as const) {
+      const res = parseBookingPatientFields({ ...valid, patientEmail: `m${atLimit}` }, source, TODAY);
+      assert.equal(res.ok, false, source);
+      assert.match(res.ok ? "" : res.message, /valid email/i);
+    }
+  });
+
+  it("refuses a phone over PATIENT_PHONE_MAX_LENGTH even when its digits are a real mobile", () => {
+    // Spaces collapse to one; dashes and dots stay, and still read as a real mobile.
+    const padded = `+357${"-.".repeat(PATIENT_PHONE_MAX_LENGTH / 2)}99123456`;
+    assert.equal(onlineBookingPhoneProblem(padded), null);
+    for (const source of ["online", "manual"] as const) {
+      const res = parseBookingPatientFields({ ...valid, patientPhone: padded }, source, TODAY);
+      assert.equal(res.ok, false, source);
+      assert.match(res.ok ? "" : res.message, /mobile/i);
+    }
+  });
+
+  it("uses limits that match the database checks", () => {
+    assert.equal(PATIENT_NAME_MAX_LENGTH, 200);
+    assert.equal(PATIENT_EMAIL_MAX_LENGTH, 254);
+    assert.equal(PATIENT_PHONE_MAX_LENGTH, 32);
   });
 });

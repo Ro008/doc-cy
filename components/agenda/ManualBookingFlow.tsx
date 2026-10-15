@@ -19,7 +19,11 @@ import {
 } from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
-import { type PatientGender } from "@/lib/booking-patient-fields";
+import {
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_NAME_MAX_LENGTH,
+  type PatientGender,
+} from "@/lib/booking-patient-fields";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { manualPhoneProblem } from "@/lib/phone-number";
 import {
@@ -622,6 +626,7 @@ export function ManualBookingFlow({
                   aria-describedby={errorFor("patientName") ? "manualPatientName-error" : undefined}
                   className={fieldClass("patientName")}
                   placeholder="Patient full name"
+                  maxLength={PATIENT_NAME_MAX_LENGTH}
                   autoComplete="off"
                 />
                 {fieldMessage("patientName")}
@@ -724,6 +729,7 @@ export function ManualBookingFlow({
               <input
                 id="manualPatientEmail"
                 type="email"
+                maxLength={PATIENT_EMAIL_MAX_LENGTH}
                 inputMode="email"
                 autoComplete="off"
                 value={patientEmail}

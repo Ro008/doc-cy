@@ -7,6 +7,11 @@ import {
   firstBookingFormError,
   type BookingFormValues,
 } from "../../lib/booking-form-validation";
+import {
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_NAME_MAX_LENGTH,
+  PATIENT_NAME_PART_MAX_LENGTH,
+} from "../../lib/booking-patient-fields";
 
 const complete: BookingFormValues = {
   patientFirstName: "Maria",
@@ -221,5 +226,18 @@ describe("allBookingFormErrors", () => {
   it("is what firstBookingFormError takes its answer from", () => {
     assert.deepEqual(firstBookingFormError(empty), allBookingFormErrors(empty)[0]);
     assert.equal(firstBookingFormError(complete), null);
+  });
+});
+
+describe("allBookingFormErrors: length limits, as the server (2026-10-15)", () => {
+  it("flags an email longer than the server takes", () => {
+    const tooLong = `${"m".repeat(PATIENT_EMAIL_MAX_LENGTH)}@example.com`;
+    assert.deepEqual(allBookingFormErrors({ ...complete, patientEmail: tooLong }), [
+      { field: "patientEmail", messageKey: "validEmail" },
+    ]);
+  });
+
+  it("keeps the two name boxes, joined with a space, within the server's limit", () => {
+    assert.ok(PATIENT_NAME_PART_MAX_LENGTH * 2 + 1 <= PATIENT_NAME_MAX_LENGTH);
   });
 });

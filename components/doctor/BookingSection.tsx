@@ -23,7 +23,11 @@ import {
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
-import { type PatientGender } from "@/lib/booking-patient-fields";
+import {
+  PATIENT_EMAIL_MAX_LENGTH,
+  PATIENT_NAME_PART_MAX_LENGTH,
+  type PatientGender,
+} from "@/lib/booking-patient-fields";
 import { BOOKING_SLOT_REFRESH_MS, bookingRefusal, hideRefusedSlot } from "@/lib/booking-refusal";
 import {
   allBookingFormErrors,
@@ -945,6 +949,7 @@ export function BookingSection({
                 }}
                 aria-invalid={errorFor("patientFirstName") ? true : undefined}
                 aria-describedby={errorFor("patientFirstName") ? "firstName-error" : undefined}
+                maxLength={PATIENT_NAME_PART_MAX_LENGTH}
                 autoComplete="given-name"
                 className={INPUT_CLASS(Boolean(errorFor("patientFirstName")))}
               />
@@ -970,6 +975,7 @@ export function BookingSection({
                 }}
                 aria-invalid={errorFor("patientLastName") ? true : undefined}
                 aria-describedby={errorFor("patientLastName") ? "lastName-error" : undefined}
+                maxLength={PATIENT_NAME_PART_MAX_LENGTH}
                 autoComplete="family-name"
                 className={INPUT_CLASS(Boolean(errorFor("patientLastName")))}
               />
@@ -1006,6 +1012,7 @@ export function BookingSection({
                   setFieldErrors((prev) => ({ ...prev, patientEmail: "validEmail" }));
                 }
               }}
+              maxLength={PATIENT_EMAIL_MAX_LENGTH}
               autoComplete="email"
               aria-invalid={errorFor("patientEmail") ? true : undefined}
               aria-describedby={errorFor("patientEmail") ? "email-error" : undefined}

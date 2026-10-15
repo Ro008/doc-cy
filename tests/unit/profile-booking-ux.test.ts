@@ -286,3 +286,17 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.match(booking, /data-testid="booking-form-service"/);
   });
 });
+
+describe("booking forms stop typing at the server's limits (2026-10-15)", () => {
+  it("the public form's name and email boxes", () => {
+    const booking = read("components/doctor/BookingSection.tsx");
+    assert.equal(booking.match(/maxLength=\{PATIENT_NAME_PART_MAX_LENGTH\}/g)?.length, 2);
+    assert.match(booking, /maxLength=\{PATIENT_EMAIL_MAX_LENGTH\}/);
+  });
+
+  it("the professional's manual booking form", () => {
+    const manual = read("components/agenda/ManualBookingFlow.tsx");
+    assert.match(manual, /maxLength=\{PATIENT_NAME_MAX_LENGTH\}/);
+    assert.match(manual, /maxLength=\{PATIENT_EMAIL_MAX_LENGTH\}/);
+  });
+});
