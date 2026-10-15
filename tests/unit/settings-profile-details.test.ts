@@ -114,8 +114,8 @@ describe("validateQualification", () => {
     });
   });
 
-  it("caps the list at six", () => {
-    assert.equal(MAX_QUALIFICATIONS, 6);
+  it("caps the list at twenty, as services (user, 2026-10-15; six was too few for a CV)", () => {
+    assert.equal(MAX_QUALIFICATIONS, 20);
   });
 });
 

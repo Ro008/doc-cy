@@ -35,6 +35,7 @@ export async function ProfileServicesSection({ services }: { services: readonly 
         {t("servicesHeading")}
       </h2>
       <ProfileShowAll
+        name="services"
         shown={SERVICES_SHOWN}
         collapseAbove={SERVICES_COLLAPSE_ABOVE}
         total={services.length}

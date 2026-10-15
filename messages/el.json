@@ -199,6 +199,7 @@
     "heroSeesChildren": "Μόνο παιδιά",
     "heroSeesAll": "Βλέπει ενήλικες και παιδιά",
     "qualificationsHeading": "Τίτλοι σπουδών",
+    "qualificationsShowMore": "{count} ακόμη τίτλοι σπουδών",
     "speaksLabel": "Μιλά",
     "heroSpeaks": "Μιλά {languages}",
     "servicesHeading": "Υπηρεσίες & τιμές",

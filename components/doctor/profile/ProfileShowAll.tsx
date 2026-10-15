@@ -5,11 +5,12 @@ import { useState, type ReactNode } from "react";
 
 /**
  * A card of rows that shows its first rows and a "Show N more" row for the rest (Services &
- * prices). It only folds when that saves real space: up to `collapseAbove` rows all show
- * (user, 2026-10-14). The other rows stay in the page for search engines, only hidden
- * (display: none, so the browser's find-in-page does not reach them until opened).
+ * prices, Qualifications). It only folds when that saves real space: up to `collapseAbove`
+ * rows all show (user, 2026-10-14). The other rows stay in the page for search engines, only
+ * hidden (display: none, so the browser's find-in-page does not reach them until opened).
  */
 export function ProfileShowAll({
+  name,
   shown,
   collapseAbove,
   total,
@@ -19,6 +20,8 @@ export function ProfileShowAll({
   listClassName,
   children,
 }: {
+  /** Which list: names its ids (`profile-services-list`, `profile-qualifications-show-all`). */
+  name: "services" | "qualifications";
   /** Rows visible while folded; 6 at most, as nth-child below. */
   shown: 6;
   /** Fold only past this many rows. */
@@ -37,7 +40,7 @@ export function ProfileShowAll({
   return (
     <div className={className}>
       <ul
-        id="profile-services-list"
+        id={`profile-${name}-list`}
         data-collapsed={collapsed ? "" : undefined}
         className={`${listClassName} [&[data-collapsed]>li:nth-child(n+7)]:hidden`}
       >
@@ -48,9 +51,9 @@ export function ProfileShowAll({
         <button
           type="button"
           aria-expanded={open}
-          aria-controls="profile-services-list"
+          aria-controls={`profile-${name}-list`}
           onClick={() => setOpen((value) => !value)}
-          data-testid="profile-services-show-all"
+          data-testid={`profile-${name}-show-all`}
           className="flex min-h-12 w-full items-center justify-center gap-1.5 border-t border-profile-border px-4 text-sm font-bold text-accent-link transition hover:bg-accent-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         >
           {open ? showFewerLabel : showMoreLabel}

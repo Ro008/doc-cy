@@ -69,6 +69,29 @@ describe("qualifications, on the public profile", () => {
     assert.doesNotMatch(section, /dangerouslySetInnerHTML/);
   });
 
+  it("folds like Services: all up to 8, else 6 and \"Show N more qualifications\" (user, 2026-10-15)", () => {
+    const section = read("components/doctor/profile/ProfileQualificationsSection.tsx");
+    assert.match(section, /<ProfileShowAll\b/);
+    assert.match(section, /name="qualifications"/);
+    assert.match(section, /QUALIFICATIONS_SHOWN = 6/);
+    assert.match(section, /QUALIFICATIONS_COLLAPSE_ABOVE = 8/);
+    assert.match(
+      section,
+      /t\("qualificationsShowMore", \{ count: qualifications\.length - QUALIFICATIONS_SHOWN \}\)/,
+    );
+    // One component for both lists: its ids follow the list's name.
+    const showAll = read("components/doctor/profile/ProfileShowAll.tsx");
+    assert.match(showAll, /name: "services" \| "qualifications";/);
+    assert.match(showAll, /id=\{`profile-\$\{name\}-list`\}/);
+    assert.match(showAll, /data-testid=\{`profile-\$\{name\}-show-all`\}/);
+    assert.doesNotMatch(showAll, /"profile-services-list"/);
+    const services = read("components/doctor/profile/ProfileServicesSection.tsx");
+    assert.match(services, /name="services"/);
+    for (const file of ["messages/en.json", "messages/el.json"]) {
+      assert.match(JSON.parse(read(file)).DoctorProfilePage.qualificationsShowMore, /\{count\}/, file);
+    }
+  });
+
   it("gets a tab after Services, only when she has some", () => {
     assert.equal(PROFILE_SECTION_IDS.qualifications, "qualifications");
     assert.deepEqual(

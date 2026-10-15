@@ -1,9 +1,15 @@
 import { GraduationCap } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { ProfileHeadingIcon } from "@/components/doctor/profile/ProfileHeadingIcon";
+import { ProfileShowAll } from "@/components/doctor/profile/ProfileShowAll";
 import { qualificationsNewestFirst } from "@/lib/public/profile-public-details";
 import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 import type { SavedQualification } from "@/lib/settings-profile-details";
+
+/** Rows shown before "Show N more qualifications" (she can list up to 20), newest first. */
+const QUALIFICATIONS_SHOWN = 6;
+/** Up to this many, all show, as in Services & prices (user, 2026-10-15). */
+const QUALIFICATIONS_COLLAPSE_ABOVE = 8;
 
 /**
  * "Qualifications" as a CV lists them (user, 2026-10-14): one card, newest first, the year in a
@@ -31,7 +37,16 @@ export async function ProfileQualificationsSection({
         <ProfileHeadingIcon icon={GraduationCap} />
         {t("qualificationsHeading")}
       </h2>
-      <ul className="divide-y divide-profile-border rounded-2xl border border-profile-border bg-profile-surface">
+      <ProfileShowAll
+        name="qualifications"
+        shown={QUALIFICATIONS_SHOWN}
+        collapseAbove={QUALIFICATIONS_COLLAPSE_ABOVE}
+        total={qualifications.length}
+        showMoreLabel={t("qualificationsShowMore", { count: qualifications.length - QUALIFICATIONS_SHOWN })}
+        showFewerLabel={t("servicesShowFewer")}
+        className="overflow-hidden rounded-2xl border border-profile-border bg-profile-surface"
+        listClassName="divide-y divide-profile-border"
+      >
         {qualificationsNewestFirst(qualifications).map((qualification) => {
           const institution = qualification.institution.trim();
           return (
@@ -55,7 +70,7 @@ export async function ProfileQualificationsSection({
             </li>
           );
         })}
-      </ul>
+      </ProfileShowAll>
     </section>
   );
 }

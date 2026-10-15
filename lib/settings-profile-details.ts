@@ -38,7 +38,7 @@ export const PATIENT_AGE_OPTIONS: ReadonlyArray<{ value: PatientAges; label: str
   { value: "all", label: "Adults and children" },
 ];
 
-export const MAX_QUALIFICATIONS = 6;
+export const MAX_QUALIFICATIONS = 20;
 const QUALIFICATION_FIRST_YEAR = 1950;
 
 export type Qualification = { title: string; institution: string; year: number | null };

@@ -256,6 +256,7 @@
     "heroSeesChildren": "Sees children only",
     "heroSeesAll": "Sees adults and children",
     "qualificationsHeading": "Qualifications",
+    "qualificationsShowMore": "Show {count} more qualifications",
     "speaksLabel": "Speaks",
     "heroSpeaks": "Speaks {languages}",
     "servicesHeading": "Services & prices",
