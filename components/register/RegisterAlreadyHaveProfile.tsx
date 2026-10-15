@@ -12,7 +12,7 @@ export function RegisterAlreadyHaveProfile({ listingName }: { listingName: strin
       <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 pb-10 sm:px-8">
         <header className="flex h-16 items-center">
           <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
-            <DocCyWordmark size="lg" />
+            <DocCyWordmark />
           </a>
         </header>
         <section className={`${registerSectionShell} space-y-4 text-sm text-ink-700`}>

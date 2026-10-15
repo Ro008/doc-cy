@@ -61,7 +61,7 @@ export function ForgotPasswordForm({
         <div className="w-full max-w-md rounded-3xl border border-clinical-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           <div className="mb-6 text-left">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
-              <DocCyWordmark variant="dark" size="sm" />
+              <DocCyWordmark variant="dark" />
               <span>· Professional Login</span>
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">

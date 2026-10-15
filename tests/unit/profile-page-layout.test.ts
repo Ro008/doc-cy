@@ -450,3 +450,24 @@ describe("public profile: all section tabs fit on a phone (user, 2026-10-14)", (
     }
   });
 });
+
+describe("the DocCy logo: one size in every header (user, 2026-10-15)", () => {
+  it("32px from tablets up, 28px on a phone; only the sales page keeps its large logo", () => {
+    const mark = read("components/brand/DocCyWordmark.tsx");
+    assert.match(mark, /size\?: "md" \| "xl";/);
+    assert.match(mark, /md: "h-7 sm:h-8"/);
+    for (const file of [
+      "components/auth/ForgotPasswordForm.tsx",
+      "components/auth/LoginPageClient.tsx",
+      "components/auth/ResetPasswordForm.tsx",
+      "components/register/RegisterAlreadyHaveProfile.tsx",
+      "app/agenda/status/page.tsx",
+      "app/blog/page.tsx",
+      "app/privacy/page.tsx",
+      "app/register/page.tsx",
+      "app/terms/page.tsx",
+    ]) {
+      assert.doesNotMatch(read(file), /<DocCyWordmark[^>]*size="(sm|lg)"/, file);
+    }
+  });
+});

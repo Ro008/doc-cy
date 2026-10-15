@@ -175,7 +175,7 @@ export function LoginPageClient({
           <div className="mb-6 text-left">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
               <PendingLink href="/" className="inline-flex shrink-0 transition hover:opacity-90">
-                <DocCyWordmark variant="dark" size="sm" />
+                <DocCyWordmark variant="dark" />
               </PendingLink>
               <span>· Professional Login</span>
             </p>

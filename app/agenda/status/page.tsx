@@ -70,7 +70,7 @@ export default async function RegistrationStatusPage() {
         {/* Log out lives in the account menu (desktop) and the bottom bar (phone), and the
             desktop header has the logo: no second copy here (user, 2026-10-08). */}
         <header className="lg:hidden">
-          <DocCyWordmark size="lg" />
+          <DocCyWordmark />
         </header>
         {signOutNow ? <SignOutOnMount /> : null}
 
