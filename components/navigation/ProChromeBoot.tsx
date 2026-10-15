@@ -39,7 +39,7 @@ export function ProChromeBoot() {
         id={PRO_CHROME_BOOT_TABS_ID}
         aria-label="Professional navigation"
         data-testid="userbar-mobile-tabs-boot"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-ink-900/85 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_28px_rgba(15,31,46,0.55)] backdrop-blur-2xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-pro-page/85 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_28px_rgba(15,31,46,0.55)] backdrop-blur-2xl lg:hidden"
       >
         <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
           {DOCTOR_NAV_TABS.map((tab) => {
@@ -63,7 +63,7 @@ export function ProChromeBoot() {
         href={DOCTOR_HOME_PATH}
         aria-label="Open Dashboard"
         data-testid="userbar-toggle-boot"
-        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 no-underline shadow-sm shadow-ink-900/40"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-pro-page/90 px-1.5 py-1 no-underline shadow-sm shadow-ink-900/40"
       >
         {/* An empty circle until her photo loads; no letters (user, 2026-10-14). */}
         <span className="relative flex h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9" />
@@ -73,7 +73,7 @@ export function ProChromeBoot() {
       <header
         id={PRO_CHROME_BOOT_STICKY_ID}
         data-testid="pro-sticky-header-boot"
-        className="sticky top-0 z-50 border-b border-clinical-400/15 bg-ink-900/90 shadow-sm shadow-ink-900/25 backdrop-blur-md"
+        className="sticky top-0 z-50 border-b border-clinical-400/15 bg-pro-page/90 shadow-sm shadow-ink-900/25 backdrop-blur-md"
       >
         <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-6">
@@ -92,7 +92,7 @@ export function ProChromeBoot() {
               ))}
             </nav>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40">
+          <span className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-pro-page/90 px-1.5 py-1 shadow-sm shadow-ink-900/40">
             <span className="relative flex h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9" />
             <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
           </span>

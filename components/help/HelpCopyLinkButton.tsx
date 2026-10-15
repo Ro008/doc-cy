@@ -31,7 +31,7 @@ export function HelpCopyLinkButton({ slug, title }: { slug: string; title: strin
       onClick={copy}
       aria-label={`Copy link to ${title}`}
       data-testid="help-copy-link"
-      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-700/80 px-2.5 text-xs font-semibold text-slate-300 transition hover:border-clinical-400/60 hover:text-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-pro-line/80 px-2.5 text-xs font-semibold text-slate-300 transition hover:border-clinical-400/60 hover:text-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
     >
       {copied ? (
         <Check className="h-3.5 w-3.5 text-clinical-300" aria-hidden />

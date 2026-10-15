@@ -100,8 +100,8 @@ export function ClinicTimePicker({
             ? `rounded-lg px-2 py-1 text-sm tabular-nums transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
                 invalid ? "text-red-200" : open ? "bg-white/10 text-clinical-50" : "text-slate-100"
               }`
-            : `flex w-28 items-center justify-between gap-2 rounded-xl border bg-slate-950/60 px-3 py-2 text-sm tabular-nums text-slate-100 transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
-                invalid ? "border-red-400/70" : open ? "border-clinical-400/60" : "border-slate-700"
+            : `flex w-28 items-center justify-between gap-2 rounded-xl border bg-pro-page/60 px-3 py-2 text-sm tabular-nums text-slate-100 transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 ${
+                invalid ? "border-red-400/70" : open ? "border-clinical-400/60" : "border-pro-line"
               }`
         }
       >
@@ -115,7 +115,7 @@ export function ClinicTimePicker({
         <div
           role="dialog"
           aria-label={label}
-          className={`absolute top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-3rem)] rounded-xl border border-slate-800 bg-slate-950 p-3 shadow-xl ${
+          className={`absolute top-full z-50 mt-1.5 w-64 max-w-[calc(100vw-3rem)] rounded-xl border border-pro-line bg-pro-page p-3 shadow-xl ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
@@ -156,7 +156,7 @@ export function ClinicTimePicker({
                   close();
                 }}
                 className={`${CHOICE_CLASS} h-9 ${
-                  choice === minute ? CHOICE_ON : "border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-white/5"
+                  choice === minute ? CHOICE_ON : "border-pro-line text-slate-300 hover:border-slate-500 hover:bg-white/5"
                 }`}
               >
                 :{choice}

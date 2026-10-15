@@ -13,7 +13,7 @@ export type PillSelectOption = {
 const LIST_MAX_PX = 288;
 
 const PILL =
-  "inline-flex h-10 items-center gap-2 rounded-full border border-slate-700/80 bg-ink-900/70 px-3.5 text-sm text-slate-200 transition hover:border-clinical-500/50 hover:bg-ink-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
+  "inline-flex h-10 items-center gap-2 rounded-full border border-pro-line/80 bg-pro-page/70 px-3.5 text-sm text-slate-200 transition hover:border-clinical-500/50 hover:bg-pro-page focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
 
 /**
  * A filter dropdown in the Visits panel's style (user, 2026-10-12), replacing the browser's
@@ -138,7 +138,7 @@ export function PillSelect({
           role="listbox"
           aria-label={label}
           data-testid={`${id}-list`}
-          className={`absolute z-30 mt-2 max-h-72 w-max min-w-full max-w-[min(18rem,calc(100vw-2rem))] overflow-auto rounded-2xl border border-white/10 bg-ink-900 p-1.5 shadow-2xl shadow-black/50 ${alignRight ? "right-0" : "left-0"}`}
+          className={`absolute z-30 mt-2 max-h-72 w-max min-w-full max-w-[min(18rem,calc(100vw-2rem))] overflow-auto rounded-2xl border border-pro-line bg-pro-card p-1.5 shadow-2xl shadow-black/50 ${alignRight ? "right-0" : "left-0"}`}
         >
           {all.map((o, i) => {
             const isSelected = o.value === value;

@@ -63,7 +63,7 @@ export function SettingsSidebar({
             return (
               <li
                 key={section.id}
-                className={`min-w-0${startsAccountGroup ? " lg:mt-2 lg:border-t lg:border-slate-800 lg:pt-3" : ""}`}
+                className={`min-w-0${startsAccountGroup ? " lg:mt-2 lg:border-t lg:border-pro-line lg:pt-3" : ""}`}
               >
                 <a
                   href={settingsSectionHref(section.id)}

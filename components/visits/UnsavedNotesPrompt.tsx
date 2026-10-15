@@ -57,13 +57,13 @@ export function UnsavedNotesPrompt() {
   if (!pending) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/70 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-pro-page/70 px-4 backdrop-blur-sm">
       <div
         role="alertdialog"
         aria-modal="true"
         aria-label="Unsaved notes"
         data-testid="visits-unsaved-prompt"
-        className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-800 px-4 py-4 shadow-2xl shadow-black/50"
+        className="w-full max-w-sm rounded-2xl border border-slate-600 bg-pro-raised px-4 py-4 shadow-2xl shadow-black/50"
       >
         <p className="text-sm text-slate-200">You have notes that are not saved yet.</p>
         <div className="mt-3 flex gap-2">

@@ -25,7 +25,7 @@ export function DashboardHelpTour() {
   return (
     <aside
       data-testid="dashboard-help-tour"
-      className="flex items-center gap-3 rounded-2xl border border-clinical-400/30 bg-gradient-to-r from-clinical-500/15 to-slate-900/60 px-4 py-3 transition-opacity motion-safe:animate-fade-up"
+      className="flex items-center gap-3 rounded-2xl border border-clinical-400/30 bg-gradient-to-r from-clinical-500/15 to-pro-card/60 px-4 py-3 transition-opacity motion-safe:animate-fade-up"
       style={{ opacity: closing.has(TOUR_ID) ? 0 : 1, transitionDuration: `${CLOSE_FADE_MS}ms` }}
     >
       <PlayCircle className="h-6 w-6 shrink-0 text-clinical-300" aria-hidden />

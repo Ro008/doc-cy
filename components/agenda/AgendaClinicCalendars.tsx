@@ -62,7 +62,7 @@ export function AgendaClinicCalendars({
           return (
             <label
               key={clinic.id}
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-slate-200 transition hover:bg-slate-800/70"
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-slate-200 transition hover:bg-pro-raised/70"
             >
               <input
                 type="checkbox"
@@ -121,8 +121,8 @@ export function AgendaClinicCalendars({
               onClick={() => onToggle(clinic.id)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition ${
                 visible
-                  ? "border-slate-500 bg-slate-800/90 text-slate-100"
-                  : "border-slate-700 bg-transparent text-slate-500"
+                  ? "border-slate-500 bg-pro-raised/90 text-slate-100"
+                  : "border-pro-line bg-transparent text-slate-500"
               }`}
             >
               <span

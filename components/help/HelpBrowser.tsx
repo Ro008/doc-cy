@@ -17,7 +17,7 @@ function ContentsList({ sections }: { sections: typeof HELP_MANUAL }) {
           <a href={`#${section.id}`} className="font-semibold text-slate-100 hover:text-clinical-200">
             {section.title}
           </a>
-          <ul className="mt-1.5 space-y-1 border-l border-slate-700/70 pl-3">
+          <ul className="mt-1.5 space-y-1 border-l border-pro-line/70 pl-3">
             {section.articles.map((article) => (
               <li key={article.slug}>
                 <a href={`#${article.slug}`} className="text-slate-400 hover:text-clinical-200">
@@ -38,10 +38,10 @@ function TutorialCard({ article }: { article: HelpArticle }) {
     <a
       href={`#${article.slug}`}
       data-testid="help-tutorial-card"
-      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/70 transition hover:-translate-y-0.5 hover:border-clinical-400/50 hover:shadow-xl hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-pro-line/70 bg-pro-card transition hover:-translate-y-0.5 hover:border-clinical-400/50 hover:shadow-xl hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
     >
       {article.video ? (
-        <div className="relative aspect-video w-full bg-ink-900">
+        <div className="relative aspect-video w-full bg-pro-page">
           <Image
             src={article.video.poster}
             alt=""
@@ -49,11 +49,11 @@ function TutorialCard({ article }: { article: HelpArticle }) {
             sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
             className="object-cover transition duration-300 group-hover:scale-[1.03]"
           />
-          <span className="absolute inset-0 bg-ink-900/25" aria-hidden />
+          <span className="absolute inset-0 bg-pro-page/25" aria-hidden />
           <span className="absolute left-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-clinical-500 text-ink-900 shadow-lg">
             <Play className="ml-0.5 h-4 w-4 fill-current" aria-hidden />
           </span>
-          <span className="absolute bottom-2.5 right-2.5 rounded-md bg-ink-900/85 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
+          <span className="absolute bottom-2.5 right-2.5 rounded-md bg-pro-page/85 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
             {article.video.durationLabel}
           </span>
         </div>
@@ -72,7 +72,7 @@ function TutorialCard({ article }: { article: HelpArticle }) {
 
 function ContactCard({ heading, body }: { heading: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-clinical-400/30 bg-gradient-to-br from-clinical-500/15 to-slate-900/60 p-5">
+    <div className="rounded-2xl border border-clinical-400/30 bg-gradient-to-br from-clinical-500/15 to-pro-card/60 p-5">
       <p className="text-base font-semibold text-slate-50">{heading}</p>
       <p className="mt-1 text-sm leading-6 text-slate-300">{body}</p>
       <div className="mt-4">
@@ -91,7 +91,7 @@ export function HelpBrowser() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-14 lg:pt-8">
-      <header className="relative overflow-hidden rounded-3xl border border-clinical-400/25 bg-gradient-to-br from-clinical-500/20 via-slate-900/80 to-ink-900 px-5 py-8 sm:px-8 sm:py-10">
+      <header className="relative overflow-hidden rounded-3xl border border-clinical-400/25 bg-gradient-to-br from-clinical-500/20 via-pro-card/80 to-pro-page px-5 py-8 sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-clinical-400/20 blur-3xl" aria-hidden />
         <p className="relative text-xs font-semibold uppercase tracking-[0.18em] text-clinical-300">Help &amp; tutorials</p>
         <h1 className="relative mt-2 text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
@@ -115,7 +115,7 @@ export function HelpBrowser() {
             placeholder="Search, e.g. decline"
             autoComplete="off"
             data-testid="help-search"
-            className="w-full rounded-full border border-slate-600/70 bg-ink-900/80 py-3 pl-12 pr-11 text-base text-slate-50 placeholder:text-slate-500 focus:border-clinical-400/70 focus:outline-none focus:ring-2 focus:ring-clinical-400/40"
+            className="w-full rounded-full border border-slate-600/70 bg-pro-page/80 py-3 pl-12 pr-11 text-base text-slate-50 placeholder:text-slate-500 focus:border-clinical-400/70 focus:outline-none focus:ring-2 focus:ring-clinical-400/40"
           />
           {searching ? (
             <button
@@ -162,7 +162,7 @@ export function HelpBrowser() {
       <div className="mt-10 grid gap-8 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-10">
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <details
-            className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 lg:hidden"
+            className="rounded-2xl border border-pro-line/70 bg-pro-card p-4 lg:hidden"
             data-testid="help-contents-mobile"
           >
             <summary className="cursor-pointer text-sm font-semibold text-slate-100">In this manual</summary>
@@ -174,7 +174,7 @@ export function HelpBrowser() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">In this manual</p>
             <ContentsList sections={sections} />
           </nav>
-          <div className="hidden rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 lg:block">
+          <div className="hidden rounded-2xl border border-pro-line/70 bg-pro-card p-4 lg:block">
             <p className="text-sm font-semibold text-slate-100">Need a hand?</p>
             <p className="mt-1 text-xs leading-5 text-slate-400">Write to us. We read every message.</p>
             <div className="mt-3">
@@ -185,7 +185,7 @@ export function HelpBrowser() {
 
         <div className="min-w-0 space-y-14">
           {sections.length === 0 ? (
-            <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-6 text-center" data-testid="help-empty">
+            <div className="rounded-2xl border border-pro-line/70 bg-pro-card p-6 text-center" data-testid="help-empty">
               <p className="text-base font-semibold text-slate-50">Nothing matches &ldquo;{query.trim()}&rdquo;</p>
               <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-400">
                 Try another word, or tell us what you are trying to do and we will help you, and may make a tutorial
@@ -195,7 +195,7 @@ export function HelpBrowser() {
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="rounded-full border border-slate-600/70 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                  className="rounded-full border border-slate-600/70 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-pro-raised"
                 >
                   Show all tutorials
                 </button>
@@ -217,7 +217,7 @@ export function HelpBrowser() {
                       key={article.slug}
                       id={article.slug}
                       data-testid="help-article"
-                      className="scroll-mt-24 rounded-3xl border border-slate-700/70 bg-slate-900/50 p-4 shadow-lg shadow-black/10 sm:p-6"
+                      className="scroll-mt-24 rounded-3xl border border-pro-line/70 bg-pro-card p-4 shadow-lg shadow-black/10 sm:p-6"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -233,7 +233,7 @@ export function HelpBrowser() {
                         </div>
                       ) : null}
 
-                      <div className="mt-5 rounded-2xl bg-ink-900/60 p-4 sm:p-5">
+                      <div className="mt-5 rounded-2xl bg-pro-page/60 p-4 sm:p-5">
                         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-clinical-300">
                           <ListChecks className="h-4 w-4" aria-hidden />
                           Step by step
@@ -250,7 +250,7 @@ export function HelpBrowser() {
                         </ol>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-slate-700/60 pt-4">
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-pro-line/60 pt-4">
                         <div className="flex items-center gap-2 text-sm text-slate-400">
                           Still unsure?
                           <HelpContactButton

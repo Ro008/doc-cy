@@ -323,7 +323,7 @@ export function UserBar() {
         aria-expanded={isMenuOpen}
         aria-haspopup="menu"
         data-testid="userbar-toggle"
-        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-pro-page/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
       >
         <div className="relative h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9">
           <UserAvatar
@@ -341,7 +341,7 @@ export function UserBar() {
         <div
           role="menu"
           data-testid="userbar-menu"
-          className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
+          className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-pro-card/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
         >
           <AccountHeader
             avatarUrl={sessionState.avatarUrl}
@@ -391,7 +391,7 @@ export function UserBar() {
       {useStickyDesktopChrome ? (
         <header
           data-testid="pro-sticky-header"
-          className="sticky top-0 z-50 hidden border-b border-clinical-400/15 bg-ink-900/90 shadow-sm shadow-ink-900/25 backdrop-blur-md lg:block"
+          className="sticky top-0 z-50 hidden border-b border-clinical-400/15 bg-pro-page/90 shadow-sm shadow-ink-900/25 backdrop-blur-md lg:block"
         >
           <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-6">
@@ -424,14 +424,14 @@ export function UserBar() {
           type="button"
           aria-label="Close menu"
           data-testid="userbar-mobile-more-backdrop"
-          className="fixed inset-0 z-40 bg-ink-900/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-pro-page/50 lg:hidden"
           onClick={handleCloseMenus}
         />
       ) : null}
       <nav
         aria-label="Professional navigation"
         data-testid="userbar-mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-white/10 bg-ink-900/85 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_28px_rgba(15,31,46,0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-ink-900/72 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-white/10 bg-pro-page/85 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_28px_rgba(15,31,46,0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-pro-page/72 lg:hidden"
       >
         <div
           aria-hidden
@@ -442,7 +442,7 @@ export function UserBar() {
             ref={mobileMoreMenuRef}
             role="menu"
             data-testid="userbar-mobile-more-menu"
-            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/90 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-ink-900/82"
+            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-white/10 bg-pro-card/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-pro-card/90"
           >
             <AccountHeader
               avatarUrl={sessionState.avatarUrl}

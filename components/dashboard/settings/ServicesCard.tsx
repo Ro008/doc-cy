@@ -30,8 +30,8 @@ import {
 } from "@/lib/settings-services";
 
 const INPUT_CLASS =
-  "w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
-const INPUT_OK = "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30";
+  "w-full rounded-xl border bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
+const INPUT_OK = "border-pro-line focus:border-clinical-400/60 focus:ring-clinical-400/30";
 const INPUT_BAD = "border-red-400/70 focus:border-red-400 focus:ring-red-400/25";
 const ICON_BUTTON_CLASS =
   "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-progress aria-busy:opacity-100";
@@ -182,7 +182,7 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
       <fieldset
         disabled={busy}
         data-testid="settings-service-form"
-        className="min-w-0 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+        className="min-w-0 space-y-4 rounded-2xl border border-pro-line bg-pro-page/40 p-4"
       >
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem]">
           <div>
@@ -242,7 +242,7 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
             type="checkbox"
             checked={typed.priceFrom}
             onChange={(event) => set("priceFrom", event.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-950 accent-clinical-400"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-600 bg-pro-page accent-clinical-400"
           />
           <span>
             This is a starting price
@@ -293,7 +293,7 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
       </div>
 
       {items.length > 0 ? (
-        <ul className="mt-3 divide-y divide-slate-800/80">
+        <ul className="mt-3 divide-y divide-pro-line/80">
           {items.map((service) => {
             if (open === service.id) {
               return (

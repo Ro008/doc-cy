@@ -20,8 +20,8 @@ import { validateNameChangeRequest } from "@/lib/settings-profile-details";
 export type PendingNameChange = Pick<PendingProfileChange, "name" | "createdAt">;
 
 const INPUT_CLASS =
-  "mt-1.5 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
-const INPUT_OK = "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30";
+  "mt-1.5 w-full rounded-xl border bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
+const INPUT_OK = "border-pro-line focus:border-clinical-400/60 focus:ring-clinical-400/30";
 const INPUT_BAD = "border-red-400/70 focus:border-red-400 focus:ring-red-400/25";
 
 /**
@@ -183,7 +183,7 @@ export function ProfileNameField({
         <fieldset
           disabled={busy}
           data-testid="settings-name-change-form"
-          className="order-last min-w-0 basis-full space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="order-last min-w-0 basis-full space-y-4 rounded-2xl border border-pro-line bg-pro-page/40 p-4"
         >
           <div>
             <label htmlFor={nameId} className="text-xs font-medium text-slate-300">

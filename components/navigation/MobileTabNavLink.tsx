@@ -66,7 +66,7 @@ export function MobileTabNavLink({
             data-testid={testId ? `${testId}-badge` : undefined}
             aria-label={`${badge} waiting`}
             key={badge}
-            className="absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-clinical-400 px-1 text-[10px] font-bold leading-none text-ink-900 ring-2 ring-ink-900 motion-safe:animate-pop"
+            className="absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-clinical-400 px-1 text-[10px] font-bold leading-none text-ink-900 ring-2 ring-pro-page motion-safe:animate-pop"
           >
             {badge}
           </span>

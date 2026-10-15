@@ -31,7 +31,7 @@ export function ScrollFade({ testId = "dashboard-scroll-fade" }: { testId?: stri
       aria-hidden
       data-testid={testId}
       data-visible={visible ? "true" : "false"}
-      className={`pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 h-24 bg-gradient-to-t from-ink-900 via-ink-900/70 to-transparent transition-opacity duration-300 lg:bottom-0 ${
+      className={`pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 h-24 bg-gradient-to-t from-pro-page via-pro-page/70 to-transparent transition-opacity duration-300 lg:bottom-0 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     />

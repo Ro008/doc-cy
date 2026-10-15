@@ -249,15 +249,15 @@ export function VisitDetailsDialog({
       <button
         type="button"
         onClick={() => closeVisitDialog()}
-        className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-pro-page/70 backdrop-blur-sm"
         aria-label="Close"
         disabled={modalBusy}
       />
-      <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
+      <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-pro-card p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
         <button
           type="button"
           onClick={() => closeVisitDialog()}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-pro-raised hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Close"
           disabled={modalBusy}
         >
@@ -287,11 +287,11 @@ export function VisitDetailsDialog({
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {selected.isExpired ? (
-            <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+            <p className="inline-flex rounded-full border border-slate-600/80 bg-pro-raised/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
               Expired request
             </p>
           ) : selectedPast ? (
-            <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+            <p className="inline-flex rounded-full border border-slate-600/80 bg-pro-raised/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
               Past visit
             </p>
           ) : null}
@@ -321,7 +321,7 @@ export function VisitDetailsDialog({
           email={selected.patient_email}
         />
         {purpose.service ? (
-          <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
+          <div className="mt-3 rounded-xl border border-pro-line/70 bg-pro-card px-3 py-2">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Service</p>
             <p data-testid="visit-details-service" className="mt-1 text-sm font-semibold text-slate-100">
               {purpose.service}
@@ -329,7 +329,7 @@ export function VisitDetailsDialog({
           </div>
         ) : null}
         {purpose.service && !purpose.reason ? null : (
-        <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
+        <div className="mt-3 rounded-xl border border-pro-line/70 bg-pro-card px-3 py-2">
           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
             Reason for visit
           </p>
@@ -390,7 +390,7 @@ export function VisitDetailsDialog({
                     void setAttendanceNoShow(false);
                   }}
                   disabled={markingAttendance}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-pro-raised/60 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {markingAttendance ? (
                     <>
@@ -443,7 +443,7 @@ export function VisitDetailsDialog({
             role="alertdialog"
             aria-label="Unsaved notes"
             data-testid="discard-notes-prompt"
-            className="mt-3 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5"
+            className="mt-3 rounded-xl border border-slate-600 bg-pro-raised/80 px-3 py-2.5"
           >
             <p className="text-sm text-slate-200">You have notes that are not saved yet.</p>
             <div className="mt-2 flex gap-2">
@@ -544,7 +544,7 @@ export function VisitDetailsDialog({
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="e.g. A last-minute surgery came up and I need to free this slot — sorry. Please book another time on my profile."
                   rows={4}
-                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+                  className="mt-1.5 w-full resize-y rounded-xl border border-pro-line bg-pro-page/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                   disabled={isCancelling}
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
@@ -589,7 +589,7 @@ export function VisitDetailsDialog({
                       : "e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
                   }
                   rows={4}
-                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+                  className="mt-1.5 w-full resize-y rounded-xl border border-pro-line bg-pro-page/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                   disabled={isCancelling}
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
@@ -597,7 +597,7 @@ export function VisitDetailsDialog({
                 </p>
               </>
             )}
-            <div className="sticky bottom-0 -mx-3 mt-3 border-t border-slate-700/90 bg-slate-900/95 px-3 pb-2 pt-2 backdrop-blur">
+            <div className="sticky bottom-0 -mx-3 mt-3 border-t border-pro-line/90 bg-pro-card px-3 pb-2 pt-2 backdrop-blur">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -607,7 +607,7 @@ export function VisitDetailsDialog({
                     setRejectReason("");
                     setCancelError(null);
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                  className="inline-flex flex-1 items-center justify-center rounded-2xl border border-pro-line bg-pro-raised px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
                 >
                   {cancelMode === "requested" ? "Go back" : "Keep appointment"}
                 </button>

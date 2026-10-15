@@ -65,7 +65,7 @@ export default async function RegistrationStatusPage() {
   const signOutNow = status.kind === "none" && !isAdmin;
 
   return (
-    <main className="flex min-h-screen flex-col bg-ink-900 text-slate-50">
+    <main className="flex min-h-screen flex-col bg-pro-page text-slate-50">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-8 px-4 py-10">
         {/* Log out lives in the account menu (desktop) and the bottom bar (phone), and the
             desktop header has the logo: no second copy here (user, 2026-10-08). */}
@@ -74,7 +74,7 @@ export default async function RegistrationStatusPage() {
         </header>
         {signOutNow ? <SignOutOnMount /> : null}
 
-        <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <section className="space-y-4 rounded-2xl border border-pro-line bg-pro-card p-6">
           {status.kind === "confirm_email" ? (
             <>
               <h1 className="text-xl font-semibold">Confirm your email to send your application</h1>
@@ -144,7 +144,7 @@ export default async function RegistrationStatusPage() {
                 </Link>
                 <Link
                   href="/finder"
-                  className="inline-flex rounded-xl border border-slate-700 px-4 py-2 font-semibold text-slate-200 hover:border-clinical-400/50 hover:text-clinical-200"
+                  className="inline-flex rounded-xl border border-pro-line px-4 py-2 font-semibold text-slate-200 hover:border-clinical-400/50 hover:text-clinical-200"
                 >
                   Back to the finder
                 </Link>

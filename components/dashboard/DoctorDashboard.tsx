@@ -261,11 +261,11 @@ export function DoctorDashboard({
             <NewRequestsBar count={newRequests.count} onShow={newRequests.show} />
           ) : null}
 
-          <div className="mt-3 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
+          <div className="mt-3 overflow-hidden rounded-3xl border border-pro-line/70 bg-pro-card shadow-xl shadow-black/20">
             {pending.length === 0 && noNewTime.length === 0 && missed.length === 0 ? (
               <AllCaughtUp />
             ) : pending.length === 0 ? null : (
-              <ul className="divide-y divide-slate-800/80">
+              <ul className="divide-y divide-pro-line/80">
                 {pending.map((row, index) => (
                   <PendingRequestItem
                     key={row.id}
@@ -290,7 +290,7 @@ export function DoctorDashboard({
               >
                 <div className="min-h-0 overflow-hidden">
                   <div
-                    className={`px-5 py-4 text-sm text-slate-300 ${pending.length > 0 ? "border-t border-slate-800" : ""}`}
+                    className={`px-5 py-4 text-sm text-slate-300 ${pending.length > 0 ? "border-t border-pro-line" : ""}`}
                     data-testid="dashboard-no-new-time"
                   >
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
@@ -321,7 +321,7 @@ export function DoctorDashboard({
                 <div className="min-h-0 overflow-hidden">
                   <div
                     className={`px-5 py-4 text-sm text-slate-300 ${
-                      pending.length > 0 || noNewTime.length > 0 ? "border-t border-slate-800" : ""
+                      pending.length > 0 || noNewTime.length > 0 ? "border-t border-pro-line" : ""
                     }`}
                     data-testid="dashboard-missed-requests"
                   >
@@ -358,7 +358,7 @@ export function DoctorDashboard({
               </div>
             ) : null}
             {awaiting.length > 0 ? (
-              <div className="border-t border-slate-800 px-5 py-3.5 text-sm text-slate-400">
+              <div className="border-t border-pro-line px-5 py-3.5 text-sm text-slate-400">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Waiting for the patient
                 </p>
@@ -488,7 +488,7 @@ function RescheduleNoAnswerItem({
                 type="button"
                 onClick={onClose}
                 disabled={closing}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-pro-raised/70 hover:text-white"
               >
                 Close
               </button>
@@ -550,7 +550,7 @@ function MissedRequestItem({
                 type="button"
                 onClick={onClose}
                 disabled={closing}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-pro-raised/70 hover:text-white"
               >
                 Close
               </button>
@@ -567,7 +567,7 @@ function ClinicTag({ tag, className = "" }: { tag: DashboardClinicTag; className
   return (
     <span
       data-testid="dashboard-clinic-tag"
-      className={`inline-flex max-w-[12rem] items-center gap-1.5 rounded-md border border-slate-700/80 bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-semibold text-slate-200 ${className}`}
+      className={`inline-flex max-w-[12rem] items-center gap-1.5 rounded-md border border-pro-line/80 bg-pro-raised/70 px-1.5 py-0.5 text-[11px] font-semibold text-slate-200 ${className}`}
     >
       <span className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${tag.swatchClass}`} aria-hidden />
       <span className="truncate">{tag.name}</span>
@@ -611,7 +611,7 @@ function AwaitingPatientItem({
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+          <div className="mt-2 rounded-xl border border-pro-line bg-pro-page/40 px-3 py-2.5">
             {summary.slotLabels.length > 0 ? (
               <ul data-testid="dashboard-awaiting-slots" className="flex flex-wrap gap-1.5">
                 {summary.slotLabels.map((label) => (
@@ -660,7 +660,7 @@ function NewRequestsBar({ count, onShow }: { count: number; onShow: () => void }
       <div
         role="status"
         data-testid="dashboard-new-requests-bar"
-        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/50 bg-slate-900/95 py-1 pl-4 pr-1 text-sm shadow-lg shadow-black/30 backdrop-blur motion-safe:animate-fade-up"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/50 bg-pro-card py-1 pl-4 pr-1 text-sm shadow-lg shadow-black/30 backdrop-blur motion-safe:animate-fade-up"
       >
         <span className="h-2 w-2 rounded-full bg-clinical-400 motion-safe:animate-pulse" aria-hidden />
         <span key={count} className="font-semibold text-clinical-100 motion-safe:animate-pop">
@@ -744,7 +744,7 @@ function BookingsPausedNotice({ notices }: { notices: PausedClinicNotice[] }) {
           <button
             type="button"
             onClick={() => void dismiss(n.linkId)}
-            className="rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            className="rounded-full p-1 text-slate-400 transition hover:bg-pro-raised hover:text-slate-200"
             aria-label={`Close the paused notice for ${n.clinicName}`}
           >
             <X className="h-4 w-4" aria-hidden />
@@ -855,10 +855,10 @@ function PendingRequestItem({
             exit === "accepted"
               ? "bg-clinical-500/10"
               : exit === "declined"
-                ? "bg-slate-800/60"
+                ? "bg-pro-raised/60"
                 : busy
-                  ? "cursor-wait bg-slate-800/40"
-                  : "hover:bg-slate-800/30"
+                  ? "cursor-wait bg-pro-raised/40"
+                  : "hover:bg-pro-raised/30"
           }`}
         >
           {/* Phone: date and time on one line above, so the buttons get the full width. */}
@@ -990,7 +990,7 @@ function TodayTimeline({
 
       <div
         data-testid="dashboard-today-schedule"
-        className="mt-3 rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20"
+        className="mt-3 rounded-3xl border border-pro-line/70 bg-pro-card p-5 shadow-xl shadow-black/20"
       >
         <ol className="relative">
           <span aria-hidden className="absolute bottom-3 left-[7px] top-3 w-px bg-gradient-to-b from-slate-700 via-slate-700 to-transparent" />
@@ -1027,7 +1027,7 @@ function PulsingDot({ tone, testId }: { tone: "now" | "next"; testId?: string })
     <span data-testid={testId} className="relative flex h-4 w-4 items-center justify-center">
       <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping ${color}`} />
       <span
-        className={`relative inline-flex h-3 w-3 rounded-full ring-4 ring-slate-900 ${color} ${
+        className={`relative inline-flex h-3 w-3 rounded-full ring-4 ring-pro-card ${color} ${
           tone === "now" ? "motion-safe:animate-blink" : ""
         }`}
       />
@@ -1085,8 +1085,8 @@ function TimelineVisit({
           <PulsingDot tone="next" />
         ) : (
           <span
-            className={`h-3 w-3 rounded-full ring-4 ring-slate-900 ${
-              item.isPast ? "bg-slate-600" : "border-2 border-clinical-400/70 bg-slate-900"
+            className={`h-3 w-3 rounded-full ring-4 ring-pro-card ${
+              item.isPast ? "bg-slate-600" : "border-2 border-clinical-400/70 bg-pro-card"
             }`}
           />
         )}
@@ -1095,7 +1095,7 @@ function TimelineVisit({
         type="button"
         onClick={onOpen}
         aria-label={`Appointment ${item.patientName} at ${item.rangeLabel}`}
-        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-left text-slate-50 transition hover:bg-slate-800/50 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-left text-slate-50 transition bg-pro-raised/60 hover:bg-pro-raised hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-sm font-semibold tabular-nums ${timeTone}`}>{item.rangeLabel}</span>

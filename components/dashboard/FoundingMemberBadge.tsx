@@ -30,7 +30,7 @@ export function FoundingMemberBadge({
       href={href}
       data-testid="founding-member-badge"
       title="See your Founding Member terms"
-      className={`${className} transition hover:border-clinical-300/75 hover:bg-clinical-400/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900`}
+      className={`${className} transition hover:border-clinical-300/75 hover:bg-clinical-400/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-pro-page`}
     >
       Founding Member
     </Link>

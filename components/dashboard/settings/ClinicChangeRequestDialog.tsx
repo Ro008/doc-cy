@@ -16,7 +16,7 @@ import {
 
 const fieldLabelClass = "text-xs font-semibold uppercase tracking-[0.12em] text-slate-400";
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30";
+  "mt-1.5 w-full rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30";
 
 /**
  * "Request a change to clinic details" (user, 2026-10-11): only the name, the address
@@ -158,8 +158,8 @@ export function ClinicChangeRequestDialog({
           <label htmlFor={phoneId} className={fieldLabelClass}>
             Clinic phone
           </label>
-          <div className="mt-1.5 flex rounded-xl border border-slate-700 bg-slate-950/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30 sm:max-w-xs">
-            <span className="flex shrink-0 items-center gap-1.5 rounded-l-xl border-r border-slate-700 px-3 text-sm text-slate-300">
+          <div className="mt-1.5 flex rounded-xl border border-pro-line bg-pro-page/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30 sm:max-w-xs">
+            <span className="flex shrink-0 items-center gap-1.5 rounded-l-xl border-r border-pro-line px-3 text-sm text-slate-300">
               <span className="text-slate-400">CY</span>
               <span className="font-semibold text-slate-100">+357</span>
             </span>
@@ -187,7 +187,7 @@ export function ClinicChangeRequestDialog({
         <section
           aria-label="What you are asking for"
           data-testid="settings-clinic-change-summary"
-          className="rounded-2xl border border-slate-800 bg-slate-950/40 px-3.5 py-3"
+          className="rounded-2xl border border-pro-line bg-pro-page/40 px-3.5 py-3"
         >
           <p className={fieldLabelClass}>What you are asking for</p>
           {problem ? (

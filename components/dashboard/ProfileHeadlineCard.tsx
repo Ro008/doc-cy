@@ -74,7 +74,7 @@ export function ProfileHeadlineCard({ initial }: Props) {
           placeholder="e.g. Skin care for the whole family"
           aria-invalid={headlineTooLong}
           aria-describedby="profile-headline-count"
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+          className="mt-2 w-full rounded-xl border border-pro-line bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
         />
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           {dirty ? (

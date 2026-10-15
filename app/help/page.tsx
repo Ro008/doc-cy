@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function HelpPage() {
   return (
-    <main className="min-h-screen bg-ink-900 text-slate-50" data-testid="help-root">
+    <main className="min-h-screen bg-pro-page text-slate-50" data-testid="help-root">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />

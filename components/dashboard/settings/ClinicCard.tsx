@@ -106,8 +106,8 @@ export function ClinicCard({
     <section
       data-testid="settings-clinic-card"
       aria-label={name}
-      className={`rounded-3xl border bg-slate-900/70 p-5 shadow-xl shadow-black/20 transition-colors sm:p-6 ${
-        shown ? "border-slate-700/70" : "border-slate-800 hover:border-slate-700"
+      className={`rounded-3xl border bg-pro-card p-5 shadow-xl shadow-black/20 transition-colors sm:p-6 ${
+        shown ? "border-pro-line/70" : "border-pro-line hover:border-pro-line"
       }`}
     >
       <div className="flex flex-wrap items-center gap-3">
@@ -207,7 +207,7 @@ export function ClinicCard({
 
           <dl className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {stats.map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+              <div key={label} className="rounded-2xl border border-pro-line bg-pro-page/40 px-3 py-2.5">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
                 <dd
                   data-testid={`settings-clinic-${label.toLowerCase()}-summary`}

@@ -15,8 +15,8 @@ export function HelpVideoCard({ title, video }: { title: string; video: HelpVide
   const [playing, setPlaying] = React.useState(false);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
-      <div className="relative aspect-video w-full bg-ink-900">
+    <div className="overflow-hidden rounded-2xl border border-pro-line/70 bg-pro-card shadow-xl shadow-black/20">
+      <div className="relative aspect-video w-full bg-pro-page">
         {playing ? (
           <iframe
             src={youtubeEmbedUrl(video.youtubeId, { autoplay: true })}
@@ -42,11 +42,11 @@ export function HelpVideoCard({ title, video }: { title: string; video: HelpVide
               sizes="(min-width: 1024px) 720px, 100vw"
               className="object-cover"
             />
-            <span className="absolute inset-0 bg-ink-900/20 transition group-hover:bg-ink-900/10" aria-hidden />
+            <span className="absolute inset-0 bg-pro-page/20 transition group-hover:bg-pro-page/10" aria-hidden />
             <span className="absolute left-1/2 top-1/2 inline-flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-clinical-500 text-ink-900 shadow-lg transition group-hover:scale-105">
               <Play className="ml-1 h-7 w-7 fill-current" aria-hidden />
             </span>
-            <span className="absolute bottom-3 right-3 rounded-md bg-ink-900/80 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
+            <span className="absolute bottom-3 right-3 rounded-md bg-pro-page/80 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
               {video.durationLabel}
             </span>
           </button>

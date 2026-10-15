@@ -4,7 +4,7 @@
  */
 
 export const SETTINGS_CARD_CLASS =
-  "rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20 sm:p-6";
+  "rounded-3xl border border-pro-line/70 bg-pro-card p-5 shadow-xl shadow-black/20 sm:p-6";
 
 export const SETTINGS_EYEBROW_CLASS = "text-xs font-semibold uppercase tracking-[0.14em] text-slate-500";
 

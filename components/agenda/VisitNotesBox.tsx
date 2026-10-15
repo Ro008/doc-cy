@@ -76,7 +76,7 @@ export function VisitNotesBox({
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2.5" data-testid="visit-notes">
+    <div className="mt-4 rounded-xl border border-pro-line/70 bg-pro-card px-3 py-2.5" data-testid="visit-notes">
       <label htmlFor={fieldId} className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
         Your notes
       </label>
@@ -87,7 +87,7 @@ export function VisitNotesBox({
         maxLength={PROFESSIONAL_NOTES_MAX}
         rows={3}
         readOnly={saving}
-        className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+        className="mt-1.5 w-full resize-y rounded-xl border border-pro-line bg-pro-page/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
       />
       <p className="mt-1 flex justify-between gap-2 text-[11px] text-slate-500">
         <span>{PROFESSIONAL_NOTES_HINT}</span>

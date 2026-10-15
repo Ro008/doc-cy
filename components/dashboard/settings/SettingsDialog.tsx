@@ -69,7 +69,7 @@ export function SettingsDialog({
   if (!mounted) return null;
   return createPortal(
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink-900/75 p-4 ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-pro-page/75 p-4 ${
         leaving ? "settings-backdrop-out" : "settings-backdrop-in"
       }`}
       onMouseDown={(e) => {
@@ -82,7 +82,7 @@ export function SettingsDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-busy={busy}
-        className={`my-auto w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-slate-700/70 bg-[#0B1A30] p-6 shadow-xl shadow-black/40 ${
+        className={`my-auto w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-pro-line/70 bg-pro-card p-6 shadow-xl shadow-black/40 ${
           leaving ? "settings-dialog-out" : "settings-dialog-in"
         }`}
       >

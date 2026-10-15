@@ -21,8 +21,8 @@ import {
 
 
 const INPUT_CLASS =
-  "mt-1.5 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
-const INPUT_OK = "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30";
+  "mt-1.5 w-full rounded-xl border bg-pro-page/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
+const INPUT_OK = "border-pro-line focus:border-clinical-400/60 focus:ring-clinical-400/30";
 const INPUT_BAD = "border-red-400/70 focus:border-red-400 focus:ring-red-400/25";
 
 /** Most recent first; those without a year last, in the order they were added. */
@@ -167,10 +167,10 @@ export function QualificationsCard({ initial = [] }: { initial?: SavedQualificat
       </p>
 
       {items.length > 0 ? (
-        <ul className="mt-3 divide-y divide-slate-800">
+        <ul className="mt-3 divide-y divide-pro-line">
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 py-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950/60 text-clinical-300">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-pro-line bg-pro-page/60 text-clinical-300">
                 <GraduationCap className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
@@ -202,7 +202,7 @@ export function QualificationsCard({ initial = [] }: { initial?: SavedQualificat
         <fieldset
           disabled={busy}
           data-testid="settings-qualification-form"
-          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-pro-line bg-pro-page/40 p-4"
         >
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_7rem]">
             {field("title", "Qualification", "For example: MD, Medicine", { required: true })}

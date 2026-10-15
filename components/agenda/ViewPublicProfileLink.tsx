@@ -3,10 +3,10 @@ import { ExternalLink } from "lucide-react";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 
 const primaryClass =
-  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border-2 border-clinical-300/50 bg-clinical-400 px-3 py-1.5 text-sm font-semibold text-slate-950 shadow-[0_0_0_1px_rgba(18,184,192,0.25),0_4px_20px_rgba(18,184,192,0.25)] transition hover:border-clinical-200/80 hover:bg-clinical-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900";
+  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border-2 border-clinical-300/50 bg-clinical-400 px-3 py-1.5 text-sm font-semibold text-slate-950 shadow-[0_0_0_1px_rgba(18,184,192,0.25),0_4px_20px_rgba(18,184,192,0.25)] transition hover:border-clinical-200/80 hover:bg-clinical-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-pro-page";
 
 const secondaryClass =
-  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-600/60 bg-slate-900/35 px-3 py-1.5 text-sm font-medium text-slate-200 shadow-sm transition hover:border-slate-500/80 hover:bg-slate-800/55 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900";
+  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-600/60 bg-pro-card px-3 py-1.5 text-sm font-medium text-slate-200 shadow-sm transition hover:border-slate-500/80 hover:bg-pro-raised/55 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-pro-page";
 
 export function ViewPublicProfileLink({
   slug,

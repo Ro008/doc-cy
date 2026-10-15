@@ -74,7 +74,7 @@ export default async function PastVisitsPage({
   const pages = Math.max(1, Math.ceil(total / PAST_VISITS_PAGE_SIZE));
 
   return (
-    <main className="min-h-screen bg-ink-900 text-slate-50">
+    <main className="min-h-screen bg-pro-page text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
       </div>
@@ -136,7 +136,7 @@ export default async function PastVisitsPage({
             We couldn&apos;t load your visits. Please reload the page.
           </p>
         ) : rows.length === 0 ? (
-          <p className="rounded-2xl border border-slate-700/70 bg-slate-900/60 px-4 py-6 text-center text-sm text-slate-400" data-testid="past-visits-empty">
+          <p className="rounded-2xl border border-pro-line/70 bg-pro-card px-4 py-6 text-center text-sm text-slate-400" data-testid="past-visits-empty">
             {filtered ? "No visits match these filters." : "Your past visits will show up here once you've seen patients."}
           </p>
         ) : (

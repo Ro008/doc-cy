@@ -26,7 +26,7 @@ const ATTENDANCE: { value: PastVisitsAttendance; label: string }[] = [
 ];
 
 const PILL =
-  "inline-flex h-10 items-center gap-2 rounded-full border border-slate-700/80 bg-ink-900/70 px-3.5 text-sm text-slate-200 transition hover:border-clinical-500/50 hover:bg-ink-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
+  "inline-flex h-10 items-center gap-2 rounded-full border border-pro-line/80 bg-pro-page/70 px-3.5 text-sm text-slate-200 transition hover:border-clinical-500/50 hover:bg-pro-page focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
 
 /**
  * The Visits tab's search panel (user, 2026-10-12). A GET form (the URL carries the filters)
@@ -166,7 +166,7 @@ export function VisitsFilters({
       aria-label="Search visits"
       aria-busy={pending}
       data-testid="past-visits-search"
-      className="peer relative rounded-3xl border border-slate-700/70 bg-slate-900/70 p-4 shadow-xl shadow-black/20 sm:p-5"
+      className="peer relative rounded-3xl border border-pro-line/70 bg-pro-card p-4 shadow-xl shadow-black/20 sm:p-5"
     >
       {/* While the results load: a light sliding along the panel's lower edge; the page dims the
           old results through `peer-aria-busy` (user, 2026-10-13). */}
@@ -196,12 +196,12 @@ export function VisitsFilters({
             defaultValue={q}
             maxLength={100}
             placeholder="Patient name, email or phone, reason, service or notes"
-            className="h-12 w-full rounded-2xl border border-slate-700/80 bg-ink-900/70 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 transition focus:border-clinical-500/60 focus:outline-none focus:ring-2 focus:ring-clinical-500/30"
+            className="h-12 w-full rounded-2xl border border-pro-line/80 bg-pro-page/70 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 transition focus:border-clinical-500/60 focus:outline-none focus:ring-2 focus:ring-clinical-500/30"
           />
         </div>
         <button
           type="submit"
-          className="inline-flex h-12 items-center justify-center rounded-2xl bg-clinical-500 px-6 text-sm font-semibold text-white shadow-md shadow-clinical-500/25 transition hover:bg-clinical-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
+          className="inline-flex h-12 items-center justify-center rounded-2xl bg-clinical-500 px-6 text-sm font-semibold text-white shadow-md shadow-clinical-500/25 transition hover:bg-clinical-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 focus-visible:ring-offset-2 focus-visible:ring-offset-pro-page"
         >
           Search
         </button>
@@ -227,7 +227,7 @@ export function VisitsFilters({
               role="dialog"
               aria-label="Choose a date range"
               data-testid="visits-range-popover"
-              className="absolute left-0 z-30 mt-2 w-[min(21rem,calc(100vw-2.5rem))] rounded-2xl border border-white/10 bg-ink-900 p-4 shadow-2xl shadow-black/50"
+              className="absolute left-0 z-30 mt-2 w-[min(21rem,calc(100vw-2.5rem))] rounded-2xl border border-pro-line bg-pro-card p-4 shadow-2xl shadow-black/50"
             >
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {rangePresets(todayKey).map((p) => (
@@ -238,7 +238,7 @@ export function VisitsFilters({
                     className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                       activePreset === p.id
                         ? "border-clinical-400 bg-clinical-500/20 text-clinical-100"
-                        : "border-slate-700 text-slate-300 hover:border-clinical-500/50 hover:text-clinical-100"
+                        : "border-pro-line text-slate-300 hover:border-clinical-500/50 hover:text-clinical-100"
                     }`}
                   >
                     {p.label}
@@ -292,7 +292,7 @@ export function VisitsFilters({
           ) : null}
         </div>
 
-        <fieldset className="inline-flex h-10 items-stretch overflow-hidden rounded-full border border-slate-700/80 bg-ink-900/70">
+        <fieldset className="inline-flex h-10 items-stretch overflow-hidden rounded-full border border-pro-line/80 bg-pro-page/70">
           <legend className="sr-only">Attendance</legend>
           {ATTENDANCE.map((o) => (
             <label key={o.value} className="flex cursor-pointer">
