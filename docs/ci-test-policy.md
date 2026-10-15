@@ -64,7 +64,7 @@ All jobs start at once. Each Playwright lane brings up its own local Supabase st
 **Includes:**
 
 - Content: `test:content:blog-images`, `test:content:messages-parity`
-- Unit: `npm run test:unit`
+- Unit: `npm run test:unit` runs every `tests/unit/*.test.ts` through `scripts/run-unit-tests.mjs`. **A new unit test needs no registering**: the files are found in the folder, so a test cannot be left out by forgetting to add it to a list (8 once were). The launcher runs them in batches because one command naming every file outgrew the Windows command-line limit. Run a few with `npm run test:unit -- tests/unit/doctor-routes.test.ts`.
 - Booking lane: `--grep @pr-email` then `--grep @pr-e2e-booking`
 - Account lane: `--grep @pr-e2e --grep-invert "@pr-e2e-finder|@pr-e2e-booking"`
 - Finder lane: `--grep @pr-e2e-finder` (today: `finder_critical`, `finder_user_behaviors`, `finder_custom_specialty`, `navigation`)

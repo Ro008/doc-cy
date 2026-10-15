@@ -38,6 +38,8 @@ import { isAllowedProfessionalDuration } from "@/lib/professional-appointment-du
 import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
+import { DashboardHelpTour } from "@/components/dashboard/DashboardHelpTour";
+import { HELP_LINKS, helpArticlePath } from "@/lib/help-manual";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
 import { VisitDetailsDialog } from "@/components/agenda/VisitDetailsDialog";
 import { visitDetailsFromRow } from "@/lib/visit-details";
@@ -218,6 +220,8 @@ export function DoctorDashboard({
         </button>
       </header>
 
+      <DashboardHelpTour />
+
       {/* Access ended explains why no requests come in; it outranks the per-clinic pauses. */}
       {accessEnded ? (
         <AccessEndedBanner testId="dashboard-access-ended" />
@@ -244,6 +248,13 @@ export function DoctorDashboard({
                 {waitingCount}
               </span>
             ) : null}
+            <Link
+              href={helpArticlePath(HELP_LINKS.answerRequests)}
+              data-testid="dashboard-help-answer"
+              className="ml-auto text-xs font-semibold text-clinical-300 hover:text-clinical-200"
+            >
+              How does this work?
+            </Link>
           </div>
 
           {newRequests.count > 0 ? (

@@ -8,6 +8,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
 import { forgotPasswordPathWithEmail } from "@/lib/password-reset";
+import { withFragment } from "@/lib/auth-redirect";
 import { postLoginDestination } from "@/lib/doctor-routes";
 import { normalizeSignInCode } from "@/lib/professional-email-step";
 
@@ -46,7 +47,9 @@ export function LoginPageClient({
 }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
-  const destination = postLoginDestination(nextPath);
+  // Where she is heading, including the #fragment of the link she opened (/help#dashboard): the
+  // server never sees a fragment, so it is read here, when she acts.
+  const nextWithFragment = () => withFragment(nextPath, window.location.hash);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -75,7 +78,7 @@ export function LoginPageClient({
     // The professional chrome hint only for a real profile: an applicant (or an account
     // with nothing) gets Support and Log out only, so no full menu should flash first.
     if (isProfessional) writeProSessionHintCookie();
-    router.push(destination);
+    router.push(postLoginDestination(nextWithFragment()));
     router.refresh();
   }
 
@@ -83,7 +86,7 @@ export function LoginPageClient({
     const response = await fetch("/api/auth/sign-in", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, next: nextPath ?? null }),
+      body: JSON.stringify({ email, password, next: nextWithFragment() }),
     });
     const result = (await response.json().catch(() => ({}))) as {
       ok?: boolean;

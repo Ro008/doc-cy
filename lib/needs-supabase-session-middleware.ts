@@ -42,6 +42,8 @@ export function isProfessionalGatedPath(pathname: string): boolean {
     path === "/agenda" ||
     path.startsWith("/agenda/") ||
     path === "/settings" ||
-    path.startsWith("/settings/")
+    path.startsWith("/settings/") ||
+    path === "/help" ||
+    path.startsWith("/help/")
   );
 }

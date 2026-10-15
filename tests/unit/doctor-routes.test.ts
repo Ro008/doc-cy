@@ -93,6 +93,8 @@ describe("isDoctorProductPath", () => {
       "/agenda/account-review",
       "/settings",
       "/settings/",
+      "/help",
+      "/help/",
     ]) {
       assert.equal(isDoctorProductPath(path), true, path);
     }
@@ -105,6 +107,7 @@ describe("isDoctorProductPath", () => {
       "/dashboardx",
       "/agendas",
       "/settingsx",
+      "/helpful",
       "/login",
     ]) {
       assert.equal(isDoctorProductPath(path), false, path);
@@ -182,8 +185,8 @@ describe("showSectionsInAccountMenu", () => {
 describe("accountMenuItems", () => {
   const base = { applicant: false, insidePrivateSpace: true, hasPublicProfile: true, onOwnProfile: false };
 
-  it("inside her private space: her account, her profile, support, log out", () => {
-    assert.deepEqual(accountMenuItems(base), ["account", "plan", "public-profile", "support", "logout"]);
+  it("inside her private space: her account, her profile, the help manual, support, log out", () => {
+    assert.deepEqual(accountMenuItems(base), ["account", "plan", "public-profile", "help", "support", "logout"]);
   });
 
   it("on the finder and public pages: manual booking comes first", () => {
@@ -192,6 +195,7 @@ describe("accountMenuItems", () => {
       "account",
       "plan",
       "public-profile",
+      "help",
       "support",
       "logout",
     ]);
@@ -202,13 +206,14 @@ describe("accountMenuItems", () => {
       "manual-booking",
       "account",
       "plan",
+      "help",
       "support",
       "logout",
     ]);
   });
 
   it("without a public profile: no link to it", () => {
-    assert.deepEqual(accountMenuItems({ ...base, hasPublicProfile: false }), ["account", "plan", "support", "logout"]);
+    assert.deepEqual(accountMenuItems({ ...base, hasPublicProfile: false }), ["account", "plan", "help", "support", "logout"]);
   });
 
   it("an applicant gets support and log out only", () => {

@@ -38,6 +38,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "dashboard",
   "finder",
   "for-professionals",
+  "help",
   "internal",
   "login",
   "register",
