@@ -67,6 +67,7 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
                   {clinic.phoneClinicId ? (
                     <RevealPhoneButton
                       kind="clinic"
+                      source="professional_profile_page"
                       id={clinic.phoneClinicId}
                       manualId={professionalId}
                       hasPhone

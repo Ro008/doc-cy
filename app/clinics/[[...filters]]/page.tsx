@@ -607,6 +607,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                             ) : null}
                             <RevealPhoneButton
                               kind="clinic"
+                              source="clinic_page"
                               id={clinic.id}
                               hasPhone={hasPhone}
                               className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50 disabled:cursor-wait disabled:opacity-60"

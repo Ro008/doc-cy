@@ -66,8 +66,8 @@ describe("parseFounderDashboardQuery", () => {
       manualVotesRange: "7d",
     });
     assert.equal(
-      founderDirectoryClicksCsvHref(q, "show_phone_number"),
-      "/api/internal/directory-clicks.csv?action=show_phone_number&callToBookRange=30d",
+      founderDirectoryClicksCsvHref(q, "show_clinic_phone_number"),
+      "/api/internal/directory-clicks.csv?action=show_clinic_phone_number&callToBookRange=30d",
     );
     assert.equal(
       founderDirectoryClicksCsvHref(q, "request_online_appointment"),

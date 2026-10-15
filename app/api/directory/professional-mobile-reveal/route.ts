@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { loadPublicPersonalMobile } from "@/lib/public/load-profile-personal-mobile";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { USER_EVENTS_TABLE, showPersonalMobileNumberEvent } from "@/lib/user-events";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,6 +37,11 @@ export async function POST(req: Request) {
   const mobile = await loadPublicPersonalMobile(supabase, id);
   if (!mobile) {
     return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
+  }
+  // Recorded like the clinic phones (user, 2026-10-15); a failed record never hides the number.
+  const { error } = await supabase.from(USER_EVENTS_TABLE).insert(showPersonalMobileNumberEvent({ professionalId: id }));
+  if (error) {
+    console.error("[DocCy][professional-mobile-reveal] reveal_log_failed", error.message);
   }
   return NextResponse.json({ ok: true, phone: mobile });
 }

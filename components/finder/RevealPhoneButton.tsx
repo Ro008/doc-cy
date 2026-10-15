@@ -140,7 +140,9 @@ export function RevealPhoneButton({
           const result = await fetchContactPhone({
             kind,
             id,
-            source: variant === "call-to-book" ? analyticsSource : null,
+            // Every reveal is recorded with where it was (user, 2026-10-15), whatever the
+            // button looks like; the Google Ads conversion below stays on call-to-book.
+            source: analyticsSource,
             manualId,
           });
           if ("error" in result) {

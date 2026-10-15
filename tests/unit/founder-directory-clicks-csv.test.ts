@@ -13,7 +13,7 @@ describe("founder directory clicks CSV", () => {
     const line = toDirectoryClickCsvLine(
       {
         clickedAtIso: "2026-08-19T09:41:18.153Z",
-        action: "show_phone_number",
+        action: "show_clinic_phone_number",
         name: "Achilleas Christaki",
         slug: "achilleas-christaki-larnaca",
         specialty: "General Surgery",
@@ -24,7 +24,7 @@ describe("founder directory clicks CSV", () => {
     );
     assert.deepEqual(line, [
       "2026-08-19 12:41:18",
-      "show_phone_number",
+      "show_clinic_phone_number",
       "Achilleas Christaki",
       "https://www.mydoccy.com/en/achilleas-christaki-larnaca",
       "General Surgery",
@@ -37,7 +37,7 @@ describe("founder directory clicks CSV", () => {
     assert.equal(
       shouldOmitDirectoryClickFromCsv({
         clickedAtIso: "2026-08-19T09:41:18.153Z",
-        action: "show_phone_number",
+        action: "show_clinic_phone_number",
         name: "QA",
         slug: "qa",
         specialty: null,
@@ -80,7 +80,7 @@ describe("founder directory clicks CSV", () => {
     assert.match(csv, /request_online_appointment,Valentina Oflidou,https:\/\/www\.mydoccy\.com\/en\/valentina-oflidou-paphos/);
     assert.equal(
       directoryClicksCsvFilename({
-        action: "show_phone_number",
+        action: "show_clinic_phone_number",
         callToBookRange: "7d",
         manualVotesRange: "30d",
       }),
