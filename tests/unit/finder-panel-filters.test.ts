@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  FINDER_PANEL_PRIMARY_LANGUAGES,
+  FINDER_PANEL_PARAM_KEYS,
   finderCalendarHasSlotWithin,
   finderCardPassesPanelFilters,
+  finderPanelExcludesListings,
   finderPanelFilterCount,
   finderPanelFilterKey,
   finderPanelFilterParams,
@@ -12,8 +13,9 @@ import {
   parseFinderPanelFilters,
   type FinderPanelFilters,
 } from "../../lib/finder-panel-filters";
+import { finderResultsListScope } from "../../lib/finder-results-page-state";
 
-const none: FinderPanelFilters = { online: false, when: "any", gesy: false, languages: [] };
+const none: FinderPanelFilters = { online: false, when: "any", gesy: false };
 
 describe("the filter panel reads its filters from the URL (Finder G, step 3)", () => {
   it("nothing set: no filters", () => {
@@ -21,63 +23,63 @@ describe("the filter panel reads its filters from the URL (Finder G, step 3)", (
     assert.equal(hasFinderPanelFilters(none), false);
   });
 
-  it("Book online, Accepts GeSY and the languages", () => {
-    assert.deepEqual(
-      parseFinderPanelFilters({ online: "1", gesy: "1", lang: "greek,English" }),
-      { online: true, when: "any", gesy: true, languages: ["Greek", "English"] },
-    );
+  it("Book online and Accepts GeSY", () => {
+    assert.deepEqual(parseFinderPanelFilters({ online: "1", gesy: "1" }), {
+      online: true,
+      when: "any",
+      gesy: true,
+    });
   });
 
   it("Today or Next 7 days turn Book online on: only online booking has times", () => {
-    assert.deepEqual(parseFinderPanelFilters({ when: "today" }), {
-      ...none,
-      online: true,
-      when: "today",
-    });
+    assert.deepEqual(parseFinderPanelFilters({ when: "today" }), { ...none, online: true, when: "today" });
     assert.equal(parseFinderPanelFilters({ when: "week" }).when, "week");
   });
 
-  it("ignores unknown values, unknown languages and repeats", () => {
-    assert.deepEqual(
-      parseFinderPanelFilters({ online: "yes", when: "tomorrow", gesy: "0", lang: "greek,klingon,Greek," }),
-      { ...none, languages: ["Greek"] },
-    );
+  it("ignores unknown values", () => {
+    assert.deepEqual(parseFinderPanelFilters({ online: "yes", when: "tomorrow", gesy: "0" }), none);
   });
 
   it("an array value (repeated param) uses the first one", () => {
     assert.equal(parseFinderPanelFilters({ online: ["1", "0"] }).online, true);
   });
+
+  it("no languages for now (user, 2026-10-16): an old ?lang= link filters nothing", () => {
+    assert.deepEqual(
+      parseFinderPanelFilters({ lang: "greek" } as Parameters<typeof parseFinderPanelFilters>[0]),
+      none,
+    );
+    assert.deepEqual([...FINDER_PANEL_PARAM_KEYS], ["online", "when", "gesy"]);
+  });
 });
 
 describe("the filter panel writes its filters to the URL", () => {
-  it("only what is on, languages in lower case", () => {
+  it("only what is on", () => {
     assert.deepEqual(finderPanelFilterParams(none), {});
-    assert.deepEqual(
-      finderPanelFilterParams({ online: true, when: "week", gesy: true, languages: ["Greek", "English"] }),
-      { online: "1", when: "week", gesy: "1", lang: "greek,english" },
-    );
+    assert.deepEqual(finderPanelFilterParams({ online: true, when: "week", gesy: true }), {
+      online: "1",
+      when: "week",
+      gesy: "1",
+    });
   });
 
   it("round-trips", () => {
-    const filters: FinderPanelFilters = { online: true, when: "today", gesy: false, languages: ["Russian"] };
+    const filters: FinderPanelFilters = { online: true, when: "today", gesy: false };
     assert.deepEqual(parseFinderPanelFilters(finderPanelFilterParams(filters)), filters);
   });
 });
 
 describe("the Filters badge counts what is on", () => {
-  it("name, Book online, a time, GeSY and languages count once each", () => {
+  it("name, Book online, a time and GeSY count once each", () => {
     assert.equal(finderPanelFilterCount(none, ""), 0);
     assert.equal(finderPanelFilterCount(none, "maria"), 1);
-    assert.equal(
-      finderPanelFilterCount({ online: true, when: "today", gesy: true, languages: ["Greek", "English"] }, "x"),
-      5,
-    );
+    assert.equal(finderPanelFilterCount({ online: true, when: "today", gesy: true }, "x"), 4);
   });
 });
 
 describe("which cards the panel keeps", () => {
-  const listing = { hasOnlineBooking: false, isGesy: true, languages: [] as string[] };
-  const bookable = { hasOnlineBooking: true, isGesy: false, languages: ["Greek", "English"] };
+  const listing = { hasOnlineBooking: false, isGesy: true };
+  const bookable = { hasOnlineBooking: true, isGesy: false };
 
   it("no filters keeps every card", () => {
     assert.equal(finderCardPassesPanelFilters(listing, none), true);
@@ -94,12 +96,6 @@ describe("which cards the panel keeps", () => {
     const f = { ...none, gesy: true };
     assert.equal(finderCardPassesPanelFilters(listing, f), true);
     assert.equal(finderCardPassesPanelFilters(bookable, f), false);
-  });
-
-  it("languages keep anyone who speaks one of them; listings have none", () => {
-    assert.equal(finderCardPassesPanelFilters(bookable, { ...none, languages: ["Russian", "English"] }), true);
-    assert.equal(finderCardPassesPanelFilters(bookable, { ...none, languages: ["Russian"] }), false);
-    assert.equal(finderCardPassesPanelFilters(listing, { ...none, languages: ["Greek"] }), false);
   });
 
   it("Today / Next 7 days ask the clinic's calendar, 1 or 7 days", () => {
@@ -140,16 +136,11 @@ describe("a calendar has a free time within N days", () => {
   });
 });
 
-it("the panel shows Greek, English and Russian first", () => {
-  assert.deepEqual([...FINDER_PANEL_PRIMARY_LANGUAGES], ["Greek", "English", "Russian"]);
-});
-
 describe("Show more remembers its page per filtered list", () => {
-  it("the panel's filters are part of the list's scope", async () => {
-    const { finderResultsListScope } = await import("../../lib/finder-results-page-state");
+  it("the panel's filters are part of the list's scope", () => {
     assert.equal(
-      finderResultsListScope({ pathname: "/paphos", online: "1", when: "week", gesy: "1", lang: "greek" }),
-      "/paphos?online=1&when=week&gesy=1&lang=greek",
+      finderResultsListScope({ pathname: "/paphos", online: "1", when: "week", gesy: "1" }),
+      "/paphos?online=1&when=week&gesy=1",
     );
     assert.equal(finderResultsListScope({ pathname: "/paphos" }), "/paphos");
   });
@@ -157,8 +148,8 @@ describe("Show more remembers its page per filtered list", () => {
 
 describe("one key for the name and the panel's filters", () => {
   it("same filters, same key; order of the URL does not matter", () => {
-    const a = parseFinderPanelFilters({ gesy: "1", lang: "greek" });
-    const b = parseFinderPanelFilters({ lang: "Greek", gesy: "1" });
+    const a = parseFinderPanelFilters({ gesy: "1", online: "1" });
+    const b = parseFinderPanelFilters({ online: "1", gesy: "1" });
     assert.equal(finderPanelFilterKey(a, " maria "), finderPanelFilterKey(b, "maria"));
     assert.notEqual(finderPanelFilterKey(a, ""), finderPanelFilterKey(none, ""));
     assert.equal(finderPanelFilterKey(none, ""), "");
@@ -166,12 +157,10 @@ describe("one key for the name and the panel's filters", () => {
 });
 
 describe("listings are not loaded when the panel rules them all out", () => {
-  it("Book online, a time or a language: no listing can match", async () => {
-    const { finderPanelExcludesListings } = await import("../../lib/finder-panel-filters");
+  it("Book online (and so a time): no listing can match", () => {
     assert.equal(finderPanelExcludesListings(none), false);
     assert.equal(finderPanelExcludesListings({ ...none, gesy: true }), false);
     assert.equal(finderPanelExcludesListings({ ...none, online: true }), true);
     assert.equal(finderPanelExcludesListings({ ...none, online: true, when: "today" }), true);
-    assert.equal(finderPanelExcludesListings({ ...none, languages: ["Greek"] }), true);
   });
 });

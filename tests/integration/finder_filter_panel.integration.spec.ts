@@ -4,9 +4,9 @@ import { requireSafeIntegration } from "./helpers/safe-integration";
 
 /**
  * The Finder's filter panel (Finder G, step 3; user, 2026-10-15/16): it opens once a
- * search is on; Book online, Today / Next 7 days, Accepts GeSY, languages and the name
+ * search is on; Book online, Today / Next 7 days, Accepts GeSY and the name
  * go to the URL, the server filters and the count follows; Clear filters keeps the search.
- * Beside the results from xl, a folded Filters button above them on phones.
+ * In the left margin on wide screens (the cards keep their width), a folded box above them narrower.
  */
 
 const panel = (page: Page) => page.getByTestId("finder-filter-panel");
@@ -31,13 +31,23 @@ test.describe("Finder filter panel @pr-e2e @pr-e2e-finder", () => {
     await page.goto("/");
     await expect(page.getByTestId("finder-header-search")).toBeVisible({ timeout: 20_000 });
     await expect(panel(page)).toHaveCount(0);
+    const firstCard = page.locator("section.mt-6 article").first();
+    await expect(firstCard).toBeVisible({ timeout: 20_000 });
+    const homeCardWidth = (await firstCard.boundingBox())?.width ?? 0;
 
     await page.goto("/paphos");
     await expect(panel(page)).toBeVisible({ timeout: 20_000 });
+    // The user's sketch (2026-10-16): the panel sits in the left margin and the cards keep
+    // their full width.
+    await expect(firstCard).toBeVisible({ timeout: 20_000 });
+    const cardBox = await firstCard.boundingBox();
+    const panelBox = await panel(page).boundingBox();
+    expect(Math.round(cardBox?.width ?? 0)).toBe(Math.round(homeCardWidth));
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThan(cardBox?.x ?? 0);
     const all = await resultsCount(page);
     expect(all).toBeGreaterThan(0);
 
-    // Desktop Large is wider than xl: the panel is open beside the results.
+    // Desktop Large is wide enough for the left margin: the panel is open there.
     await expect(filtersButton(page)).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
 
     const bookOnline = panel(page).getByRole("switch");

@@ -3,11 +3,9 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Search, SlidersHorizontal } from "lucide-react";
-import { CYPRUS_SPOKEN_LANGUAGE_LABELS } from "@/lib/cyprus-languages";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
 import {
   FINDER_PANEL_PARAM_KEYS,
-  FINDER_PANEL_PRIMARY_LANGUAGES,
   finderPanelFilterCount,
   finderPanelFilterKey,
   finderPanelFilterParams,
@@ -16,8 +14,8 @@ import {
   type FinderWhen,
 } from "@/lib/finder-panel-filters";
 
-/** Folded or open on desktop, remembered per browser (a convenience only). */
-const DESKTOP_OPEN_KEY = "doccy_finder_filters_open";
+/** Folded or open on wide screens, remembered per browser (a convenience only). */
+const WIDE_OPEN_KEY = "doccy_finder_filters_open";
 
 const WHEN_OPTIONS: { value: FinderWhen; label: string }[] = [
   { value: "today", label: "Today" },
@@ -25,8 +23,11 @@ const WHEN_OPTIONS: { value: FinderWhen; label: string }[] = [
   { value: "any", label: "Any time" },
 ];
 
-const PRIMARY = new Set<string>(FINDER_PANEL_PRIMARY_LANGUAGES);
-const MORE_LANGUAGES = CYPRUS_SPOKEN_LANGUAGE_LABELS.filter((label) => !PRIMARY.has(label));
+/**
+ * Wide enough for the 260 px box in the page's left margin beside the 1280 px column
+ * (user, 2026-10-16: the cards never give up width to the filters).
+ */
+const WIDE_QUERY = "(min-width: 1840px)";
 
 const sectionTitleClass =
   "text-[11px] font-extrabold uppercase tracking-[0.08em] text-site-ink-600";
@@ -35,9 +36,10 @@ const pillOnClass =
   "bg-ink-900 text-white [.doccy-profile[data-scheme=dark]_&]:bg-clinical-500 [.doccy-profile[data-scheme=dark]_&]:text-[#062F61]";
 
 /**
- * The Finder's filter panel (Finder G, step 3; user, 2026-10-15): it opens once a search
- * is on. From xl it is a column beside the results that folds away; below that it is a
- * Filters button above them that opens it. Every change goes to the URL and the server
+ * The Finder's filter panel (Finder G, step 3; user, 2026-10-15/16): it opens once a search
+ * is on. On wide screens it sits in the left margin beside the results, sticky, and folds
+ * away; the cards keep their full width either way. Narrower, it is a folded Filters box
+ * above the results. Every change goes to the URL and the server
  * filters (lib/finder-panel-filters.ts).
  */
 export function FinderFilterPanel({
@@ -58,11 +60,10 @@ export function FinderFilterPanel({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [desktopOpen, setDesktopOpen] = React.useState(true);
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [isDesktop, setIsDesktop] = React.useState(false);
+  const [wideOpen, setWideOpen] = React.useState(true);
+  const [narrowOpen, setNarrowOpen] = React.useState(false);
+  const [isWide, setIsWide] = React.useState(false);
   const [name, setName] = React.useState(activeName);
-  const [showMore, setShowMore] = React.useState(false);
   const count = finderPanelFilterCount(filters, activeName);
 
   React.useEffect(() => setName(activeName), [activeName]);
@@ -76,7 +77,6 @@ export function FinderFilterPanel({
       online: searchParams?.get("online"),
       when: searchParams?.get("when"),
       gesy: searchParams?.get("gesy"),
-      lang: searchParams?.get("lang"),
     }),
     searchParams?.get("name") ?? "",
   );
@@ -93,28 +93,28 @@ export function FinderFilterPanel({
 
   React.useEffect(() => {
     try {
-      if (window.localStorage.getItem(DESKTOP_OPEN_KEY) === "0") setDesktopOpen(false);
+      if (window.localStorage.getItem(WIDE_OPEN_KEY) === "0") setWideOpen(false);
     } catch {
       // Storage blocked: start open.
     }
-    const query = window.matchMedia("(min-width: 1280px)");
-    const sync = () => setIsDesktop(query.matches);
+    const query = window.matchMedia(WIDE_QUERY);
+    const sync = () => setIsWide(query.matches);
     sync();
     query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);
   }, []);
 
-  const open = isDesktop ? desktopOpen : mobileOpen;
+  const open = isWide ? wideOpen : narrowOpen;
 
   function toggle() {
-    if (!isDesktop) {
-      setMobileOpen((value) => !value);
+    if (!isWide) {
+      setNarrowOpen((value) => !value);
       return;
     }
-    const next = !desktopOpen;
-    setDesktopOpen(next);
+    const next = !wideOpen;
+    setWideOpen(next);
     try {
-      window.localStorage.setItem(DESKTOP_OPEN_KEY, next ? "1" : "0");
+      window.localStorage.setItem(WIDE_OPEN_KEY, next ? "1" : "0");
     } catch {
       // Not remembered; fine.
     }
@@ -124,6 +124,7 @@ export function FinderFilterPanel({
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     params.delete("name");
+    params.delete("lang"); // the languages filter, removed (user, 2026-10-16)
     for (const key of FINDER_PANEL_PARAM_KEYS) params.delete(key);
     if (nextName.trim()) params.set("name", nextName.trim());
     for (const [key, value] of Object.entries(finderPanelFilterParams(next))) params.set(key, value);
@@ -139,193 +140,153 @@ export function FinderFilterPanel({
     go({ ...filters, ...next }, activeName);
   }
 
-  function toggleLanguage(label: string) {
-    const languages = filters.languages.includes(label)
-      ? filters.languages.filter((l) => l !== label)
-      : [...filters.languages, label];
-    set({ languages });
-  }
-
   if (!show) return <>{children}</>;
 
-  const shownMore = showMore ? MORE_LANGUAGES : MORE_LANGUAGES.filter((l) => filters.languages.includes(l));
-  const languageOptions = [...FINDER_PANEL_PRIMARY_LANGUAGES, ...shownMore];
-
   return (
-    // G: from xl the Filters box keeps its own column, open or folded, so the cards keep
-    // one width (user, 2026-10-16). Below xl it is a box above the results.
-    <div className="xl:flex xl:items-start xl:gap-5">
+    // Wide: the aside is a column in the left margin as tall as the results, and the box
+    // inside it sticks while the cards scroll (G; the user's sketch, 2026-10-16).
+    <div className="relative">
       <aside
         data-testid="finder-filter-panel"
         aria-label="Filters"
-        className="mt-6 rounded-[20px] border border-site-ink-200 bg-site-white px-4 py-2.5 xl:sticky xl:top-4 xl:w-[260px] xl:flex-none"
+        className="mt-6 min-[1840px]:absolute min-[1840px]:bottom-0 min-[1840px]:mt-0 min-[1840px]:right-[calc(100%+24px)] min-[1840px]:top-0 min-[1840px]:w-[260px]"
       >
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          aria-controls="finder-filter-body"
-          className="flex min-h-11 w-full items-center justify-between gap-2.5 text-left"
-        >
-          <span className="inline-flex items-center gap-2.5 text-base font-extrabold text-site-ink-900">
-            <SlidersHorizontal className="h-[18px] w-[18px]" aria-hidden="true" />
-            Filters
-            {count > 0 ? (
-              <span className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${pillOnClass}`}>
-                {count}
-              </span>
-            ) : null}
-          </span>
-          <span
-            aria-hidden="true"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-site-ink-200 bg-site-ink-50 text-site-ink-900"
+        <div className="rounded-[20px] border border-site-ink-200 bg-site-white px-4 py-2.5 min-[1840px]:sticky min-[1840px]:top-4 min-[1840px]:max-h-[calc(100vh-2rem)] min-[1840px]:overflow-y-auto">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            aria-controls="finder-filter-body"
+            className="flex min-h-11 w-full items-center justify-between gap-2.5 text-left"
           >
-            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-          </span>
-        </button>
-
-        <div
-          id="finder-filter-body"
-          className={`${mobileOpen ? "block" : "hidden"} ${desktopOpen ? "xl:block" : "xl:hidden"} pb-2.5 pt-3`}
-        >
-          <form
-            role="search"
-            aria-label="Search by name"
-            onSubmit={(event) => {
-              event.preventDefault();
-              go(filters, name);
-            }}
-          >
-            <label htmlFor="finder-name-filter" className={sectionTitleClass}>
-              Name
-            </label>
-            <div className="relative mt-2">
-              <input
-                id="finder-name-filter"
-                type="search"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Professional's name"
-                autoComplete="off"
-                className="h-11 w-full rounded-xl border border-site-ink-200 bg-site-ink-50 pl-3 pr-11 text-[15px] text-site-ink-900 placeholder:text-site-ink-500 focus:outline-none focus:ring-2 focus:ring-clinical-200"
-              />
-              <button
-                type="submit"
-                aria-label="Search by name"
-                className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-site-clinical-700 hover:bg-site-clinical-50"
-              >
-                <Search className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </form>
-
-          <fieldset className="mt-5 border-t border-site-ink-200 pt-4">
-            <legend className={`${sectionTitleClass} float-left w-full`}>Availability</legend>
-            <div className="clear-both flex items-center justify-between gap-3 pt-2">
-              <span id="finder-online-label" className="text-[15px] font-semibold text-site-ink-900">
-                Book online
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={filters.online}
-                aria-labelledby="finder-online-label"
-                onClick={() =>
-                  set({ online: !filters.online, when: filters.online ? "any" : filters.when })
-                }
-                className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition ${
-                  filters.online ? pillOnClass : "bg-site-ink-100 border border-site-ink-200"
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`inline-block h-5 w-5 rounded-full bg-[#FFFFFF] shadow transition-transform ${
-                    filters.online ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-            <div role="radiogroup" aria-label="When" className="mt-3 flex flex-wrap gap-2">
-              {WHEN_OPTIONS.map((option) => {
-                const on = filters.when === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => set({ when: option.value })}
-                    className={`min-h-9 rounded-full px-3.5 text-sm font-semibold transition ${
-                      on
-                        ? pillOnClass
-                        : "border border-site-ink-200 bg-site-white text-site-ink-800 hover:border-site-clinical-300"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[13px] text-site-ink-600">Times are for online booking.</p>
-          </fieldset>
-
-          <fieldset className="mt-5 border-t border-site-ink-200 pt-4">
-            <legend className={`${sectionTitleClass} float-left w-full`}>Cover</legend>
-            <label className="clear-both flex min-h-11 cursor-pointer items-center gap-3 pt-2 text-[15px] font-semibold text-site-ink-900">
-              <input
-                type="checkbox"
-                checked={filters.gesy}
-                onChange={() => set({ gesy: !filters.gesy })}
-                className="h-5 w-5 rounded accent-clinical-600"
-              />
-              Accepts GeSY
-            </label>
-          </fieldset>
-
-          <fieldset className="mt-4 border-t border-site-ink-200 pt-4">
-            <legend className={`${sectionTitleClass} float-left w-full`}>Languages</legend>
-            <div className="clear-both flex flex-col pt-1">
-              {languageOptions.map((label) => (
-                <label
-                  key={label}
-                  className="flex min-h-10 cursor-pointer items-center gap-3 text-[15px] text-site-ink-900"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.languages.includes(label)}
-                    onChange={() => toggleLanguage(label)}
-                    className="h-5 w-5 rounded accent-clinical-600"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            {!showMore ? (
-              <button
-                type="button"
-                onClick={() => setShowMore(true)}
-                className="mt-1 min-h-10 text-sm font-semibold text-site-clinical-800 underline decoration-site-clinical-300 underline-offset-4 hover:decoration-current"
-              >
-                More languages
-              </button>
-            ) : null}
-            <p className="mt-1 text-[13px] text-site-ink-600">
-              Only professionals on DocCy list their languages.
-            </p>
-          </fieldset>
-
-          {count > 0 ? (
-            <button
-              type="button"
-              onClick={() => go({ online: false, when: "any", gesy: false, languages: [] }, "")}
-              className="mt-4 min-h-10 text-sm font-semibold text-site-clinical-800 underline decoration-site-clinical-300 underline-offset-4 hover:decoration-current"
+            <span className="inline-flex items-center gap-2.5 text-base font-extrabold text-site-ink-900">
+              <SlidersHorizontal className="h-[18px] w-[18px]" aria-hidden="true" />
+              Filters
+              {count > 0 ? (
+                <span className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${pillOnClass}`}>
+                  {count}
+                </span>
+              ) : null}
+            </span>
+            <span
+              aria-hidden="true"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-site-ink-200 bg-site-ink-50 text-site-ink-900"
             >
-              Clear filters
-            </button>
-          ) : null}
+              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+            </span>
+          </button>
+
+          <div
+            id="finder-filter-body"
+            className={`${narrowOpen ? "block" : "hidden"} ${wideOpen ? "min-[1840px]:block" : "min-[1840px]:hidden"} pb-2.5 pt-3`}
+          >
+            <form
+              role="search"
+              aria-label="Search by name"
+              onSubmit={(event) => {
+                event.preventDefault();
+                go(filters, name);
+              }}
+            >
+              <label htmlFor="finder-name-filter" className={sectionTitleClass}>
+                Name
+              </label>
+              <div className="relative mt-2">
+                <input
+                  id="finder-name-filter"
+                  type="search"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Professional's name"
+                  autoComplete="off"
+                  className="h-11 w-full rounded-xl border border-site-ink-200 bg-site-ink-50 pl-3 pr-11 text-[15px] text-site-ink-900 placeholder:text-site-ink-500 focus:outline-none focus:ring-2 focus:ring-clinical-200"
+                />
+                <button
+                  type="submit"
+                  aria-label="Search by name"
+                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-site-clinical-700 hover:bg-site-clinical-50"
+                >
+                  <Search className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+
+            <fieldset className="mt-5 border-t border-site-ink-200 pt-4">
+              <legend className={`${sectionTitleClass} float-left w-full`}>Availability</legend>
+              <div className="clear-both flex items-center justify-between gap-3 pt-2">
+                <span id="finder-online-label" className="text-[15px] font-semibold text-site-ink-900">
+                  Book online
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={filters.online}
+                  aria-labelledby="finder-online-label"
+                  onClick={() =>
+                    set({ online: !filters.online, when: filters.online ? "any" : filters.when })
+                  }
+                  className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition ${
+                    filters.online ? pillOnClass : "bg-site-ink-100 border border-site-ink-200"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block h-5 w-5 rounded-full bg-[#FFFFFF] shadow transition-transform ${
+                      filters.online ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div role="radiogroup" aria-label="When" className="mt-3 flex flex-wrap gap-2">
+                {WHEN_OPTIONS.map((option) => {
+                  const on = filters.when === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => set({ when: option.value })}
+                      className={`min-h-9 rounded-full px-3.5 text-sm font-semibold transition ${
+                        on
+                          ? pillOnClass
+                          : "border border-site-ink-200 bg-site-white text-site-ink-800 hover:border-site-clinical-300"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[13px] text-site-ink-600">Times are for online booking.</p>
+            </fieldset>
+
+            <fieldset className="mt-5 border-t border-site-ink-200 pt-4">
+              <legend className={`${sectionTitleClass} float-left w-full`}>Cover</legend>
+              <label className="clear-both flex min-h-11 cursor-pointer items-center gap-3 pt-2 text-[15px] font-semibold text-site-ink-900">
+                <input
+                  type="checkbox"
+                  checked={filters.gesy}
+                  onChange={() => set({ gesy: !filters.gesy })}
+                  className="h-5 w-5 rounded accent-clinical-600"
+                />
+                Accepts GeSY
+              </label>
+            </fieldset>
+
+            {count > 0 ? (
+              <button
+                type="button"
+                onClick={() => go({ online: false, when: "any", gesy: false }, "")}
+                className="mt-4 min-h-10 text-sm font-semibold text-site-clinical-800 underline decoration-site-clinical-300 underline-offset-4 hover:decoration-current"
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
         </div>
       </aside>
-      <div className="min-w-0 flex-1">{children}</div>
+      {children}
     </div>
   );
 }

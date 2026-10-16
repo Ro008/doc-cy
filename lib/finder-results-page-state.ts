@@ -19,7 +19,6 @@ export function finderResultsListScope(input: {
   online?: string | null;
   when?: string | null;
   gesy?: string | null;
-  lang?: string | null;
 }): string {
   const qs = new URLSearchParams();
   const name = input.name?.trim();
@@ -29,7 +28,7 @@ export function finderResultsListScope(input: {
   if (input.lat) qs.set("lat", input.lat);
   if (input.lon) qs.set("lon", input.lon);
   if (input.acc) qs.set("acc", input.acc);
-  for (const key of ["online", "when", "gesy", "lang"] as const) {
+  for (const key of ["online", "when", "gesy"] as const) {
     const value = input[key]?.trim();
     if (value) qs.set(key, value);
   }

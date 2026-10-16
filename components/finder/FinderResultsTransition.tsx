@@ -66,7 +66,6 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
           online: searchParams.get("online"),
           when: searchParams.get("when"),
           gesy: searchParams.get("gesy"),
-          lang: searchParams.get("lang"),
         }),
       );
     }

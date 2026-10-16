@@ -187,7 +187,6 @@ type FinderPageProps = {
     online?: string;
     when?: string;
     gesy?: string;
-    lang?: string;
   };
 };
 
@@ -735,7 +734,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     }> = [];
     let manualLoadError: { code?: string; message?: string } | null = null;
     let manualSelectClause = "";
-    // Book online or a language: no listing can match, so none is loaded (step 3).
+    // Book online: no listing can match, so none is loaded (step 3).
     const manualSelectAttempts = finderPanelExcludesListings(panelFilters)
       ? []
       : [FINDER_LISTING_SELECT_WITH_SPECIALTIES];
@@ -977,7 +976,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       {
         hasOnlineBooking: card.hasOnlineBooking,
         isGesy: card.row.isGesy,
-        languages: card.kind === "registered" ? (card.row as RegisteredFinderRow).languages : [],
       },
       panelFilters,
       {

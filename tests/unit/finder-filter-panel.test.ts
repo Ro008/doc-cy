@@ -18,20 +18,21 @@ describe("the filter panel (Finder G, step 3)", () => {
     assert.match(panel, /if \(!show\) return <>\{children\}<\/>;/);
   });
 
-  it("has the name search back, then availability, cover and languages", () => {
+  it("has the name search back, then availability and cover; no languages for now", () => {
     for (const label of ['"Today"', '"Next 7 days"', '"Any time"']) assert.match(panel, new RegExp(label));
     const order = [
       'id="finder-name-filter"',
       "Book online",
       "WHEN_OPTIONS.map",
       "Accepts GeSY",
-      "More languages",
     ].map((text) => {
       const at = panel.indexOf(text);
       assert.ok(at > 0, text);
       return at;
     });
     assert.deepEqual([...order].sort((a, b) => a - b), order);
+    // User, 2026-10-16: with so few registered professionals it only hid the directory.
+    assert.doesNotMatch(panel, />Languages<|More languages|toggleLanguage/);
   });
 
   it("folds: a Filters button with the count says whether it is open", () => {
@@ -41,13 +42,19 @@ describe("the filter panel (Finder G, step 3)", () => {
     assert.match(panel, /finderPanelFilterCount\(/);
   });
 
-  it("beside the results from xl, above them below that; open on desktop, folded on phones", () => {
-    // G (user, 2026-10-16): the column stays when folded, so the cards keep one width.
-    assert.match(panel, /<div className="xl:flex xl:items-start xl:gap-5">/);
-    assert.match(panel, /className="mt-6 [^"]*xl:w-\[260px\] xl:flex-none"/);
-    assert.doesNotMatch(panel, /desktopOpen \? "xl:flex/);
-    assert.match(panel, /desktopOpen \? "xl:block" : "xl:hidden"/);
-    assert.match(panel, /mobileOpen \? "block" : "hidden"/);
+  it("in the left margin on wide screens, so the cards keep their full width; above them narrower", () => {
+    // The user's sketch (2026-10-16): the cards never give up width to the filters.
+    const has = (text: string) => assert.ok(panel.includes(text), text);
+    has('const WIDE_QUERY = "(min-width: 1840px)"');
+    has('<div className="relative">');
+    has(
+      'className="mt-6 min-[1840px]:absolute min-[1840px]:bottom-0 min-[1840px]:mt-0 min-[1840px]:right-[calc(100%+24px)] min-[1840px]:top-0 min-[1840px]:w-[260px]"',
+    );
+    has("min-[1840px]:sticky min-[1840px]:top-4");
+    // The results are not wrapped in a narrower column.
+    assert.match(panel, /<\/aside>\s*\{children\}\s*<\/div>/);
+    has('wideOpen ? "min-[1840px]:block" : "min-[1840px]:hidden"');
+    has('narrowOpen ? "block" : "hidden"');
   });
 
   it("Book online is a switch; turning it off clears Today / Next 7 days", () => {
