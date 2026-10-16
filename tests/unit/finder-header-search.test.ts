@@ -68,8 +68,13 @@ describe("G's search sits in the header (user, 2026-10-16)", () => {
     }
   });
 
-  it("an intro line under the header, then the heading with the count and Clear search", () => {
-    assert.match(page, /data-testid="finder-intro"/);
+  it("the intro line sits above the header and its search (user, 2026-10-16)", () => {
+    const intro = page.indexOf('data-testid="finder-intro"');
+    assert.ok(intro > 0, "finder-intro");
+    assert.ok(intro < page.indexOf("<FinderPublicHeader"), "intro before the header");
+  });
+
+  it("the heading with the count and Clear search under the header", () => {
     assert.match(page, /<h1\b[\s\S]*?\{finderH1\}/);
     assert.match(page, /<FinderResultsCount[\s\S]*?variant="heading"/);
     assert.match(page, /data-testid="finder-clear-search"/);

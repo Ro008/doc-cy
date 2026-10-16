@@ -1025,6 +1025,15 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         activeDistrict={activeDistrict}
         activeSpecialty={activeSpecialty}
       />
+      {/* G's intro line, above the header and its search (user, 2026-10-16: new wording to come). */}
+      <div data-testid="finder-intro" className="bg-site-clinical-100">
+        <p className="mx-auto max-w-7xl px-4 py-2.5 text-sm text-site-ink-800 sm:px-6 lg:px-8">
+          <strong className="font-semibold text-site-ink-900">
+            Every doctor and clinic in Cyprus, GeSY and private.
+          </strong>{" "}
+          Book online with the ones who take bookings, call the rest.
+        </p>
+      </div>
       <FinderPublicHeader
         proSessionHint={isProSessionHintValue(
           cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
@@ -1043,16 +1052,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           />
         }
       />
-
-      {/* G's intro line (user, 2026-10-16: the wording may change and move above the filters). */}
-      <div data-testid="finder-intro" className="bg-site-clinical-100">
-        <p className="mx-auto max-w-7xl px-4 py-2.5 text-sm text-site-ink-800 sm:px-6 lg:px-8">
-          <strong className="font-semibold text-site-ink-900">
-            Every doctor and clinic in Cyprus, GeSY and private.
-          </strong>{" "}
-          Book online with the ones who take bookings, call the rest.
-        </p>
-      </div>
 
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
