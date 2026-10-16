@@ -10,7 +10,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 /**
  * The patient leaves a verified review from the emailed link (user, 2026-10-04).
  * Body `{ token, rating, comment, email }`.
- * - 200: stored in professional_reviews (published); the link is used up.
+ * - 200: stored in professional_reviews as pending (a founder approves it before it shows;
+ *   user, 2026-10-15); the link is used up.
  * - 403 { code: "professional_signed_in" } when a professional or applicant is signed in (the
  *   link stays unused; user, 2026-10-08).
  * - 400 { code: "rating" | "comment" | "email_mismatch" }: nothing used, they can fix it.
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
     comment: parsed.comment,
     reviewer_name: ctx.appointment.patient_name,
     reviewer_email: String(ctx.appointment.patient_email ?? "").trim(),
+    status: "pending",
   });
   if (error) {
     if ((error as { code?: string }).code === "23505") {

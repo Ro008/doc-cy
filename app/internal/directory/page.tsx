@@ -39,8 +39,11 @@ import { loadDefaultScheme } from "@/lib/site-default-scheme";
 import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
 import { ClinicRequestsSection } from "@/components/internal/ClinicRequestsSection";
 import { ProfileChangeRequestsSection } from "@/components/internal/ProfileChangeRequestsSection";
+import { ReviewModerationSection } from "@/components/internal/ReviewModerationSection";
 import { countPendingClinicRequests, loadClinicRequestsForReview } from "@/lib/clinic-requests-server";
 import { countPendingProfileChanges, loadProfileChangesForReview } from "@/lib/profile-change-requests-server";
+import { countPendingReviews, loadReviewsForModeration } from "@/lib/review-moderation-server";
+import { pendingRequestsSummary } from "@/lib/pending-requests-summary";
 import {
   countReviewablePendingRequests,
   loadRegistrationRequestsForReview,
@@ -302,7 +305,8 @@ export default async function FounderDashboardPage({
   const tab = internalDashboardTab(searchParams?.tab);
   if (tab === "requests") {
     // The review queue only: nothing else on this page is loaded.
-    const [trialMonthsSetting, review, specialtyCatalogue, profileChanges, clinicRequests] = await Promise.all([
+    const [trialMonthsSetting, review, specialtyCatalogue, profileChanges, clinicRequests, patientReviews] =
+      await Promise.all([
       loadTrialMonths(supabase),
       loadRegistrationRequestsForReview(supabase).catch((err) => {
         console.error("[internal/directory] registration requests load failed", err);
@@ -320,6 +324,10 @@ export default async function FounderDashboardPage({
         console.error("[internal/directory] clinic requests load failed", err);
         return [];
       }),
+      loadReviewsForModeration(supabase).catch((err) => {
+        console.error("[internal/directory] patient reviews load failed", err);
+        return { pending: [], decided: [] };
+      }),
     ]);
     return (
       <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -336,7 +344,8 @@ export default async function FounderDashboardPage({
           pendingRequestsCount={
             review.items.filter((item) => item.status === "pending").length +
             profileChanges.filter((item) => item.status === "pending").length +
-            clinicRequests.filter((item) => item.status === "pending").length
+            clinicRequests.filter((item) => item.status === "pending").length +
+            patientReviews.pending.length
           }
         />
         <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
@@ -350,6 +359,11 @@ export default async function FounderDashboardPage({
           />
           <ProfileChangeRequestsSection items={profileChanges} canMutate={canMutate} />
           <ClinicRequestsSection items={clinicRequests} canMutate={canMutate} />
+          <ReviewModerationSection
+            pending={patientReviews.pending}
+            decided={patientReviews.decided}
+            canMutate={canMutate}
+          />
         </div>
       </main>
     );
@@ -734,10 +748,13 @@ export default async function FounderDashboardPage({
   const defaultScheme = await loadDefaultScheme(supabase);
   if (defaultScheme.ok === false) console.error("[internal/directory] default scheme load failed", defaultScheme.error);
 
-  const pendingRequestsCount =
-    (await countReviewablePendingRequests(supabase)) +
-    (await countPendingProfileChanges(supabase)) +
-    (await countPendingClinicRequests(supabase));
+  const pendingSummary = pendingRequestsSummary({
+    registrations: await countReviewablePendingRequests(supabase),
+    profileChanges: await countPendingProfileChanges(supabase),
+    clinicRequests: await countPendingClinicRequests(supabase),
+    reviews: await countPendingReviews(supabase),
+  });
+  const pendingRequestsCount = pendingSummary.total;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -774,8 +791,11 @@ export default async function FounderDashboardPage({
                   Action required
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-amber-100">
-                  {`${pendingRequestsCount} registration request${pendingRequestsCount === 1 ? "" : "s"}`}
+                  {pendingSummary.headline}
                 </h2>
+                {pendingSummary.breakdown ? (
+                  <p className="mt-1 text-sm font-medium text-amber-100">{pendingSummary.breakdown}</p>
+                ) : null}
                 <p className="mt-1 text-sm text-amber-100/85">
                   {canMutate
                     ? "Open each item below to review it."

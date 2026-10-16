@@ -77,7 +77,7 @@ test.describe("Integration: patient review", { tag: "@pr-e2e" }, () => {
   const reviews = async (appointmentId: string) =>
     (await admin.from("professional_reviews").select("*").eq("appointment_id", appointmentId)).data ?? [];
 
-  test("the form says how the name appears and publishes a verified review", async ({ page }) => {
+  test("the form says how the name appears and sends a verified review for the founders to check", async ({ page }) => {
     const { id, token, email } = await pastVisit("ui");
     await page.goto(`/booking/review?token=${encodeURIComponent(token)}`);
     await expect(page.getByRole("heading", { name: /How was your visit/ })).toBeVisible({ timeout: 20_000 });
@@ -91,8 +91,9 @@ test.describe("Integration: patient review", { tag: "@pr-e2e" }, () => {
     }).toPass({ timeout: 15_000 });
     await page.getByLabel("Your review").fill("Listened carefully and explained everything.");
     await page.getByLabel(/Your email/).fill(email.toUpperCase());
-    await page.getByRole("button", { name: "Publish review" }).click();
+    await page.getByRole("button", { name: "Send review" }).click();
     await expect(page.getByTestId("review-thanks")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("review-thanks")).toContainText("checked and published soon");
 
     const rows = await reviews(id);
     expect(rows).toHaveLength(1);
@@ -102,7 +103,7 @@ test.describe("Integration: patient review", { tag: "@pr-e2e" }, () => {
       comment: "Listened carefully and explained everything.",
       reviewer_name: "Maria ui Kyriakou",
       reviewer_email: email,
-      status: "published",
+      status: "pending", // founders approve it first (review_moderation.integration.spec.ts)
     });
   });
 

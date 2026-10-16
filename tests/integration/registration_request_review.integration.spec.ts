@@ -596,6 +596,13 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       .poll(async () => (await loadRequest(admin, seeded.requestId)).status, { timeout: 30_000 })
       .toBe("approved");
 
+    // Approving celebrates (user, 2026-10-15): a dialog names the new profile and closes with Done.
+    const celebration = page.getByRole("dialog", { name: /is now on DocCy/ });
+    await expect(celebration).toBeVisible({ timeout: 30_000 });
+    await expect(celebration.getByRole("link", { name: "Open profile" })).toHaveAttribute("href", /^\/en\//);
+    await celebration.getByRole("button", { name: "Done" }).click();
+    await expect(celebration).toBeHidden();
+
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
     const { data: approvedLinks } = await admin
       .from("professional_clinics")
