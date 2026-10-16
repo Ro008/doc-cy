@@ -17,16 +17,12 @@ import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { hasProAccess } from "@/lib/pro-access";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
-import { FinderFilters } from "@/components/finder/FinderFilters";
+import { FinderHeaderSearch } from "@/components/finder/FinderHeaderSearch";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
-import { FinderHeroBookOnlineLine } from "@/components/finder/FinderHeroBookOnlineLine";
-import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
-import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
@@ -114,7 +110,7 @@ import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
-import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
+import { buildFinderResultsHeading } from "@/lib/finder-results-heading";
 import {
   buildFinderManualShuffleSeed,
   FINDER_RESULTS_PAGE_SIZE,
@@ -979,11 +975,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     districtLabel: placeLabel,
     nearYou: Boolean(userCoords),
   });
-  const finderSnippet = buildFinderResultsSnippet({
-    specialtyLabel: activeSpecialty ? specialtyLabel : null,
-    districtLabel: placeLabel,
-    nearYou: Boolean(userCoords),
-  });
   // Each professional once, however many of her clinics are on screen.
   const schemaCards = visibleCards.filter(
     (card, index) =>
@@ -1030,49 +1021,66 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
         )}
         scheme={scheme}
+        search={
+          <FinderHeaderSearch
+            districts={districts}
+            activeDistrict={activeDistrict}
+            activeSpecialty={activeSpecialty}
+            activeName={activeName}
+            activeTown={activeTown}
+            activeLatitude={userCoords?.latitude ?? null}
+            activeLongitude={userCoords?.longitude ?? null}
+            specialtyOptions={finderSpecialtyOptions}
+          />
+        }
       />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <FinderHeroSection
-          title={finderH1}
-          showHeroImage={!hasSpecificFilters}
-          subtitleClassName="mt-3 max-w-2xl text-lg leading-relaxed text-site-ink-600 sm:text-xl"
-          subtitle={
-            <>
-              <span className="block">
-                {finderSnippet ?? "Find any specialist, anywhere on the island"}
-              </span>
-              <FinderHeroBookOnlineLine size={hasSpecificFilters ? "compact" : "hero"} />
-            </>
-          }
-        />
+      {/* G's intro line (user, 2026-10-16: the wording may change and move above the filters). */}
+      <div data-testid="finder-intro" className="bg-site-clinical-100">
+        <p className="mx-auto max-w-7xl px-4 py-2.5 text-sm text-site-ink-800 sm:px-6 lg:px-8">
+          <strong className="font-semibold text-site-ink-900">
+            Every doctor and clinic in Cyprus, GeSY and private.
+          </strong>{" "}
+          Book online with the ones who take bookings, call the rest.
+        </p>
       </div>
 
-      <FinderSearchBar
-        className={hasSpecificFilters ? "mt-1" : ""}
-      >
-        <FinderAudienceToggle active="professionals" variant="bar" className="mb-5" />
-        <FinderFilters
-          districts={districts}
-          activeDistrict={activeDistrict}
-          activeSpecialty={activeSpecialty}
-          activeName={activeName}
-          activeTown={activeTown}
-          activeLatitude={userCoords?.latitude ?? null}
-          activeLongitude={userCoords?.longitude ?? null}
-          specialtyOptions={finderSpecialtyOptions}
-        />
-        <FinderResultsCount
-          count={totalResultsCount}
-          hasActiveFilters={hasActiveFilters}
-          districtLabel={activeDistrict ? districtLabel : undefined}
-          specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
-          activeName={activeName || undefined}
-          townLabel={activeTown || undefined}
-          nearMe={Boolean(userCoords)}
-          variant="bar"
-        />
-      </FinderSearchBar>
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-tight text-site-ink-900 sm:text-[28px]">
+              {finderH1}
+            </h1>
+            <FinderResultsCount
+              count={totalResultsCount}
+              hasActiveFilters={hasActiveFilters}
+              variant="heading"
+            />
+          </div>
+          {hasActiveFilters ? (
+            <span data-testid="finder-clear-search">
+              <PendingLink
+                href="/"
+                navigationReason="finder-results"
+                className="text-sm font-semibold text-site-clinical-800 underline decoration-site-clinical-300 underline-offset-4 hover:decoration-current"
+              >
+                Clear search
+              </PendingLink>
+            </span>
+          ) : null}
+        </div>
+        {activeDistrict === "Paphos" ? (
+          <p role="note" className="mt-3 text-sm text-site-ink-700">
+            Looking for urgent care in Paphos?{" "}
+            <PendingLink
+              href="/blog/emergency-room-paphos-gesy-faster-options"
+              className="font-semibold text-site-clinical-800 underline underline-offset-[3px]"
+            >
+              Read our guide on GESY specialists &amp; private hospitals
+            </PendingLink>
+          </p>
+        ) : null}
+      </div>
 
       <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <FinderRecentlyViewed kind="professional" />

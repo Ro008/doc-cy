@@ -2,7 +2,14 @@ import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
-import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
+import {
+  finderClearSearch,
+  finderPlaceTrigger,
+  finderSearchButton,
+  gotoFinderName,
+  pickFinderDistrict,
+  selectFinderSpecialty,
+} from "./helpers/finder-specialty-combobox";
 import { deleteTestClinics, seedProfessionalClinic } from "./helpers/test-doctor";
 
 type CreatedDoctor = {
@@ -231,10 +238,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(page).toHaveURL(new RegExp(`${search.path}(?:\\?|$)`), {
         timeout: 20_000,
       });
-      await expect(page.getByTestId("finder-active-filters")).toContainText(search.city, {
+      await expect(finderPlaceTrigger(page)).toContainText(search.city, {
         timeout: 20_000,
       });
-      await expect(page.getByRole("button", { name: /^Clear$/i })).toBeVisible();
+      await expect(finderClearSearch(page)).toBeVisible();
 
       const cardsCount = await page.locator("section.mt-6 article").count();
       const invitationCardVisible = await page
@@ -382,7 +389,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     // The count can render a placeholder before the final client-side fetch
     // resolves; give the text-match the same generous timeout as visibility
     // above instead of the default 5s.
-    await expect(resultsCount).toContainText(String(expectedTotal), { timeout: 60_000 });
+    // Written with a thousands separator ("9,497 results").
+    await expect(resultsCount).toContainText(expectedTotal.toLocaleString("en-GB"), { timeout: 60_000 });
     // First page only renders a page-size slice; do not expect every row in the DOM.
     const cardCount = await page.locator("section.mt-6 article").count();
     expect(cardCount).toBeGreaterThan(0);
@@ -529,30 +537,29 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         timeout: 60_000,
       });
 
-      const districtSelect = page.getByLabel("District");
-      const showResults = page.getByRole("button", { name: /^Find$/i });
-      await districtSelect.selectOption("Nicosia");
+      const showResults = finderSearchButton(page);
+      await pickFinderDistrict(page, "Nicosia");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Nicosia", {
+      await expect(finderPlaceTrigger(page)).toContainText("Nicosia", {
         timeout: 60_000,
       });
 
       const specialtySelect = page.getByTestId("finder-specialty-trigger");
       await selectFinderSpecialty(page, "dentist");
-      await expect(specialtySelect).toHaveText("Dentist");
+      await expect(specialtySelect).toContainText("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
+      await expect(specialtySelect).toContainText("Dentist", {
         timeout: 60_000,
       });
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
-      await page.getByRole("button", { name: /^Clear$/i }).click();
+      await finderClearSearch(page).click();
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
+      await expect(page.getByTestId("finder-clear-search")).toHaveCount(0, { timeout: 60_000 });
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -561,13 +568,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       ).toBeVisible({ timeout: 60_000 });
       // Unfiltered first page is only 12 cards and pins all test profiles — use name filter
       // so claim-lane leftovers cannot crowd these seeds off page 1.
-      const nameInput = page.locator("#finder-name-filter");
-      const findButton = page.getByRole("button", { name: /^Find$/i });
       for (const doctor of created) {
-        await nameInput.fill(doctor.name);
-        await findButton.click();
+        await gotoFinderName(page, doctor.name);
         await expect(page).toHaveURL(/name=/, { timeout: 60_000 });
-        // Prefer the card link — exact name also appears in the active-filters chip.
         await expect(page.getByRole("link", { name: doctor.name, exact: true })).toBeVisible({
           timeout: 60_000,
         });

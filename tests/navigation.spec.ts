@@ -24,7 +24,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.locator("article").first()).toBeVisible({ timeout: 30_000 });
     const resultsCount = page.getByTestId("finder-results-count");
     await expect(resultsCount).toBeVisible({ timeout: 30_000 });
-    await expect(resultsCount).toContainText(/results across Cyprus/i);
+    await expect(resultsCount).toContainText(/^[\d,]+ results$/);
     await expect(resultsCount).toContainText(/\d+/);
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
@@ -42,26 +42,25 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
 
-  test("finder header links to Join as a professional register", async ({ page }) => {
+  test("finder header (G): For professionals and Professional login, no Join", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
 
     const header = page.getByTestId("finder-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
 
-    const joinLink = header.getByRole("link", { name: /join as a professional/i });
+    await expect(header.getByRole("link", { name: /for professionals/i })).toHaveAttribute(
+      "href",
+      "/for-professionals",
+    );
     const loginLink = header.getByRole("link", { name: /professional login/i });
-    await expect(joinLink).toHaveAttribute("href", "/register");
     await expect(loginLink).toHaveAttribute("href", "/login");
+    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
 
     await Promise.all([
-      page.waitForURL(/\/register\/?$/, { timeout: 30_000 }),
-      joinLink.click(),
+      page.waitForURL(/\/login\/?(?:\?.*)?$/, { timeout: 30_000 }),
+      loginLink.click(),
     ]);
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Join DocCy in 3 steps/i }),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("link", { name: /^Sign in$/i })).toHaveAttribute("href", "/login");
   });
 
   test("doctor profile header links to Join as a professional register", async ({
@@ -93,7 +92,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     );
   });
 
-  test("finder header shows Join only on mobile; login stays desktop", async ({
+  test("finder header on a phone keeps Professional login; For professionals is desktop only", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -103,10 +102,11 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(header).toBeVisible({ timeout: 30_000 });
     await expect(header.getByTestId("public-header-menu-toggle")).toHaveCount(0);
 
-    const joinLink = header.getByRole("link", { name: /join as a professional/i });
-    await expect(joinLink).toBeVisible();
-    await expect(joinLink).toHaveAttribute("href", "/register");
-    await expect(header.getByRole("link", { name: /professional login/i })).toBeHidden();
+    const loginLink = header.getByRole("link", { name: /professional login/i });
+    await expect(loginLink).toBeVisible();
+    await expect(loginLink).toHaveAttribute("href", "/login");
+    await expect(header.getByRole("link", { name: /for professionals/i })).toBeHidden();
+    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
   });
 
   test("sales header has no guest CTAs; hero keeps the conversion CTAs", async ({ page }) => {
@@ -160,15 +160,9 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page).toHaveURL(/\/paphos\/dentist(?:\?|$)/, { timeout: 20_000 });
   });
 
-  test("clinics search is reachable from homepage toggle and footer", async ({ page }) => {
-    await page.goto("/");
-
-    const toggle = page.getByTestId("finder-audience-toggle");
-    await expect(toggle).toBeVisible();
-    await Promise.all([
-      page.waitForURL(/\/clinics(?:\?|$)/, { timeout: 30_000 }),
-      toggle.getByRole("link", { name: /^Clinics$/i }).click(),
-    ]);
+  test("clinics search is reachable from the footer and the professionals page", async ({ page }) => {
+    // The Finder's Professionals / Clinics switch is gone (user, 2026-10-16).
+    await page.goto("/clinics");
     await expect(
       page.getByRole("heading", {
         level: 1,

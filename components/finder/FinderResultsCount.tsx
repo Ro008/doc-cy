@@ -7,7 +7,7 @@ type FinderResultsCountProps = {
   townLabel?: string;
   nearMe?: boolean;
   className?: string;
-  variant?: "default" | "footer" | "bar";
+  variant?: "default" | "footer" | "bar" | "heading";
 };
 
 function buildFilterHint(props: FinderResultsCountProps): string | null {
@@ -31,6 +31,19 @@ export function FinderResultsCount({
 
   // One card per professional + clinic (user, 2026-10-15): the count is of cards.
   const resultWord = count === 1 ? "result" : "results";
+  // G (step 2): under the page heading, the heading already says what was searched.
+  if (variant === "heading") {
+    return (
+      <p
+        data-testid="finder-results-count"
+        className={className ?? "mt-1.5 text-[15px] text-site-ink-600"}
+        aria-live="polite"
+      >
+        <span className="font-bold tabular-nums text-site-ink-900">{count.toLocaleString("en-GB")}</span>{" "}
+        {resultWord}
+      </p>
+    );
+  }
   const filterHint = buildFilterHint(props);
   const onBar = variant === "bar";
   const resolvedClassName =

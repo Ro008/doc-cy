@@ -1,7 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
-import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
+import {
+  finderClearSearch,
+  finderPlaceTrigger,
+  finderSearchButton,
+  gotoFinderName,
+  pickFinderDistrict,
+  selectFinderSpecialty,
+} from "./helpers/finder-specialty-combobox";
 import { deleteTestClinics, seedProfessionalClinic } from "./helpers/test-doctor";
 
 type CreatedDoctor = {
@@ -43,10 +50,7 @@ async function expectRegisteredDoctorViaNameFilter(
   name: string,
   options?: { absent?: boolean },
 ) {
-  const nameInput = page.locator("#finder-name-filter");
-  const showResults = page.getByRole("button", { name: /^Find$/i });
-  await nameInput.fill(name);
-  await showResults.click();
+  await gotoFinderName(page, name);
   await expect(page).toHaveURL(/name=/, { timeout: 60_000 });
   if (options?.absent) {
     await expect(page.getByText(name, { exact: true })).toHaveCount(0);
@@ -55,11 +59,24 @@ async function expectRegisteredDoctorViaNameFilter(
   }
 }
 
+/**
+ * Back to the same search without ?name=, through the search itself. A district page loaded
+ * directly (page.goto("/limassol")) does not hydrate under Playwright (master too, 2026-10-16),
+ * so the next steps could not open the specialty list there.
+ */
 async function clearFinderNameFilter(page: import("@playwright/test").Page) {
-  const nameInput = page.locator("#finder-name-filter");
-  const showResults = page.getByRole("button", { name: /^Find$/i });
-  await nameInput.fill("");
-  await showResults.click();
+  const [district = "", specialty = ""] = new URL(page.url()).pathname.split("/").filter(Boolean);
+  await page.goto("/");
+  if (district && district !== "all") {
+    await pickFinderDistrict(page, district.charAt(0).toUpperCase() + district.slice(1));
+  }
+  if (specialty) await selectFinderSpecialty(page, specialty);
+  if (district || specialty) {
+    await finderSearchButton(page).click();
+    await expect(page).toHaveURL(new RegExp(`/${district}${specialty ? `/${specialty}` : ""}(?:\\?|$)`), {
+      timeout: 60_000,
+    });
+  }
   await expect(page).not.toHaveURL(/name=/, { timeout: 60_000 });
 }
 
@@ -207,17 +224,15 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
         page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
 
-      const districtSelect = page.getByLabel("District");
       const specialtySelect = page.getByTestId("finder-specialty-trigger");
-      const nameInput = page.locator("#finder-name-filter");
-      const showResults = page.getByRole("button", { name: /^Find$/i });
+      const showResults = finderSearchButton(page);
 
       // Scenario 1: District-only exploration (apply once).
-      await districtSelect.selectOption("Limassol");
+      await pickFinderDistrict(page, "Limassol");
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Limassol", {
+      await expect(finderPlaceTrigger(page)).toContainText("Limassol", {
         timeout: 60_000,
       });
       await expect(
@@ -230,7 +245,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
       // Scenario 2: District + specialty narrowing.
       await selectFinderSpecialty(page, "dentist");
-      await expect(specialtySelect).toHaveText("Dentist");
+      await expect(specialtySelect).toContainText("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(
@@ -238,27 +253,22 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       ).toBeVisible({
         timeout: 60_000,
       });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
+      await expect(specialtySelect).toContainText("Dentist", {
         timeout: 60_000,
       });
       await expectRegisteredDoctorViaNameFilter(page, created[1].name);
       await expectRegisteredDoctorViaNameFilter(page, created[0].name, { absent: true });
       await clearFinderNameFilter(page);
 
-      // Scenario 3: Name filter applies on Enter or Find (not while typing).
-      await nameInput.fill("Dent");
-      await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
-      await nameInput.press("Enter");
+      // Scenario 3: a ?name= link filters (the name field returns with the filter panel, step 3).
+      await gotoFinderName(page, "Dent");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dent", {
-        timeout: 60_000,
-      });
       await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
 
-      // Scenario 4: Reset should recover broad list + clean path.
-      await page.getByRole("button", { name: /^Clear$/i }).click();
+      // Scenario 4: Clear search recovers the broad list + clean path.
+      await finderClearSearch(page).click();
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
+      await expect(page.getByTestId("finder-clear-search")).toHaveCount(0, { timeout: 60_000 });
       await expect(
         page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
@@ -274,7 +284,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
     }
   });
 
-  test("keeps specialty filter when using Doctor near me", async ({ page, context }) => {
+  test("keeps specialty filter when using Near me", async ({ page, context }) => {
     test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -294,22 +304,23 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
     const specialtySelect = page.getByTestId("finder-specialty-trigger");
     await selectFinderSpecialty(page, "otorhinolaryngology");
-    await expect(specialtySelect).toHaveText("Otorhinolaryngology");
+    await expect(specialtySelect).toContainText("Otorhinolaryngology");
 
-    await page.getByRole("button", { name: /Doctor near me/i }).click();
+    await finderPlaceTrigger(page).click();
+    await page.getByRole("button", { name: "Near me", exact: true }).click();
     await expect(page).toHaveURL(/\/all\/otorhinolaryngology(?:\?|$)/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lat=/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lon=/, { timeout: 20_000 });
-    await expect(page.getByTestId("finder-active-filters")).toContainText("Near me", {
+    await expect(finderPlaceTrigger(page)).toContainText("Near me", {
       timeout: 20_000,
     });
-    await expect(page.getByTestId("finder-active-filters")).toContainText("Otorhinolaryngology");
+    await expect(specialtySelect).toContainText("Otorhinolaryngology");
 
-    await page.getByRole("button", { name: /^Clear$/i }).click();
+    await finderClearSearch(page).click();
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 20_000 });
     await expect(page).not.toHaveURL(/[?&]lat=/, { timeout: 20_000 });
     await expect(page).not.toHaveURL(/[?&]lon=/, { timeout: 20_000 });
-    await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
+    await expect(page.getByTestId("finder-clear-search")).toHaveCount(0, { timeout: 20_000 });
   });
 });
 

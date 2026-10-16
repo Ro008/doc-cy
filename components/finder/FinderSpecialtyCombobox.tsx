@@ -17,6 +17,10 @@ type FinderSpecialtyComboboxProps = {
   fieldClass: string;
   iconClass: string;
   inputId?: string;
+  /** G's header look: a small caption over the value (Finder G, step 2). */
+  caption?: string;
+  /** Classes for the wrapper (width in its row). */
+  className?: string;
 };
 
 export function FinderSpecialtyCombobox({
@@ -27,6 +31,8 @@ export function FinderSpecialtyCombobox({
   fieldClass,
   iconClass,
   inputId = "finder-specialty-filter",
+  caption,
+  className = "relative min-w-0 flex-1 basis-[22%]",
 }: FinderSpecialtyComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -92,7 +98,7 @@ export function FinderSpecialtyCombobox({
   }
 
   return (
-    <div ref={wrapRef} className="relative min-w-0 flex-1 basis-[22%]">
+    <div ref={wrapRef} className={className}>
       <input type="hidden" name="specialty" value={value} readOnly />
       <label className="relative block">
         <span className="sr-only">Specialty</span>
@@ -126,7 +132,16 @@ export function FinderSpecialtyCombobox({
             selectedLabel ? "text-site-ink-900" : "text-site-ink-400"
           }`}
         >
-          <span className="block truncate">{selectedLabel || ALL_SPECIALTIES_LABEL}</span>
+          {caption ? (
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-site-ink-600">{caption}</span>
+              <span className="truncate text-[15px] font-bold text-site-ink-900">
+                {selectedLabel || "Any specialty"}
+              </span>
+            </span>
+          ) : (
+            <span className="block truncate">{selectedLabel || ALL_SPECIALTIES_LABEL}</span>
+          )}
         </button>
         <ChevronDown
           className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-site-ink-400 transition ${
@@ -139,7 +154,9 @@ export function FinderSpecialtyCombobox({
 
       {open ? (
         <div
-          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-site-ink-200 bg-site-white shadow-sm"
+          className={`absolute z-40 overflow-hidden border border-site-ink-200 bg-site-white ${
+            caption ? "left-0 mt-2 w-[min(340px,calc(100vw-2rem))] rounded-2xl shadow-lg" : "mt-1 w-full rounded-xl shadow-sm"
+          }`}
           role="presentation"
         >
           <div className="sticky top-0 border-b border-site-ink-100 bg-site-white p-2">

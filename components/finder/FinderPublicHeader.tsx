@@ -26,6 +26,8 @@ type FinderPublicHeaderProps = {
   scheme?: ProfileScheme;
   /** The switch's words (the profile passes its translations; English otherwise). */
   schemeLabels?: SiteSchemeLabels;
+  /** The Finder's search: beside the logo from xl, its own row below that (Finder G, step 2). */
+  search?: React.ReactNode;
 };
 
 /**
@@ -41,6 +43,7 @@ export function FinderPublicHeader({
   embedded = false,
   scheme,
   schemeLabels,
+  search,
 }: FinderPublicHeaderProps) {
   const { sessionState, showProChrome } = useDoctorSession();
   const hideGuestCtas = sessionState.isLoggedIn || proSessionHint || showProChrome;
@@ -57,12 +60,12 @@ export function FinderPublicHeader({
     </>
   );
 
-  return (
+  const bar = (
     <header
       data-testid={isSales ? "sales-public-header" : "finder-public-header"}
-      className={embedded ? "" : "mx-auto max-w-7xl px-4 py-2.5 sm:px-6 lg:px-8"}
+      className={embedded ? "" : `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${search ? "py-3" : "py-2.5"}`}
     >
-      <div className="flex items-center justify-between gap-2 sm:gap-3">
+      <div className={`flex items-center justify-between ${search ? "flex-wrap gap-x-4 gap-y-3" : "gap-2 sm:gap-3"}`}>
         {isSales ? (
           <span className="inline-flex shrink-0">{logo}</span>
         ) : (
@@ -70,7 +73,32 @@ export function FinderPublicHeader({
             {logo}
           </PendingLink>
         )}
-        <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2.5">
+        {search ? (
+          <div
+            data-testid="finder-header-search-slot"
+            className="order-3 min-w-0 basis-full xl:order-2 xl:flex-[999_1_480px]"
+          >
+            {search}
+          </div>
+        ) : null}
+        {search ? (
+          // G (user, 2026-10-16): one row with the logo and the search from xl; the switch,
+          // For professionals and an outlined Professional login. No Join on the Finder.
+          <div className="order-2 flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2 xl:order-3">
+            {scheme ? <SiteSchemeToggle initial={scheme} labels={schemeLabels} /> : null}
+            {showGuestNav ? (
+              <nav aria-label="Professional access" className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+                <PendingLink href="/for-professionals" className={`${loginLinkClass} hidden md:inline-flex`}>
+                  For professionals
+                </PendingLink>
+                <PendingLink href="/login" className={joinLinkClass}>
+                  Professional login
+                </PendingLink>
+              </nav>
+            ) : null}
+          </div>
+        ) : (
+        <div className="order-2 flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2.5">
           {showGuestNav ? (
             <nav
               aria-label="Professional access"
@@ -99,7 +127,12 @@ export function FinderPublicHeader({
           ) : null}
           {scheme ? <SiteSchemeToggle initial={scheme} labels={schemeLabels} /> : null}
         </div>
+        )}
       </div>
     </header>
   );
+
+  if (!search) return bar;
+  // G: the header is its own white band with the search in it.
+  return <div className="relative z-30 border-b border-site-ink-200 bg-site-white">{bar}</div>;
 }
