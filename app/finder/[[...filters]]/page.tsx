@@ -25,7 +25,10 @@ import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
-import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
+import {
+  FinderSearchRouteLoadingView,
+  readProSessionHint,
+} from "@/components/finder/FinderSearchRouteLoading";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
@@ -441,10 +444,16 @@ export async function generateMetadata({
   };
 }
 
-export default function FinderPage(props: FinderPageProps) {
+export default async function FinderPage(props: FinderPageProps) {
+  // The fallback must not suspend (see FinderSearchRouteLoadingView): read the scheme first.
+  const scheme = await getSiteScheme();
   return (
     <SiteSchemeRoot>
-      <Suspense fallback={<FinderSearchRouteLoading />}>
+      <Suspense
+        fallback={
+          <FinderSearchRouteLoadingView proSessionHint={readProSessionHint()} scheme={scheme} />
+        }
+      >
         <FinderPageContent {...props} />
       </Suspense>
     </SiteSchemeRoot>
