@@ -30,6 +30,7 @@ import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
+import { FinderFilterPanel } from "@/components/finder/FinderFilterPanel";
 import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
@@ -144,6 +145,15 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
+import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
+import {
+  finderCalendarHasSlotWithin,
+  finderCardPassesPanelFilters,
+  finderPanelFilterKey,
+  finderPanelFilterParams,
+  hasFinderPanelFilters,
+  parseFinderPanelFilters,
+} from "@/lib/finder-panel-filters";
 import { USER_EVENTS_TABLE } from "@/lib/user-events";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
@@ -172,6 +182,11 @@ type FinderPageProps = {
     lon?: string;
     acc?: string;
     page?: string;
+    /** The filter panel (Finder G, step 3; `lib/finder-panel-filters.ts`). */
+    online?: string;
+    when?: string;
+    gesy?: string;
+    lang?: string;
   };
 };
 
@@ -479,8 +494,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const userCoords = parseUserCoordinates(searchParams);
   const nearMeAccuracyMeters = parseNearMeAccuracyMeters(searchParams);
   const nearMeApproximate = isApproximateNearMeAccuracy(nearMeAccuracyMeters);
+  const panelFilters = parseFinderPanelFilters(searchParams ?? {});
   const hasListFilter = Boolean(
-    activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
+    activeDistrict ||
+      activeSpecialty ||
+      activeName ||
+      activeTown ||
+      userCoords ||
+      hasFinderPanelFilters(panelFilters),
   );
   const finderPath = finderResultsPath(
     activeDistrict || null,
@@ -493,6 +514,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     lat: searchParams?.lat ?? null,
     lon: searchParams?.lon ?? null,
     acc: searchParams?.acc ?? null,
+    ...finderPanelFilterParams(panelFilters),
   });
   /**
    * Every search counts against the visitor's IP for the hour, regardless of
@@ -932,8 +954,41 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     placeFilter,
   ) as FinderCard[];
 
+  // The filter panel (Finder G, step 3). Today / Next 7 days read each bookable clinic's
+  // calendar; only registered professionals have one, and they are few.
+  let calendarByLocationId = new Map<string, { slots: readonly unknown[] }[]>();
+  if (panelFilters.when !== "any") {
+    const bookableIds = Array.from(
+      new Set(registeredCards.filter((card) => card.hasOnlineBooking).map((card) => card.professionalId)),
+    );
+    const availability = await loadFinderAvailabilityForRequest(
+      finderAvailabilityRequestKey(bookableIds),
+    );
+    calendarByLocationId = new Map(
+      Array.from(availability.byLocationId, ([id, entry]) => [id, entry.paused ? [] : entry.calendar.days]),
+    );
+  }
+  const panelCards = [...registeredCards, ...manualCards].filter((card) =>
+    finderCardPassesPanelFilters(
+      {
+        hasOnlineBooking: card.hasOnlineBooking,
+        isGesy: card.row.isGesy,
+        languages: card.kind === "registered" ? (card.row as RegisteredFinderRow).languages : [],
+      },
+      panelFilters,
+      {
+        hasSlotWithinDays: (days) =>
+          finderCalendarHasSlotWithin(
+            calendarByLocationId.get(card.place?.linkId ?? "") ?? [],
+            days,
+          ),
+      },
+    ),
+  );
+  const panelRegisteredCount = panelCards.filter((card) => card.kind === "registered").length;
+
   const orderedCards = orderFinderClinicCards<RegisteredFinderRow | ManualFinderRow>(
-    [...registeredCards, ...manualCards],
+    panelCards,
     {
       nearMe: Boolean(userCoords),
       shuffleSeed: buildFinderManualShuffleSeed(listScope, shuffleSession.seed),
@@ -944,8 +999,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   ) as FinderCard[];
 
   const visibleCards = orderedCards.slice(0, visibleLimit);
+  // With a panel filter on, every listing was loaded (hasListFilter), so the cards are the count.
   const totalResultsCount =
-    registeredCards.length + (manualCardTotalCount ?? manualCards.length);
+    panelRegisteredCount + (manualCardTotalCount ?? panelCards.length - panelRegisteredCount);
   const hasMoreResults = hasMoreFinderResults({
     totalCount: totalResultsCount,
     visibleCount: visibleCards.length,
@@ -1099,6 +1155,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             </div>
           ) : null}
 
+          {/* Finder G, step 3: the filter panel opens once a search is on. */}
+          <FinderFilterPanel
+            show={hasListFilter}
+            activeName={activeName}
+            filters={panelFilters}
+            serverFilterKey={finderPanelFilterKey(panelFilters, activeName)}
+          >
           <section className="mt-6">
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
               <div className="flex flex-col gap-4">
@@ -1377,6 +1440,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               </div>
             </FinderResultsAvailabilityShell>
           </section>
+          </FinderFilterPanel>
 
           <footer className="mt-12 border-t border-site-ink-200 pt-6 pb-2">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">

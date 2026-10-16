@@ -14,6 +14,7 @@ import { FinderSpecialtyCombobox } from "@/components/finder/FinderSpecialtyComb
 import { FinderPlacePicker } from "@/components/finder/FinderPlacePicker";
 import { appendFinderNearMeParams, type FinderNearMeCoords } from "@/lib/finder-distance";
 import { emitNavigationStart, NAVIGATION_START_EVENT } from "@/lib/doccy-navigation";
+import { FINDER_PANEL_PARAM_KEYS } from "@/lib/finder-panel-filters";
 
 type FinderHeaderSearchProps = {
   districts: readonly string[];
@@ -132,6 +133,11 @@ export function FinderHeaderSearch({
     if (activeName.trim()) params.set("name", activeName.trim());
     if (next.town) params.set("town", townToSlug(next.town));
     if (next.coords) appendFinderNearMeParams(params, next.coords);
+    // The filter panel's choices stay on for the new search (Finder G, step 3).
+    for (const key of FINDER_PANEL_PARAM_KEYS) {
+      const value = searchParams?.get(key);
+      if (value) params.set(key, value);
+    }
     const finderPath = finderResultsPath(next.district || null, specialtyLabelFromSlug(specialtySlug) || null);
     const qs = params.toString();
     const target = qs ? `${finderPath}?${qs}` : finderPath;
