@@ -1072,6 +1072,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   });
 
   const scheme = await getSiteScheme();
+  // G (user, 2026-10-16): from 1840 px a search's page widens so the Filters column fits
+  // beside the cards at their full 1216 px; intro, header, heading and results line up.
+  const finderWideClass = hasListFilter ? "min-[1840px]:max-w-[1564px]" : "";
 
   return (
     <main className="min-h-screen bg-site-ink-50 text-site-ink-800">
@@ -1085,7 +1088,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       />
       {/* G's intro line, above the header and its search (user, 2026-10-16: new wording to come). */}
       <div data-testid="finder-intro" className="bg-site-clinical-100">
-        <p className="mx-auto max-w-7xl px-4 py-2.5 text-sm text-site-ink-800 sm:px-6 lg:px-8">
+        <p className={`mx-auto max-w-7xl px-4 py-2.5 text-sm text-site-ink-800 sm:px-6 lg:px-8 ${finderWideClass}`}>
           <strong className="font-semibold text-site-ink-900">
             Every doctor and clinic in Cyprus, GeSY and private.
           </strong>{" "}
@@ -1097,6 +1100,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
         )}
         scheme={scheme}
+        wide={hasListFilter}
         search={
           <FinderHeaderSearch
             districts={districts}
@@ -1111,7 +1115,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         }
       />
 
-      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+      <div className={`mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8 ${finderWideClass}`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-tight text-site-ink-900 sm:text-[28px]">
@@ -1135,21 +1139,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             </span>
           ) : null}
         </div>
-        {activeDistrict === "Paphos" ? (
-          <p role="note" className="mt-3 text-sm text-site-ink-700">
-            Looking for urgent care in Paphos?{" "}
-            <PendingLink
-              href="/blog/emergency-room-paphos-gesy-faster-options"
-              className="font-semibold text-site-clinical-800 underline underline-offset-[3px]"
-            >
-              Read our guide on GESY specialists &amp; private hospitals
-            </PendingLink>
-          </p>
-        ) : null}
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <FinderRecentlyViewed kind="professional" />
+      <div className={`mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8 ${finderWideClass}`}>
+        {/* G: nothing between the heading and the results once a search is on. */}
+        {hasListFilter ? null : <FinderRecentlyViewed kind="professional" />}
         <FinderResultsTransition>
           {dataWarning ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

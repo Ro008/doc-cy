@@ -24,8 +24,8 @@ const WHEN_OPTIONS: { value: FinderWhen; label: string }[] = [
 ];
 
 /**
- * Wide enough for the 260 px box in the page's left margin beside the 1280 px column
- * (user, 2026-10-16: the cards never give up width to the filters).
+ * Wide enough for the 260 px column beside the 1216 px cards (the page widens to
+ * 1564 px; user, 2026-10-16: the cards never give up width to the filters).
  */
 const WIDE_QUERY = "(min-width: 1840px)";
 
@@ -37,8 +37,8 @@ const pillOnClass =
 
 /**
  * The Finder's filter panel (Finder G, step 3; user, 2026-10-15/16): it opens once a search
- * is on. On wide screens it sits in the left margin beside the results, sticky, and folds
- * away; the cards keep their full width either way. Narrower, it is a folded Filters box
+ * is on. On wide screens it is a sticky column beside the results that folds away; the
+ * page widens for it, so the cards keep their full width either way. Narrower, it is a folded Filters box
  * above the results. Every change goes to the URL and the server
  * filters (lib/finder-panel-filters.ts).
  */
@@ -143,15 +143,15 @@ export function FinderFilterPanel({
   if (!show) return <>{children}</>;
 
   return (
-    // Wide: the aside is a column in the left margin as tall as the results, and the box
-    // inside it sticks while the cards scroll (G; the user's sketch, 2026-10-16).
-    <div className="relative">
+    // Wide: G's grid, a 260 px Filters column beside the cards at their full width; the
+    // page widens to fit it (user, 2026-10-16). The box sticks while the cards scroll.
+    <div className="min-[1840px]:grid min-[1840px]:grid-cols-[260px_minmax(0,1fr)] min-[1840px]:items-start min-[1840px]:gap-x-6">
       <aside
         data-testid="finder-filter-panel"
         aria-label="Filters"
-        className="mt-6 min-[1840px]:absolute min-[1840px]:bottom-0 min-[1840px]:mt-0 min-[1840px]:right-[calc(100%+24px)] min-[1840px]:top-0 min-[1840px]:w-[260px]"
+        className="mt-6 min-[1840px]:sticky min-[1840px]:top-4"
       >
-        <div className="rounded-[20px] border border-site-ink-200 bg-site-white px-4 py-2.5 min-[1840px]:sticky min-[1840px]:top-4 min-[1840px]:max-h-[calc(100vh-2rem)] min-[1840px]:overflow-y-auto">
+        <div className="rounded-[20px] border border-site-ink-200 bg-site-white px-4 py-2.5 min-[1840px]:max-h-[calc(100vh-2rem)] min-[1840px]:overflow-y-auto">
           <button
             type="button"
             onClick={toggle}

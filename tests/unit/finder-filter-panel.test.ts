@@ -46,13 +46,13 @@ describe("the filter panel (Finder G, step 3)", () => {
     // The user's sketch (2026-10-16): the cards never give up width to the filters.
     const has = (text: string) => assert.ok(panel.includes(text), text);
     has('const WIDE_QUERY = "(min-width: 1840px)"');
-    has('<div className="relative">');
+    // G (user, 2026-10-16): a 260 px column, then the cards at their full 1216 px.
     has(
-      'className="mt-6 min-[1840px]:absolute min-[1840px]:bottom-0 min-[1840px]:mt-0 min-[1840px]:right-[calc(100%+24px)] min-[1840px]:top-0 min-[1840px]:w-[260px]"',
+      '<div className="min-[1840px]:grid min-[1840px]:grid-cols-[260px_minmax(0,1fr)] min-[1840px]:items-start min-[1840px]:gap-x-6">',
     );
     has("min-[1840px]:sticky min-[1840px]:top-4");
-    // The results are not wrapped in a narrower column.
     assert.match(panel, /<\/aside>\s*\{children\}\s*<\/div>/);
+    assert.ok(!panel.includes("min-[1840px]:absolute"));
     has('wideOpen ? "min-[1840px]:block" : "min-[1840px]:hidden"');
     has('narrowOpen ? "block" : "hidden"');
   });
@@ -85,5 +85,21 @@ describe("the results always match the address (Next 14.2 keeps the first load u
 describe("a new search from the header keeps the panel's filters", () => {
   it("copies them from the URL", () => {
     assert.match(search, /FINDER_PANEL_PARAM_KEYS/);
+  });
+});
+
+describe("G's results area once a search is on (user, 2026-10-16)", () => {
+  const header = read("components/finder/FinderPublicHeader.tsx");
+
+  it("one wider column from 1840 px: intro, header, heading and results share a left edge", () => {
+    assert.ok(page.includes('const finderWideClass = hasListFilter ? "min-[1840px]:max-w-[1564px]" : "";'));
+    assert.equal(page.match(/\$\{finderWideClass\}/g)?.length, 3, "intro, heading, results");
+    assert.match(page, /<FinderPublicHeader[\s\S]*?wide=\{hasListFilter\}/);
+    assert.ok(header.includes('wide ? "min-[1840px]:max-w-[1564px]" : ""'));
+  });
+
+  it("the heading sits right above the filters and the cards: nothing in between", () => {
+    assert.doesNotMatch(page, /Looking for urgent care in Paphos/);
+    assert.match(page, /\{hasListFilter \? null : <FinderRecentlyViewed kind="professional" \/>\}/);
   });
 });

@@ -28,6 +28,8 @@ type FinderPublicHeaderProps = {
   schemeLabels?: SiteSchemeLabels;
   /** The Finder's search: beside the logo from xl, its own row below that (Finder G, step 2). */
   search?: React.ReactNode;
+  /** Widen with the Finder's results when its Filters column shows (from 1840 px). */
+  wide?: boolean;
 };
 
 /**
@@ -44,6 +46,7 @@ export function FinderPublicHeader({
   scheme,
   schemeLabels,
   search,
+  wide = false,
 }: FinderPublicHeaderProps) {
   const { sessionState, showProChrome } = useDoctorSession();
   const hideGuestCtas = sessionState.isLoggedIn || proSessionHint || showProChrome;
@@ -63,7 +66,7 @@ export function FinderPublicHeader({
   const bar = (
     <header
       data-testid={isSales ? "sales-public-header" : "finder-public-header"}
-      className={embedded ? "" : `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${search ? "py-3" : "py-2.5"}`}
+      className={embedded ? "" : `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${search ? "py-3" : "py-2.5"} ${wide ? "min-[1840px]:max-w-[1564px]" : ""}`}
     >
       <div className={`flex items-center justify-between ${search ? "flex-wrap gap-x-4 gap-y-3" : "gap-2 sm:gap-3"}`}>
         {isSales ? (
