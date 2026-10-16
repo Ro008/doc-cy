@@ -164,3 +164,14 @@ describe("one key for the name and the panel's filters", () => {
     assert.equal(finderPanelFilterKey(none, ""), "");
   });
 });
+
+describe("listings are not loaded when the panel rules them all out", () => {
+  it("Book online, a time or a language: no listing can match", async () => {
+    const { finderPanelExcludesListings } = await import("../../lib/finder-panel-filters");
+    assert.equal(finderPanelExcludesListings(none), false);
+    assert.equal(finderPanelExcludesListings({ ...none, gesy: true }), false);
+    assert.equal(finderPanelExcludesListings({ ...none, online: true }), true);
+    assert.equal(finderPanelExcludesListings({ ...none, online: true, when: "today" }), true);
+    assert.equal(finderPanelExcludesListings({ ...none, languages: ["Greek"] }), true);
+  });
+});

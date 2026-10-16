@@ -42,7 +42,10 @@ describe("the filter panel (Finder G, step 3)", () => {
   });
 
   it("beside the results from xl, above them below that; open on desktop, folded on phones", () => {
-    assert.match(panel, /xl:w-\[260px\]/);
+    // G (user, 2026-10-16): the column stays when folded, so the cards keep one width.
+    assert.match(panel, /<div className="xl:flex xl:items-start xl:gap-5">/);
+    assert.match(panel, /className="mt-6 [^"]*xl:w-\[260px\] xl:flex-none"/);
+    assert.doesNotMatch(panel, /desktopOpen \? "xl:flex/);
     assert.match(panel, /desktopOpen \? "xl:block" : "xl:hidden"/);
     assert.match(panel, /mobileOpen \? "block" : "hidden"/);
   });

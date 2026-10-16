@@ -152,35 +152,41 @@ export function FinderFilterPanel({
   const languageOptions = [...FINDER_PANEL_PRIMARY_LANGUAGES, ...shownMore];
 
   return (
-    <div className={desktopOpen ? "xl:flex xl:items-start xl:gap-6" : ""}>
+    // G: from xl the Filters box keeps its own column, open or folded, so the cards keep
+    // one width (user, 2026-10-16). Below xl it is a box above the results.
+    <div className="xl:flex xl:items-start xl:gap-5">
       <aside
         data-testid="finder-filter-panel"
         aria-label="Filters"
-        className={`mt-6 ${desktopOpen ? "xl:sticky xl:top-4 xl:w-[260px] xl:flex-none" : ""}`}
+        className="mt-6 rounded-[20px] border border-site-ink-200 bg-site-white px-4 py-2.5 xl:sticky xl:top-4 xl:w-[260px] xl:flex-none"
       >
         <button
           type="button"
           onClick={toggle}
           aria-expanded={open}
           aria-controls="finder-filter-body"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-site-ink-200 bg-site-white px-4 text-sm font-bold text-site-ink-900 hover:border-site-clinical-300"
+          className="flex min-h-11 w-full items-center justify-between gap-2.5 text-left"
         >
-          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-          Filters
-          {count > 0 ? (
-            <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] ${pillOnClass}`}>
-              {count}
-            </span>
-          ) : null}
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+          <span className="inline-flex items-center gap-2.5 text-base font-extrabold text-site-ink-900">
+            <SlidersHorizontal className="h-[18px] w-[18px]" aria-hidden="true" />
+            Filters
+            {count > 0 ? (
+              <span className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${pillOnClass}`}>
+                {count}
+              </span>
+            ) : null}
+          </span>
+          <span
             aria-hidden="true"
-          />
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-site-ink-200 bg-site-ink-50 text-site-ink-900"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </span>
         </button>
 
         <div
           id="finder-filter-body"
-          className={`${mobileOpen ? "block" : "hidden"} ${desktopOpen ? "xl:block" : "xl:hidden"} mt-3 rounded-2xl border border-site-ink-200 bg-site-white p-4`}
+          className={`${mobileOpen ? "block" : "hidden"} ${desktopOpen ? "xl:block" : "xl:hidden"} pb-2.5 pt-3`}
         >
           <form
             role="search"

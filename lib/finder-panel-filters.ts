@@ -76,6 +76,14 @@ export function hasFinderPanelFilters(filters: FinderPanelFilters): boolean {
   return filters.online || filters.when !== "any" || filters.gesy || filters.languages.length > 0;
 }
 
+/**
+ * No unregistered listing can pass: they never book online and list no languages. The
+ * Finder then skips loading them (thousands of rows) instead of loading and dropping them.
+ */
+export function finderPanelExcludesListings(filters: FinderPanelFilters): boolean {
+  return filters.online || filters.languages.length > 0;
+}
+
 /** The number on the Filters button: each filter that is on counts once. */
 export function finderPanelFilterCount(filters: FinderPanelFilters, name: string): number {
   return (

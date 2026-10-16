@@ -149,6 +149,7 @@ import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-avail
 import {
   finderCalendarHasSlotWithin,
   finderCardPassesPanelFilters,
+  finderPanelExcludesListings,
   finderPanelFilterKey,
   finderPanelFilterParams,
   hasFinderPanelFilters,
@@ -734,7 +735,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     }> = [];
     let manualLoadError: { code?: string; message?: string } | null = null;
     let manualSelectClause = "";
-    const manualSelectAttempts = [FINDER_LISTING_SELECT_WITH_SPECIALTIES];
+    // Book online or a language: no listing can match, so none is loaded (step 3).
+    const manualSelectAttempts = finderPanelExcludesListings(panelFilters)
+      ? []
+      : [FINDER_LISTING_SELECT_WITH_SPECIALTIES];
     for (const selectClause of manualSelectAttempts) {
       const manualRes = await getCachedDirectoryRows(
         [
