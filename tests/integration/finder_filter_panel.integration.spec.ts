@@ -1,0 +1,121 @@
+import { expect, test, type Page } from "@playwright/test";
+
+import { requireSafeIntegration } from "./helpers/safe-integration";
+
+/**
+ * The Finder's filter panel (Finder G, step 3; user, 2026-10-15/16): it opens once a
+ * search is on; Book online, Today / Next 7 days, Accepts GeSY and the name
+ * go to the URL, the server filters and the count follows; Clear filters keeps the search.
+ * In the left margin on wide screens (the cards keep their width), a folded box above them narrower.
+ */
+
+const panel = (page: Page) => page.getByTestId("finder-filter-panel");
+const filtersButton = (page: Page) => page.locator('button[aria-controls="finder-filter-body"]');
+
+/** The heading's count; no results shows the missing-doctor card instead of a count (0). */
+async function resultsCount(page: Page): Promise<number> {
+  const count = page.getByTestId("finder-results-count").first();
+  const missing = page.getByText(/Can.t find your doctor\?/).first();
+  await expect(count.or(missing)).toBeVisible({ timeout: 20_000 });
+  if (!(await count.isVisible())) return 0;
+  const text = await count.innerText();
+  const match = text.replace(/,/g, "").match(/(\d+)/);
+  if (!match) throw new Error(`no count in "${text}"`);
+  return Number(match[1]);
+}
+
+test.describe("Finder filter panel @pr-e2e @pr-e2e-finder", () => {
+  test.beforeEach(() => {
+    requireSafeIntegration();
+  });
+
+  test("no panel before a search; the filters narrow the list and Clear filters undoes them", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/");
+    await expect(page.getByTestId("finder-header-search")).toBeVisible({ timeout: 20_000 });
+    await expect(panel(page)).toHaveCount(0);
+    const firstCard = page.locator("section.mt-6 article").first();
+    await expect(firstCard).toBeVisible({ timeout: 20_000 });
+    const homeCardWidth = (await firstCard.boundingBox())?.width ?? 0;
+
+    await page.goto("/paphos");
+    await expect(panel(page)).toBeVisible({ timeout: 20_000 });
+    // The user's sketch (2026-10-16): the panel sits in the left margin and the cards keep
+    // their full width.
+    await expect(firstCard).toBeVisible({ timeout: 20_000 });
+    const cardBox = await firstCard.boundingBox();
+    const panelBox = await panel(page).boundingBox();
+    expect(Math.round(cardBox?.width ?? 0)).toBe(Math.round(homeCardWidth));
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThan(cardBox?.x ?? 0);
+    const all = await resultsCount(page);
+    expect(all).toBeGreaterThan(0);
+
+    // Desktop Large is wide enough for the left margin: the panel is open there.
+    await expect(filtersButton(page)).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
+
+    const bookOnline = panel(page).getByRole("switch");
+    await expect(async () => {
+      await bookOnline.click();
+      await expect(page).toHaveURL(/[?&]online=1/, { timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(bookOnline).toHaveAttribute("aria-checked", "true", { timeout: 20_000 });
+    const online = await resultsCount(page);
+    expect(online).toBeLessThan(all);
+
+    await panel(page).getByRole("radio", { name: "Next 7 days" }).click();
+    await expect(page).toHaveURL(/[?&]when=week/, { timeout: 20_000 });
+    await expect(panel(page).getByRole("radio", { name: "Next 7 days" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+      { timeout: 20_000 },
+    );
+    expect(await resultsCount(page)).toBeLessThanOrEqual(online);
+
+    // Turning Book online off clears the time too.
+    await bookOnline.click();
+    await expect(page).not.toHaveURL(/online=|when=/, { timeout: 20_000 });
+
+    await panel(page).getByLabel("Accepts GeSY").check();
+    await expect(page).toHaveURL(/[?&]gesy=1/, { timeout: 20_000 });
+    expect(await resultsCount(page)).toBeLessThanOrEqual(all);
+
+    await panel(page).getByRole("button", { name: "Clear filters" }).click();
+    await expect(page).toHaveURL(/\/paphos$/, { timeout: 20_000 });
+    await expect.poll(() => resultsCount(page), { timeout: 20_000 }).toBe(all);
+  });
+
+  test("the name search is back in the panel", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/paphos");
+    const name = panel(page).locator("#finder-name-filter");
+    await expect(name).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      await name.fill("zzqx-nobody-has-this-name");
+      await name.press("Enter");
+      await expect(page).toHaveURL(/[?&]name=zzqx-nobody-has-this-name/, { timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
+    // No match: no count, the "Can't find your doctor?" card instead.
+    await expect(page.getByText(/Can.t find your doctor\?/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("finder-results-count")).toHaveCount(0);
+    await expect(filtersButton(page)).toContainText("1");
+  });
+
+  test("on a phone the panel is a folded Filters button that opens it", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/paphos");
+    await expect(filtersButton(page)).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#finder-filter-body")).toBeHidden();
+    await expect(async () => {
+      await filtersButton(page).click();
+      await expect(page.locator("#finder-filter-body")).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(filtersButton(page)).toHaveAttribute("aria-expanded", "true");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(overflow).toBe(false);
+  });
+});

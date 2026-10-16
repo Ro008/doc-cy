@@ -15,6 +15,10 @@ export function finderResultsListScope(input: {
   lat?: string | null;
   lon?: string | null;
   acc?: string | null;
+  /** The filter panel (Finder G, step 3). */
+  online?: string | null;
+  when?: string | null;
+  gesy?: string | null;
 }): string {
   const qs = new URLSearchParams();
   const name = input.name?.trim();
@@ -24,6 +28,10 @@ export function finderResultsListScope(input: {
   if (input.lat) qs.set("lat", input.lat);
   if (input.lon) qs.set("lon", input.lon);
   if (input.acc) qs.set("acc", input.acc);
+  for (const key of ["online", "when", "gesy"] as const) {
+    const value = input[key]?.trim();
+    if (value) qs.set(key, value);
+  }
   const query = qs.toString();
   return query ? `${input.pathname}?${query}` : input.pathname;
 }
