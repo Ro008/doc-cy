@@ -12,8 +12,13 @@ import { requireSafeIntegration } from "./helpers/safe-integration";
 const panel = (page: Page) => page.getByTestId("finder-filter-panel");
 const filtersButton = (page: Page) => page.locator('button[aria-controls="finder-filter-body"]');
 
+/** The heading's count; no results shows the missing-doctor card instead of a count (0). */
 async function resultsCount(page: Page): Promise<number> {
-  const text = await page.getByTestId("finder-results-count").first().innerText();
+  const count = page.getByTestId("finder-results-count").first();
+  const missing = page.getByText(/Can.t find your doctor\?/).first();
+  await expect(count.or(missing)).toBeVisible({ timeout: 20_000 });
+  if (!(await count.isVisible())) return 0;
+  const text = await count.innerText();
   const match = text.replace(/,/g, "").match(/(\d+)/);
   if (!match) throw new Error(`no count in "${text}"`);
   return Number(match[1]);
