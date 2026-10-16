@@ -427,9 +427,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         .first();
 
       await expect(card).toBeVisible({ timeout: 20000 });
-      await expect(card.getByText("Speaks", { exact: true })).toBeVisible();
-      await expect(card.getByText("Greek", { exact: true })).toBeVisible();
-      await expect(card.getByText("English", { exact: true })).toBeVisible();
+      // G (step 4): the languages are words on the card's facts line.
+      await expect(card.getByTestId("finder-card-languages")).toHaveText("Greek, English");
       await expect(card.getByRole("link", { name: created.name, exact: true })).toHaveAttribute(
         "href",
         `/en/${created.slug}`,
@@ -579,7 +578,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     }
   });
 
-  test("every card has its own week-nav arrows, and they move every card together", async ({ page }) => {
+  test("every card has its own day circles, and the arrows and the chosen day move every card", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -625,24 +624,31 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(cardA).toBeVisible({ timeout: 20000 });
       await expect(cardB).toBeVisible({ timeout: 20000 });
 
-      // No shared "anchor" card anymore -- both cards carry their own arrows.
-      const nextButtonA = cardA.getByRole("button", { name: /Show next days/i });
-      const nextButtonB = cardB.getByRole("button", { name: /Show next days/i });
+      // G (step 4): both cards carry their own arrows and seven day circles.
+      const nextButtonA = cardA.getByRole("button", { name: "Later days, every card" });
+      const nextButtonB = cardB.getByRole("button", { name: "Later days, every card" });
       await expect(nextButtonA).toBeVisible({ timeout: 20_000 });
       await expect(nextButtonB).toBeVisible({ timeout: 20_000 });
+      const chosenA = cardA.getByTestId("finder-card-day-strip").locator('button[aria-pressed="true"]');
+      const chosenB = cardB.getByTestId("finder-card-day-strip").locator('button[aria-pressed="true"]');
+      await expect(cardA.getByTestId("finder-card-day-strip").locator("button[aria-pressed]")).toHaveCount(7);
 
-      const dayHeaderA = cardA.getByTestId("finder-availability-day-header");
-      const dayHeaderB = cardB.getByTestId("finder-availability-day-header");
-      const initialDatesA = await dayHeaderA.textContent();
-      const initialDatesB = await dayHeaderB.textContent();
-      expect(initialDatesA).toEqual(initialDatesB);
+      const today = (await chosenA.getAttribute("aria-label")) ?? "";
+      expect(await chosenB.getAttribute("aria-label")).toEqual(today);
 
-      await nextButtonA.click();
+      // One card's arrow moves every card a week, onto the new week's first day.
+      await expect(async () => {
+        await nextButtonA.click();
+        await expect(chosenA).not.toHaveAttribute("aria-label", today, { timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      const nextWeek = (await chosenA.getAttribute("aria-label")) ?? "";
+      await expect(chosenB).toHaveAttribute("aria-label", nextWeek);
 
-      // Clicking one card's arrow must advance every card, since they all
-      // read from one shared week-window state.
-      await expect(dayHeaderA).not.toHaveText(initialDatesA ?? "");
-      await expect(dayHeaderB).toHaveText((await dayHeaderA.textContent()) ?? "");
+      // A day chosen on one card is chosen on every card.
+      const thirdDayB = cardB.getByTestId("finder-card-day-strip").locator("button[aria-pressed]").nth(2);
+      const thirdLabel = (await thirdDayB.getAttribute("aria-label")) ?? "";
+      await thirdDayB.click();
+      await expect(chosenA).toHaveAttribute("aria-label", thirdLabel);
     } finally {
       for (const doctor of created) await deleteVerifiedDoctor(admin, doctor);
     }

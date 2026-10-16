@@ -92,15 +92,24 @@ export function showClinicPhoneNumberEvent(input: {
   };
 }
 
-/** Her personal mobile revealed ("Show mobile" on her profile; registered professionals only). */
-export function showPersonalMobileNumberEvent(input: { professionalId: string }): UserEventInsert {
+/**
+ * Her personal mobile revealed: "Show mobile" on her profile, or "Mobile Number" on her finder
+ * card (user, 2026-10-16). Registered professionals only.
+ */
+export function showPersonalMobileNumberEvent(input: {
+  professionalId: string;
+  place?: "profile_page" | "finder_card";
+}): UserEventInsert {
   return {
     event_type: "show_personal_mobile_number",
     actor_type: "visitor",
     visitor_key: null,
     professional_id: input.professionalId,
     clinic_id: null,
-    source: "registered_professional_profile_page",
+    source:
+      input.place === "finder_card"
+        ? "registered_professional_finder_card"
+        : "registered_professional_profile_page",
     details: {},
   };
 }

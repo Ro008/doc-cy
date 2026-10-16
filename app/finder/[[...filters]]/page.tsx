@@ -31,7 +31,6 @@ import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { FinderFilterPanel } from "@/components/finder/FinderFilterPanel";
-import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryReportIncorrectInfoLink,
@@ -41,18 +40,23 @@ import {
   FinderRegisteredCardAvailability,
   FinderRegisteredPublicCall,
 } from "@/components/finder/FinderRegisteredCardAvailability";
-import { FinderCardLanguages } from "@/components/finder/FinderCardLanguages";
+import {
+  FinderCardSpecialtyLine,
+  finderCardLanguagesText,
+} from "@/components/finder/FinderCardSpecialtyLine";
 import { FinderCardRating } from "@/components/finder/FinderCardRating";
 import { loadPublishedRatings } from "@/lib/public/load-profile-reviews";
 import type { FinderRating } from "@/lib/public/profile-reviews";
 import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
-  finderRegisteredCardRowClass,
-  finderRegisteredDetailsSectionClass,
-  finderRegisteredIdentityColumnClass,
-  finderCardIdentityMinHeightClass,
+  finderCardCalendarAreaClass,
+  finderGCardGridClass,
+  finderGCardIdentityClass,
+  finderGCardNameClass,
+  finderGCardPhotoClass,
 } from "@/components/finder/finder-availability-layout";
+import { FINDER_DAY_STRIP_DAY_COUNT } from "@/lib/finder-card-day-strip";
 import {
   finderCardFooterHeightClass,
   finderCardManualFooterActionsClass,
@@ -109,7 +113,6 @@ import {
   orderFinderClinicCards,
   type FinderClinicCard,
 } from "@/lib/finder-clinic-cards";
-import { manualPreviewSeedKey } from "@/lib/finder-manual-preview-calendar";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
@@ -1159,104 +1162,84 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             serverFilterKey={finderPanelFilterKey(panelFilters, activeName)}
           >
           <section className="mt-6">
-            <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
+            <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders} dayCount={FINDER_DAY_STRIP_DAY_COUNT}>
               <div className="flex flex-col gap-4">
                 {visibleCards.map((item, index) => {
                 const imagePriority = finderCardImagePriority(index);
+                const distance =
+                  item.distanceKm !== null ? (
+                    <p className="text-xs font-semibold text-site-clinical-700">
+                      {nearMeApproximate
+                        ? formatApproxDistanceAway(item.distanceKm)
+                        : formatDistanceAway(item.distanceKm)}
+                    </p>
+                  ) : null;
                 if (item.kind === "registered") {
                   const row = item.row;
                   const showRightColumn = Boolean(row.slug);
                   const cardLocation =
                     row.locations.find((loc) => loc.id === item.place?.linkId) ?? null;
                   const cardAddress = cardLocation?.clinic_address ?? row.clinic_address;
+                  const rating = registeredRatings.get(row.id);
+                  const languagesText = finderCardLanguagesText(row.languages);
+                  const photo = row.avatarUrl ? (
+                    <img
+                      src={row.avatarUrl}
+                      alt={row.slug ? "" : `${row.displayName} profile photo`}
+                      className="h-full w-full object-cover"
+                      {...imagePriority}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-base font-extrabold text-site-clinical-800">
+                      {getInitials(row.displayName)}
+                    </div>
+                  );
                   return (
-                    <article
-                      key={item.key}
-                      className={`flex flex-col gap-4 ${finderResultCardClass}`}
-                    >
-                      <div className={finderRegisteredCardRowClass}>
-                      <div
-                        className={`flex min-w-0 shrink-0 flex-col gap-3 ${finderRegisteredIdentityColumnClass} ${finderCardIdentityMinHeightClass}`}
-                      >
-                        <div className="flex min-w-0 items-start gap-3">
-                          {row.slug ? (
-                          <PendingLink
-                            href={publicProfessionalProfilePath(row.slug)}
-                            navigationReason="profile"
-                            fill
-                            prefetch={false}
-                            aria-label={`View ${row.displayName} booking page`}
-                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-site-clinical-300 hover:ring-clinical-200"
-                          >
-                            {row.avatarUrl ? (
-                              <img
-                                src={row.avatarUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                                {...imagePriority}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-site-clinical-700">
-                                {getInitials(row.displayName)}
-                              </div>
-                            )}
-                          </PendingLink>
-                        ) : (
-                          <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-clinical-50 ring-2 ring-clinical-100">
-                            {row.avatarUrl ? (
-                              <img
-                                src={row.avatarUrl}
-                                alt={`${row.displayName} profile photo`}
-                                className="h-full w-full object-cover"
-                                {...imagePriority}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-site-clinical-700">
-                                {getInitials(row.displayName)}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
+                    <article key={item.key} className={`flex flex-col ${finderResultCardClass}`}>
+                      {/* G's card (Finder G, step 4; user, 2026-10-16): who, where, then the days. */}
+                      <div className={finderGCardGridClass}>
+                        <div className={`flex min-w-0 gap-3.5 ${finderGCardIdentityClass}`}>
                           {row.slug ? (
                             <PendingLink
                               href={publicProfessionalProfilePath(row.slug)}
                               navigationReason="profile"
+                              fill
                               prefetch={false}
-                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900 transition-none hover:text-site-clinical-600"
+                              aria-label={`View ${row.displayName} booking page`}
+                              className={finderGCardPhotoClass}
                             >
-                              <span className="line-clamp-2">{row.displayName}</span>
+                              {photo}
                             </PendingLink>
                           ) : (
-                            <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900">
-                              {row.displayName}
-                            </p>
+                            <div className={finderGCardPhotoClass}>{photo}</div>
                           )}
-                          <FinderSpecialtyPills
-                            specialties={row.specialties}
-                            specialty={row.specialty ?? "Specialty not set"}
-                            className="-ml-2"
-                          />
-                          {row.isGesy || registeredRatings.get(row.id) ? (
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            {row.slug ? (
+                              <PendingLink
+                                href={publicProfessionalProfilePath(row.slug)}
+                                navigationReason="profile"
+                                prefetch={false}
+                                className={finderGCardNameClass}
+                              >
+                                <span className="line-clamp-2 sm:line-clamp-1" title={row.displayName}>{row.displayName}</span>
+                              </PendingLink>
+                            ) : (
+                              <p className={`line-clamp-2 sm:line-clamp-1 ${finderGCardNameClass}`} title={row.displayName}>{row.displayName}</p>
+                            )}
+                            <FinderCardSpecialtyLine
+                              specialties={row.specialties}
+                              specialty={row.specialty ?? "Specialty not set"}
+                            />
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-site-ink-500">
                               {row.isGesy ? <GesyProviderBadge size="xs" language="en" /> : null}
-                              {registeredRatings.get(row.id) ? (
-                                <FinderCardRating rating={registeredRatings.get(row.id)!} />
+                              {rating ? <FinderCardRating rating={rating} /> : null}
+                              {languagesText ? (
+                                <span data-testid="finder-card-languages">{languagesText}</span>
                               ) : null}
                             </div>
-                          ) : null}
-                          {item.distanceKm !== null ? (
-                            <p className="text-xs font-semibold text-site-clinical-700">
-                              {nearMeApproximate
-                                ? formatApproxDistanceAway(item.distanceKm)
-                                : formatDistanceAway(item.distanceKm)}
-                            </p>
-                          ) : null}
+                            {distance}
+                          </div>
                         </div>
-                        </div>
-                        <FinderCardLanguages languages={row.languages} />
-                      </div>
-                      <div className={finderRegisteredDetailsSectionClass}>
                         {showRightColumn ? (
                           <Suspense fallback={<FinderCardAvailabilitySkeleton />}>
                             <FinderRegisteredCardAvailability
@@ -1268,17 +1251,19 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             />
                           </Suspense>
                         ) : (
-                          <div>
-                            <p className="text-xs leading-relaxed text-site-ink-600 whitespace-pre-wrap break-words">
-                              {cardAddress?.trim() ? cardAddress.trim() : "Not provided yet"}
-                            </p>
-                            <FinderRegisteredPublicCall
-                              doctorId={row.id}
-                              doctorIdsKey={registeredAvailabilityKey}
-                            />
-                          </div>
+                          <>
+                            <div className="min-w-0">
+                              <p className="text-[13px] leading-normal text-site-ink-500 whitespace-pre-wrap break-words">
+                                {cardAddress?.trim() ? cardAddress.trim() : "Address not provided yet"}
+                              </p>
+                              <FinderRegisteredPublicCall
+                                doctorId={row.id}
+                                doctorIdsKey={registeredAvailabilityKey}
+                              />
+                            </div>
+                            <div className={finderCardCalendarAreaClass} />
+                          </>
                         )}
-                      </div>
                       </div>
                       {/* The listing cards' footer height, so every card is the same size. */}
                       <div aria-hidden className={finderCardFooterHeightClass} />
@@ -1305,80 +1290,58 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                       }
                     : null;
                 const manualDistrict = manualPlace?.district ?? "";
+                const manualPhoto = (
+                  <img
+                    src={row.photoUrl}
+                    alt={manualLandingHref ? "" : `${row.displayName} profile photo`}
+                    className="h-full w-full object-cover"
+                    {...imagePriority}
+                  />
+                );
                 return (
-                  <article
-                    key={item.key}
-                    className={`flex flex-col gap-4 ${finderResultCardClass}`}
-                  >
-                    <div className={finderRegisteredCardRowClass}>
-                      <div
-                        className={`flex min-w-0 shrink-0 flex-col gap-3 ${finderRegisteredIdentityColumnClass} ${finderCardIdentityMinHeightClass}`}
-                      >
-                      <div className="flex min-w-0 items-start gap-3">
-                      {manualLandingHref ? (
-                        <PendingLink
-                          href={manualLandingHref}
-                          navigationReason="profile"
-                          fill
-                          prefetch={false}
-                          aria-label={`View ${row.displayName} directory profile`}
-                        className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-site-ink-50 ring-2 transition-none hover:border-site-clinical-300 hover:ring-clinical-200 border-site-clinical-200 ring-clinical-100`}
-                        >
-                          <img
-                            src={row.photoUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            {...imagePriority}
-                          />
-                        </PendingLink>
-                      ) : (
-                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-ink-50 ring-2 ring-clinical-100">
-                          <img
-                            src={row.photoUrl}
-                            alt={`${row.displayName} profile photo`}
-                            className="h-full w-full object-cover"
-                            {...imagePriority}
-                          />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
+                  <article key={item.key} className={`flex flex-col ${finderResultCardClass}`}>
+                    <div className={finderGCardGridClass}>
+                      <div className={`flex min-w-0 gap-3.5 ${finderGCardIdentityClass}`}>
                         {manualLandingHref ? (
                           <PendingLink
                             href={manualLandingHref}
                             navigationReason="profile"
+                            fill
                             prefetch={false}
-                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900 transition-none hover:text-site-clinical-600"
+                            aria-label={`View ${row.displayName} directory profile`}
+                            className={finderGCardPhotoClass}
                           >
-                            <span className="line-clamp-2">{row.displayName}</span>
+                            {manualPhoto}
                           </PendingLink>
                         ) : (
-                          <p className="line-clamp-2 text-[17px] font-bold leading-[1.2] tracking-tight text-site-ink-900">
-                            {row.displayName}
-                          </p>
+                          <div className={finderGCardPhotoClass}>{manualPhoto}</div>
                         )}
-                        <FinderSpecialtyPills
-                          specialties={row.specialties}
-                          specialty={row.specialty}
-                          district={manualDistrict}
-                          className="-ml-2"
-                        />
-                        {row.isGesy ? (
-                          <div className="self-start">
-                            <GesyProviderBadge size="xs" language="en" />
-                          </div>
-                        ) : null}
-                        {item.distanceKm !== null ? (
-                          <p className="text-xs font-semibold text-site-clinical-700">
-                            {nearMeApproximate
-                              ? formatApproxDistanceAway(item.distanceKm)
-                              : formatDistanceAway(item.distanceKm)}
-                          </p>
-                        ) : null}
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          {manualLandingHref ? (
+                            <PendingLink
+                              href={manualLandingHref}
+                              navigationReason="profile"
+                              prefetch={false}
+                              className={finderGCardNameClass}
+                            >
+                              <span className="line-clamp-2 sm:line-clamp-1" title={row.displayName}>{row.displayName}</span>
+                            </PendingLink>
+                          ) : (
+                            <p className={`line-clamp-2 sm:line-clamp-1 ${finderGCardNameClass}`} title={row.displayName}>{row.displayName}</p>
+                          )}
+                          <FinderCardSpecialtyLine
+                            specialties={row.specialties}
+                            specialty={row.specialty}
+                            district={manualDistrict}
+                          />
+                          {row.isGesy ? (
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                              <GesyProviderBadge size="xs" language="en" />
+                            </div>
+                          ) : null}
+                          {distance}
+                        </div>
                       </div>
-                      </div>
-                    </div>
-
-                    <div className={finderRegisteredDetailsSectionClass}>
                       <FinderManualLocationCalendars
                         listing={{
                           id: row.id,
@@ -1389,15 +1352,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           clinics: manualClinic ? [manualClinic] : [],
                           monthlyRequestCount: row.monthlyRequestCount,
                         }}
-                        previewSeedKey={
-                          row.locations.length > 1 && manualPlace
-                            ? manualPreviewSeedKey(row.id, manualPlace.clinicId)
-                            : null
-                        }
                         dayHeaders={finderAvailabilityDayHeaders}
                         callToBookSource="finder_card"
                       />
-                    </div>
                     </div>
 
                     <div

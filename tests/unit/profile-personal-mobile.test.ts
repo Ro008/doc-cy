@@ -156,3 +156,54 @@ describe("profile hero: Show mobile", () => {
     assert.equal(read("lib/public/profile-structured-data.ts").includes("mobile"), false);
   });
 });
+
+describe("Mobile Number on a finder card (Finder G, step 4; user, 2026-10-16)", () => {
+  it("the click is recorded with the card as its place, like the clinic phone", async () => {
+    const { showPersonalMobileNumberEvent } = await import("../../lib/user-events");
+    assert.equal(
+      showPersonalMobileNumberEvent({ professionalId: "p1", place: "finder_card" }).source,
+      "registered_professional_finder_card",
+    );
+    assert.equal(
+      showPersonalMobileNumberEvent({ professionalId: "p1", place: "profile_page" }).source,
+      "registered_professional_profile_page",
+    );
+    assert.equal(showPersonalMobileNumberEvent({ professionalId: "p1" }).source, "registered_professional_profile_page");
+    assert.equal(showPersonalMobileNumberEvent({ professionalId: "p1", place: "finder_card" }).clinic_id, null);
+  });
+
+  it("the route takes the place from the body; anything else is the profile", () => {
+    const route = read("app/api/directory/professional-mobile-reveal/route.ts");
+    assert.match(route, /body\.source === "finder_card" \? "finder_card" : "profile_page"/);
+    assert.match(route, /showPersonalMobileNumberEvent\(\{ professionalId: id, place \}\)/);
+  });
+
+  it("the button sends its place", () => {
+    const button = read("components/doctor/profile/RevealMobileButton.tsx");
+    assert.match(button, /JSON\.stringify\(\{ id: professionalId, \.\.\.\(source \? \{ source \} : \{\}\) \}\)/);
+  });
+
+  it("the Finder learns only who shows a mobile, never the number", async () => {
+    const { finderPersonalMobileShownIds } = await import("../../lib/public/finder-personal-mobiles");
+    const shown = finderPersonalMobileShownIds(
+      [
+        { id: "a", mobile_number: "+35799123456", is_registered: true, is_archived: false },
+        { id: "b", mobile_number: "+35799123457", is_registered: true, is_archived: false },
+        { id: "c", mobile_number: "", is_registered: true, is_archived: false },
+        { id: "d", mobile_number: "+35799123458", is_registered: false, is_archived: false },
+      ],
+      [
+        { professional_id: "a", show_mobile_on_profile: true },
+        { professional_id: "b", show_mobile_on_profile: false },
+        { professional_id: "c", show_mobile_on_profile: true },
+        { professional_id: "d", show_mobile_on_profile: true },
+      ],
+    );
+    assert.deepEqual([...shown], ["a"]);
+    assert.match(read("lib/public/finder-personal-mobiles.ts"), /publicPersonalMobile\(/);
+    const loader = read("lib/public/load-finder-personal-mobiles.ts");
+    assert.match(loader, /finderPersonalMobileShownIds\(/);
+    assert.match(loader, /createServiceRoleClient\(\)/);
+    assert.doesNotMatch(loader, /"use client"/);
+  });
+});

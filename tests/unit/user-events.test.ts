@@ -261,7 +261,7 @@ describe("phone reveals: what was revealed and where (user, 2026-10-15)", () => 
   it("a personal mobile reveal is recorded, only when the number was shown", () => {
     const route = read("app/api/directory/professional-mobile-reveal/route.ts");
     assert.match(route, /USER_EVENTS_TABLE/);
-    assert.match(route, /showPersonalMobileNumberEvent\(\{ professionalId: id \}\)/);
+    assert.match(route, /showPersonalMobileNumberEvent\(\{ professionalId: id, place \}\)/);
     assert.ok(route.indexOf("showPersonalMobileNumberEvent(") > route.indexOf('reason: "not_found"'));
   });
 

@@ -70,6 +70,8 @@ type RevealPhoneButtonProps = {
   source?: CallToBookSource | null;
   /** Professional id when revealing a clinic phone from a listing card. */
   manualId?: string | null;
+  /** The button's words, when not the variant's ("Clinic phone" on G's finder card). */
+  label?: string | null;
 };
 
 function RevealedPhoneLink({
@@ -107,6 +109,7 @@ export function RevealPhoneButton({
   variant = "show-phone",
   source = null,
   manualId = null,
+  label = null,
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
   const analyticsSource = parseCallToBookSource(source);
@@ -124,11 +127,12 @@ export function RevealPhoneButton({
   }
 
   const idleLabel =
-    variant === "profile-call"
+    label ??
+    (variant === "profile-call"
       ? "Call"
       : variant === "show-phone"
         ? "Show phone"
-        : CALL_TO_BOOK_BUTTON_LABEL;
+        : CALL_TO_BOOK_BUTTON_LABEL);
 
   return (
     <div className="space-y-1">

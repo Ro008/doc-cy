@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "service_role_not_configured" }, { status: 503 });
   }
 
-  const body = (await req.json().catch(() => null)) as { id?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { id?: unknown; source?: unknown } | null;
   if (!body) {
     return NextResponse.json({ ok: false, reason: "invalid_json" }, { status: 400 });
   }
@@ -38,8 +38,10 @@ export async function POST(req: Request) {
   if (!mobile) {
     return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
   }
-  // Recorded like the clinic phones (user, 2026-10-15); a failed record never hides the number.
-  const { error } = await supabase.from(USER_EVENTS_TABLE).insert(showPersonalMobileNumberEvent({ professionalId: id }));
+  // Recorded like the clinic phones (user, 2026-10-15), with where the click was: her profile,
+  // or her finder card (user, 2026-10-16). A failed record never hides the number.
+  const place = body.source === "finder_card" ? "finder_card" : "profile_page";
+  const { error } = await supabase.from(USER_EVENTS_TABLE).insert(showPersonalMobileNumberEvent({ professionalId: id, place }));
   if (error) {
     console.error("[DocCy][professional-mobile-reveal] reveal_log_failed", error.message);
   }

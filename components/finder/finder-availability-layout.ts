@@ -80,3 +80,32 @@ export const finderAvailabilitySlotClassName =
 /** Sliding 90-day strip, paged 5 days at a time starting from today; `--finder-week-start` is set by FinderResultsAvailabilityShell. */
 export const finderAvailabilityWeekTrackClassName =
   "finder-availability-week-track divide-x divide-site-ink-100";
+
+/**
+ * G's card (Finder G, step 4; user, 2026-10-16): who (photo, name, specialties, GeSY,
+ * rating, languages) beside where (clinic, address, Maps, phones), then the calendar area
+ * across the whole card. One column on a phone.
+ */
+export const finderGCardGridClass =
+  "grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
+
+/**
+ * The calendar area under G's card top: one fixed size whatever it holds (the day circles
+ * with times, a paused clinic, a listing's request box, the loading skeleton), so every
+ * card is the same size (user, 2026-10-15).
+ */
+export const finderCardCalendarAreaClass =
+  "flex h-[196px] flex-col border-t border-site-ink-100 pt-3.5 sm:col-span-2 sm:h-[132px]";
+
+/**
+ * G's identity cell: photo, name, specialties, GeSY · rating · languages. It keeps the
+ * height of the usual tallest one (one-line name from `sm`, two lines of specialties, the
+ * facts line), so the calendar area starts at the same height on every card.
+ */
+export const finderGCardIdentityClass = "min-h-[140px] sm:min-h-[104px]";
+
+export const finderGCardPhotoClass =
+  "h-14 w-14 shrink-0 overflow-hidden rounded-full bg-site-clinical-100 transition-none";
+
+export const finderGCardNameClass =
+  "text-left text-lg font-extrabold leading-tight text-site-ink-900 transition-none hover:text-site-clinical-700";

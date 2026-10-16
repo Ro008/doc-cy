@@ -49,7 +49,9 @@ describe("finder multi-location layout", () => {
       "utf8",
     );
 
-    assert.equal(page.includes("FinderCardLanguages"), true);
+    // G (step 4): languages are words on the card, specialties one line of links.
+    assert.equal(page.includes("finderCardLanguagesText"), true);
+    assert.equal(page.includes("FinderCardSpecialtyLine"), true);
     assert.equal(page.includes("FinderRegisteredCardAvailability"), true);
     assert.equal(page.includes("FinderRegisteredPublicCall"), true);
     assert.equal(page.includes("FinderManualLocationCalendars"), true);

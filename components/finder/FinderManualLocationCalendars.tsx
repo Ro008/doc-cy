@@ -1,11 +1,12 @@
+import { FinderCardClinicColumn } from "@/components/finder/FinderCardClinicColumn";
 import { FinderClinicLocationBlock, type FinderClinicRef } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderListingRequestBox } from "@/components/finder/FinderListingRequestBox";
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
 import { ManualDirectoryMonthlyRequestBadge } from "@/components/finder/ManualDirectoryPatientActions";
 import type { CallToBookSource } from "@/lib/call-to-book";
 import { manualPreviewSeedKey } from "@/lib/finder-manual-preview-calendar";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
-import { finderCardCalendarBoxClass } from "@/components/finder/finder-availability-layout";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
 
 export type FinderManualLocationListing = {
@@ -49,12 +50,46 @@ export function FinderManualLocationCalendars({
   previewSeedKey = null,
 }: Props) {
   const locations = listingLocations(listing);
+  // G's listing card (Finder G, step 4; user, 2026-10-16): one clinic, then "Not on online
+  // booking yet" with the vote button; no calendar of invented times. Two grid cells.
+  if (layoutVariant === "finder") {
+    const clinic = locations[0] ?? null;
+    const clinicId = String(clinic?.id ?? "").trim();
+    return (
+      <>
+        <FinderCardClinicColumn
+          clinic={clinic}
+          address={
+            String(clinic?.address ?? "").trim() ||
+            String(listing.address ?? "").trim() ||
+            String(clinic?.district ?? "").trim() ||
+            listing.district
+          }
+          mapsHref={
+            String(clinic?.addressMapsLink ?? "").trim() ||
+            String(listing.address_maps_link ?? "").trim() ||
+            null
+          }
+          phone={
+            clinicId && clinic?.hasPhone
+              ? { clinicId, manualId: listing.id, variant: "call-to-book" }
+              : null
+          }
+        />
+        <FinderListingRequestBox
+          manualId={listing.id}
+          clinicId={clinic?.id}
+          requestSource={callToBookSource}
+          requestCount={listing.monthlyRequestCount}
+        />
+      </>
+    );
+  }
   const isMulti = locations.length > 1;
-  // A finder card is one clinic at a fixed size: the requests badge goes on the preview.
-  const inFinder = layoutVariant === "finder";
-  const calendarClass = inFinder ? finderCardCalendarBoxClass : "flex min-w-0 flex-col gap-2";
+  // The listing page: the requests badge above its preview calendar.
+  const calendarClass = "flex min-w-0 flex-col gap-2";
   const badge = (show: boolean) =>
-    show && !inFinder ? (
+    show ? (
       <ManualDirectoryMonthlyRequestBadge monthlyRequestCount={listing.monthlyRequestCount} />
     ) : null;
   const rows =
@@ -80,7 +115,7 @@ export function FinderManualLocationCalendars({
               <div className={calendarClass}>
                 {badge(index === 0)}
                 <FinderManualCardAvailabilityGrid
-                  requestCount={inFinder && index === 0 ? listing.monthlyRequestCount : null}
+                  requestCount={null}
                   manualId={listing.id}
                   seedKey={
                     isMulti
@@ -116,7 +151,7 @@ export function FinderManualLocationCalendars({
               <div className={calendarClass}>
                 {badge(true)}
                 <FinderManualCardAvailabilityGrid
-                  requestCount={inFinder ? listing.monthlyRequestCount : null}
+                  requestCount={null}
                   manualId={listing.id}
                   clinicId={listing.clinic?.id}
                   requestSource={callToBookSource}

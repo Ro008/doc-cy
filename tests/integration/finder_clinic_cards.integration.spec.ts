@@ -78,6 +78,11 @@ async function seedTwoClinicProfessional(
     specialty: "Dentistry",
     licenseNumber: `LIC-CC-${nonce}`,
   });
+  // She shows her mobile on her profile, so her cards offer "Mobile Number" (Finder G, step 4).
+  const settings = await admin
+    .from("professional_settings")
+    .upsert({ professional_id: professionalId, show_mobile_on_profile: true }, { onConflict: "professional_id" });
+  if (settings.error) throw new Error(`settings: ${settings.error.message}`);
 
   const clinics = [
     { district: "Paphos", town: "Geroskipou", latitude: 34.7602, longitude: 32.4506 },
@@ -132,6 +137,7 @@ async function seedTwoClinicProfessional(
 
 async function cleanup(admin: SupabaseClient, created: Created) {
   if (created.professionalId) {
+    await admin.from("user_events").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_specialties").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_settings").delete().eq("professional_id", created.professionalId);
     await admin.from("professionals").delete().eq("id", created.professionalId);
@@ -191,25 +197,56 @@ test.describe("Integration: one finder card per professional and clinic", { tag:
     expect(Math.abs(openBox!.height - pausedBox!.height)).toBeLessThanOrEqual(1);
   });
 
-  test("only the card whose times are opened grows", async ({ page }) => {
+  test("Mobile Number shows her mobile on a click and records it from the finder card", async ({ page }) => {
+    await page.goto(`/paphos/dentist?name=${encodeURIComponent(seeded.name)}`);
+    const card = herCards(page, seeded.name).first();
+    const mobile = card.getByTestId("finder-card-mobile");
+    await expect(mobile).toHaveText("Mobile Number", { timeout: 20_000 });
+    await expect(card).not.toContainText("123457");
+
+    await expect(async () => {
+      await mobile.click();
+      await expect(card.locator('a[href="tel:+35799123457"]')).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
+
+    await expect
+      .poll(
+        async () => {
+          const { data } = await admin
+            .from("user_events")
+            .select("source, clinic_id")
+            .eq("event_type", "show_personal_mobile_number")
+            .eq("professional_id", created.professionalId);
+          return data ?? [];
+        },
+        { timeout: 15_000 },
+      )
+      .toEqual([{ source: "registered_professional_finder_card", clinic_id: null }]);
+  });
+
+  test("the paused card names the open clinic; another day keeps every card the same size", async ({ page }) => {
     await page.goto(`/?name=${encodeURIComponent(seeded.name)}`);
     const cards = herCards(page, seeded.name);
     await expect(cards).toHaveCount(2, { timeout: 30_000 });
     const open = cards.nth(0);
     const paused = cards.nth(1);
-    const more = open.getByRole("button", { name: /^Show \d+ more times/ }).first();
-    await expect(more).toBeVisible({ timeout: 20_000 });
+    // G (step 4): the paused box says where online booking is open.
+    await expect(paused.getByTestId("finder-card-booking-paused")).toContainText(
+      `Online booking is open at ${seeded.paphosClinic}`,
+      { timeout: 20_000 },
+    );
 
-    const before = (await open.boundingBox())!.height;
+    const days = open.getByTestId("finder-card-day-strip").locator("button[aria-pressed]");
+    await expect(days).toHaveCount(7, { timeout: 20_000 });
     const pausedBefore = (await paused.boundingBox())!.height;
-    await expect(async () => {
-      await more.click();
-      await expect(open.getByTestId("finder-card-slot-grid")).toHaveAttribute("data-expanded", "true", {
-        timeout: 2_000,
-      });
-    }).toPass({ timeout: 20_000 });
-
-    await expect.poll(async () => (await open.boundingBox())!.height, { timeout: 10_000 }).toBeGreaterThan(before);
-    expect((await paused.boundingBox())!.height).toBeCloseTo(pausedBefore, 0);
+    for (const index of [1, 4]) {
+      await expect(async () => {
+        await days.nth(index).click();
+        await expect(days.nth(index)).toHaveAttribute("aria-pressed", "true", { timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      const [openBox, pausedBox] = await Promise.all([open.boundingBox(), paused.boundingBox()]);
+      expect(Math.abs(openBox!.height - pausedBefore)).toBeLessThanOrEqual(1);
+      expect(Math.abs(pausedBox!.height - pausedBefore)).toBeLessThanOrEqual(1);
+    }
   });
 });

@@ -1,0 +1,150 @@
+"use client";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PendingLink } from "@/components/navigation/PendingLink";
+import { finderCardCalendarAreaClass } from "@/components/finder/finder-availability-layout";
+import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
+import { buildDoctorBookingHref } from "@/lib/booking-slot-param";
+import {
+  finderDayStripCircles,
+  finderDayStripLongDate,
+  finderDayStripShortDate,
+  finderDayStripState,
+} from "@/lib/finder-card-day-strip";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
+
+/** Times shown in the row: three on a phone (one row with All times), eight from `sm`; the rest are on her profile. */
+const MAX_TIMES = 8;
+const PHONE_TIMES = 3;
+
+const arrowClass =
+  "inline-flex h-8 w-8 shrink-0 items-center sm:h-9 sm:w-9 justify-center rounded-full border border-site-ink-200 bg-site-ink-50 text-site-ink-900 transition-none hover:border-site-clinical-300 disabled:cursor-default disabled:text-site-ink-300 disabled:hover:border-site-ink-200";
+
+const timeClass =
+  "inline-flex min-h-[44px] min-w-[68px] items-center justify-center rounded-xl border border-site-ink-200 bg-site-white px-2 text-sm font-bold tabular-nums text-site-ink-900 transition-none hover:border-site-clinical-500 hover:text-site-clinical-700 lg:min-h-[40px]";
+
+const softButtonClass =
+  "inline-flex min-h-[40px] items-center rounded-xl border border-site-ink-200 bg-site-ink-50 px-3 text-sm font-bold text-site-clinical-700 transition-none hover:border-site-clinical-300";
+
+/**
+ * G's day circles on a registered card (Finder G, step 4; user, 2026-10-16): seven days,
+ * today first, filled where this clinic has free times. The chosen day and the arrows are
+ * shared with every card; below, that day's times link straight to booking.
+ */
+export function FinderCardDayStrip({
+  calendar,
+  profileSlug,
+  locationId = null,
+}: {
+  calendar: PublicAvailabilityCalendar;
+  profileSlug: string;
+  locationId?: string | null;
+}) {
+  const { dayHeaders, windowStart, canGoPrevious, canGoNext, goToPreviousWeek, goToNextWeek, selectedDayIndex, selectDay } =
+    useFinderAvailabilityWeek();
+  const circles = finderDayStripCircles(dayHeaders, calendar.days, windowStart);
+  const state = finderDayStripState(calendar.days, selectedDayIndex);
+  const selectedHeader = dayHeaders[selectedDayIndex];
+  const profileHref = publicProfessionalProfilePath(profileSlug);
+
+  return (
+    <div data-testid="finder-card-day-strip" className={finderCardCalendarAreaClass}>
+      <div className="flex max-w-[480px] items-end gap-1 sm:gap-1.5">
+        <button
+          type="button"
+          aria-label="Earlier days, every card"
+          disabled={!canGoPrevious}
+          onClick={goToPreviousWeek}
+          className={arrowClass}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+        <div className="grid min-w-0 flex-1 grid-cols-7 gap-0.5">
+          {circles.map((circle) => {
+            const on = circle.index === selectedDayIndex;
+            return (
+              <div key={circle.dateKey} className="flex flex-col items-center gap-1">
+                <span className="text-[9px] font-extrabold text-site-ink-500 sm:text-[10px] sm:tracking-[0.05em]">
+                  {circle.label}
+                </span>
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`${finderDayStripLongDate(circle.dateKey)}${circle.hasTimes ? "" : ", no times"}`}
+                  onClick={() => selectDay(circle.index)}
+                  className={`inline-flex h-[34px] w-[34px] items-center sm:h-[38px] sm:w-[38px] justify-center rounded-full text-[15px] tabular-nums transition-none ${
+                    on
+                      ? "bg-ink-900 font-extrabold text-white [.doccy-profile[data-scheme=dark]_&]:bg-clinical-500 [.doccy-profile[data-scheme=dark]_&]:text-[#062F61]"
+                      : circle.hasTimes
+                        ? "bg-site-clinical-100 font-extrabold text-site-clinical-800 hover:bg-site-clinical-200"
+                        : "font-normal text-site-ink-400 hover:bg-site-ink-50"
+                  }`}
+                >
+                  {circle.dayNumber}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          aria-label="Later days, every card"
+          disabled={!canGoNext}
+          onClick={goToNextWeek}
+          className={arrowClass}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {selectedHeader ? (
+          <span className="w-full text-[13px] font-bold text-site-ink-900 sm:mr-1 sm:w-auto">
+            {finderDayStripLongDate(selectedHeader.dateKey)}
+          </span>
+        ) : null}
+        {state.kind === "times" ? (
+          <>
+            {state.slots.slice(0, MAX_TIMES).map((slot, index) => (
+              <PendingLink
+                key={slot.slotKey}
+                href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
+                navigationReason="profile"
+                aria-label={`Book ${selectedHeader ? finderDayStripLongDate(selectedHeader.dateKey) : ""} at ${slot.timeLabel}`}
+                className={`${timeClass} ${index >= PHONE_TIMES ? "max-sm:hidden" : ""}`}
+              >
+                {slot.timeLabel}
+              </PendingLink>
+            ))}
+            <PendingLink
+              href={profileHref}
+              navigationReason="profile"
+              className="inline-flex min-h-[40px] items-center px-1.5 text-sm font-bold text-site-clinical-700 hover:underline"
+            >
+              All times
+            </PendingLink>
+          </>
+        ) : state.kind === "none-this-day" ? (
+          <>
+            <span className="text-sm text-site-ink-500">No times this day.</span>
+            <button
+              type="button"
+              onClick={() => selectDay(state.nextFreeIndex)}
+              className={softButtonClass}
+            >
+              Next free: {finderDayStripShortDate(calendar.days[state.nextFreeIndex]!.dateKey)}
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-site-ink-500">No free times online in the coming weeks.</span>
+            <PendingLink href={profileHref} navigationReason="profile" className={softButtonClass}>
+              View profile
+            </PendingLink>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

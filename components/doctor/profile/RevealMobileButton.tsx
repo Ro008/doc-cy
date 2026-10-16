@@ -12,6 +12,8 @@ type Props = {
   /** The look of where it sits: the hero's link, or a button in Clinics & contact. */
   className: string;
   testId: string;
+  /** Where the button is, for the recorded click; unset = her profile. */
+  source?: "finder_card" | null;
 };
 
 type State =
@@ -32,6 +34,7 @@ export function RevealMobileButton({
   errorLabel,
   className,
   testId,
+  source = null,
 }: Props) {
   const [state, setState] = React.useState<State>({ status: "idle" });
 
@@ -41,7 +44,7 @@ export function RevealMobileButton({
       const res = await fetch("/api/directory/professional-mobile-reveal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: professionalId }),
+        body: JSON.stringify({ id: professionalId, ...(source ? { source } : {}) }),
       });
       const data = (await res.json().catch(() => null)) as { ok?: boolean; phone?: unknown } | null;
       const mobile = res.ok && data?.ok && typeof data.phone === "string" ? data.phone.trim() : "";
