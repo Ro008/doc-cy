@@ -16,14 +16,16 @@ import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-pa
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 
 
+// The profile's calendar look (user, 2026-10-16): its nav buttons, day colours and time buttons,
+// from the same profile colours (the Finder sits in SiteSchemeRoot, light and dark).
 const arrowClass =
-  "inline-flex h-8 w-8 shrink-0 items-center sm:h-9 sm:w-9 justify-center rounded-full border border-site-ink-200 bg-site-ink-50 text-site-ink-900 transition-none hover:border-site-clinical-300 disabled:cursor-default disabled:text-site-ink-300 disabled:hover:border-site-ink-200";
+  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-profile-border bg-profile-surface text-profile-text transition-none hover:opacity-80 disabled:cursor-default disabled:text-profile-off disabled:hover:opacity-100 sm:h-9 sm:w-9";
 
 const timeClass =
-  "inline-flex min-h-[36px] items-center justify-center rounded-xl border border-site-ink-200 bg-site-white px-2 text-sm font-bold tabular-nums text-site-ink-900 transition-none hover:border-site-clinical-500 hover:text-site-clinical-700";
+  "inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-accent-soft bg-profile-surface px-1 text-base font-bold tabular-nums text-profile-text transition-none hover:border-accent";
 
 const softButtonClass =
-  "inline-flex min-h-[36px] items-center rounded-xl border border-site-ink-200 bg-site-ink-50 px-3 text-sm font-bold text-site-clinical-700 transition-none hover:border-site-clinical-300";
+  "inline-flex min-h-[40px] items-center rounded-2xl border-2 border-accent-soft bg-profile-surface px-3 text-sm font-bold text-accent-link transition-none hover:border-accent";
 
 /**
  * G's day circles on a registered card (Finder G, step 4; user, 2026-10-16): seven days,
@@ -64,7 +66,7 @@ export function FinderCardDayStrip({
             const on = circle.index === selectedDayIndex;
             return (
               <div key={circle.dateKey} className="flex flex-col items-center gap-1">
-                <span className="text-[9px] font-extrabold text-site-ink-500 sm:text-[10px] sm:tracking-[0.05em]">
+                <span className="text-[9px] font-bold text-profile-muted sm:text-[13px]">
                   {circle.label}
                 </span>
                 <button
@@ -72,13 +74,13 @@ export function FinderCardDayStrip({
                   aria-pressed={on}
                   aria-label={`${finderDayStripLongDate(circle.dateKey)}${circle.hasTimes ? "" : ", no times"}`}
                   onClick={() => selectDay(circle.index)}
-                  className={`inline-flex h-[34px] w-[34px] items-center sm:h-[38px] sm:w-[38px] justify-center rounded-full text-[15px] tabular-nums transition-none ${
+                  className={`inline-flex h-[34px] w-[34px] items-center justify-center rounded-full text-sm tabular-nums transition-none sm:h-10 sm:w-10 ${
                     on
-                      ? "bg-ink-900 font-extrabold text-white [.doccy-profile[data-scheme=dark]_&]:bg-clinical-500 [.doccy-profile[data-scheme=dark]_&]:text-[#062F61]"
+                      ? "bg-accent-cta font-extrabold text-accent-on-cta"
                       : circle.hasTimes
-                        ? "bg-site-clinical-100 font-extrabold text-site-clinical-800 hover:bg-site-clinical-200"
-                        : "font-normal text-site-ink-400 hover:bg-site-ink-50"
-                  }`}
+                        ? "bg-accent-soft font-extrabold text-profile-text hover:outline hover:outline-2 hover:-outline-offset-2 hover:outline-accent"
+                        : "text-profile-off"
+                  } ${circle.label === "TODAY" && !on ? "underline underline-offset-[3px]" : ""}`}
                 >
                   {circle.dayNumber}
                 </button>
@@ -99,7 +101,7 @@ export function FinderCardDayStrip({
 
       <div className="mt-2.5 max-w-[480px]">
         {selectedHeader ? (
-          <p className="text-[13px] font-bold text-site-ink-900">{finderDayStripLongDate(selectedHeader.dateKey)}</p>
+          <p className="text-base font-bold text-profile-text">{finderDayStripLongDate(selectedHeader.dateKey)}</p>
         ) : null}
         {state.kind === "times" ? (
           // Two rows on the left of the card; when the times no longer fit, the last cell is All times.
@@ -121,7 +123,7 @@ export function FinderCardDayStrip({
               <PendingLink
                 href={profileHref}
                 navigationReason="profile"
-                className={`inline-flex min-h-[36px] items-center justify-center rounded-xl px-1 text-sm font-bold text-site-clinical-700 hover:underline ${
+                className={`inline-flex min-h-12 items-center justify-center rounded-2xl px-1 text-sm font-bold text-accent-link hover:underline ${
                   grid.phone.allTimes ? "" : "max-sm:hidden"
                 } ${grid.wide.allTimes ? "" : "sm:hidden"}`}
               >
@@ -131,7 +133,7 @@ export function FinderCardDayStrip({
           </div>
         ) : state.kind === "none-this-day" ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-site-ink-500">No times this day.</span>
+            <span className="text-sm text-profile-muted">No times this day.</span>
             <button
               type="button"
               onClick={() => selectDay(state.nextFreeIndex)}
@@ -142,7 +144,7 @@ export function FinderCardDayStrip({
           </div>
         ) : (
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-site-ink-500">No free times online in the coming weeks.</span>
+            <span className="text-sm text-profile-muted">No free times online in the coming weeks.</span>
             <PendingLink href={profileHref} navigationReason="profile" className={softButtonClass}>
               View profile
             </PendingLink>

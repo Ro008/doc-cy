@@ -63,8 +63,8 @@ describe("G's day circles (Finder G, step 4)", () => {
     assert.deepEqual(circles.slice(3).map((c) => c.hasTimes), [false, false, false, false]);
   });
 
-  it("names the day for the circle's label: 'Saturday 17 October'", () => {
-    assert.equal(finderDayStripLongDate(headers[1]!.dateKey), "Saturday 17 October");
+  it("writes the day as the profile does: 'Saturday, 17 October'", () => {
+    assert.equal(finderDayStripLongDate(headers[1]!.dateKey), "Saturday, 17 October");
     assert.equal(finderDayStripShortDate(headers[3]!.dateKey), "Mon 19 Oct");
   });
 

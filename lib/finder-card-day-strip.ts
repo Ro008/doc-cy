@@ -38,10 +38,10 @@ function parseDateKey(dateKey: string): Date {
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1));
 }
 
-/** "Saturday 17 October", above the chosen day's times. */
+/** "Saturday, 17 October", above the chosen day's times: the profile's "EEEE, d MMMM" (user, 2026-10-16). */
 export function finderDayStripLongDate(dateKey: string): string {
   const date = parseDateKey(dateKey);
-  return `${LONG_WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${LONG_MONTHS[date.getUTCMonth()]}`;
+  return `${LONG_WEEKDAYS[date.getUTCDay()]}, ${date.getUTCDate()} ${LONG_MONTHS[date.getUTCMonth()]}`;
 }
 
 /** "Mon 19 Oct", on "Next free". */
