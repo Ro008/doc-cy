@@ -12,6 +12,7 @@ export const USER_EVENT_TYPES = [
   "show_personal_mobile_number",
   "request_online_appointment",
   "missing_professional_report",
+  "support_message",
 ] as const;
 
 export type UserEventType = (typeof USER_EVENT_TYPES)[number];
@@ -26,7 +27,8 @@ export type UserEventSource =
   | "registered_professional_finder_card"
   | "unregistered_professional_finder_card"
   | "clinic_page"
-  | "finder_empty_state";
+  | "finder_empty_state"
+  | "support_form";
 
 /** The stored source for a phone button's place. */
 export function userEventSourceFor(place: CallToBookSource, isRegistered: boolean): UserEventSource {
@@ -54,7 +56,9 @@ export type MissingProfessionalReportDetails = {
 
 export type UserEventInsert = {
   event_type: UserEventType;
-  actor_type: "visitor";
+  actor_type: "visitor" | "professional";
+  /** Only a signed-in sender has one (support messages). */
+  actor_id?: string | null;
   visitor_key: string | null;
   professional_id: string | null;
   clinic_id: string | null;
@@ -134,6 +138,38 @@ export function missingProfessionalReportEvent(input: {
     clinic_id: null,
     source: "finder_empty_state",
     details: { ...input.details },
+  };
+}
+
+/** What a support-form submission keeps: everything the sender and the page gave us. */
+export type SupportMessageDetails = {
+  topic: string;
+  message: string;
+  email: string | null;
+  url: string | null;
+  user_id?: string | null;
+  context: Record<string, string> | null;
+};
+
+/**
+ * A message from the support form (user, 2026-10-16): kept forever, so it names no professional
+ * (purging one deletes their events). A signed-in sender is the actor; every account today is a
+ * professional's or an applicant's, and patient accounts are not built yet.
+ */
+export function supportMessageEvent(input: {
+  userId: string | null;
+  visitorKey: string | null;
+  details: SupportMessageDetails;
+}): UserEventInsert {
+  return {
+    event_type: "support_message",
+    actor_type: input.userId ? "professional" : "visitor",
+    actor_id: input.userId,
+    visitor_key: textOrNull(input.visitorKey),
+    professional_id: null,
+    clinic_id: null,
+    source: "support_form",
+    details: { ...input.details, user_id: input.userId },
   };
 }
 

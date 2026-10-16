@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { INCORRECT_INFO_PROMPT, emitOpenFeedback } from "@/lib/doccy-feedback";
 import { formatFinderRequestBadgeLabel } from "@/lib/finder-booking-request-stats";
 import { registerClaimPath } from "@/lib/claim-directory-professional";
 import { canClaimListing } from "@/lib/register-gate";
@@ -42,7 +42,7 @@ function buildIncorrectInfoMessage(ctx: ManualListingContext): string {
     `Specialty: ${ctx.specialty}`,
     `District: ${ctx.district}`,
     "",
-    "What seems incorrect:",
+    INCORRECT_INFO_PROMPT,
     "",
   ].join("\n");
 }
@@ -72,6 +72,12 @@ export function ManualDirectoryReportIncorrectInfoLink({
             specialty,
             district,
           }),
+          context: {
+            kind: "incorrect_listing_info",
+            professional: displayName,
+            specialty,
+            district,
+          },
         })
       }
       className={`${REPORT_LINK_CLASS} ${className}`}

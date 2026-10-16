@@ -31,6 +31,7 @@ test.describe("Support feedback live Formspree (local only)", () => {
     await expect(dialog).toBeVisible({ timeout: 5000 });
 
     await dialog.getByRole("textbox", { name: /message/i }).fill(message);
+    await dialog.getByRole("textbox", { name: /email/i }).fill("rociosirvent+feedback-e2e@gmail.com");
     await dialog.getByRole("button", { name: /^Send message$/i }).click();
 
     await expect(page.getByText(/Thanks — we received your message\./i)).toBeVisible({

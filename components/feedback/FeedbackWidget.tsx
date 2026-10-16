@@ -9,7 +9,9 @@ import {
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
   DOCCY_SUPPORT_QUERY_APPLICATION_REVIEW,
   emitOpenFeedback,
+  feedbackSentFollowUp,
   subscribeOpenFeedback,
+  validateFeedbackSubmission,
   type DocCyOpenFeedbackDetail,
 } from "@/lib/doccy-feedback";
 const INSTALL_BANNER_VISIBILITY_EVENT = "doccy:install-banner-visibility";
@@ -54,6 +56,8 @@ export function FeedbackWidget() {
   const [subject, setSubject] = React.useState<Subject>("I have a suggestion");
   const [message, setMessage] = React.useState("");
   const [userId, setUserId] = React.useState<string | null>(null);
+  const [email, setEmail] = React.useState("");
+  const [context, setContext] = React.useState<Record<string, string> | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [sent, setSent] = React.useState(false);
@@ -106,6 +110,7 @@ export function FeedbackWidget() {
         setSubject("I have a suggestion");
       }
       setMessage(detail?.message ?? "");
+      setContext(detail?.context ?? null);
       setError(null);
       setSent(false);
       setOpen(true);
@@ -131,6 +136,8 @@ export function FeedbackWidget() {
       .then(({ data }) => {
         if (cancelled) return;
         setUserId(data.user?.id ?? null);
+        const accountEmail = data.user?.email;
+        if (accountEmail) setEmail((current) => current || accountEmail);
       })
       .catch(() => {
         if (cancelled) return;
@@ -235,6 +242,7 @@ export function FeedbackWidget() {
   function resetForm() {
     setSubject("I have a suggestion");
     setMessage("");
+    setContext(null);
     setError(null);
     setSent(false);
   }
@@ -251,8 +259,13 @@ export function FeedbackWidget() {
       return;
     }
 
-    if (!message.trim()) {
-      setError("Please write a short message.");
+    const problem = validateFeedbackSubmission({
+      message,
+      email,
+      signedIn: userId !== null,
+    });
+    if (problem) {
+      setError(problem);
       return;
     }
 
@@ -261,18 +274,41 @@ export function FeedbackWidget() {
       const fd = new FormData();
       fd.append("subject", subject);
       fd.append("message", message);
+      if (email.trim()) fd.append("email", email.trim());
       fd.append("url", currentUrl);
       fd.append("user_id", userId ?? "");
 
-      const res = await fetch(endpoint, {
+      // Our own copy (kept forever in user_events) and Formspree's email to the founders go out
+      // together; the message counts as sent if either one took it.
+      const saveCopy = fetch("/api/support-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          message,
+          email: email.trim(),
+          url: currentUrl,
+          context,
+        }),
+      })
+        .then((r) => r.ok)
+        .catch(() => false);
+      const sendToFormspree = fetch(endpoint, {
         method: "POST",
         body: fd,
         headers: {
           Accept: "application/json",
         },
-      });
+      }).catch(() => null);
 
-      if (!res.ok) {
+      const [res, saved] = await Promise.all([sendToFormspree, saveCopy]);
+
+      if (!res && !saved) {
+        setError("Network error. Please try again.");
+        return;
+      }
+
+      if (res && !res.ok && !saved) {
         const data = await res.json().catch(() => null);
         const msg =
           data?.error ||
@@ -352,7 +388,7 @@ export function FeedbackWidget() {
                     Thanks — we received your message.
                   </p>
                   <p className="text-xs text-slate-400">
-                    We&apos;ll follow up as soon as possible.
+                    {feedbackSentFollowUp(Boolean(email.trim()) || userId !== null)}
                   </p>
                   <div className="pt-2">
                     <button
@@ -368,7 +404,7 @@ export function FeedbackWidget() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} noValidate className="space-y-4">
                   {error && (
                     <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-100">
                       {error}
@@ -385,6 +421,7 @@ export function FeedbackWidget() {
                           onClick={() => {
                             setSubject("I have a suggestion");
                             setMessage("");
+                            setContext(null);
                           }}
                           className="mt-1.5 text-[11px] text-slate-400 underline decoration-slate-500 underline-offset-2 transition hover:text-slate-300"
                         >
@@ -416,6 +453,19 @@ export function FeedbackWidget() {
                       rows={5}
                       className="mt-1 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                       placeholder="Tell us your idea or describe the issue..."
+                    />
+                  </label>
+
+                  <label className="block text-xs font-medium text-slate-200">
+                    Your email{userId === null ? "" : " (optional)"}
+                    <input
+                      type="email"
+                      name="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
+                      placeholder="So we can get back to you"
                     />
                   </label>
 
