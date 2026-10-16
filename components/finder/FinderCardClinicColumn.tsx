@@ -6,7 +6,7 @@ import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 
 const linkClass =
-  "inline-flex items-center text-[13px] font-semibold text-site-clinical-700 transition-none hover:underline disabled:cursor-wait disabled:opacity-60";
+  "inline-flex items-center text-[13px] font-semibold leading-5 text-site-clinical-700 transition-none hover:underline disabled:cursor-wait disabled:opacity-60";
 
 /**
  * Where, on G's finder card (Finder G, step 4; user, 2026-10-16): the clinic's name (its
@@ -75,6 +75,7 @@ export function FinderCardClinicColumn({
               manualId={phone.manualId}
               label="Clinic phone"
               icon={<Phone className="h-4 w-4 shrink-0" aria-hidden />}
+              wrapperClassName="flex flex-col gap-1"
               className={linkClass}
               revealedClassName={`${linkClass} gap-1.5 tabular-nums`}
             />

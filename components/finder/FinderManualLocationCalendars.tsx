@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { FinderCardClinicColumn } from "@/components/finder/FinderCardClinicColumn";
 import { FinderClinicLocationBlock, type FinderClinicRef } from "@/components/finder/FinderClinicLocationBlock";
 import { FinderListingRequestBox } from "@/components/finder/FinderListingRequestBox";
@@ -30,6 +31,8 @@ type Props = {
    * page uses), not the listing's.
    */
   previewSeedKey?: string | null;
+  /** Finder only: Claim this Profile and Report incorrect info, inside the listing box. */
+  footer?: ReactNode;
 };
 
 function listingLocations(listing: FinderManualLocationListing): FinderClinicRef[] {
@@ -48,6 +51,7 @@ export function FinderManualLocationCalendars({
   callToBookSource,
   layoutVariant = "finder",
   previewSeedKey = null,
+  footer = null,
 }: Props) {
   const locations = listingLocations(listing);
   // G's listing card (Finder G, step 4; user, 2026-10-16): one clinic, then "Not on online
@@ -81,6 +85,7 @@ export function FinderManualLocationCalendars({
           clinicId={clinic?.id}
           requestSource={callToBookSource}
           requestCount={listing.monthlyRequestCount}
+          footer={footer}
         />
       </>
     );

@@ -187,7 +187,10 @@ test.describe("Integration: one finder card per professional and clinic", { tag:
     await expect(paused.getByTestId("finder-card-booking-paused")).toBeVisible({ timeout: 20_000 });
     await expect(open.getByTestId("finder-card-booking-paused")).toHaveCount(0);
 
-    // A time on the open card books at that clinic.
+    // A time on the open card books at that clinic (late in the day, today has none: go to the next free day).
+    const nextFree = open.getByRole("button", { name: /^Next free:/ });
+    await expect(open.getByTestId("finder-card-day-strip")).toBeVisible({ timeout: 20_000 });
+    if (await nextFree.isVisible()) await nextFree.click();
     const slot = open.locator(`a[href*="location=${seeded.paphosJoinId}"]`).first();
     await expect(slot).toBeVisible({ timeout: 20_000 });
 

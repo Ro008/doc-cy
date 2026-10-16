@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { finderCardCalendarAreaClass } from "@/components/finder/finder-availability-layout";
 import { REQUEST_ONLINE_BOOKING_BUTTON_LABEL } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import {
@@ -15,11 +16,14 @@ export function FinderListingRequestBox({
   clinicId,
   requestSource,
   requestCount,
+  footer = null,
 }: {
   manualId: string;
   clinicId?: string | null;
   requestSource: string;
   requestCount: number;
+  /** Claim this Profile and Report incorrect info, along the bottom of the box. */
+  footer?: ReactNode;
 }) {
   return (
     <div className={finderCardCalendarAreaClass}>
@@ -29,8 +33,9 @@ export function FinderListingRequestBox({
         data-manual-id={manualId}
         data-clinic-id={String(clinicId ?? "").trim() || undefined}
         data-request-source={requestSource}
-        className="flex flex-1 flex-wrap items-center gap-3.5 rounded-2xl bg-site-ink-50 p-4"
+        className="flex flex-1 flex-col justify-between gap-3 rounded-2xl bg-site-ink-50 p-4"
       >
+        <div className="flex flex-wrap items-center gap-3.5">
         <div className="min-w-0 flex-[1_1_220px]">
           <p className="text-[15px] font-bold text-site-ink-900">Not on online booking yet</p>
           <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-site-ink-500">
@@ -63,6 +68,12 @@ export function FinderListingRequestBox({
         >
           {REQUEST_ONLINE_BOOKING_BUTTON_LABEL}
         </button>
+        </div>
+        {footer ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2" data-testid="finder-listing-footer">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );

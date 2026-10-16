@@ -58,11 +58,6 @@ import {
 } from "@/components/finder/finder-availability-layout";
 import { FINDER_DAY_STRIP_DAY_COUNT } from "@/lib/finder-card-day-strip";
 import {
-  finderCardFooterHeightClass,
-  finderCardManualFooterActionsClass,
-  finderCardManualFooterClass,
-} from "@/components/finder/finder-card-cta";
-import {
   finderBrowseRowClass,
   finderBrowseRowCompactClass,
   finderResultCardClass,
@@ -1265,8 +1260,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           </>
                         )}
                       </div>
-                      {/* The listing cards' footer height, so every card is the same size. */}
-                      <div aria-hidden className={finderCardFooterHeightClass} />
                     </article>
                   );
                 }
@@ -1354,17 +1347,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         }}
                         dayHeaders={finderAvailabilityDayHeaders}
                         callToBookSource="finder_card"
-                      />
-                    </div>
-
-                    <div
-                      className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass} ${finderCardFooterHeightClass}`}
-                    >
-                      <ManualDirectoryDoctorClaimFooter professionalId={row.id} />
-                      <ManualDirectoryReportIncorrectInfoLink
-                        displayName={row.displayName}
-                        specialty={row.specialty}
-                        district={manualDistrict}
+                        footer={
+                          <>
+                            <ManualDirectoryDoctorClaimFooter professionalId={row.id} />
+                            <ManualDirectoryReportIncorrectInfoLink
+                              displayName={row.displayName}
+                              specialty={row.specialty}
+                              district={manualDistrict}
+                              className="ml-auto"
+                            />
+                          </>
+                        }
                       />
                     </div>
                   </article>

@@ -74,6 +74,8 @@ type RevealPhoneButtonProps = {
   label?: string | null;
   /** An icon before the words and, once shown, before the number (G's finder card). */
   icon?: React.ReactNode;
+  /** The box around the button and its error line; a flex column keeps it centred in a row of links. */
+  wrapperClassName?: string;
 };
 
 function RevealedPhoneLink({
@@ -116,6 +118,7 @@ export function RevealPhoneButton({
   manualId = null,
   label = null,
   icon = null,
+  wrapperClassName = "space-y-1",
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
   const analyticsSource = parseCallToBookSource(source);
@@ -142,7 +145,7 @@ export function RevealPhoneButton({
         : CALL_TO_BOOK_BUTTON_LABEL);
 
   return (
-    <div className="space-y-1">
+    <div className={wrapperClassName}>
       <button
         type="button"
         disabled={state.status === "loading"}
