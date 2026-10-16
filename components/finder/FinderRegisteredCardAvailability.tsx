@@ -1,36 +1,32 @@
-import { FinderCardAvailabilityGrid } from "@/components/finder/FinderCardAvailabilityGrid";
-import { FinderCardOnlineBookingPaused } from "@/components/finder/FinderCardOnlineBookingPaused";
-import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
+import { FinderCardClinicColumn } from "@/components/finder/FinderCardClinicColumn";
+import { FinderCardDayStrip } from "@/components/finder/FinderCardDayStrip";
+import { FinderCardNoOnlineBooking } from "@/components/finder/FinderCardNoOnlineBooking";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
+import { finderCardOpeningHours } from "@/lib/finder-profile-card";
 import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
-import { FinderClinicNameLink } from "@/components/finder/FinderClinicLocationBlock";
 import { clinicForRenderedLocation } from "@/lib/public/finder-card-clinic-match";
 import { loadFinderRegisteredClinics } from "@/lib/public/load-finder-registered-clinics";
-import {
-  finderCardAddressClass,
-  finderCardCalendarBoxClass,
-  finderCardCalendarSkeletonHeightClass,
-} from "@/components/finder/finder-availability-layout";
+import { finderCardTimesAreaClass } from "@/components/finder/finder-availability-layout";
 
 const registeredFinderCallClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100 disabled:cursor-wait disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-profile-muted px-3.5 text-sm font-bold text-profile-text transition-none hover:border-accent disabled:cursor-wait disabled:opacity-60";
 
-const registeredFinderCallRevealedClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100";
-
+/** While the card's clinic and times load: the week and the clinic, at their size. */
 export function FinderCardAvailabilitySkeleton() {
   return (
-    <div
-      className="min-w-0"
-      data-testid="finder-card-calendar-skeleton"
-      aria-hidden
-    >
-      <div
-        className={`${finderCardCalendarSkeletonHeightClass} animate-pulse rounded-lg border border-site-ink-200 bg-site-ink-50`}
-      />
-    </div>
+    <>
+      <div className={finderCardTimesAreaClass} data-testid="finder-card-calendar-skeleton" aria-hidden>
+        <div className="h-[60px] max-w-[470px] animate-pulse rounded-2xl bg-accent-soft" />
+        <div className="mt-3.5 h-[136px] max-w-[470px] animate-pulse rounded-2xl bg-profile-bg" />
+      </div>
+      <div className="min-w-0 space-y-2 border-t border-profile-border pt-4 lg:border-t-0 lg:pt-0" aria-hidden>
+        <div className="h-5 w-2/3 animate-pulse rounded bg-profile-bg" />
+        <div className="h-10 w-full animate-pulse rounded bg-profile-bg" />
+        <div className="h-11 w-1/2 animate-pulse rounded-xl bg-profile-bg" />
+      </div>
+    </>
   );
 }
 
@@ -47,6 +43,12 @@ type FinderRegisteredCardAvailabilityProps = {
   clinicAddress?: string | null;
 };
 
+/**
+ * The registered card under the hero (mockup L; user, 2026-10-16): the clinic's week and
+ * times (or one sentence when it takes no online bookings: paused there, or her access
+ * ended) beside the clinic as her profile shows it. Two grid cells, so the card's body
+ * grid places them.
+ */
 export async function FinderRegisteredCardAvailability({
   doctorId,
   profileSlug,
@@ -59,80 +61,45 @@ export async function FinderRegisteredCardAvailability({
     loadFinderRegisteredClinics(doctorIdsKey),
   ]);
   const linkedClinics = registeredClinics.byProfessionalId.get(doctorId) ?? [];
-  const location =
-    (batch.locationsByDoctorId.get(doctorId) ?? []).find((loc) => loc.id === locationId) ?? null;
+  const locations = batch.locationsByDoctorId.get(doctorId) ?? [];
+  const location = locations.find((loc) => loc.id === locationId) ?? null;
 
-  if (!location) {
-    // No clinic to show: the address alone, and the professional's own pause state.
-    const calendar = batch.calendars.get(doctorId);
-    return (
-      <FinderMultiLocationAvailability
-        rows={[
-          {
-            key: doctorId,
-            location: (
-              <RegisteredLocationCopy
-                address={clinicAddress}
-                clinic={clinicForRenderedLocation({
-                  locationId: null,
-                  locationAddress: clinicAddress,
-                  byLocationId: registeredClinics.byLocationId,
-                  candidates: linkedClinics,
-                })}
-                doctorId={doctorId}
-              />
-            ),
-            calendar: (
-              <div className={finderCardCalendarBoxClass}>
-                {batch.paused.get(doctorId) ? (
-                  <FinderCardOnlineBookingPaused profileSlug={profileSlug} />
-                ) : calendar && profileSlug ? (
-                  <FinderCardAvailabilityGrid calendar={calendar} profileSlug={profileSlug} />
-                ) : null}
-              </div>
-            ),
-          },
-        ]}
-      />
-    );
-  }
+  const address = location
+    ? String(location.clinic_address ?? "").trim() || clinicAddress
+    : clinicAddress;
+  const clinic = clinicForRenderedLocation({
+    locationId: location?.id ?? null,
+    locationAddress: address,
+    byLocationId: registeredClinics.byLocationId,
+    candidates: linkedClinics,
+  });
+  const clinicId = String(clinic?.id ?? "").trim();
+  const mapsHref = buildMapsUrlFromClinicLocation({
+    address: stripPlusCodePrefix(String(address ?? "").trim()),
+    latitude: location?.latitude ?? null,
+    longitude: location?.longitude ?? null,
+    placeId: location?.clinic_place_id ?? null,
+  });
 
-  const availability = batch.byLocationId.get(location.id);
-  const address = String(location.clinic_address ?? "").trim() || clinicAddress;
-  const calendarNode = availability?.paused ? (
-    <FinderCardOnlineBookingPaused profileSlug={profileSlug} locationScoped />
-  ) : availability?.calendar && profileSlug ? (
-    <FinderCardAvailabilityGrid
-      calendar={availability.calendar}
-      profileSlug={profileSlug}
-      locationId={location.id}
-    />
-  ) : null;
+  const availability = location ? batch.byLocationId.get(location.id) : null;
+  const paused = location ? Boolean(availability?.paused) : Boolean(batch.paused.get(doctorId));
+  const calendar = location ? availability?.calendar : batch.calendars.get(doctorId);
 
   return (
-    <FinderMultiLocationAvailability
-      rows={[
-        {
-          key: location.id,
-          location: (
-            <RegisteredLocationCopy
-              address={address}
-              clinic={clinicForRenderedLocation({
-                locationId: location.id,
-                locationAddress: address,
-                byLocationId: registeredClinics.byLocationId,
-                candidates: linkedClinics,
-              })}
-              latitude={location.latitude}
-              longitude={location.longitude}
-              placeId={location.clinic_place_id}
-              doctorId={doctorId}
-            />
-          ),
-          calendar: <div className={finderCardCalendarBoxClass}>{calendarNode}</div>,
-        },
-      ]}
-    />
+    <>
+      {paused || !calendar || !profileSlug ? (
+        <FinderCardNoOnlineBooking />
+      ) : (
+        <FinderCardDayStrip calendar={calendar} profileSlug={profileSlug} locationId={location?.id ?? null} />
+      )}
+      <FinderCardClinicColumn
+        clinic={clinic}
+        address={address}
+        mapsHref={mapsHref}
+        hours={finderCardOpeningHours(location)}
+        phone={clinicId && clinic?.hasPhone ? { clinicId, manualId: doctorId, variant: "show-phone-number" } : null}
+      />
+    </>
   );
 }
 
@@ -158,7 +125,7 @@ function RegisteredClinicCallButton({
       manualId={doctorId}
       variant="show-phone-number"
       className={registeredFinderCallClass}
-      revealedClassName={registeredFinderCallRevealedClass}
+      revealedClassName={`${registeredFinderCallClass} tabular-nums`}
     />
   );
 }
@@ -178,62 +145,6 @@ export async function FinderRegisteredPublicCall({
   return (
     <div className="mt-1.5">
       <RegisteredClinicCallButton clinic={clinic} doctorId={doctorId} />
-    </div>
-  );
-}
-
-function RegisteredLocationCopy({
-  address,
-  title,
-  clinic = null,
-  doctorId,
-  latitude = null,
-  longitude = null,
-  placeId = null,
-}: {
-  address?: string | null;
-  title?: string | null;
-  /** Clinic behind this location, so the card names it as unregistered cards do. */
-  clinic?: { id?: string | null; name: string; slug: string; hasPhone?: boolean } | null;
-  doctorId: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  placeId?: string | null;
-}) {
-  const displayAddress = stripPlusCodePrefix(String(address ?? "").trim());
-  const mapsHref = buildMapsUrlFromClinicLocation({
-    address: displayAddress,
-    latitude,
-    longitude,
-    placeId,
-  });
-
-  return (
-    <div className="space-y-4">
-      {title ? (
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-site-ink-400">
-          {title}
-        </p>
-      ) : null}
-      <div>
-        {clinic ? <FinderClinicNameLink name={clinic.name} slug={clinic.slug} /> : null}
-        <p className={finderCardAddressClass} title={displayAddress || undefined}>
-          {displayAddress || "Not provided yet"}
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          {mapsHref ? (
-            <a
-              href={mapsHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex text-xs font-semibold text-site-clinical-700 transition-none underline-offset-2 hover:text-site-clinical-600 hover:underline"
-            >
-              Open in Maps ↗
-            </a>
-          ) : null}
-          <RegisteredClinicCallButton clinic={clinic} doctorId={doctorId} />
-        </div>
-      </div>
     </div>
   );
 }

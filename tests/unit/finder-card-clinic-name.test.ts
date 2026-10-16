@@ -15,17 +15,16 @@ const read = (relative: string) => fs.readFileSync(path.join(repoRoot, relative)
  */
 describe("finder card clinic name", () => {
   it("renders the clinic heading from one shared component, not two copies", () => {
-    const locationBlock = read("components/finder/FinderClinicLocationBlock.tsx");
+    const column = read("components/finder/FinderCardClinicColumn.tsx");
     const registered = read("components/finder/FinderRegisteredCardAvailability.tsx");
+    const manual = read("components/finder/FinderManualLocationCalendars.tsx");
 
-    assert.equal(locationBlock.includes("export function FinderClinicNameLink"), true);
-    assert.equal(registered.includes("FinderClinicNameLink"), true);
-
-    // The heading markup must live only in the shared component, so the two card
-    // types cannot drift apart visually.
-    const headingClass = "mb-1 block text-sm font-semibold leading-snug text-site-ink-800";
-    assert.equal(locationBlock.split(headingClass).length - 1, 1);
-    assert.equal(registered.includes(headingClass), false);
+    // G (step 4): both finder card types use the same clinic column, so they cannot
+    // drift apart visually; the listing page keeps FinderClinicLocationBlock.
+    assert.equal(column.includes("clinicLandingPath(slug)"), true);
+    assert.equal(registered.includes("<FinderCardClinicColumn"), true);
+    assert.equal(manual.includes("<FinderCardClinicColumn"), true);
+    assert.equal(read("components/finder/FinderClinicLocationBlock.tsx").includes("export function FinderClinicNameLink"), true);
   });
 
   it("keys registered clinics by the professional_clinics row id", () => {
@@ -43,7 +42,7 @@ describe("finder card clinic name", () => {
     // tests/unit/finder-card-clinic-match.test.ts).
     assert.equal(registered.includes("clinicForRenderedLocation"), true);
     assert.equal(registered.includes("byLocationId: registeredClinics.byLocationId"), true);
-    assert.equal(registered.includes("locationId: location.id"), true);
+    assert.equal(registered.includes("locationId: location?.id ?? null"), true);
 
     // Chunked id filtering, per the repo's supabase row-cap rules.
     assert.equal(loader.includes("fetchAllSupabaseRowsForIdChunks"), true);

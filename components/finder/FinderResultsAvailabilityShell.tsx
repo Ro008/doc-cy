@@ -28,6 +28,13 @@ type FinderAvailabilityWeekContextValue = {
   goToPreviousWeek: () => void;
   goToNextWeek: () => void;
   goToWeekContainingDayIndex: (dayIndex: number) => void;
+  /**
+   * G's day circles (Finder G, step 4): the day every card shows, as an index in
+   * `dayHeaders` (0 = today). The arrows choose the first day of the new week.
+   */
+  selectedDayIndex: number;
+  /** Chooses a day on every card and moves to its week. */
+  selectDay: (dayIndex: number) => void;
   /** Page-wide: only one day, on one card, can be expanded past its default slot count at a time. */
   expandedSlot: FinderExpandedSlot | null;
   setExpandedSlot: (next: FinderExpandedSlot | null) => void;
@@ -47,22 +54,33 @@ export function useFinderAvailabilityWeek(): FinderAvailabilityWeekContextValue 
 
 type ProviderProps = {
   dayHeaders: FinderAvailabilityDayHeader[];
+  /** Days a week shows: 7 for the Finder's day circles, 5 for the listing page's grid. */
+  dayCount: number;
   children: React.ReactNode;
 };
 
-function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps) {
-  const visibleDayCount = FINDER_AVAILABILITY_VISIBLE_DAY_COUNT;
-  const weekStep = FINDER_AVAILABILITY_VISIBLE_DAY_COUNT;
+function FinderAvailabilityWeekProvider({ dayHeaders, dayCount, children }: ProviderProps) {
+  const visibleDayCount = dayCount;
+  const weekStep = dayCount;
   const maxWindowStart = Math.max(0, dayHeaders.length - visibleDayCount);
   const [windowStart, setWindowStart] = React.useState(0);
   const [direction, setDirection] = React.useState<"forward" | "backward">("forward");
   const [expandedSlot, setExpandedSlot] = React.useState<FinderExpandedSlot | null>(null);
+  const [selectedDayIndex, setSelectedDayIndex] = React.useState(0);
 
   React.useEffect(() => {
     setWindowStart((current) => Math.min(current, maxWindowStart));
   }, [maxWindowStart, dayHeaders.length]);
 
   const value = React.useMemo<FinderAvailabilityWeekContextValue>(() => {
+    const goToWeekContainingDayIndex = (dayIndex: number) => {
+      const target = snapWindowStartToDayIndex(dayIndex, weekStep, maxWindowStart);
+      setDirection((current) => {
+        if (target === windowStart) return current;
+        return target > windowStart ? "forward" : "backward";
+      });
+      setWindowStart(target);
+    };
     const visibleDays = dayHeaders.slice(windowStart, windowStart + visibleDayCount);
     return {
       dayHeaders,
@@ -73,25 +91,27 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
       canGoPrevious: windowStart > 0,
       canGoNext: windowStart < maxWindowStart,
       goToPreviousWeek: () => {
+        const next = Math.max(0, windowStart - weekStep);
         setDirection("backward");
-        setWindowStart((current) => Math.max(0, current - weekStep));
+        setWindowStart(next);
+        setSelectedDayIndex(next);
       },
       goToNextWeek: () => {
+        const next = Math.min(maxWindowStart, windowStart + weekStep);
         setDirection("forward");
-        setWindowStart((current) => Math.min(maxWindowStart, current + weekStep));
+        setWindowStart(next);
+        setSelectedDayIndex(next);
       },
-      goToWeekContainingDayIndex: (dayIndex: number) => {
-        const target = snapWindowStartToDayIndex(dayIndex, weekStep, maxWindowStart);
-        setDirection((current) => {
-          if (target === windowStart) return current;
-          return target > windowStart ? "forward" : "backward";
-        });
-        setWindowStart(target);
+      goToWeekContainingDayIndex,
+      selectedDayIndex,
+      selectDay: (dayIndex: number) => {
+        setSelectedDayIndex(dayIndex);
+        goToWeekContainingDayIndex(dayIndex);
       },
       expandedSlot,
       setExpandedSlot,
     };
-  }, [dayHeaders, direction, expandedSlot, maxWindowStart, visibleDayCount, weekStep, windowStart]);
+  }, [dayHeaders, direction, expandedSlot, maxWindowStart, selectedDayIndex, visibleDayCount, weekStep, windowStart]);
 
   return (
     <FinderAvailabilityWeekContext.Provider value={value}>
@@ -122,6 +142,8 @@ export function FinderAvailabilityDayArrowButton({ direction }: { direction: "pr
 
 type ShellProps = {
   dayHeaders: FinderAvailabilityDayHeader[];
+  /** Days a week shows; the listing page keeps its 5-day grid. */
+  dayCount?: number;
   children: React.ReactNode;
 };
 
@@ -169,13 +191,17 @@ function FinderAvailabilityWeekSurface({ children }: { children: React.ReactNode
   );
 }
 
-export function FinderResultsAvailabilityShell({ dayHeaders, children }: ShellProps) {
+export function FinderResultsAvailabilityShell({
+  dayHeaders,
+  dayCount = FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
+  children,
+}: ShellProps) {
   if (dayHeaders.length === 0) {
     return <>{children}</>;
   }
 
   return (
-    <FinderAvailabilityWeekProvider dayHeaders={dayHeaders}>
+    <FinderAvailabilityWeekProvider dayHeaders={dayHeaders} dayCount={dayCount}>
       <FinderAvailabilityWeekSurface>{children}</FinderAvailabilityWeekSurface>
     </FinderAvailabilityWeekProvider>
   );

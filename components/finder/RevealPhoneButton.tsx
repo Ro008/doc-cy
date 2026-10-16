@@ -70,16 +70,24 @@ type RevealPhoneButtonProps = {
   source?: CallToBookSource | null;
   /** Professional id when revealing a clinic phone from a listing card. */
   manualId?: string | null;
+  /** The button's words, when not the variant's ("Clinic phone" on G's finder card). */
+  label?: string | null;
+  /** An icon before the words and, once shown, before the number (G's finder card). */
+  icon?: React.ReactNode;
+  /** The box around the button and its error line; a flex column keeps it centred in a row of links. */
+  wrapperClassName?: string;
 };
 
 function RevealedPhoneLink({
   phone,
   className,
   variant,
+  icon,
 }: {
   phone: string;
   className?: string;
   variant: "show-phone" | "show-phone-number" | "call-to-book" | "profile-call";
+  icon?: React.ReactNode;
 }) {
   const display = formatCyprusPhoneDisplay(phone);
   const href = phoneToTelHref(display);
@@ -92,6 +100,7 @@ function RevealedPhoneLink({
         "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-site-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-site-clinical-600"
       }
     >
+      {icon}
       {variant === "show-phone" ? `📞 ${display}` : display}
     </a>
   );
@@ -107,6 +116,9 @@ export function RevealPhoneButton({
   variant = "show-phone",
   source = null,
   manualId = null,
+  label = null,
+  icon = null,
+  wrapperClassName = "space-y-1",
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
   const analyticsSource = parseCallToBookSource(source);
@@ -119,19 +131,21 @@ export function RevealPhoneButton({
         phone={state.phone}
         className={revealedClassName}
         variant={variant}
+        icon={icon}
       />
     );
   }
 
   const idleLabel =
-    variant === "profile-call"
+    label ??
+    (variant === "profile-call"
       ? "Call"
       : variant === "show-phone"
         ? "Show phone"
-        : CALL_TO_BOOK_BUTTON_LABEL;
+        : CALL_TO_BOOK_BUTTON_LABEL);
 
   return (
-    <div className="space-y-1">
+    <div className={wrapperClassName}>
       <button
         type="button"
         disabled={state.status === "loading"}
@@ -163,7 +177,12 @@ export function RevealPhoneButton({
           "inline-flex min-h-10 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-white px-3 py-2 text-sm font-semibold text-site-clinical-700 transition hover:border-site-clinical-300 hover:bg-site-clinical-50 disabled:cursor-wait disabled:opacity-60"
         }
       >
-        {state.status === "loading" ? (
+        {icon ? (
+          <span className="inline-flex items-center gap-1.5">
+            {icon}
+            {state.status === "loading" ? "Loading…" : idleLabel}
+          </span>
+        ) : state.status === "loading" ? (
           "Loading…"
         ) : variant === "profile-call" ? (
           <span className="inline-flex items-center gap-3">

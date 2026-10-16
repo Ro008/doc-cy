@@ -12,7 +12,8 @@ export type PublicApiRateLimitBucket =
   | "finderBrowse"
   | "clinicSearch"
   | "registerContactCheck"
-  | "signIn";
+  | "signIn"
+  | "profileReviews";
 
 type RateLimitConfig = {
   limit: number;
@@ -55,6 +56,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   registerContactCheck: { limit: 30, windowMs: 60 * 60 * 1000 },
   /** Practitioner password checks at /login (IP). Link emails per address are capped separately. */
   signIn: { limit: 30, windowMs: 60 * 60 * 1000 },
+  /** A professional's reviews opened from her finder card (reads of what her profile shows). */
+  profileReviews: { limit: 120, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

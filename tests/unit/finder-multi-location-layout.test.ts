@@ -49,7 +49,9 @@ describe("finder multi-location layout", () => {
       "utf8",
     );
 
-    assert.equal(page.includes("FinderCardLanguages"), true);
+    // Mockup L: the card opens with the profile's hero (languages as words, specialty pills).
+    assert.equal(page.includes("finderCardLanguagesText"), true);
+    assert.equal(page.includes("<FinderProfileCardHero"), true);
     assert.equal(page.includes("FinderRegisteredCardAvailability"), true);
     assert.equal(page.includes("FinderRegisteredPublicCall"), true);
     assert.equal(page.includes("FinderManualLocationCalendars"), true);

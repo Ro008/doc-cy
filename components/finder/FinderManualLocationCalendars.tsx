@@ -1,11 +1,13 @@
+import type { ReactNode } from "react";
+import { FinderCardClinicColumn } from "@/components/finder/FinderCardClinicColumn";
 import { FinderClinicLocationBlock, type FinderClinicRef } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderListingRequestBox } from "@/components/finder/FinderListingRequestBox";
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
 import { ManualDirectoryMonthlyRequestBadge } from "@/components/finder/ManualDirectoryPatientActions";
 import type { CallToBookSource } from "@/lib/call-to-book";
 import { manualPreviewSeedKey } from "@/lib/finder-manual-preview-calendar";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
-import { finderCardCalendarBoxClass } from "@/components/finder/finder-availability-layout";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
 
 export type FinderManualLocationListing = {
@@ -29,6 +31,8 @@ type Props = {
    * page uses), not the listing's.
    */
   previewSeedKey?: string | null;
+  /** Finder only: Claim this Profile and Report incorrect info, under the clinic. */
+  footer?: ReactNode;
 };
 
 function listingLocations(listing: FinderManualLocationListing): FinderClinicRef[] {
@@ -47,14 +51,51 @@ export function FinderManualLocationCalendars({
   callToBookSource,
   layoutVariant = "finder",
   previewSeedKey = null,
+  footer = null,
 }: Props) {
   const locations = listingLocations(listing);
+  // The listing card (mockup L; user, 2026-10-16): the grey week with the request in the
+  // times' place (no calendar of invented times), beside its one clinic with Claim and
+  // Report under it. Two grid cells.
+  if (layoutVariant === "finder") {
+    const clinic = locations[0] ?? null;
+    const clinicId = String(clinic?.id ?? "").trim();
+    return (
+      <>
+        <FinderListingRequestBox
+          manualId={listing.id}
+          clinicId={clinic?.id}
+          requestSource={callToBookSource}
+          requestCount={listing.monthlyRequestCount}
+        />
+        <FinderCardClinicColumn
+          clinic={clinic}
+          address={
+            String(clinic?.address ?? "").trim() ||
+            String(listing.address ?? "").trim() ||
+            String(clinic?.district ?? "").trim() ||
+            listing.district
+          }
+          mapsHref={
+            String(clinic?.addressMapsLink ?? "").trim() ||
+            String(listing.address_maps_link ?? "").trim() ||
+            null
+          }
+          phone={
+            clinicId && clinic?.hasPhone
+              ? { clinicId, manualId: listing.id, variant: "call-to-book" }
+              : null
+          }
+          footer={footer}
+        />
+      </>
+    );
+  }
   const isMulti = locations.length > 1;
-  // A finder card is one clinic at a fixed size: the requests badge goes on the preview.
-  const inFinder = layoutVariant === "finder";
-  const calendarClass = inFinder ? finderCardCalendarBoxClass : "flex min-w-0 flex-col gap-2";
+  // The listing page: the requests badge above its preview calendar.
+  const calendarClass = "flex min-w-0 flex-col gap-2";
   const badge = (show: boolean) =>
-    show && !inFinder ? (
+    show ? (
       <ManualDirectoryMonthlyRequestBadge monthlyRequestCount={listing.monthlyRequestCount} />
     ) : null;
   const rows =
@@ -80,7 +121,7 @@ export function FinderManualLocationCalendars({
               <div className={calendarClass}>
                 {badge(index === 0)}
                 <FinderManualCardAvailabilityGrid
-                  requestCount={inFinder && index === 0 ? listing.monthlyRequestCount : null}
+                  requestCount={null}
                   manualId={listing.id}
                   seedKey={
                     isMulti
@@ -116,7 +157,7 @@ export function FinderManualLocationCalendars({
               <div className={calendarClass}>
                 {badge(true)}
                 <FinderManualCardAvailabilityGrid
-                  requestCount={inFinder ? listing.monthlyRequestCount : null}
+                  requestCount={null}
                   manualId={listing.id}
                   clinicId={listing.clinic?.id}
                   requestSource={callToBookSource}
