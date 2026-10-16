@@ -122,7 +122,7 @@ export function FinderProfileCardHero({
           {isGesy ? (
             <span data-testid="finder-card-gesy" className="ml-1 inline-flex items-center">
               {/* The official mark alone, transparent on the hero's colour, as on her profile. */}
-              <GesyProviderBadge size="xs" language="en" variant="mono" className="[&_img]:h-7" />
+              <GesyProviderBadge size="xs" language="en" variant="mono" tooltipAlign="right" className="[&_img]:h-7" />
             </span>
           ) : null}
         </div>

@@ -91,7 +91,7 @@ export const finderProfileCardClass =
   "flex flex-col gap-4 rounded-[28px] border border-profile-border bg-profile-surface p-2 pb-4 shadow-[0_10px_30px_rgba(0,0,0,0.05)] sm:gap-5 sm:p-2.5 sm:pb-6";
 
 export const finderProfileCardBodyClass =
-  "grid grid-cols-1 items-start gap-x-7 gap-y-4 px-2 sm:px-3.5 lg:min-h-[220px] lg:grid-cols-[minmax(0,1fr)_380px]";
+  "grid grid-cols-1 items-start gap-x-7 gap-y-4 px-2 sm:px-3.5 lg:min-h-[224px] lg:grid-cols-[minmax(0,1fr)_380px]";
 
 /** The week and what is under it: times, the request, or no online booking here. */
 export const finderCardTimesAreaClass = "flex min-w-0 flex-col";
