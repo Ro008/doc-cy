@@ -1069,7 +1069,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const finderWideClass = hasListFilter ? "min-[1840px]:max-w-[1564px]" : "";
 
   return (
-    <main className="min-h-screen bg-site-ink-50 text-site-ink-800">
+    <main className="min-h-screen bg-[#ECF2F4] text-site-ink-800 [.doccy-profile[data-scheme=dark]_&]:bg-[#071122]">
       <FinderShuffleSeedCookie seed={shuffleSession.seed} persist={shuffleSession.persist} />
       <FinderStructuredData
         siteUrl={siteUrl}
@@ -1152,7 +1152,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           >
           <section className="mt-6">
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders} dayCount={FINDER_DAY_STRIP_DAY_COUNT}>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-7">
                 {visibleCards.map((item, index) => {
                 const imagePriority = finderCardImagePriority(index);
                 const distance =

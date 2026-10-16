@@ -81,7 +81,7 @@ export function FinderCardReviewsButton({
         data-testid="finder-card-reviews"
         aria-haspopup="dialog"
         onClick={show}
-        className="text-[15px] font-semibold text-accent-on underline decoration-1 underline-offset-[3px] transition-none hover:decoration-2"
+        className="text-[15px] font-semibold text-accent-link underline decoration-1 underline-offset-[3px] transition-none hover:decoration-2"
       >
         {label}
       </button>

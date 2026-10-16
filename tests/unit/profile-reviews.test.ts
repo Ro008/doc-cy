@@ -220,7 +220,7 @@ describe("the finder card shows the note", () => {
     // In the card's hero since mockup L (user, 2026-10-16), as on her profile: the star in the
     // hero's text colour, the average, then the reviews link.
     const rating = read("components/finder/FinderProfileCardHero.tsx");
-    assert.match(rating, /<Star className="h-4 w-4 fill-current"/);
+    assert.match(rating, /<Star className="h-4 w-4 fill-current\b/);
     assert.match(rating, /rating\.count/);
     // The finder is plain English (no next-intl there), so the alternative is written in the component.
     assert.match(rating, /out of 5 stars/);

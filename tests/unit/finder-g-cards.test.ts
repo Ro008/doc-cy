@@ -24,14 +24,49 @@ const layout = read("components/finder/finder-availability-layout.ts");
 describe("the card as a summary of her profile (mockup L; user, 2026-10-16)", () => {
   it("every card, registered or listing, opens with the profile's hero", () => {
     assert.equal((page.match(/<FinderProfileCardHero\b/g) ?? []).length, 2, "registered + listing");
-    assert.match(hero, /bg-accent\b/);
-    assert.match(hero, /text-accent-on/);
-    assert.match(hero, /bg-accent-avatar/);
+  });
+
+  it("the hero is a quiet panel, not the teal band (mockup O; user, 2026-10-16)", () => {
+    assert.equal(/bg-accent\b/.test(hero), false, "no teal band");
+    assert.equal(hero.includes("text-accent-on"), false);
+    assert.match(hero, /bg-\[#EEF6F7\]/);
+    assert.match(hero, /\[\.doccy-profile\[data-scheme=dark\]_&\]:bg-\[#17335A\]/);
+    // The star in amber so the rating is easy to find.
+    assert.match(hero, /text-\[#B45309\]/);
+    assert.match(hero, /\[\.doccy-profile\[data-scheme=dark\]_&\]:text-\[#FBBF24\]/);
+    // Teal only in small things: outlined specialty pills.
+    assert.match(hero, /border-\[#BFE0E3\]/);
+    for (const [name, source] of [
+      ["reviews", read("components/finder/FinderCardReviewsButton.tsx")],
+      ["mobile", read("components/finder/FinderCardHeroMobile.tsx")],
+    ] as const) {
+      assert.equal(source.includes("text-accent-on"), false, name);
+      assert.match(source, /text-accent-link/, name);
+    }
+  });
+
+  it("from lg the profile is a side panel on the left of each card (mockup O)", () => {
+    assert.match(layout, /finderProfileCardClass =[^;]*lg:grid-cols-\[300px_minmax\(0,1fr\)\]/);
+    // One height from lg, sized for the fullest card (a three-line name beside the photo).
+    assert.match(layout, /finderProfileCardClass =[^;]*lg:min-h-\[352px\]/);
+    assert.match(layout, /finderProfileCardBodyClass =[^;]*lg:grid-cols-\[minmax\(0,1fr\)_300px\]/);
+    assert.match(hero, /lg:grid-cols-\[72px_minmax\(0,1fr\)\]/);
+    assert.match(hero, /lg:col-span-2 lg:col-start-1/);
+    assert.match(hero, /lg:flex-col/);
+  });
+
+  it("cards stand apart: a firmer edge, a soft shadow, more room between them (mockup O)", () => {
+    assert.match(layout, /finderProfileCardClass =[^;]*border-\[#D3E2E6\]/);
+    assert.match(layout, /finderProfileCardClass =[^;]*\[\.doccy-profile\[data-scheme=dark\]_&\]:border-\[#2A4370\]/);
+    assert.match(page, /<div className="flex flex-col gap-7">/);
+    assert.match(page, /<main className="min-h-screen bg-\[#ECF2F4\] text-site-ink-800 \[\.doccy-profile\[data-scheme=dark\]_&\]:bg-\[#071122\]">/);
   });
 
   it("the hero: name, rating with the reviews link, specialty pills with GeSY, the facts", () => {
     assert.match(hero, /<FinderSpecialtyLink\b/);
-    assert.match(hero, /<GesyProviderBadge[^>]*variant="mono"/);
+    // The colour mark on the pale panel; it swaps to its white-text copy in dark.
+    assert.match(hero, /<GesyProviderBadge\b/);
+    assert.equal(/<GesyProviderBadge[^>]*variant="mono"/.test(hero), false);
     assert.match(hero, /Speaks \{languages\}/);
     assert.match(hero, /patientsSeen/);
     assert.match(hero, /<FinderCardReviewsButton\b/);

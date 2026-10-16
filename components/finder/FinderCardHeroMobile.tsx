@@ -22,7 +22,7 @@ export async function FinderCardHeroMobile({
       label="Show mobile"
       loadingLabel="Loading…"
       errorLabel="Could not load the number"
-      className="text-accent-on underline decoration-1 underline-offset-4 transition-none hover:decoration-2"
+      className="font-bold text-accent-link underline decoration-1 underline-offset-4 transition-none hover:decoration-2"
       testId="finder-card-mobile"
     />
   );
