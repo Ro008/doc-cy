@@ -81,7 +81,9 @@ test.describe("Finder filter panel @pr-e2e @pr-e2e-finder", () => {
       await name.press("Enter");
       await expect(page).toHaveURL(/[?&]name=zzqx-nobody-has-this-name/, { timeout: 5_000 });
     }).toPass({ timeout: 30_000 });
-    await expect.poll(() => resultsCount(page), { timeout: 20_000 }).toBe(0);
+    // No match: no count, the "Can't find your doctor?" card instead.
+    await expect(page.getByText(/Can.t find your doctor\?/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("finder-results-count")).toHaveCount(0);
     await expect(filtersButton(page)).toContainText("1");
   });
 
