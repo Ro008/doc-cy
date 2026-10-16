@@ -100,7 +100,7 @@ describe("every public page paints the right mode from the first byte", () => {
 
   it("the public profile uses the same choice and default", () => {
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /const scheme = await getSiteScheme\(\)/);
+    assert.match(page, /\bscheme,\s*\] = await Promise\.all\(\[[\s\S]*?getSiteScheme\(\),\s*\]\)/);
     assert.doesNotMatch(page, /parseProfileScheme\(cookies\(\)/);
   });
 });

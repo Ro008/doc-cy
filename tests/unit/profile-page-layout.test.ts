@@ -307,7 +307,8 @@ describe("public profile: colours, dark mode and motion", () => {
     // The founders' default decides, not the device setting.
     assert.equal(/prefers-color-scheme/.test(css), false);
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /const scheme = await getSiteScheme\(\)/);
+    // Read with the rest of the profile, in one Promise.all.
+    assert.match(page, /\bscheme,\s*\] = await Promise\.all\(\[[\s\S]*?getSiteScheme\(\),\s*\]\)/);
     assert.match(page, /data-scheme=\{scheme\}/);
     // The switch is in the public header, as on the Finder (tests/unit/site-scheme.test.ts).
     assert.match(page, /<FinderPublicHeader[^>]*scheme=\{scheme\}/);

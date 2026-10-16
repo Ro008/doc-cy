@@ -259,13 +259,17 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         email: setup.doctorEmail,
         password: setup.doctorPassword,
       });
+      // Held before the dashboard loads, so the link's prefetch waits too: once the
+      // prefetched loading screen is in, Next shows it on the click straight away and
+      // the row is gone before "Opening…" can be seen. This checks the row while the
+      // page is still on its way.
+      const releaseNavigation = await holdRequests(page, `**/dashboard/appointments/${setup.appointmentId}**`);
       await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
       await waitForHydration(page);
 
       const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
       await expect(card).toBeVisible({ timeout: 20_000 });
 
-      const releaseNavigation = await holdRequests(page, `**/dashboard/appointments/${setup.appointmentId}**`);
       await card.getByRole("link", { name: "Suggest other times" }).click();
       await expectRowBusy(card);
       await expect(card.getByRole("link", { name: "Opening…" })).toBeVisible();
