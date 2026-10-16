@@ -104,7 +104,8 @@ describe("profile hero: Show mobile", () => {
   const button = read("components/doctor/profile/RevealMobileButton.tsx");
 
   it("the page learns only whether there is a mobile to show, never the number", () => {
-    assert.match(page, /const hasPersonalMobile = Boolean\(await loadPublicPersonalMobile\(supabase, profile\.id\)\)/);
+    assert.match(page, /loadPublicPersonalMobile\(supabase, profile\.id\)/);
+    assert.match(page, /const hasPersonalMobile = Boolean\(personalMobile\)/);
     assert.equal(page.includes("mobile_number"), false);
     assert.equal((page.match(/loadPublicPersonalMobile\(/g) ?? []).length, 1);
   });

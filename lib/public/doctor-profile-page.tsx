@@ -237,7 +237,7 @@ async function selectPublicProfessionalBySlug(
     // Where they practise comes from their clinics, not the copies on professionals
     // (Point E): a professional created by the registration approval has none.
     const location = primaryClinicLocationFields(
-      await loadDoctorLocations(String(rest.id ?? "")),
+      await loadDoctorLocationsOnce(String(rest.id ?? "")),
     );
     return {
       data: {
@@ -368,6 +368,12 @@ function getInitials(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 }
+
+/**
+ * One read of her clinics per request: the metadata's profile row, the page's profile
+ * row and the booking panel all need them.
+ */
+const loadDoctorLocationsOnce = cache(loadDoctorLocations);
 
 /** One read of a professional's reviews per request: the metadata and the page both need it. */
 const loadReviewsOnce = cache(async (professionalId: string) => {
@@ -577,34 +583,75 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     redirect("/");
   }
 
-  const {
-    data: { user },
-  } = await authSupabase.auth.getUser();
-  let isOwnerView = false;
-  if (user?.id) {
-    const { data: ownerDoctor } = await authSupabase
-      .from("professionals")
-      .select("auth_user_id")
-      .eq("id", profile.id)
-      .maybeSingle();
-    isOwnerView = ownerDoctor?.auth_user_id === user.id;
-  }
   // A signed-in professional (or applicant) sees a note instead of the calendar
   // (user, 2026-10-06); POST /api/appointments refuses them too.
-  const viewerMode = bookingViewerMode(
-    user?.id ? await loadBookingAccountKind(supabase, user.id).catch(() => null) : null,
-    isOwnerView,
-  );
+  const loadViewerMode = async () => {
+    const {
+      data: { user },
+    } = await authSupabase.auth.getUser();
+    if (!user?.id) {
+      return { isOwnerView: false, viewerMode: bookingViewerMode(null, false) };
+    }
+    const [{ data: ownerDoctor }, accountKind] = await Promise.all([
+      authSupabase
+        .from("professionals")
+        .select("auth_user_id")
+        .eq("id", profile.id)
+        .maybeSingle(),
+      loadBookingAccountKind(supabase, user.id).catch(() => null),
+    ]);
+    const isOwnerView = ownerDoctor?.auth_user_id === user.id;
+    return { isOwnerView, viewerMode: bookingViewerMode(accountKind, isOwnerView) };
+  };
+
+  // Everything below depends only on the profile id, so it is read in one round
+  // (each read is a trip to the database; one after another they added up to ~1s).
+  // Only the busy times wait, because their range comes from the clinics' limits.
+  const [
+    { isOwnerView, viewerMode },
+    contactLookup,
+    { settings: normalizedSettings },
+    personalMobile,
+    practiceLocations,
+    registeredClinics,
+    { data: serviceRows, error: servicesErr },
+    reviews,
+    headline,
+    profileDetails,
+    scheme,
+  ] = await Promise.all([
+    loadViewerMode(),
+    supabase
+      .from("professionals")
+      .select("avatar_url, pro_access_until")
+      .eq("is_registered", true)
+      .eq("is_archived", false)
+      .eq("id", profile.id)
+      .maybeSingle(),
+    // Account settings (holiday); the schedule and the booking limits are the clinic link's.
+    loadProfessionalAccountSettings(supabase, profile.id),
+    // Her personal mobile, when she chose to show it (user, 2026-10-13): the page knows
+    // only that there is one; the number comes from the reveal route on the click.
+    loadPublicPersonalMobile(supabase, profile.id),
+    loadDoctorLocationsOnce(profile.id),
+    loadFinderRegisteredClinics(profile.id),
+    supabase
+      .from("professional_services")
+      .select("id, name, price")
+      .eq("professional_id", profile.id)
+      .order("created_at", { ascending: true }),
+    // Verified patient reviews (professional_reviews): read only, published ones.
+    loadReviewsOnce(profile.id),
+    loadProfileHeadline(supabase, profile.id),
+    // "Patients I see" and her qualifications, as saved in Settings › Profile.
+    loadProfileDetails(supabase, profile.id),
+    // The visitor's Light / Dark choice, else the founders' default (no flash on load).
+    getSiteScheme(),
+  ]);
+
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   let avatarUrl: string | null = null;
   let accessEnded = false;
-  const contactLookup = await supabase
-    .from("professionals")
-    .select("avatar_url, pro_access_until")
-    .eq("is_registered", true)
-    .eq("is_archived", false)
-    .eq("id", profile.id)
-    .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
     const contact = contactLookup.data as { avatar_url?: string | null; pro_access_until?: string | null };
     // Access ended: no online booking (the booking routes refuse too); user, 2026-10-02.
@@ -619,20 +666,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
 
-  // Account settings (holiday); the schedule and the booking limits are the clinic link's.
-  const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
-    supabase,
-    profile.id,
-  );
+  const hasPersonalMobile = Boolean(personalMobile);
 
-  // Her personal mobile, when she chose to show it (user, 2026-10-13): the page knows
-  // only that there is one; the number comes from the reveal route on the click.
-  const hasPersonalMobile = Boolean(await loadPublicPersonalMobile(supabase, profile.id));
-
-  const [practiceLocations, registeredClinics] = await Promise.all([
-    loadDoctorLocations(profile.id),
-    loadFinderRegisteredClinics(profile.id),
-  ]);
   // Every public phone is the clinic's (user, 2026-09-29): one Call per clinic that has
   // a phone, whether or not it takes online bookings.
   const linkedClinics = registeredClinics.byProfessionalId.get(profile.id) ?? [];
@@ -714,11 +749,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     { professionalId: profile.id, toIso },
   );
 
-  const { data: serviceRows, error: servicesErr } = await supabase
-    .from("professional_services")
-    .select("id, name, price")
-    .eq("professional_id", profile.id)
-    .order("created_at", { ascending: true });
   if (servicesErr) {
     console.error("[DocCy] professional_services fetch failed:", servicesErr);
   }
@@ -730,8 +760,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     }))
     .filter((row) => row.name.length > 0);
 
-  // Verified patient reviews (professional_reviews): read only, published ones.
-  const reviews = await loadReviewsOnce(profile.id);
   const reviewSummary = summariseReviews(reviews);
 
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
@@ -749,11 +777,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : callClinics.length > 0;
 
   // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
-  const customization = { headline: await loadProfileHeadline(supabase, profile.id) };
-  // "Patients I see" and her qualifications, as saved in Settings › Profile.
-  const profileDetails = await loadProfileDetails(supabase, profile.id);
-  // The visitor's Light / Dark choice, else the founders' default (no flash on load).
-  const scheme = await getSiteScheme();
+  const customization = { headline };
   const accountSettings = normalizedSettings as {
     holiday_mode_enabled?: boolean | null;
     holiday_start_date?: string | null;
