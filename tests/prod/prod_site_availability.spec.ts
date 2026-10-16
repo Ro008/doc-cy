@@ -83,7 +83,8 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
         name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible({ timeout: 15000 });
-    await expect(page.getByLabel("District")).toBeVisible();
+    // Finder G (step 2): one District or town picker in the header.
+    await expect(page.getByTestId("finder-place-trigger")).toBeVisible();
     // Specialty is a searchable combobox trigger (not a native <select>).
     await expect(page.getByTestId("finder-specialty-trigger")).toBeVisible();
   });
