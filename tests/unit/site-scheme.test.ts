@@ -76,8 +76,18 @@ describe("the default lives in app_settings.public_default_scheme", () => {
 describe("every public page paints the right mode from the first byte", () => {
   it("Finder (home and district pages too), Clinics and loading screens sit in one themed root", () => {
     for (const file of ["app/finder/[[...filters]]/page.tsx", "app/clinics/[[...filters]]/page.tsx"]) {
-      assert.match(read(file), /<SiteSchemeRoot>\s*<Suspense fallback=\{<FinderSearchRouteLoading \/>\}>/, file);
+      // The fallback is the synchronous view: an async fallback left the page unhydrated.
+      assert.match(
+        read(file),
+        /<SiteSchemeRoot>\s*<Suspense\s+fallback=\{\s*<FinderSearchRouteLoadingView proSessionHint=\{readProSessionHint\(\)\} scheme=\{scheme\} \/>/,
+        file,
+      );
+      assert.doesNotMatch(read(file), /fallback=\{<FinderSearchRouteLoading \/>\}/, file);
     }
+    assert.doesNotMatch(
+      read("components/finder/FinderSearchRouteLoading.tsx"),
+      /async function FinderSearchRouteLoadingView/,
+    );
     assert.match(read("app/page.tsx"), /return FinderPage\(/);
     assert.match(read("lib/finder-district-route.ts"), /return FinderPage\(/);
     assert.match(read("components/finder/FinderSearchRouteLoading.tsx"), /<SiteSchemeRoot>/);

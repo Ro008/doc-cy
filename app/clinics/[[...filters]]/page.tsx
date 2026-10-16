@@ -14,7 +14,10 @@ import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
-import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
+import {
+  FinderSearchRouteLoadingView,
+  readProSessionHint,
+} from "@/components/finder/FinderSearchRouteLoading";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { finderResultCardClass, finderSoftButtonClass } from "@/components/finder/finder-surface";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
@@ -196,10 +199,16 @@ export async function generateMetadata({ params }: ClinicsPageProps): Promise<Me
   };
 }
 
-export default function ClinicsPage(props: ClinicsPageProps) {
+export default async function ClinicsPage(props: ClinicsPageProps) {
+  // The fallback must not suspend (see FinderSearchRouteLoadingView): read the scheme first.
+  const scheme = await getSiteScheme();
   return (
     <SiteSchemeRoot>
-      <Suspense fallback={<FinderSearchRouteLoading />}>
+      <Suspense
+        fallback={
+          <FinderSearchRouteLoadingView proSessionHint={readProSessionHint()} scheme={scheme} />
+        }
+      >
         <ClinicsPageContent {...props} />
       </Suspense>
     </SiteSchemeRoot>
