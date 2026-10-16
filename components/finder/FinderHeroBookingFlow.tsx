@@ -49,12 +49,12 @@ export function FinderHeroBookingFlow() {
     >
       {/* Patient sends booking request */}
       <div className="ml-auto max-w-[11.75rem] rounded-2xl rounded-br-sm border border-white/25 bg-white/94 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-site-slate-500">
           Booking request
         </p>
-        <p className="mt-1 text-[13px] font-semibold leading-snug text-slate-900">Dr. Andreas Nikos</p>
-        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-600">
-          <CalendarCheck className="h-3 w-3 shrink-0 text-clinical-600" aria-hidden />
+        <p className="mt-1 text-[13px] font-semibold leading-snug text-site-slate-900">Dr. Andreas Nikos</p>
+        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-site-slate-600">
+          <CalendarCheck className="h-3 w-3 shrink-0 text-site-clinical-600" aria-hidden />
           Tue 10:30 · General Practice
         </p>
       </div>
@@ -67,11 +67,11 @@ export function FinderHeroBookingFlow() {
       <div className="flex items-start gap-3">
         <DoctorNikosAvatar />
         <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-clinical-400/30 bg-white/94 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-          <p className="flex items-center gap-1 text-[13px] font-bold leading-snug text-clinical-600">
+          <p className="flex items-center gap-1 text-[13px] font-bold leading-snug text-site-clinical-600">
             <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
             Appointment confirmed
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+          <p className="mt-1 text-[11px] leading-relaxed text-site-slate-600">
             With Dr. Andreas Nikos — added to your calendar
           </p>
         </div>

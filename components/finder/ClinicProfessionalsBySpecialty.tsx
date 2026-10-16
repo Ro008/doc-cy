@@ -39,7 +39,7 @@ function BookableProfessionalCard({
   imagePriority: FinderCardImagePriority;
 }) {
   const photo = (
-    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50">
+    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-ink-50">
       <img
         src={pro.photoUrl}
         alt=""
@@ -50,14 +50,14 @@ function BookableProfessionalCard({
   );
 
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition-none hover:border-clinical-300 hover:shadow-md">
+    <div className="flex items-start gap-3 rounded-2xl border border-site-ink-200 bg-site-white p-4 shadow-sm transition-none hover:border-site-clinical-300 hover:shadow-md">
       {pro.profileHref ? (
         <PendingLink
           href={pro.profileHref}
           navigationReason="profile"
           fill
           prefetch={false}
-          className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 transition-none hover:border-clinical-300"
+          className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-ink-50 transition-none hover:border-site-clinical-300"
         >
           <img
             src={pro.photoUrl}
@@ -75,12 +75,12 @@ function BookableProfessionalCard({
             href={pro.profileHref}
             navigationReason="profile"
             prefetch={false}
-            className="font-semibold text-ink-900 transition-none hover:text-clinical-700"
+            className="font-semibold text-site-ink-900 transition-none hover:text-site-clinical-700"
           >
             {pro.displayName}
           </PendingLink>
         ) : (
-          <p className="font-semibold text-ink-900">{pro.displayName}</p>
+          <p className="font-semibold text-site-ink-900">{pro.displayName}</p>
         )}
         <div className="mt-0.5">
           <FinderSpecialtyPills
@@ -124,7 +124,7 @@ export function ClinicProfessionalsBySpecialty({
 
   if (bookable.length === 0) {
     return (
-      <p className="mt-3 text-sm text-ink-500">
+      <p className="mt-3 text-sm text-site-ink-500">
         No professionals linked to this clinic yet.
       </p>
     );
@@ -152,8 +152,8 @@ export function ClinicProfessionalsBySpecialty({
                 aria-pressed={activeSpecialty === null}
                 className={
                   activeSpecialty === null
-                    ? "rounded-full border border-clinical-500 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800"
-                    : "rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-clinical-300 hover:bg-clinical-50"
+                    ? "rounded-full border border-clinical-500 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold text-site-clinical-800"
+                    : "rounded-full border border-site-ink-200 bg-site-white px-3 py-1.5 text-xs font-medium text-site-ink-700 transition hover:border-site-clinical-300 hover:bg-site-clinical-50"
                 }
               >
                 All ({bookable.length})
@@ -166,8 +166,8 @@ export function ClinicProfessionalsBySpecialty({
                   aria-pressed={activeSpecialty === chip.specialty}
                   className={
                     activeSpecialty === chip.specialty
-                      ? "rounded-full border border-clinical-500 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800"
-                      : "rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-clinical-300 hover:bg-clinical-50"
+                      ? "rounded-full border border-clinical-500 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold text-site-clinical-800"
+                      : "rounded-full border border-site-ink-200 bg-site-white px-3 py-1.5 text-xs font-medium text-site-ink-700 transition hover:border-site-clinical-300 hover:bg-site-clinical-50"
                   }
                 >
                   {chip.specialty} ({chip.count})
@@ -176,11 +176,11 @@ export function ClinicProfessionalsBySpecialty({
             </div>
           ) : null}
 
-          <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-ink-200 pb-2">
-            <h3 className="text-sm font-bold tracking-wide text-ink-900">
+          <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-site-ink-200 pb-2">
+            <h3 className="text-sm font-bold tracking-wide text-site-ink-900">
               {activeSpecialty ?? "All professionals"}
             </h3>
-            <p className="shrink-0 text-xs font-medium text-ink-500">{bookableCountLabel}</p>
+            <p className="shrink-0 text-xs font-medium text-site-ink-500">{bookableCountLabel}</p>
           </div>
 
           <ul className="grid gap-3 sm:grid-cols-2">

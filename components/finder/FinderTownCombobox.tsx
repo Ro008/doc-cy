@@ -110,7 +110,7 @@ export function FinderTownCombobox({
         <ul
           id="finder-town-suggestions"
           role="listbox"
-          className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-ink-100 bg-white py-1 shadow-lg"
+          className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-site-ink-100 bg-site-white py-1 shadow-lg"
         >
           {suggestions.map((option, index) => {
             const label = district ? option.name : `${option.name} (${option.district})`;
@@ -120,8 +120,8 @@ export function FinderTownCombobox({
                   type="button"
                   className={`block w-full px-3 py-2 text-left text-sm ${
                     index === highlight
-                      ? "bg-clinical-50 font-medium text-clinical-800"
-                      : "text-ink-800 hover:bg-ink-50"
+                      ? "bg-site-clinical-50 font-medium text-site-clinical-800"
+                      : "text-site-ink-800 hover:bg-site-ink-50"
                   }`}
                   onMouseEnter={() => setHighlight(index)}
                   onMouseDown={(event) => event.preventDefault()}
@@ -134,7 +134,7 @@ export function FinderTownCombobox({
           })}
         </ul>
       ) : value.trim().length >= FINDER_TOWN_MIN_QUERY_LENGTH && open ? (
-        <p className="absolute z-30 mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2 text-sm text-ink-500 shadow-lg">
+        <p className="absolute z-30 mt-1 w-full rounded-xl border border-site-ink-100 bg-site-white px-3 py-2 text-sm text-site-ink-500 shadow-lg">
           No matching town
         </p>
       ) : null}

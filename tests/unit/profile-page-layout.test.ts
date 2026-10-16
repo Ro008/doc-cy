@@ -301,16 +301,17 @@ describe("public profile: colours, dark mode and motion", () => {
     assert.match(header, /<DocCyWordmark\s+variant="dark"[^>]*hidden \[\.doccy-profile\[data-scheme=dark\]_&\]:inline-flex/);
   });
 
-  it("opens in light and lets anyone switch to dark, remembered in a cookie", () => {
+  it("opens in the site's default (light) and lets anyone switch to dark, remembered in a cookie", () => {
     assert.match(css, /\.doccy-profile\s*\{/);
     assert.match(css, /\.doccy-profile\[data-scheme="dark"\]/);
-    // Light by default: the device setting no longer decides.
+    // The founders' default decides, not the device setting.
     assert.equal(/prefers-color-scheme/.test(css), false);
     const page = read("lib/public/doctor-profile-page.tsx");
-    assert.match(page, /parseProfileScheme\(cookies\(\)\.get\(PROFILE_SCHEME_COOKIE\)\?\.value\)/);
+    assert.match(page, /const scheme = await getSiteScheme\(\)/);
     assert.match(page, /data-scheme=\{scheme\}/);
-    assert.match(page, /<ProfileSchemeToggle\b/);
-    const toggle = read("components/doctor/profile/ProfileSchemeToggle.tsx");
+    // The switch is in the public header, as on the Finder (tests/unit/site-scheme.test.ts).
+    assert.match(page, /<FinderPublicHeader[^>]*scheme=\{scheme\}/);
+    const toggle = read("components/site/SiteSchemeToggle.tsx");
     assert.match(toggle, /profileSchemeCookie\(/);
     assert.match(toggle, /aria-pressed/);
     assert.match(toggle, /dataset\.scheme/);

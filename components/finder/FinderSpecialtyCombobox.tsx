@@ -123,13 +123,13 @@ export function FinderSpecialtyCombobox({
             }
           }}
           className={`${fieldClass} text-left ${
-            selectedLabel ? "text-ink-900" : "text-ink-400"
+            selectedLabel ? "text-site-ink-900" : "text-site-ink-400"
           }`}
         >
           <span className="block truncate">{selectedLabel || ALL_SPECIALTIES_LABEL}</span>
         </button>
         <ChevronDown
-          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 transition ${
+          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-site-ink-400 transition ${
             open ? "rotate-180" : ""
           }`}
           strokeWidth={2}
@@ -139,13 +139,13 @@ export function FinderSpecialtyCombobox({
 
       {open ? (
         <div
-          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm"
+          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-site-ink-200 bg-site-white shadow-sm"
           role="presentation"
         >
-          <div className="sticky top-0 border-b border-ink-100 bg-white p-2">
+          <div className="sticky top-0 border-b border-site-ink-100 bg-site-white p-2">
             <div className="relative">
               <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-400"
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-site-ink-400"
                 aria-hidden
               />
               <input
@@ -156,7 +156,7 @@ export function FinderSpecialtyCombobox({
                 placeholder="Search specialties…"
                 aria-label="Search specialties"
                 autoComplete="off"
-                className="w-full rounded-lg border border-ink-200 bg-white py-1.5 pl-8 pr-2 text-xs font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-200"
+                className="w-full rounded-lg border border-site-ink-200 bg-site-white py-1.5 pl-8 pr-2 text-xs font-medium text-site-ink-900 placeholder:font-normal placeholder:text-site-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-200"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "ArrowDown") {
@@ -188,10 +188,10 @@ export function FinderSpecialtyCombobox({
                 type="button"
                 className={`block w-full px-3 py-2 text-left text-sm ${
                   highlight === 0
-                    ? "bg-clinical-50 font-medium text-clinical-800"
+                    ? "bg-site-clinical-50 font-medium text-site-clinical-800"
                     : value === ""
-                      ? "font-medium text-clinical-800"
-                      : "text-ink-800 hover:bg-ink-50"
+                      ? "font-medium text-site-clinical-800"
+                      : "text-site-ink-800 hover:bg-site-ink-50"
                 }`}
                 onMouseEnter={() => setHighlight(0)}
                 onMouseDown={(event) => event.preventDefault()}
@@ -215,10 +215,10 @@ export function FinderSpecialtyCombobox({
                     type="button"
                     className={`block w-full px-3 py-2 text-left text-sm ${
                       active
-                        ? "bg-clinical-50 font-medium text-clinical-800"
+                        ? "bg-site-clinical-50 font-medium text-site-clinical-800"
                         : selected
-                          ? "font-medium text-clinical-800"
-                          : "text-ink-800 hover:bg-ink-50"
+                          ? "font-medium text-site-clinical-800"
+                          : "text-site-ink-800 hover:bg-site-ink-50"
                     }`}
                     onMouseEnter={() => setHighlight(rowIndex)}
                     onMouseDown={(event) => event.preventDefault()}
@@ -230,7 +230,7 @@ export function FinderSpecialtyCombobox({
               );
             })}
             {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-ink-500" role="presentation">
+              <li className="px-3 py-2 text-sm text-site-ink-500" role="presentation">
                 No matching specialty
               </li>
             ) : null}

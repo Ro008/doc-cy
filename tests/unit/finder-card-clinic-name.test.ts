@@ -23,7 +23,7 @@ describe("finder card clinic name", () => {
 
     // The heading markup must live only in the shared component, so the two card
     // types cannot drift apart visually.
-    const headingClass = "mb-1 block text-sm font-semibold leading-snug text-ink-800";
+    const headingClass = "mb-1 block text-sm font-semibold leading-snug text-site-ink-800";
     assert.equal(locationBlock.split(headingClass).length - 1, 1);
     assert.equal(registered.includes(headingClass), false);
   });

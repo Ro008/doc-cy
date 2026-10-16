@@ -62,7 +62,7 @@ function RecentlyViewedList({ items }: { items: RecentlyViewedItem[] }) {
         revealed ? "opacity-100" : "opacity-0",
       ].join(" ")}
     >
-      <h2 className="text-sm font-semibold tracking-tight text-ink-800">Recently viewed</h2>
+      <h2 className="text-sm font-semibold tracking-tight text-site-ink-800">Recently viewed</h2>
       <ul className="mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => {
           const meta = [item.subtitle, item.location].filter(Boolean).join(" · ");
@@ -75,7 +75,7 @@ function RecentlyViewedList({ items }: { items: RecentlyViewedItem[] }) {
                 prefetch={false}
               >
                 <span className="flex w-full min-w-0 items-center gap-3 overflow-hidden">
-                  <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50">
+                  <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-full border border-site-clinical-200 bg-site-clinical-50">
                     {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary stored photo URLs */}
                     <img
                       src={photoFor(item)}
@@ -97,11 +97,11 @@ function RecentlyViewedList({ items }: { items: RecentlyViewedItem[] }) {
                     />
                   </span>
                   <span className="min-w-0 flex-1 overflow-hidden">
-                    <span className="block truncate text-sm font-semibold text-ink-900">
+                    <span className="block truncate text-sm font-semibold text-site-ink-900">
                       {item.name}
                     </span>
                     {meta ? (
-                      <span className="mt-0.5 block truncate text-xs text-ink-500">{meta}</span>
+                      <span className="mt-0.5 block truncate text-xs text-site-ink-500">{meta}</span>
                     ) : null}
                   </span>
                 </span>

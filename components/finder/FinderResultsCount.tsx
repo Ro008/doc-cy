@@ -38,17 +38,17 @@ export function FinderResultsCount({
     (onBar
       ? "mt-3 text-xs leading-relaxed text-white/75"
       : variant === "footer"
-        ? "mt-4 text-xs leading-relaxed text-ink-400"
-        : "mb-4 text-sm leading-relaxed text-ink-500");
+        ? "mt-4 text-xs leading-relaxed text-site-ink-400"
+        : "mb-4 text-sm leading-relaxed text-site-ink-500");
   const countClassName = onBar
     ? "font-medium tabular-nums text-white"
     : variant === "footer"
-      ? "font-medium tabular-nums text-ink-500"
+      ? "font-medium tabular-nums text-site-ink-500"
       : hasActiveFilters
-        ? "font-semibold tabular-nums text-ink-800"
-        : "font-semibold tabular-nums text-clinical-600";
-  const hintMutedClass = onBar ? "text-white/65" : "text-ink-400";
-  const hintStrongClass = onBar ? "text-white/85" : "text-ink-500";
+        ? "font-semibold tabular-nums text-site-ink-800"
+        : "font-semibold tabular-nums text-site-clinical-600";
+  const hintMutedClass = onBar ? "text-white/65" : "text-site-ink-400";
+  const hintStrongClass = onBar ? "text-white/85" : "text-site-ink-500";
 
   return (
     <p

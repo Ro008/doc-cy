@@ -20,7 +20,7 @@ type FinderHeroSectionProps = {
 export function FinderHeroSection({
   title,
   subtitle,
-  subtitleClassName = "mt-3 max-w-2xl text-base leading-relaxed text-ink-600",
+  subtitleClassName = "mt-3 max-w-2xl text-base leading-relaxed text-site-ink-600",
   showHeroImage = false,
   heroImageSrc = FINDER_PROFESSIONALS_HERO_SRC,
   children,
@@ -29,7 +29,7 @@ export function FinderHeroSection({
     return (
       <div>
         <header className="mb-6 sm:mb-8">
-          <h1 className="max-w-3xl text-balance text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl lg:text-[2.5rem] lg:leading-[1.15]">
+          <h1 className="max-w-3xl text-balance text-3xl font-bold tracking-tight text-site-ink-900 sm:text-4xl lg:text-[2.5rem] lg:leading-[1.15]">
             {title}
           </h1>
           <p className={subtitleClassName}>{subtitle}</p>
@@ -43,14 +43,15 @@ export function FinderHeroSection({
     <div>
       <div data-testid="finder-hero" className="flex items-end justify-between gap-8">
         <header className="min-w-0 max-w-2xl pb-6 pt-4 sm:pb-8 sm:pt-6 lg:pb-9 lg:pt-6">
-          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight text-ink-900 sm:text-3xl lg:text-[2.35rem] lg:leading-[1.12]">
+          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight text-site-ink-900 sm:text-3xl lg:text-[2.35rem] lg:leading-[1.12]">
             {title}
           </h1>
           <p className={subtitleClassName}>{subtitle}</p>
         </header>
 
-        {/* Decorative; its bottom edge rests on the search bar. 1515 × 1038 picture. */}
-        <div className="relative hidden shrink-0 md:block md:h-[200px] md:w-[292px] lg:h-[230px] lg:w-[336px]">
+        {/* Decorative; its bottom edge rests on the search bar. 1515 × 1038 picture. Its pale
+            background reads as a card on a dark page, so the top corners are rounded there. */}
+        <div className="relative hidden shrink-0 overflow-hidden md:block md:h-[200px] md:w-[292px] lg:h-[230px] lg:w-[336px] [.doccy-profile[data-scheme=dark]_&]:rounded-t-3xl">
           <Image
             src={heroImageSrc}
             alt=""

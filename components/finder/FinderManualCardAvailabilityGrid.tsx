@@ -75,10 +75,10 @@ export function FinderManualCardAvailabilityGrid({
       data-clinic-id={String(clinicId ?? "").trim() || undefined}
       data-request-source={String(requestSource ?? "").trim() || undefined}
     >
-      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
+      <div className="flex flex-1 items-stretch overflow-hidden rounded-lg border border-site-ink-200 bg-ink-50/50 [.doccy-profile[data-scheme=dark]_&]:bg-[#08142A]/50">
         <FinderAvailabilityDayArrowButton direction="prev" />
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="overflow-hidden border-b border-ink-100 bg-ink-50 opacity-50">
+          <div className="overflow-hidden border-b border-site-ink-100 bg-site-ink-50 opacity-50">
             <div className={finderAvailabilityWeekTrackClassName}>
               {previewCalendar.map((day) => (
                 <FinderAvailabilityDayHeaderCell key={day.dateKey} day={day} />
@@ -105,8 +105,8 @@ export function FinderManualCardAvailabilityGrid({
                 </div>
               ))}
             </div>
-            <div className="absolute inset-0 z-[1] flex items-center justify-center bg-white/40 p-2">
-              <div className="w-[calc(100%-0.5rem)] max-w-[18.5rem] rounded-xl border border-clinical-200/80 bg-white/95 px-3 py-3 text-center shadow-[0_8px_24px_rgba(26,43,60,0.12)]">
+            <div className="absolute inset-0 z-[1] flex items-center justify-center bg-white/40 p-2 [.doccy-profile[data-scheme=dark]_&]:bg-[#08142A]/50">
+              <div className="w-[calc(100%-0.5rem)] max-w-[18.5rem] rounded-xl border border-site-clinical-200 bg-site-white px-3 py-3 text-center shadow-[0_8px_24px_rgba(26,43,60,0.12)]">
                 {requestLabel ? (
                   <p
                     className="mb-2 rounded-md border border-amber-300/80 bg-amber-50 px-2 py-1 text-[10px] font-bold leading-snug text-amber-950"
@@ -115,10 +115,10 @@ export function FinderManualCardAvailabilityGrid({
                     {requestLabel}
                   </p>
                 ) : null}
-                <p className="text-balance text-[11px] font-semibold leading-snug text-ink-900">
+                <p className="text-balance text-[11px] font-semibold leading-snug text-site-ink-900">
                   Want to book an appointment online?
                 </p>
-                <p className="mt-1 text-pretty text-[10px] leading-snug text-ink-600">
+                <p className="mt-1 text-pretty text-[10px] leading-snug text-site-ink-600">
                   This professional hasn&apos;t activated online booking yet.
                 </p>
                 <button
@@ -131,7 +131,7 @@ export function FinderManualCardAvailabilityGrid({
                   <CalendarPlusIcon />
                   {REQUEST_ONLINE_BOOKING_BUTTON_LABEL}
                 </button>
-                <p className="mt-1.5 text-[10px] leading-snug text-ink-500">
+                <p className="mt-1.5 text-[10px] leading-snug text-site-ink-500">
                   Takes 1 second. No account needed.
                 </p>
               </div>

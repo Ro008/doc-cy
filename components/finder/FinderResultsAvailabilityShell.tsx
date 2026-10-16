@@ -111,9 +111,9 @@ export function FinderAvailabilityDayArrowButton({ direction }: { direction: "pr
       aria-label={isPrev ? "Show previous days" : "Show next days"}
       disabled={isPrev ? !canGoPrevious : !canGoNext}
       onClick={isPrev ? goToPreviousWeek : goToNextWeek}
-      className={`flex w-9 shrink-0 items-center justify-center self-stretch bg-ink-50 text-ink-500 transition hover:bg-clinical-100 hover:text-clinical-700 disabled:cursor-not-allowed disabled:opacity-30 ${
+      className={`flex w-9 shrink-0 items-center justify-center self-stretch bg-site-ink-50 text-site-ink-500 transition hover:bg-site-clinical-100 hover:text-site-clinical-700 disabled:cursor-not-allowed disabled:opacity-30 ${
         isPrev ? "border-r" : "border-l"
-      } border-ink-100`}
+      } border-site-ink-100`}
     >
       {isPrev ? <ChevronLeft className="h-5 w-5" aria-hidden /> : <ChevronRight className="h-5 w-5" aria-hidden />}
     </button>

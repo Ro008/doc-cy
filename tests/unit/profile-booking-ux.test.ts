@@ -222,9 +222,8 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.match(head.slice(0, head.indexOf("}")), /font-size: 0\.8125rem/);
     const booking = read("components/doctor/BookingSection.tsx");
     assert.match(booking, /<p className="text-\[13px\] text-profile-muted">\{t\("allTimesInCyprus"\)\}<\/p>/);
-    for (const file of ["ProfileSchemeToggle", "ProfileShareButton"]) {
-      assert.doesNotMatch(read(`components/doctor/profile/${file}.tsx`), /text-xs/, file);
-    }
+    assert.doesNotMatch(read("components/doctor/profile/ProfileShareButton.tsx"), /text-xs/);
+    assert.doesNotMatch(read("components/site/SiteSchemeToggle.tsx"), /text-xs/);
   });
 
   it("the hero's small links and Show all get a finger-sized tap area", () => {
@@ -247,13 +246,13 @@ describe("profile polish round (user, 2026-10-14)", () => {
 
   // Quieter than the search since the short hero (user, 2026-10-15): an outlined button,
   // dark teal on white (#0A6B72, about 6.2:1; teal 700 is only about 4.1:1, under WCAG AA).
-  it("the header's join button is outlined, dark teal on white, readable (WCAG AA)", () => {
+  it("the header's join button is outlined, dark teal on white (pale teal on navy in dark), readable (WCAG AA)", () => {
     const header = read("components/finder/FinderPublicHeader.tsx");
     const join = header.slice(header.indexOf("const joinLinkClass"), header.indexOf(";", header.indexOf("const joinLinkClass")));
     assert.match(join, /border-clinical-500/);
-    assert.match(join, /bg-white/);
-    assert.match(join, /text-clinical-800/);
-    assert.doesNotMatch(join, /text-white|text-clinical-[5-7]00|bg-clinical-500/);
+    assert.match(join, /bg-site-white/);
+    assert.match(join, /text-site-clinical-800/);
+    assert.doesNotMatch(join, /text-white|text-(site-)?clinical-[5-7]00|bg-clinical-500/);
   });
 
   it("clicking a service remembers it and takes the patient to the calendar, never to the form", () => {

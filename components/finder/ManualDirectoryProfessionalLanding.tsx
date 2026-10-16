@@ -3,6 +3,7 @@ import {
   ManualDirectoryLandingCard,
 } from "@/components/finder/ManualDirectoryLandingCard";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
+import type { ProfileScheme } from "@/lib/profile-scheme";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -26,11 +27,14 @@ export function ManualDirectoryProfessionalLanding({
   row,
   locale,
   proSessionHint = false,
+  scheme,
 }: {
   row: ManualDirectoryLandingRow;
   locale?: string;
   /** Server-read hint so signed-in professionals never flash guest CTAs. */
   proSessionHint?: boolean;
+  /** Light / Dark for the header's switch (the page root is themed by the caller). */
+  scheme?: ProfileScheme;
 }) {
   const siteUrl = siteBaseUrl();
   const profileHref = publicProfessionalProfilePath(row.slug, locale);
@@ -41,7 +45,7 @@ export function ManualDirectoryProfessionalLanding({
   const dayHeaders = buildFinderAvailabilityDayHeaders();
 
   return (
-    <main className="min-h-screen bg-ink-50 text-ink-900">
+    <main className="min-h-screen bg-site-ink-50 text-site-ink-900">
       <RecordRecentlyViewed
         item={{
           kind: "professional",
@@ -61,13 +65,13 @@ export function ManualDirectoryProfessionalLanding({
         mapsUrl={row.address_maps_link.trim()}
       />
 
-      <FinderPublicHeader proSessionHint={proSessionHint} />
+      <FinderPublicHeader proSessionHint={proSessionHint} scheme={scheme} />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">
+        <nav aria-label="Breadcrumb" className="mb-4 text-sm text-site-ink-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
-              <PendingLink href="/" className="hover:text-clinical-700 hover:underline">
+              <PendingLink href="/" className="hover:text-site-clinical-700 hover:underline">
                 Find a Professional
               </PendingLink>
             </li>
@@ -75,34 +79,34 @@ export function ManualDirectoryProfessionalLanding({
             <li>
               <PendingLink
                 href={finderResultsPath(row.district)}
-                className="hover:text-clinical-700 hover:underline"
+                className="hover:text-site-clinical-700 hover:underline"
               >
                 {row.district}
               </PendingLink>
             </li>
             <li aria-hidden="true">›</li>
-            <li className="font-medium text-ink-800">{row.displayName}</li>
+            <li className="font-medium text-site-ink-800">{row.displayName}</li>
           </ol>
         </nav>
 
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-site-ink-900 sm:text-3xl">
           {row.displayName}
         </h1>
-        <p className="mt-2 text-sm font-medium text-ink-600">
+        <p className="mt-2 text-sm font-medium text-site-ink-600">
           {specialtySeoLabel} · {row.district}, Cyprus
           {row.clinic ? (
             <>
               {" · "}
               <PendingLink
                 href={clinicLandingPath(row.clinic.slug)}
-                className="text-clinical-700 hover:underline"
+                className="text-site-clinical-700 hover:underline"
               >
                 {row.clinic.name}
               </PendingLink>
             </>
           ) : null}
           {row.clinics.length > 1 ? (
-            <span className="text-ink-500"> · {formatClinicCountLabel(row.clinics.length)}</span>
+            <span className="text-site-ink-500"> · {formatClinicCountLabel(row.clinics.length)}</span>
           ) : null}
         </p>
 

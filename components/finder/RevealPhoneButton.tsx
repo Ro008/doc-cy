@@ -89,7 +89,7 @@ function RevealedPhoneLink({
       href={href}
       className={
         className ??
-        "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
+        "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-site-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-site-clinical-600"
       }
     >
       {variant === "show-phone" ? `📞 ${display}` : display}
@@ -160,7 +160,7 @@ export function RevealPhoneButton({
         }}
         className={
           className ??
-          "inline-flex min-h-10 items-center justify-center rounded-lg border border-clinical-200 bg-white px-3 py-2 text-sm font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50 disabled:cursor-wait disabled:opacity-60"
+          "inline-flex min-h-10 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-white px-3 py-2 text-sm font-semibold text-site-clinical-700 transition hover:border-site-clinical-300 hover:bg-site-clinical-50 disabled:cursor-wait disabled:opacity-60"
         }
       >
         {state.status === "loading" ? (
@@ -178,7 +178,7 @@ export function RevealPhoneButton({
         <p className="text-xs text-amber-800">{state.message}</p>
       ) : null}
       {state.status === "empty" ? (
-        <p className="text-xs text-ink-500">
+        <p className="text-xs text-site-ink-500">
           {variant === "profile-call"
             ? "No phone number is available."
             : "No phone number is available for this listing."}

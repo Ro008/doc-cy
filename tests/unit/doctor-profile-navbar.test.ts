@@ -19,7 +19,7 @@ describe("doctor profile page navbar", () => {
       source.includes('import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";'),
       true,
     );
-    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}\s*\/>/.test(source), true);
+    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}[\s\S]{0,200}?\/>/.test(source), true);
 
     // Server-read pro-session hint (same pattern as app/finder/[[...filters]]/page.tsx)
     // so signed-in doctors never flash the guest CTA.
@@ -56,7 +56,7 @@ describe("doctor profile page navbar", () => {
       ),
       true,
     );
-    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}\s*\/>/.test(source), true);
+    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}[\s\S]{0,200}?\/>/.test(source), true);
     assert.equal(source.includes("DocCyWordmark"), false);
   });
 });
@@ -74,7 +74,7 @@ describe("clinic landing page navbar", () => {
       ),
       true,
     );
-    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}\s*\/>/.test(source), true);
+    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}[\s\S]{0,200}?\/>/.test(source), true);
     assert.equal(source.includes("DocCyWordmark"), false);
 
     const clinicsPage = fs.readFileSync(

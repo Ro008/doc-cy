@@ -1,6 +1,7 @@
 // tailwind.config.ts
 import type { Config } from "tailwindcss";
 import { PRO_SURFACES } from "./lib/pro-theme";
+import { tailwindSiteColours } from "./lib/site-theme";
 
 /**
  * DocCy brand palette (teal replaces former clinical blue completely).
@@ -130,6 +131,12 @@ const config: Config = {
           "on-cta": "var(--p-accent-on-cta)",
         },
       },
+      // Public site (Finder, Clinics): `bg-site-white`, `text-site-ink-900`… are the old
+      // shades in light and the profile's palette in dark (lib/site-theme.ts).
+      backgroundColor: { site: tailwindSiteColours("background") },
+      textColor: { site: tailwindSiteColours("text") },
+      borderColor: { site: tailwindSiteColours("border") },
+      ringOffsetColor: { site: tailwindSiteColours("ringOffset") },
     },
   },
   plugins: [],

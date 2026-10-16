@@ -46,10 +46,10 @@ type FinderClinicLocationBlockProps = {
 };
 
 const callToBookClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60";
+  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100 disabled:cursor-wait disabled:opacity-60";
 
 const callToBookRevealedClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100";
+  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100";
 
 /** The clinic's phone, never the listing's scraped one (user, 2026-09-29). */
 function LocationCallToBook({
@@ -97,7 +97,7 @@ export function FinderClinicNameLink({
   if (!clinicHref) {
     return (
       <p
-        className="mb-1 line-clamp-1 text-sm font-semibold leading-snug text-ink-800 lg:line-clamp-2"
+        className="mb-1 line-clamp-1 text-sm font-semibold leading-snug text-site-ink-800 lg:line-clamp-2"
         title={trimmedName}
       >
         {trimmedName}
@@ -110,7 +110,7 @@ export function FinderClinicNameLink({
       href={clinicHref}
       navigationReason="profile"
       prefetch={false}
-      className="mb-1 block text-sm font-semibold leading-snug text-ink-800 transition-none hover:text-clinical-600"
+      className="mb-1 block text-sm font-semibold leading-snug text-site-ink-800 transition-none hover:text-site-clinical-600"
     >
       {/* PendingLink wraps its text in an inline-flex span: the clamp goes inside. */}
       <span className="line-clamp-1 lg:line-clamp-2" title={trimmedName}>
@@ -154,7 +154,7 @@ function ClinicEntry({
             href={mapsHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex text-xs font-semibold text-clinical-700 transition-none underline-offset-2 hover:text-clinical-600 hover:underline"
+            className="inline-flex text-xs font-semibold text-site-clinical-700 transition-none underline-offset-2 hover:text-site-clinical-600 hover:underline"
           >
             Open in Maps ↗
           </a>
@@ -189,7 +189,7 @@ export function FinderClinicLocationBlock({
     const locationLine = fallbackAddress || district;
     return (
       <div>
-        <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+        <p className="text-xs leading-relaxed text-site-ink-600 whitespace-pre-wrap break-words">
           {locationLine}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -198,7 +198,7 @@ export function FinderClinicLocationBlock({
               href={fallbackMaps}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex text-xs font-semibold text-clinical-700 transition-none underline-offset-2 hover:text-clinical-600 hover:underline"
+              className="inline-flex text-xs font-semibold text-site-clinical-700 transition-none underline-offset-2 hover:text-site-clinical-600 hover:underline"
             >
               Open in Maps ↗
             </a>
@@ -217,7 +217,7 @@ export function FinderClinicLocationBlock({
   return (
     <div className="space-y-3">
       {variant === "full" && countLabel ? (
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-site-ink-400">
           {countLabel}
         </p>
       ) : null}
@@ -238,12 +238,12 @@ export function FinderClinicLocationBlock({
             href={moreHref}
             navigationReason="profile"
             prefetch={false}
-            className="inline-flex text-xs font-semibold text-clinical-700 transition-none underline-offset-2 hover:text-clinical-600 hover:underline"
+            className="inline-flex text-xs font-semibold text-site-clinical-700 transition-none underline-offset-2 hover:text-site-clinical-600 hover:underline"
           >
             {formatMoreClinicsLabel(extraCount)}
           </PendingLink>
         ) : (
-          <p className="text-xs font-semibold text-ink-500">{formatMoreClinicsLabel(extraCount)}</p>
+          <p className="text-xs font-semibold text-site-ink-500">{formatMoreClinicsLabel(extraCount)}</p>
         )
       ) : null}
     </div>

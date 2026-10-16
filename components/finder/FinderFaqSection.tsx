@@ -71,16 +71,16 @@ export function FinderFaqSection({
   };
 
   return (
-    <section className="mt-10 rounded-2xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)]">
-      <h2 className="text-lg font-semibold text-ink-900">Frequently asked questions</h2>
+    <section className="mt-10 rounded-2xl border border-site-clinical-200 bg-site-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)]">
+      <h2 className="text-lg font-semibold text-site-ink-900">Frequently asked questions</h2>
       <div className="mt-4 space-y-3">
         {faqItems.map((item) => (
           <article
             key={item.question}
-            className="rounded-xl border border-ink-200 bg-white p-4"
+            className="rounded-xl border border-site-ink-200 bg-site-white p-4"
           >
-            <h3 className="text-sm font-semibold text-ink-900">{item.question}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-600">{item.answer}</p>
+            <h3 className="text-sm font-semibold text-site-ink-900">{item.question}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-site-ink-600">{item.answer}</p>
           </article>
         ))}
       </div>

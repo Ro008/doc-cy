@@ -18,7 +18,7 @@ describe("finder multi-location layout", () => {
     assert.equal(finderMultiLocationRowClass(1), finderMultiLocationDividerClass);
     assert.equal(finderMultiLocationRowClass(2), finderMultiLocationDividerClass);
     assert.match(finderMultiLocationDividerClass, /border-t/);
-    assert.match(finderMultiLocationDividerClass, /border-ink-200/);
+    assert.match(finderMultiLocationDividerClass, /border-site-ink-200/);
   });
 
   it("seeds distinct preview calendars per location without changing a single-location listing", () => {

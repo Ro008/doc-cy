@@ -37,7 +37,8 @@ describe("language chips: one colour for every language (user, 2026-10-13)", () 
 
   it("the finder cards, the profile and the pickers use them, not a colour per language", () => {
     const finder = read("components/finder/FinderCardLanguages.tsx");
-    assert.match(finder, /LANGUAGE_CHIP_ON_LIGHT/);
+    // The light chip in light mode, a deep teal one in dark (lib/site-theme.ts).
+    assert.match(finder, /LANGUAGE_CHIP_ON_SITE/);
     assert.doesNotMatch(finder, /pillClass|languageThemeForLabel/);
     const picker = read("components/languages/LanguageMultiSelect.tsx");
     assert.match(picker, /LANGUAGE_CHIP_ON_LIGHT/);

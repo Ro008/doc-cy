@@ -14,7 +14,7 @@ export const finderRegisteredCardRowClass =
   "flex h-auto w-full flex-col gap-4 overflow-visible sm:flex-row sm:items-start sm:gap-5";
 
 export const finderRegisteredDetailsSectionClass =
-  "min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
+  "min-w-0 flex-1 border-t border-site-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
 
 /**
  * Every finder card is the same size until the patient opens more times (user,
@@ -31,7 +31,7 @@ export const finderCardCalendarBoxClass =
  * keep the space, longer ones are cut), so the location column is the same height.
  */
 export const finderCardAddressClass =
-  "line-clamp-2 min-h-[39px] text-xs leading-relaxed text-ink-600 break-words";
+  "line-clamp-2 min-h-[39px] text-xs leading-relaxed text-site-ink-600 break-words";
 
 /**
  * On a phone the identity block sits above the clinic, so it reserves the height of
@@ -58,7 +58,7 @@ export const finderLandingCardDetailsGridClass =
   "grid items-start gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";
 
 /** Grey rule between stacked location + calendar pairs (2+ practice locations). */
-export const finderMultiLocationDividerClass = "mt-4 border-t border-ink-200 pt-4";
+export const finderMultiLocationDividerClass = "mt-4 border-t border-site-ink-200 pt-4";
 
 export const FINDER_LOCATION_CALENDAR_DIVIDER_TEST_ID =
   "finder-location-calendar-divider";
@@ -79,4 +79,4 @@ export const finderAvailabilitySlotClassName =
 
 /** Sliding 90-day strip, paged 5 days at a time starting from today; `--finder-week-start` is set by FinderResultsAvailabilityShell. */
 export const finderAvailabilityWeekTrackClassName =
-  "finder-availability-week-track divide-x divide-ink-100";
+  "finder-availability-week-track divide-x divide-site-ink-100";

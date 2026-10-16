@@ -13,13 +13,13 @@ export function FinderCardRating({ rating }: { rating: FinderRating }) {
     <p
       data-testid="finder-card-rating"
       aria-label={`${average} out of 5 stars, ${reviews}`}
-      className="inline-flex items-center gap-1 self-start text-xs font-semibold text-ink-900"
+      className="inline-flex items-center gap-1 self-start text-xs font-semibold text-site-ink-900"
     >
       <Star className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-500" aria-hidden />
       <span className="tabular-nums" aria-hidden>
         {average}
       </span>
-      <span className="font-medium text-ink-600" aria-hidden>
+      <span className="font-medium text-site-ink-600" aria-hidden>
         ({rating.count})
       </span>
     </p>

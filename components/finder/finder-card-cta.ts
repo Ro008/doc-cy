@@ -1,5 +1,5 @@
 /** Footer for manual finder cards (claim link, report incorrect info). */
-export const finderCardManualFooterClass = "border-t border-ink-100 pt-4";
+export const finderCardManualFooterClass = "border-t border-site-ink-100 pt-4";
 
 /**
  * Every finder card is the same size (user, 2026-10-15): a listing's footer is this tall

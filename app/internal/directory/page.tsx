@@ -33,7 +33,9 @@ import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
+import { PublicDefaultSchemeSetting } from "@/components/internal/PublicDefaultSchemeSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
+import { loadDefaultScheme } from "@/lib/site-default-scheme";
 import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
 import { ClinicRequestsSection } from "@/components/internal/ClinicRequestsSection";
 import { ProfileChangeRequestsSection } from "@/components/internal/ProfileChangeRequestsSection";
@@ -729,6 +731,8 @@ export default async function FounderDashboardPage({
   });
   const trialMonths = await loadTrialMonths(supabase);
   if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
+  const defaultScheme = await loadDefaultScheme(supabase);
+  if (defaultScheme.ok === false) console.error("[internal/directory] default scheme load failed", defaultScheme.error);
 
   const pendingRequestsCount =
     (await countReviewablePendingRequests(supabase)) +
@@ -812,6 +816,10 @@ export default async function FounderDashboardPage({
         <FinderInvitationRequestsSection rows={finderInvitationRows} />
         <TrialMonthsSetting
           months={trialMonths.ok ? trialMonths.months : null}
+          canEdit={canMutate}
+        />
+        <PublicDefaultSchemeSetting
+          scheme={defaultScheme.ok ? defaultScheme.scheme : null}
           canEdit={canMutate}
         />
         <TrialConversionTable doctors={rows} />

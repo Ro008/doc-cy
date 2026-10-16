@@ -260,12 +260,12 @@ export function FinderFilters({
   const showPaphosUrgentCareNote = district === "Paphos";
 
   const fieldClass =
-    "h-11 w-full bg-transparent pl-10 pr-3 text-sm font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-400 focus:outline-none lg:text-base";
+    "h-11 w-full bg-transparent pl-10 pr-3 text-sm font-medium text-site-ink-900 placeholder:font-normal placeholder:text-site-ink-400 focus:outline-none lg:text-base";
   const selectFieldClass = `${fieldClass} appearance-none pr-9 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-200`;
   const iconClass =
-    "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-clinical-500";
+    "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-site-clinical-500";
   const chevronClass =
-    "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400";
+    "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-site-ink-400";
 
   return (
     <div className="relative space-y-2.5">
@@ -304,7 +304,7 @@ export function FinderFilters({
           aria-busy={isFilterFormBusy}
           className="flex flex-col gap-2 disabled:cursor-not-allowed lg:flex-row lg:items-stretch lg:gap-2"
         >
-          <div className="flex min-w-0 flex-1 flex-col overflow-visible rounded-2xl bg-white shadow-sm divide-y divide-ink-100 sm:flex-row sm:divide-x sm:divide-y-0">
+          <div className="flex min-w-0 flex-1 flex-col overflow-visible rounded-2xl bg-site-white shadow-sm divide-y divide-site-ink-100 sm:flex-row sm:divide-x sm:divide-y-0">
             <label htmlFor="finder-name-filter" className="relative min-w-0 flex-1 basis-[22%]">
               <span className="sr-only">Name</span>
               <UserRound className={iconClass} strokeWidth={2} aria-hidden />
@@ -343,7 +343,7 @@ export function FinderFilters({
                       setTownQuery("");
                     }
                   }}
-                  className={`${selectFieldClass} ${district ? "text-ink-900" : "text-ink-400"}`}
+                  className={`${selectFieldClass} ${district ? "text-site-ink-900" : "text-site-ink-400"}`}
                 >
                   <option value="">All districts</option>
                   {districts.map((item) => (
@@ -389,7 +389,7 @@ export function FinderFilters({
             className={`inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[8.5rem] lg:text-base ${
               nearMeActive || isNearMeBusy
                 ? "bg-clinical-500 text-white hover:bg-clinical-400"
-                : "bg-white text-clinical-700 hover:bg-clinical-50"
+                : "bg-site-white text-site-clinical-700 hover:bg-site-clinical-50"
             }`}
           >
             {isNearMeBusy ? (
@@ -406,12 +406,12 @@ export function FinderFilters({
             type="submit"
             disabled={isFilterFormBusy}
             aria-label={pendingAction === "apply" ? "Showing results..." : "Find"}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-clinical-700 shadow-sm transition hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[5.5rem] lg:text-base"
+            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-site-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-site-clinical-700 shadow-sm transition hover:bg-site-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[5.5rem] lg:text-base"
           >
             {pendingAction === "apply" ? (
               <span
                 aria-hidden
-                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-clinical-400 border-r-transparent"
+                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-site-clinical-400 border-r-transparent"
               />
             ) : (
               <Search className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />

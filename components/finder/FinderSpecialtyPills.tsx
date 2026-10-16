@@ -2,7 +2,7 @@ import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 
 const PILL_CLASS =
-  "inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800";
+  "inline-flex max-w-full items-center rounded-full border border-site-ink-200 bg-site-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-site-ink-600 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-50 hover:text-site-clinical-800";
 
 type FinderSpecialtyPillsProps = {
   specialties: readonly string[];

@@ -15,10 +15,10 @@ import {
 } from "@/components/finder/finder-availability-layout";
 
 const registeredFinderCallClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60";
+  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100 disabled:cursor-wait disabled:opacity-60";
 
 const registeredFinderCallRevealedClass =
-  "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100";
+  "inline-flex min-h-9 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-site-clinical-800 transition-none hover:border-site-clinical-300 hover:bg-site-clinical-100";
 
 export function FinderCardAvailabilitySkeleton() {
   return (
@@ -28,7 +28,7 @@ export function FinderCardAvailabilitySkeleton() {
       aria-hidden
     >
       <div
-        className={`${finderCardCalendarSkeletonHeightClass} animate-pulse rounded-lg border border-ink-200 bg-ink-50`}
+        className={`${finderCardCalendarSkeletonHeightClass} animate-pulse rounded-lg border border-site-ink-200 bg-site-ink-50`}
       />
     </div>
   );
@@ -211,7 +211,7 @@ function RegisteredLocationCopy({
   return (
     <div className="space-y-4">
       {title ? (
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-site-ink-400">
           {title}
         </p>
       ) : null}
@@ -226,7 +226,7 @@ function RegisteredLocationCopy({
               href={mapsHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex text-xs font-semibold text-clinical-700 transition-none underline-offset-2 hover:text-clinical-600 hover:underline"
+              className="inline-flex text-xs font-semibold text-site-clinical-700 transition-none underline-offset-2 hover:text-site-clinical-600 hover:underline"
             >
               Open in Maps ↗
             </a>
