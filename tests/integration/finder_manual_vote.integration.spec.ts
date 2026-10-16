@@ -2,9 +2,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { dismissCookieConsentIfPresent } from "../prod/helpers/dismissCookieConsent";
 import {
+  finderSearchButton,
   listFinderSpecialtySlugs,
+  pickFinderDistrict,
   selectFinderSpecialty,
 } from "./helpers/finder-specialty-combobox";
+
+const FINDER_DISTRICTS = ["Nicosia", "Limassol", "Larnaca", "Paphos", "Famagusta"];
 
 const THANKS_TOAST_RE = /Thank you! We will notify the doctor\./i;
 
@@ -49,23 +53,15 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-async function districtOptionValues(select: Locator): Promise<string[]> {
-  return select.locator("option").evaluateAll((els) =>
-    els.map((e) => (e as HTMLOptionElement).value).filter((v) => v.length > 0),
-  );
-}
-
 async function applyFinderFilters(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^Find$/i }).click();
+  await finderSearchButton(page).click();
 }
 
 async function findManualCardRequestCta(page: Page): Promise<Locator> {
-  const districtSelect = page.getByLabel("District");
-
-  const districtOrder = shuffle(await districtOptionValues(districtSelect));
+  const districtOrder = shuffle([...FINDER_DISTRICTS]);
 
   for (const districtValue of districtOrder) {
-    await districtSelect.selectOption(districtValue);
+    await pickFinderDistrict(page, districtValue);
     await applyFinderFilters(page);
     await expect(page).toHaveURL(/\/(?:nicosia|limassol|paphos|larnaca|famagusta|all)(?:\/|$)/, { timeout: 20_000 });
 
