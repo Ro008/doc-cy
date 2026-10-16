@@ -92,7 +92,7 @@ export const finderProfileCardClass =
   "grid grid-cols-1 gap-4 rounded-[28px] border border-[#D3E2E6] bg-profile-surface p-2 pb-4 shadow-[0_1px_2px_rgba(11,34,54,0.06),0_10px_28px_rgba(11,34,54,0.07)] [.doccy-profile[data-scheme=dark]_&]:border-[#2A4370] [.doccy-profile[data-scheme=dark]_&]:shadow-[0_12px_32px_rgba(0,0,0,0.35)] sm:gap-5 sm:p-2.5 sm:pb-6 lg:min-h-[352px] lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-7 lg:pb-2.5 lg:pr-6";
 
 export const finderProfileCardBodyClass =
-  "grid min-w-0 grid-cols-1 items-start gap-x-7 gap-y-4 self-start px-2 sm:px-3.5 lg:min-h-[224px] lg:grid-cols-[minmax(0,1fr)_300px] lg:px-0 lg:py-3.5";
+  "grid min-w-0 grid-cols-1 items-start gap-x-7 gap-y-4 self-start px-2 lg:self-stretch sm:px-3.5 lg:min-h-[224px] lg:grid-cols-[minmax(0,1fr)_300px] lg:px-0 lg:py-3.5";
 
 /** The week and what is under it: times, the request, or no online booking here. */
 export const finderCardTimesAreaClass = "flex min-w-0 flex-col";

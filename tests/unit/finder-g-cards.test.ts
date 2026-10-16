@@ -47,6 +47,12 @@ describe("the card as a summary of her profile (mockup L; user, 2026-10-16)", ()
 
   it("from lg the profile is a side panel on the left of each card (mockup O)", () => {
     assert.match(layout, /finderProfileCardClass =[^;]*lg:grid-cols-\[300px_minmax\(0,1fr\)\]/);
+    // Claim + Report at the bottom of the card from lg (user, 2026-10-16): the body and the
+    // clinic column stretch to the card's height and the footer takes the space above it.
+    assert.match(layout, /finderProfileCardBodyClass =[^;]*lg:self-stretch/);
+    const clinic = read("components/finder/FinderCardClinicColumn.tsx");
+    assert.match(clinic, /lg:self-stretch/);
+    assert.match(clinic, /className="[^"]*lg:mt-auto[^"]*" data-testid="finder-listing-footer"/);
     // One height from lg, sized for the fullest card (a three-line name beside the photo).
     assert.match(layout, /finderProfileCardClass =[^;]*lg:min-h-\[352px\]/);
     assert.match(layout, /finderProfileCardBodyClass =[^;]*lg:grid-cols-\[minmax\(0,1fr\)_300px\]/);

@@ -40,7 +40,7 @@ export function FinderCardClinicColumn({
     <section
       aria-label="Clinic"
       data-testid="finder-card-clinic"
-      className="flex min-w-0 flex-col gap-2 border-t border-profile-border pt-4 text-sm text-profile-body lg:gap-[9px] lg:border-t-0 lg:pt-0"
+      className="flex min-w-0 flex-col gap-2 border-t border-profile-border pt-4 text-sm text-profile-body lg:gap-[9px] lg:self-stretch lg:border-t-0 lg:pt-0"
     >
       {name ? (
         <p className="flex min-w-0 items-start gap-2">
@@ -108,7 +108,7 @@ export function FinderCardClinicColumn({
         </div>
       ) : null}
       {footer ? (
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs" data-testid="finder-listing-footer">
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs lg:mt-auto" data-testid="finder-listing-footer">
           {footer}
         </div>
       ) : null}
