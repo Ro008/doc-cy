@@ -422,3 +422,19 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# The two real projects. The local CI stack above keeps migrations off (it loads a schema
+# snapshot instead); `supabase db push` to these projects needs them on, or it says
+# "Skipping migrations" and applies nothing. Matched by project ref, so the CI stack is
+# untouched. Check what would be applied with `npm run db:testing:dry` / `db:prod:dry`.
+[remotes.testing]
+project_id = "fwinchqdgrkpxuuttech"
+
+[remotes.testing.db.migrations]
+enabled = true
+
+[remotes.production]
+project_id = "oiwlztcduxojadbcxkil"
+
+[remotes.production.db.migrations]
+enabled = true

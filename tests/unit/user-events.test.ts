@@ -12,6 +12,7 @@ import {
   parseMissingProfessionalReportDetails,
   showClinicPhoneNumberEvent,
   showPersonalMobileNumberEvent,
+  supportMessageEvent,
   userEventSourceFor,
 } from "@/lib/user-events";
 
@@ -42,7 +43,7 @@ const DROPPED = [
 ];
 
 describe("user event rows", () => {
-  it("names the table and the four event types (user, 2026-10-15)", () => {
+  it("names the table and the five event types (user, 2026-10-16)", () => {
     assert.equal(USER_EVENTS_TABLE, "user_events");
     assert.deepEqual(
       [...USER_EVENT_TYPES],
@@ -51,6 +52,7 @@ describe("user event rows", () => {
         "show_personal_mobile_number",
         "request_online_appointment",
         "missing_professional_report",
+        "support_message",
       ],
     );
   });
@@ -297,5 +299,48 @@ describe("phone reveals: what was revealed and where (user, 2026-10-15)", () => 
       .filter((file) => readFileSync(file, "utf8").includes("show_phone_number"))
       .map((file) => path.relative(root, file).split(path.sep).join("/"));
     assert.deepEqual(offenders, []);
+  });
+});
+
+describe("support message events (user, 2026-10-16)", () => {
+  const details = {
+    topic: "General Question",
+    message: "I'm reporting incorrect information.",
+    email: "visitor@example.com",
+    url: "https://mydoccy.com/all/dentist",
+    user_id: null,
+    context: { kind: "incorrect_listing_info", professional: "Petros Marcou", specialty: "Dentist", district: "Larnaca" },
+  };
+
+  it("a visitor's message keeps everything in details and names no professional", () => {
+    assert.deepEqual(supportMessageEvent({ userId: null, visitorKey: "k1", details }), {
+      event_type: "support_message",
+      actor_type: "visitor",
+      actor_id: null,
+      visitor_key: "k1",
+      professional_id: null,
+      clinic_id: null,
+      source: "support_form",
+      details,
+    });
+  });
+
+  it("a signed-in sender is the actor, and the user id is also kept in details", () => {
+    const event = supportMessageEvent({ userId: "u1", visitorKey: null, details });
+    assert.equal(event.actor_type, "professional");
+    assert.equal(event.actor_id, "u1");
+    assert.equal(event.details.user_id, "u1");
+    assert.equal(event.professional_id, null);
+  });
+
+  it("is never removed with a professional: the migration adds the type and the row has no professional_id", () => {
+    const migration = readdirSync(path.join(root, "supabase", "migrations")).find((f) =>
+      f.endsWith("_user_events_support_message.sql"),
+    );
+    assert.ok(migration, "a *_user_events_support_message.sql migration exists");
+    const sql = read(path.join("supabase", "migrations", migration!));
+    assert.match(sql, /'support_message'/);
+    assert.match(sql, /source = 'support_form'/);
+    assert.match(sql, /professional_id is null/);
   });
 });

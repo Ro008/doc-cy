@@ -43,8 +43,10 @@
     "db:ci-snapshot:check": "node scripts/ci-db/check-snapshot.mjs",
     "db:status": "node scripts/supabase-safe.mjs status",
     "db:testing:link": "node scripts/supabase-safe.mjs link-testing",
+    "db:testing:dry": "node scripts/supabase-safe.mjs dry-testing",
     "db:testing:push": "node scripts/supabase-safe.mjs push-testing",
     "db:prod:link": "node scripts/supabase-safe.mjs link-prod",
+    "db:prod:dry": "node scripts/supabase-safe.mjs dry-prod",
     "db:prod:push": "node scripts/supabase-safe.mjs push-prod"
   },
   "dependencies": {
