@@ -210,15 +210,18 @@ describe("the finder card shows the note", () => {
     const finder = read("app/finder/[[...filters]]/page.tsx");
     const visible = finder.indexOf("const visibleRegisteredIds =");
     const load = finder.indexOf("loadPublishedRatings(");
-    const card = finder.indexOf("<FinderCardRating");
+    const card = finder.indexOf("rating={registeredRatings.get(");
     assert.ok(visible > 0 && load > visible, "loads after the page is cut to the visible cards");
     assert.ok(card > load, "the card uses what was loaded");
     assert.match(finder, /loadPublishedRatings\(\s*supabase,\s*visibleRegisteredIds,/);
   });
 
   it("the note is a star, the average and the count, with a text alternative", () => {
-    const rating = read("components/finder/FinderCardRating.tsx");
-    assert.match(rating, /fill-amber-500/);
+    // In the card's hero since mockup L (user, 2026-10-16), as on her profile: the star in the
+    // hero's text colour, the average, then the reviews link.
+    const rating = read("components/finder/FinderProfileCardHero.tsx");
+    assert.match(rating, /<Star className="h-4 w-4 fill-current"/);
+    assert.match(rating, /rating\.count/);
     // The finder is plain English (no next-intl there), so the alternative is written in the component.
     assert.match(rating, /out of 5 stars/);
     assert.match(rating, /aria-label/);

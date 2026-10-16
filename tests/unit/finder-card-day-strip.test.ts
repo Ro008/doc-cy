@@ -108,18 +108,19 @@ describe("G's stacked times (Finder G, step 4; user, 2026-10-16)", () => {
   });
 
   it("every time shows while they fit, with no All times", () => {
-    assert.deepEqual(finderDayStripTimeGrid(8).phone, { times: 8, allTimes: false });
-    assert.deepEqual(finderDayStripTimeGrid(10).wide, { times: 10, allTimes: false });
+    // Three rows (mockup L): 4 a row on a phone, 6 a row from sm.
+    assert.deepEqual(finderDayStripTimeGrid(12).phone, { times: 12, allTimes: false });
+    assert.deepEqual(finderDayStripTimeGrid(18).wide, { times: 18, allTimes: false });
   });
 
   it("when they no longer fit, the last cell is All times", () => {
-    const nine = finderDayStripTimeGrid(9);
-    assert.deepEqual(nine.phone, { times: 7, allTimes: true });
-    assert.deepEqual(nine.wide, { times: 9, allTimes: false });
-    const many = finderDayStripTimeGrid(16);
-    assert.equal(many.rendered, 9);
-    assert.deepEqual(many.phone, { times: 7, allTimes: true });
-    assert.deepEqual(many.wide, { times: 9, allTimes: true });
+    const thirteen = finderDayStripTimeGrid(13);
+    assert.deepEqual(thirteen.phone, { times: 11, allTimes: true });
+    assert.deepEqual(thirteen.wide, { times: 13, allTimes: false });
+    const many = finderDayStripTimeGrid(20);
+    assert.equal(many.rendered, 17);
+    assert.deepEqual(many.phone, { times: 11, allTimes: true });
+    assert.deepEqual(many.wide, { times: 17, allTimes: true });
   });
 
   it("no times, nothing rendered", () => {

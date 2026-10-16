@@ -90,7 +90,7 @@ export function finderDayStripState<S extends SlotLike>(
 }
 
 /** Two rows of times on the left of the card: four a row on a phone, five from `sm`. */
-const TIME_GRID_CELLS = { phone: 8, wide: 10 } as const;
+const TIME_GRID_CELLS = { phone: 12, wide: 18 } as const;
 
 export type FinderDayStripTimeGrid = {
   /** Times to render; the ones past a screen's limit are hidden on that screen. */
@@ -100,7 +100,7 @@ export type FinderDayStripTimeGrid = {
 };
 
 /**
- * How the chosen day's times fill G's two rows (user, 2026-10-16): every time while they
+ * How the chosen day's times fill the card's three rows (mockup L, 2026-10-16): every time while they
  * fit; when they no longer do, the last cell becomes All times (her profile until the
  * profile pop-up of step 5).
  */

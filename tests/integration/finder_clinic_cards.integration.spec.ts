@@ -78,7 +78,7 @@ async function seedTwoClinicProfessional(
     specialty: "Dentistry",
     licenseNumber: `LIC-CC-${nonce}`,
   });
-  // She shows her mobile on her profile, so her cards offer "Mobile Number" (Finder G, step 4).
+  // She shows her mobile on her profile, so her cards' hero offers "Show mobile" (mockup L).
   const settings = await admin
     .from("professional_settings")
     .upsert({ professional_id: professionalId, show_mobile_on_profile: true }, { onConflict: "professional_id" });
@@ -200,11 +200,11 @@ test.describe("Integration: one finder card per professional and clinic", { tag:
     expect(Math.abs(openBox!.height - pausedBox!.height)).toBeLessThanOrEqual(1);
   });
 
-  test("Mobile Number shows her mobile on a click and records it from the finder card", async ({ page }) => {
+  test("Show mobile shows her mobile on a click and records it from the finder card", async ({ page }) => {
     await page.goto(`/paphos/dentist?name=${encodeURIComponent(seeded.name)}`);
     const card = herCards(page, seeded.name).first();
     const mobile = card.getByTestId("finder-card-mobile");
-    await expect(mobile).toHaveText("Mobile Number", { timeout: 20_000 });
+    await expect(mobile).toHaveText("Show mobile", { timeout: 20_000 });
     await expect(card).not.toContainText("123457");
 
     await expect(async () => {
@@ -227,17 +227,18 @@ test.describe("Integration: one finder card per professional and clinic", { tag:
       .toEqual([{ source: "registered_professional_finder_card", clinic_id: null }]);
   });
 
-  test("the paused card names the open clinic; another day keeps every card the same size", async ({ page }) => {
+  test("the paused card says online booking is not available there; another day keeps every card the same size", async ({ page }) => {
     await page.goto(`/?name=${encodeURIComponent(seeded.name)}`);
     const cards = herCards(page, seeded.name);
     await expect(cards).toHaveCount(2, { timeout: 30_000 });
     const open = cards.nth(0);
     const paused = cards.nth(1);
-    // G (step 4): the paused box says where online booking is open.
+    // Mockup L: one sentence for a paused clinic and an ended subscription.
     await expect(paused.getByTestId("finder-card-booking-paused")).toContainText(
-      `Online booking is open at ${seeded.paphosClinic}`,
+      "Online booking not available at this clinic",
       { timeout: 20_000 },
     );
+    await expect(paused.getByTestId("finder-card-booking-paused")).toContainText("Call the clinic to book.");
 
     const days = open.getByTestId("finder-card-day-strip").locator("button[aria-pressed]");
     await expect(days).toHaveCount(7, { timeout: 20_000 });

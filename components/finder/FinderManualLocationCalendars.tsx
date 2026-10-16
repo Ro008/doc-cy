@@ -31,7 +31,7 @@ type Props = {
    * page uses), not the listing's.
    */
   previewSeedKey?: string | null;
-  /** Finder only: Claim this Profile and Report incorrect info, inside the listing box. */
+  /** Finder only: Claim this Profile and Report incorrect info, under the clinic. */
   footer?: ReactNode;
 };
 
@@ -54,13 +54,20 @@ export function FinderManualLocationCalendars({
   footer = null,
 }: Props) {
   const locations = listingLocations(listing);
-  // G's listing card (Finder G, step 4; user, 2026-10-16): one clinic, then "Not on online
-  // booking yet" with the vote button; no calendar of invented times. Two grid cells.
+  // The listing card (mockup L; user, 2026-10-16): the grey week with the request in the
+  // times' place (no calendar of invented times), beside its one clinic with Claim and
+  // Report under it. Two grid cells.
   if (layoutVariant === "finder") {
     const clinic = locations[0] ?? null;
     const clinicId = String(clinic?.id ?? "").trim();
     return (
       <>
+        <FinderListingRequestBox
+          manualId={listing.id}
+          clinicId={clinic?.id}
+          requestSource={callToBookSource}
+          requestCount={listing.monthlyRequestCount}
+        />
         <FinderCardClinicColumn
           clinic={clinic}
           address={
@@ -79,12 +86,6 @@ export function FinderManualLocationCalendars({
               ? { clinicId, manualId: listing.id, variant: "call-to-book" }
               : null
           }
-        />
-        <FinderListingRequestBox
-          manualId={listing.id}
-          clinicId={clinic?.id}
-          requestSource={callToBookSource}
-          requestCount={listing.monthlyRequestCount}
           footer={footer}
         />
       </>

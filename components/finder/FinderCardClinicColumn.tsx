@@ -1,70 +1,89 @@
-import { MapPin, Phone } from "lucide-react";
-import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
+import type { ReactNode } from "react";
+import { Building2, Clock, MapPin, Phone } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 
-const linkClass =
-  "inline-flex items-center text-[13px] font-semibold leading-5 text-site-clinical-700 transition-none hover:underline disabled:cursor-wait disabled:opacity-60";
+// The profile's clinic buttons (ProfileBookingPanel), 44 px tall for a thumb (mockup L).
+const buttonClass =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-profile-muted px-3.5 text-sm font-bold text-profile-text transition-none hover:border-accent disabled:cursor-wait disabled:opacity-60";
 
 /**
- * Where, on G's finder card (Finder G, step 4; user, 2026-10-16): the clinic's name (its
- * page), the address, then Open in Maps · Clinic phone · Mobile Number. Both phones are
- * fetched on the click and recorded in user_events; the mobile only shows for a
- * professional who shows it on her profile.
+ * The card's clinic, as the profile shows it (mockup L; user, 2026-10-16): its name (its
+ * page), the address, the opening hours, then Call and Open in Maps. The phone is fetched
+ * on the click and recorded in user_events. On a phone a rule sets it apart from the week
+ * above, and the two buttons share the width. A listing's Claim and Report go under it.
  */
 export function FinderCardClinicColumn({
   clinic,
   address,
   mapsHref,
   phone,
-  mobileProfessionalId = null,
+  hours = [],
+  footer = null,
 }: {
   clinic: { name: string; slug?: string | null } | null;
   address: string | null;
   mapsHref: string | null;
   /** The clinic's phone; `call-to-book` on listings (Ads conversion), plain on registered cards. */
   phone: { clinicId: string; manualId: string; variant: "call-to-book" | "show-phone-number" } | null;
-  mobileProfessionalId?: string | null;
+  /** Opening hours, grouped as on the profile; none for a listing. */
+  hours?: ReadonlyArray<{ days: string; hours: string }>;
+  footer?: ReactNode;
 }) {
   const name = String(clinic?.name ?? "").trim();
   const slug = String(clinic?.slug ?? "").trim();
   const line = stripPlusCodePrefix(String(address ?? "").trim());
 
   return (
-    <div className="min-w-0" data-testid="finder-card-clinic">
-      <div className="min-w-0">
-        {name ? (
-          slug ? (
+    <section
+      aria-label="Clinic"
+      data-testid="finder-card-clinic"
+      className="flex min-w-0 flex-col gap-2 border-t border-profile-border pt-4 text-sm text-profile-body lg:gap-[9px] lg:border-t-0 lg:pt-0"
+    >
+      {name ? (
+        <p className="flex min-w-0 items-start gap-2">
+          <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
+          {slug ? (
             <PendingLink
               href={clinicLandingPath(slug)}
               navigationReason="profile"
               prefetch={false}
-              className="text-[15px] font-bold text-site-ink-900 underline decoration-site-ink-200 underline-offset-[3px] transition-none hover:text-site-clinical-700"
+              className="min-w-0 font-bold text-accent-link transition-none hover:underline"
             >
-              <span className="line-clamp-1" title={name}>
+              <span className="line-clamp-2" title={name}>
                 {name}
               </span>
             </PendingLink>
           ) : (
-            <p className="line-clamp-1 text-[15px] font-bold text-site-ink-900" title={name}>
+            <span className="line-clamp-2 min-w-0 font-bold text-accent-link" title={name}>
               {name}
-            </p>
-          )
-        ) : null}
-        <p className="mt-1 line-clamp-2 min-h-[39px] text-[13px] leading-normal text-site-ink-500" title={line || undefined}>
-          {line || "Address not provided yet"}
+            </span>
+          )}
         </p>
-        {/* Two rows on a phone, where Mobile Number wraps: every card keeps the same height. */}
-        <div className="mt-1.5 flex min-h-[48px] flex-wrap content-start items-center gap-x-3 gap-y-1 sm:min-h-0">
-          {mapsHref ? (
-            // The pin sits on the link that opens a map, not on the clinic's name (user, 2026-10-16).
-            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className={`${linkClass} gap-1.5`}>
-              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-              Open in Maps
-            </a>
-          ) : null}
+      ) : null}
+      <p className="flex items-start gap-2">
+        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
+        <span className="line-clamp-2" title={line || undefined}>
+          {line || "Address not provided yet"}
+        </span>
+      </p>
+      {hours.length > 0 ? (
+        <div data-testid="finder-card-clinic-hours" className="flex items-start gap-2">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
+          <dl aria-label="Opening hours" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5">
+            {hours.map((row) => (
+              <div key={row.days} className="contents">
+                <dt className="font-semibold text-profile-text">{row.days}</dt>
+                <dd className="tabular-nums">{row.hours}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+      {phone || mapsHref ? (
+        <div className="mt-0.5 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
           {phone ? (
             <RevealPhoneButton
               kind="clinic"
@@ -73,26 +92,26 @@ export function FinderCardClinicColumn({
               variant={phone.variant}
               source="finder_card"
               manualId={phone.manualId}
-              label="Clinic phone"
+              label="Call"
               icon={<Phone className="h-4 w-4 shrink-0" aria-hidden />}
-              wrapperClassName="flex flex-col gap-1"
-              className={linkClass}
-              revealedClassName={`${linkClass} gap-1.5 tabular-nums`}
+              wrapperClassName="flex min-w-0 flex-col gap-1"
+              className={buttonClass}
+              revealedClassName={`${buttonClass} tabular-nums`}
             />
           ) : null}
-          {mobileProfessionalId ? (
-            <RevealMobileButton
-              professionalId={mobileProfessionalId}
-              source="finder_card"
-              label="Mobile Number"
-              loadingLabel="Loading…"
-              errorLabel="Could not load the number"
-              className={linkClass}
-              testId="finder-card-mobile"
-            />
+          {mapsHref ? (
+            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className={buttonClass}>
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+              Open in Maps
+            </a>
           ) : null}
         </div>
-      </div>
-    </div>
+      ) : null}
+      {footer ? (
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs" data-testid="finder-listing-footer">
+          {footer}
+        </div>
+      ) : null}
+    </section>
   );
 }
