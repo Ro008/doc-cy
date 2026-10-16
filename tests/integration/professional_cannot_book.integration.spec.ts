@@ -204,7 +204,7 @@ test.describe("Integration: a signed-in professional can't book", { tag: "@pr-e2
 
     await page.goto(`/booking/review?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("review-professional")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole("button", { name: /Publish review/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Send review/i })).toHaveCount(0);
 
     const res = await page.request.post("/api/booking/review", {
       data: { token, rating: 5, comment: "Great", email: `visit-patient-${nonce}@integration.test` },

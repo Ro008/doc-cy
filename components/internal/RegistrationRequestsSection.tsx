@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
@@ -24,6 +24,8 @@ import type {
   UnapprovableRequestItem,
 } from "@/lib/registration-requests";
 import { describeUnapprovableRequests } from "@/lib/registration-unapprovable";
+import { ApprovalCelebration } from "@/components/internal/ApprovalCelebration";
+import { approvalCelebration, type ApprovalCelebrationContent } from "@/lib/approval-celebration";
 import {
   reviewCardsWithRecentDecisions,
   type RecentReviewDecision,
@@ -202,6 +204,9 @@ export function RegistrationRequestsSection({
   const [recent, setRecent] = useState<Record<string, RecentReviewDecision<RegistrationReviewItem>>>({});
   const cards = reviewCardsWithRecentDecisions(items, recent);
   const decided = items.filter((item) => item.status !== "pending" && !recent[item.id]);
+  // An approval is celebrated (user, 2026-10-15); a denial is not.
+  const [celebration, setCelebration] = useState<ApprovalCelebrationContent | null>(null);
+  const closeCelebration = useCallback(() => setCelebration(null), []);
   // Marks when the section is interactive (tests wait for it on this heavy page).
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
@@ -236,12 +241,14 @@ export function RegistrationRequestsSection({
             canMutate={canMutate}
             defaultTrialMonths={defaultTrialMonths}
             specialtyCatalogue={specialtyCatalogue}
-            onDecided={(next) =>
-              setRecent((prev) => ({ ...prev, [item.id]: { decision: next, item, position } }))
-            }
+            onDecided={(next, celebrate) => {
+              setRecent((prev) => ({ ...prev, [item.id]: { decision: next, item, position } }));
+              if (celebrate) setCelebration(celebrate);
+            }}
           />
         ),
       )}
+      {celebration ? <ApprovalCelebration {...celebration} onClose={closeCelebration} /> : null}
       {unapprovable.length > 0 ? <UnapprovableGroup items={unapprovable} canMutate={canMutate} /> : null}
       {decided.length > 0 ? (
         <details className="rounded-xl border border-slate-800 p-3 text-sm text-slate-300">
@@ -403,7 +410,7 @@ function RequestCard({
   canMutate: boolean;
   defaultTrialMonths: number | null;
   specialtyCatalogue: readonly string[];
-  onDecided: (decision: ReviewDecision) => void;
+  onDecided: (decision: ReviewDecision, celebration?: ApprovalCelebrationContent) => void;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProfessionalRegistrationDetails>(item.details);
@@ -500,13 +507,13 @@ function RequestCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ details, trialMonths: trialMonths.trim() === "" ? null : Number(trialMonths) }),
       });
-      const json = (await res.json().catch(() => ({}))) as { message?: string };
+      const json = (await res.json().catch(() => ({}))) as { message?: string; slug?: string | null };
       if (!res.ok) {
         setError(json.message ?? "Could not approve this request.");
         return;
       }
       setDecision("approved");
-      onDecided("approved");
+      onDecided("approved", approvalCelebration({ details, slug: json.slug ?? null }));
       router.refresh();
     } finally {
       setBusy(false);

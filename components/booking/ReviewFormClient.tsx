@@ -20,7 +20,8 @@ const INPUT =
 
 /**
  * The review form on /booking/review (user, 2026-10-04). Opening the link changes nothing;
- * "Publish review" sends it. The typed email must be the one the visit was booked with.
+ * "Send review" sends it. The typed email must be the one the visit was booked with. It shows
+ * once a founder approves it (user, 2026-10-15).
  */
 export function ReviewFormClient({ token, professionalName, visitDayLabel, displayName }: Props) {
   const [rating, setRating] = React.useState(0);
@@ -59,7 +60,7 @@ export function ReviewFormClient({ token, professionalName, visitDayLabel, displ
     return (
       <BookingLinkCard title="Thank you for your review" testId="review-thanks">
         <BookingLinkText>
-          Your review of {professionalName} is published as {displayName}. It helps other patients choose.
+          Your review of {professionalName} will be checked and published soon. It helps other patients choose.
         </BookingLinkText>
       </BookingLinkCard>
     );
@@ -130,8 +131,8 @@ export function ReviewFormClient({ token, professionalName, visitDayLabel, displ
           <p className="mt-1 text-xs text-slate-500">So we know the review comes from the patient. It&apos;s never shown.</p>
         </div>
         <p className="rounded-xl border border-slate-700 bg-ink-900/60 px-3 py-2 text-xs leading-relaxed text-slate-300">
-          Your review will appear as <strong className="text-slate-100">{displayName}</strong> with your rating and the
-          date.
+          Once checked, your review will appear as <strong className="text-slate-100">{displayName}</strong> with your
+          rating and the date.
         </p>
         {error ? <p className="text-sm text-amber-300">{error}</p> : null}
         <button
@@ -139,7 +140,7 @@ export function ReviewFormClient({ token, professionalName, visitDayLabel, displ
           disabled={sending}
           className="inline-flex w-full items-center justify-center rounded-2xl bg-clinical-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:opacity-60"
         >
-          {sending ? "Publishing…" : "Publish review"}
+          {sending ? "Sending…" : "Send review"}
         </button>
       </form>
     </BookingLinkCard>

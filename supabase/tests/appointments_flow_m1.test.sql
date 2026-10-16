@@ -5,7 +5,9 @@
 --
 -- Historical: describes the schema right after M1. Checks 3 and 8 (location_id, REJECTED)
 -- stopped holding with M2 (20261009100000) and check 14 (24 h default) with
--- 20261008120000; appointments_flow_m2.test.sql covers the current rules.
+-- 20261008120000; appointments_flow_m2.test.sql covers the current rules. Check 13's
+-- review default (published) stopped holding with 20261015140000 (new reviews are pending);
+-- professional_reviews_moderation.test.sql covers it.
 --
 -- Run against TESTING only (Supabase SQL editor or the MCP execute_sql tool).
 -- Everything runs in one transaction that ALWAYS rolls back: the final error
