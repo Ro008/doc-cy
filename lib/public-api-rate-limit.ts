@@ -4,6 +4,7 @@ import { getClientIp } from "@/lib/vote-fingerprint";
 export type PublicApiRateLimitBucket =
   | "manualBookingRequest"
   | "doctorInvitation"
+  | "supportMessage"
   | "appointments"
   | "bookingConfirm"
   | "contactReveal"
@@ -22,6 +23,8 @@ type RateLimitConfig = {
 export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitConfig> = {
   manualBookingRequest: { limit: 10, windowMs: 60 * 60 * 1000 },
   doctorInvitation: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /** Support form: a real person sends one or two; this blunts spam into the database. */
+  supportMessage: { limit: 10, windowMs: 60 * 60 * 1000 },
   appointments: { limit: 20, windowMs: 60 * 60 * 1000 },
   /** Patients confirming the emailed booking link (each link works once anyway). */
   bookingConfirm: { limit: 30, windowMs: 60 * 60 * 1000 },
