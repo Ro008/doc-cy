@@ -1,5 +1,6 @@
 import { buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
+import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { clinicTitleOrFallback } from "@/lib/doctor-locations";
 
 /**
@@ -23,6 +24,8 @@ export type ProfileClinicLocation = {
 export type ProfilePhoneClinic = {
   id: string | null;
   name: string;
+  /** The clinic's current slug, for its public page. */
+  slug?: string | null;
   hasPhone: boolean;
 };
 
@@ -35,7 +38,14 @@ export type ProfileClinicCard = {
   isBookingHere: boolean;
   /** Clinic id for RevealPhoneButton, when that clinic has a phone. */
   phoneClinicId: string | null;
+  /** The clinic's public page (`/clinics/{slug}`), when the place is a known clinic. */
+  clinicHref: string | null;
 };
+
+function clinicPageHref(clinic: ProfilePhoneClinic | null): string | null {
+  const slug = String(clinic?.slug ?? "").trim();
+  return slug ? clinicLandingPath(slug) : null;
+}
 
 export function buildProfileClinicCards(input: {
   locations: readonly ProfileClinicLocation[];
@@ -75,6 +85,7 @@ export function buildProfileClinicCards(input: {
         "",
       isBookingHere: several && location.id === input.selectedLocationId,
       phoneClinicId,
+      clinicHref: clinicPageHref(clinic),
     };
   });
 
@@ -88,6 +99,7 @@ export function buildProfileClinicCards(input: {
         mapsUrl: buildMapsUrlFromAddress(address) ?? "",
         isBookingHere: false,
         phoneClinicId: null,
+        clinicHref: null,
       });
     }
   }
@@ -102,6 +114,7 @@ export function buildProfileClinicCards(input: {
       mapsUrl: "",
       isBookingHere: false,
       phoneClinicId: clinic.id,
+      clinicHref: clinicPageHref(clinic),
     });
   }
 

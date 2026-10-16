@@ -136,4 +136,22 @@ describe("buildProfileClinicCards", () => {
       [],
     );
   });
+
+  it("links each clinic to its public clinic page, by the clinic's current slug", () => {
+    const cards = buildProfileClinicCards({
+      locations: [centre, germasogeia],
+      clinicForLocation: (loc) =>
+        loc.id === "loc-1"
+          ? { id: "clinic-1", name: "Centre", slug: "limassol-centre-clinic", hasPhone: true }
+          : null,
+      phoneClinics: [{ id: "clinic-9", name: "Night Clinic", slug: "night-clinic", hasPhone: true }],
+      selectedLocationId: "loc-1",
+      fallbackTitle,
+      missingAddress: "Address coming soon",
+    });
+    assert.deepEqual(
+      cards.map((card) => card.clinicHref),
+      ["/clinics/limassol-centre-clinic", null, "/clinics/night-clinic"],
+    );
+  });
 });

@@ -1,6 +1,7 @@
-import { Clock, MapPin } from "lucide-react";
+import { Building2, Clock, MapPin } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
+import { PendingLink } from "@/components/navigation/PendingLink";
 import type { BookingPanelClinic } from "@/lib/public/profile-booking-panel";
 
 type Props = {
@@ -18,6 +19,9 @@ type Props = {
  * then its address, opening hours, phone and map (user, 2026-10-14: so on a laptop the times
  * and "Book this time" come up in the first screen). Which clinic is chosen above it, in
  * "Choose a clinic", which names it: the card's own heading is then for screen readers only.
+ * The details start with the clinic's name as a link to its public page (user, 2026-10-16:
+ * clinic pages stay reachable), here and not in "Choose a clinic", whose rows are themselves
+ * buttons and links.
  */
 export async function ProfileBookingPanel({ professionalId, clinic, several, children }: Props) {
   const t = await getTranslations("DoctorProfilePage");
@@ -43,6 +47,18 @@ export async function ProfileBookingPanel({ professionalId, clinic, several, chi
         {clinic ? (
           <div data-testid="profile-clinic-selected" className="border-t border-profile-border pt-4">
             <div className="flex flex-col gap-2.5">
+              {clinic.clinicHref ? (
+                <p data-testid="profile-clinic-page-link" className="flex items-start gap-2 text-sm">
+                  <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
+                  <PendingLink
+                    href={clinic.clinicHref}
+                    prefetch={false}
+                    className="font-semibold text-accent-link underline-offset-2 hover:underline"
+                  >
+                    {clinic.title}
+                  </PendingLink>
+                </p>
+              ) : null}
               {clinic.address ? (
                 <p className="flex items-start gap-2 text-sm text-profile-body">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />

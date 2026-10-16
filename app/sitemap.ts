@@ -10,6 +10,7 @@ import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { clinicDistricts } from "@/lib/professional-clinic-locations";
 import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
+import { loadPublicClinicSitemapPaths } from "@/lib/sitemap-clinics";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -148,6 +149,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       };
     });
 
+  // Clinic pages stay public and indexed (user, 2026-10-16), though the Finder no longer
+  // searches clinics.
+  const clinicPaths = await loadPublicClinicSitemapPaths(supabase);
+  const clinicEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${siteBase}/clinics`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    ...clinicPaths.map((path) => ({
+      url: `${siteBase}${path}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
+    })),
+  ];
+
   const blogPosts = await getAllBlogPostMeta();
   const blogEntries: MetadataRoute.Sitemap = blogPosts.map((post) => ({
     url: `${siteBase}/blog/${post.slug}`,
@@ -200,5 +219,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  return [...staticEntries, ...dynamicFinderEntries, ...manualDoctorEntries, ...blogEntries];
+  return [
+    ...staticEntries,
+    ...dynamicFinderEntries,
+    ...manualDoctorEntries,
+    ...clinicEntries,
+    ...blogEntries,
+  ];
 }

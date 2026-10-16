@@ -20,6 +20,7 @@ const card = (key: string, extra: Partial<ProfileClinicCard> = {}): ProfileClini
   mapsUrl: `https://maps.example/${key}`,
   isBookingHere: false,
   phoneClinicId: `phone-${key}`,
+  clinicHref: `/clinics/${key}-clinic`,
   ...extra,
 });
 
@@ -102,6 +103,26 @@ describe("buildBookingPanelClinics", () => {
       bookingOffEverywhere: false,
     });
     assert.deepEqual(clinics.map((c) => c.id), ["a"]);
+  });
+
+  it("carries each clinic's page link from its card", () => {
+    const clinics = buildBookingPanelClinics({
+      locations: [{ id: "a" }, { id: "b" }],
+      cards: [card("a"), card("b", { clinicHref: null })],
+      openingHours: {},
+      selectedId: "a",
+      bookingOffEverywhere: false,
+    });
+    assert.deepEqual(clinics.map((c) => c.clinicHref), ["/clinics/a-clinic", null]);
+  });
+
+  it("names the chosen clinic as a link to its page, outside the clinic choice rows", () => {
+    const panel = read("components/doctor/profile/ProfileBookingPanel.tsx");
+    const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
+    assert.match(panel, /data-testid="profile-clinic-page-link"/);
+    assert.match(panel, /href=\{clinic\.clinicHref\}/);
+    // A link inside a row that is itself a button or a link would break the clinic choice.
+    assert.doesNotMatch(chooser, /clinicHref|profile-clinic-page-link/);
   });
 });
 

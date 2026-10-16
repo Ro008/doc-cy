@@ -16,6 +16,8 @@ export type BookingPanelClinic = {
   mapsUrl: string;
   /** Clinic id for the "Call" button, when that clinic has a phone. */
   phoneClinicId: string | null;
+  /** The clinic's public page, when the place is a known clinic. */
+  clinicHref: string | null;
   /** Already formatted ("Mon–Fri", "09:00–17:00"). */
   hours: ReadonlyArray<{ days: string; hours: string }>;
   /** No online booking here: paused at this clinic, or her access has ended. */
@@ -46,6 +48,7 @@ export function buildBookingPanelClinics(input: {
     address: card.address,
     mapsUrl: card.mapsUrl,
     phoneClinicId: card.phoneClinicId,
+    clinicHref: card.clinicHref,
     hours: input.openingHours[card.key] ?? [],
   });
 
