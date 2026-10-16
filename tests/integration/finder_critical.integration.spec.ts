@@ -427,8 +427,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         .first();
 
       await expect(card).toBeVisible({ timeout: 20000 });
-      // G (step 4): the languages are words on the card's facts line.
-      await expect(card.getByTestId("finder-card-languages")).toHaveText("Greek, English");
+      // G (step 4, mockups L and O): "Speaks …" on the profile panel's facts.
+      await expect(card.getByTestId("finder-card-languages")).toHaveText("Speaks Greek, English");
       await expect(card.getByRole("link", { name: created.name, exact: true })).toHaveAttribute(
         "href",
         `/en/${created.slug}`,
