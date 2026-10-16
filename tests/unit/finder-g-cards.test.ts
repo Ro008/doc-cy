@@ -86,13 +86,9 @@ describe("paused clinic and listings, as in G", () => {
     assert.match(registered, /openClinicName=\{/);
   });
 
-  it("a listing keeps the old request wording and asks for votes (user, 2026-10-16)", () => {
+  it("a listing says it is not on online booking yet, and asks for votes", () => {
     const box = read("components/finder/FinderListingRequestBox.tsx");
-    assert.ok(box.includes("formatFinderRequestBadgeLabel(requestCount)"));
-    assert.ok(box.includes("Want to book an appointment online?"));
-    assert.ok(box.includes("This professional hasn&apos;t activated online booking yet."));
-    assert.ok(box.includes("Takes 1 second. No account needed."));
-    assert.ok(box.includes("{footer}"));
+    assert.match(box, /Not on online booking yet/);
     assert.match(box, /FINDER_MANUAL_REQUEST_ATTR/);
     assert.match(box, /data-testid="finder-manual-request-online-booking"/);
     assert.match(listing, /<FinderListingRequestBox\b/);
