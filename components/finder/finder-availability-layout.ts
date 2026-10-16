@@ -95,7 +95,7 @@ export const finderGCardGridClass =
  * card is the same size (user, 2026-10-15).
  */
 export const finderCardCalendarAreaClass =
-  "flex h-[196px] flex-col border-t border-site-ink-100 pt-3.5 sm:col-span-2 sm:h-[132px]";
+  "flex h-[184px] flex-col border-t border-site-ink-100 pt-3.5 sm:col-span-2";
 
 /**
  * G's identity cell: photo, name, specialties, GeSY · rating · languages. It keeps the

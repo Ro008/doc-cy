@@ -1231,7 +1231,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               specialty={row.specialty ?? "Specialty not set"}
                             />
                             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-site-ink-500">
-                              {row.isGesy ? <GesyProviderBadge size="xs" language="en" /> : null}
+                              {row.isGesy ? <GesyProviderBadge size="line" language="en" /> : null}
                               {rating ? <FinderCardRating rating={rating} /> : null}
                               {languagesText ? (
                                 <span data-testid="finder-card-languages">{languagesText}</span>
@@ -1336,7 +1336,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           />
                           {row.isGesy ? (
                             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                              <GesyProviderBadge size="xs" language="en" />
+                              <GesyProviderBadge size="line" language="en" />
                             </div>
                           ) : null}
                           {distance}

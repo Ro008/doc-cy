@@ -7,6 +7,7 @@ import {
   finderDayStripLongDate,
   finderDayStripShortDate,
   finderDayStripState,
+  finderDayStripTimeGrid,
   finderDayStripWeekStart,
 } from "../../lib/finder-card-day-strip";
 
@@ -93,5 +94,39 @@ describe("what a card shows under the circles", () => {
   it("no times at all in her calendar", () => {
     assert.deepEqual(finderDayStripState(calendar({}), 0), { kind: "none-ahead" });
     assert.deepEqual(finderDayStripState([], 0), { kind: "none-ahead" });
+  });
+});
+
+describe("G's stacked times (Finder G, step 4; user, 2026-10-16)", () => {
+  it("two rows on the left: five a row from sm, four on a phone", () => {
+    const grid = finderDayStripTimeGrid(3);
+    assert.deepEqual(grid, {
+      rendered: 3,
+      phone: { times: 3, allTimes: false },
+      wide: { times: 3, allTimes: false },
+    });
+  });
+
+  it("every time shows while they fit, with no All times", () => {
+    assert.deepEqual(finderDayStripTimeGrid(8).phone, { times: 8, allTimes: false });
+    assert.deepEqual(finderDayStripTimeGrid(10).wide, { times: 10, allTimes: false });
+  });
+
+  it("when they no longer fit, the last cell is All times", () => {
+    const nine = finderDayStripTimeGrid(9);
+    assert.deepEqual(nine.phone, { times: 7, allTimes: true });
+    assert.deepEqual(nine.wide, { times: 9, allTimes: false });
+    const many = finderDayStripTimeGrid(16);
+    assert.equal(many.rendered, 9);
+    assert.deepEqual(many.phone, { times: 7, allTimes: true });
+    assert.deepEqual(many.wide, { times: 9, allTimes: true });
+  });
+
+  it("no times, nothing rendered", () => {
+    assert.deepEqual(finderDayStripTimeGrid(0), {
+      rendered: 0,
+      phone: { times: 0, allTimes: false },
+      wide: { times: 0, allTimes: false },
+    });
   });
 });

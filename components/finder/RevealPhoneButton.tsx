@@ -72,16 +72,20 @@ type RevealPhoneButtonProps = {
   manualId?: string | null;
   /** The button's words, when not the variant's ("Clinic phone" on G's finder card). */
   label?: string | null;
+  /** An icon before the words and, once shown, before the number (G's finder card). */
+  icon?: React.ReactNode;
 };
 
 function RevealedPhoneLink({
   phone,
   className,
   variant,
+  icon,
 }: {
   phone: string;
   className?: string;
   variant: "show-phone" | "show-phone-number" | "call-to-book" | "profile-call";
+  icon?: React.ReactNode;
 }) {
   const display = formatCyprusPhoneDisplay(phone);
   const href = phoneToTelHref(display);
@@ -94,6 +98,7 @@ function RevealedPhoneLink({
         "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-site-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-site-clinical-600"
       }
     >
+      {icon}
       {variant === "show-phone" ? `📞 ${display}` : display}
     </a>
   );
@@ -110,6 +115,7 @@ export function RevealPhoneButton({
   source = null,
   manualId = null,
   label = null,
+  icon = null,
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
   const analyticsSource = parseCallToBookSource(source);
@@ -122,6 +128,7 @@ export function RevealPhoneButton({
         phone={state.phone}
         className={revealedClassName}
         variant={variant}
+        icon={icon}
       />
     );
   }
@@ -167,7 +174,12 @@ export function RevealPhoneButton({
           "inline-flex min-h-10 items-center justify-center rounded-lg border border-site-clinical-200 bg-site-white px-3 py-2 text-sm font-semibold text-site-clinical-700 transition hover:border-site-clinical-300 hover:bg-site-clinical-50 disabled:cursor-wait disabled:opacity-60"
         }
       >
-        {state.status === "loading" ? (
+        {icon ? (
+          <span className="inline-flex items-center gap-1.5">
+            {icon}
+            {state.status === "loading" ? "Loading…" : idleLabel}
+          </span>
+        ) : state.status === "loading" ? (
           "Loading…"
         ) : variant === "profile-call" ? (
           <span className="inline-flex items-center gap-3">

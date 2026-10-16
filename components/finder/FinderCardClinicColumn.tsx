@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { MapPin, Phone } from "lucide-react";
 import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
@@ -33,8 +33,7 @@ export function FinderCardClinicColumn({
   const line = stripPlusCodePrefix(String(address ?? "").trim());
 
   return (
-    <div className="flex min-w-0 gap-2.5" data-testid="finder-card-clinic">
-      <MapPin className="mt-0.5 h-[18px] w-[18px] shrink-0 text-site-clinical-700" aria-hidden />
+    <div className="min-w-0" data-testid="finder-card-clinic">
       <div className="min-w-0">
         {name ? (
           slug ? (
@@ -60,7 +59,9 @@ export function FinderCardClinicColumn({
         {/* Two rows on a phone, where Mobile Number wraps: every card keeps the same height. */}
         <div className="mt-1.5 flex min-h-[48px] flex-wrap content-start items-center gap-x-3 gap-y-1 sm:min-h-0">
           {mapsHref ? (
-            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className={linkClass}>
+            // The pin sits on the link that opens a map, not on the clinic's name (user, 2026-10-16).
+            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className={`${linkClass} gap-1.5`}>
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
               Open in Maps
             </a>
           ) : null}
@@ -73,8 +74,9 @@ export function FinderCardClinicColumn({
               source="finder_card"
               manualId={phone.manualId}
               label="Clinic phone"
+              icon={<Phone className="h-4 w-4 shrink-0" aria-hidden />}
               className={linkClass}
-              revealedClassName={`${linkClass} tabular-nums`}
+              revealedClassName={`${linkClass} gap-1.5 tabular-nums`}
             />
           ) : null}
           {mobileProfessionalId ? (

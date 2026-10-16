@@ -2,8 +2,11 @@ import Image from "next/image";
 
 type GesyProviderBadgeProps = {
   className?: string;
-  /** `xs` = inline next to a heading; `sm` = card / secondary surfaces */
-  size?: "xs" | "sm" | "md";
+  /**
+   * `xs` = inline next to a heading; `sm` = card / secondary surfaces; `line` = in a line
+   * of text (G's finder card), drawn at its real size so it takes no more room than it shows.
+   */
+  size?: "line" | "xs" | "sm" | "md";
   /** Instant custom tooltip on hover (not the delayed native `title`). */
   title?: string;
   /**
@@ -18,9 +21,10 @@ type GesyProviderBadgeProps = {
   language?: "en" | "el";
 };
 
-const HEIGHT_PX = { xs: 36, sm: 44, md: 52 } as const;
+const HEIGHT_PX = { line: 25, xs: 36, sm: 44, md: 52 } as const;
 
 const HEIGHT_CLASS = {
+  line: "h-[25px]",
   xs: "h-9",
   sm: "h-11",
   md: "h-[52px]",
@@ -70,7 +74,7 @@ export function GesyProviderBadge({
   const width = Math.round(height * logo.aspect);
   // English mark reads larger than the Greek asset at the same height.
   const scaleClass =
-    variant === "light" && language === "en" ? "origin-left scale-[0.69]" : "";
+    variant === "light" && language === "en" && size !== "line" ? "origin-left scale-[0.69]" : "";
   // On a dark public page the mark swaps to its white-text copy; multiply would turn
   // any mark black there, so it applies in light only.
   const swapsOnDark = variant === "light";

@@ -10,22 +10,20 @@ import {
   finderDayStripLongDate,
   finderDayStripShortDate,
   finderDayStripState,
+  finderDayStripTimeGrid,
 } from "@/lib/finder-card-day-strip";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 
-/** Times shown in the row: three on a phone (one row with All times), eight from `sm`; the rest are on her profile. */
-const MAX_TIMES = 8;
-const PHONE_TIMES = 3;
 
 const arrowClass =
   "inline-flex h-8 w-8 shrink-0 items-center sm:h-9 sm:w-9 justify-center rounded-full border border-site-ink-200 bg-site-ink-50 text-site-ink-900 transition-none hover:border-site-clinical-300 disabled:cursor-default disabled:text-site-ink-300 disabled:hover:border-site-ink-200";
 
 const timeClass =
-  "inline-flex min-h-[44px] min-w-[68px] items-center justify-center rounded-xl border border-site-ink-200 bg-site-white px-2 text-sm font-bold tabular-nums text-site-ink-900 transition-none hover:border-site-clinical-500 hover:text-site-clinical-700 lg:min-h-[40px]";
+  "inline-flex min-h-[36px] items-center justify-center rounded-xl border border-site-ink-200 bg-site-white px-2 text-sm font-bold tabular-nums text-site-ink-900 transition-none hover:border-site-clinical-500 hover:text-site-clinical-700";
 
 const softButtonClass =
-  "inline-flex min-h-[40px] items-center rounded-xl border border-site-ink-200 bg-site-ink-50 px-3 text-sm font-bold text-site-clinical-700 transition-none hover:border-site-clinical-300";
+  "inline-flex min-h-[36px] items-center rounded-xl border border-site-ink-200 bg-site-ink-50 px-3 text-sm font-bold text-site-clinical-700 transition-none hover:border-site-clinical-300";
 
 /**
  * G's day circles on a registered card (Finder G, step 4; user, 2026-10-16): seven days,
@@ -47,6 +45,7 @@ export function FinderCardDayStrip({
   const state = finderDayStripState(calendar.days, selectedDayIndex);
   const selectedHeader = dayHeaders[selectedDayIndex];
   const profileHref = publicProfessionalProfilePath(profileSlug);
+  const grid = finderDayStripTimeGrid(state.kind === "times" ? state.slots.length : 0);
 
   return (
     <div data-testid="finder-card-day-strip" className={finderCardCalendarAreaClass}>
@@ -98,35 +97,40 @@ export function FinderCardDayStrip({
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-2.5 max-w-[480px]">
         {selectedHeader ? (
-          <span className="w-full text-[13px] font-bold text-site-ink-900 sm:mr-1 sm:w-auto">
-            {finderDayStripLongDate(selectedHeader.dateKey)}
-          </span>
+          <p className="text-[13px] font-bold text-site-ink-900">{finderDayStripLongDate(selectedHeader.dateKey)}</p>
         ) : null}
         {state.kind === "times" ? (
-          <>
-            {state.slots.slice(0, MAX_TIMES).map((slot, index) => (
+          // Two rows on the left of the card; when the times no longer fit, the last cell is All times.
+          <div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:grid-cols-5" data-testid="finder-card-times">
+            {state.slots.slice(0, grid.rendered).map((slot, index) => (
               <PendingLink
                 key={slot.slotKey}
                 href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
                 navigationReason="profile"
                 aria-label={`Book ${selectedHeader ? finderDayStripLongDate(selectedHeader.dateKey) : ""} at ${slot.timeLabel}`}
-                className={`${timeClass} ${index >= PHONE_TIMES ? "max-sm:hidden" : ""}`}
+                className={`${timeClass} ${index >= grid.phone.times ? "max-sm:hidden" : ""} ${
+                  index >= grid.wide.times ? "sm:hidden" : ""
+                }`}
               >
                 {slot.timeLabel}
               </PendingLink>
             ))}
-            <PendingLink
-              href={profileHref}
-              navigationReason="profile"
-              className="inline-flex min-h-[40px] items-center px-1.5 text-sm font-bold text-site-clinical-700 hover:underline"
-            >
-              All times
-            </PendingLink>
-          </>
+            {grid.phone.allTimes || grid.wide.allTimes ? (
+              <PendingLink
+                href={profileHref}
+                navigationReason="profile"
+                className={`inline-flex min-h-[36px] items-center justify-center rounded-xl px-1 text-sm font-bold text-site-clinical-700 hover:underline ${
+                  grid.phone.allTimes ? "" : "max-sm:hidden"
+                } ${grid.wide.allTimes ? "" : "sm:hidden"}`}
+              >
+                All times
+              </PendingLink>
+            ) : null}
+          </div>
         ) : state.kind === "none-this-day" ? (
-          <>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <span className="text-sm text-site-ink-500">No times this day.</span>
             <button
               type="button"
@@ -135,14 +139,14 @@ export function FinderCardDayStrip({
             >
               Next free: {finderDayStripShortDate(calendar.days[state.nextFreeIndex]!.dateKey)}
             </button>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <span className="text-sm text-site-ink-500">No free times online in the coming weeks.</span>
             <PendingLink href={profileHref} navigationReason="profile" className={softButtonClass}>
               View profile
             </PendingLink>
-          </>
+          </div>
         )}
       </div>
     </div>

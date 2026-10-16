@@ -88,3 +88,26 @@ export function finderDayStripState<S extends SlotLike>(
   const next = calendarDays.findIndex((d, i) => i > selectedIndex && d.slots.length > 0);
   return next === -1 ? { kind: "none-ahead" } : { kind: "none-this-day", nextFreeIndex: next };
 }
+
+/** Two rows of times on the left of the card: four a row on a phone, five from `sm`. */
+const TIME_GRID_CELLS = { phone: 8, wide: 10 } as const;
+
+export type FinderDayStripTimeGrid = {
+  /** Times to render; the ones past a screen's limit are hidden on that screen. */
+  rendered: number;
+  phone: { times: number; allTimes: boolean };
+  wide: { times: number; allTimes: boolean };
+};
+
+/**
+ * How the chosen day's times fill G's two rows (user, 2026-10-16): every time while they
+ * fit; when they no longer do, the last cell becomes All times (her profile until the
+ * profile pop-up of step 5).
+ */
+export function finderDayStripTimeGrid(count: number): FinderDayStripTimeGrid {
+  const fit = (cells: number) =>
+    count <= cells ? { times: count, allTimes: false } : { times: cells - 1, allTimes: true };
+  const phone = fit(TIME_GRID_CELLS.phone);
+  const wide = fit(TIME_GRID_CELLS.wide);
+  return { rendered: Math.max(phone.times, wide.times), phone, wide };
+}
