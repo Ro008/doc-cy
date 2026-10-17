@@ -116,7 +116,7 @@ export function GesyProviderBadge({
       ) : null}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute ${tooltipAlign === "right" ? "right-0" : "left-0"} top-full z-20 mt-1.5 w-56 max-w-[min(14rem,calc(100vw-1.5rem))] rounded-md border border-site-ink-200 bg-site-white px-2.5 py-2 text-left text-[11px] font-medium leading-snug text-site-ink-700 opacity-0 shadow-md group-hover:opacity-100 group-focus-within:opacity-100`}
+        className={`pointer-events-none absolute ${tooltipAlign === "right" ? "right-0" : "left-0"} top-full z-20 mt-1.5 w-56 max-w-[min(14rem,calc(100vw-1.5rem))] rounded-md border border-site-ink-200 bg-site-white px-2.5 py-2 text-left text-[11px] font-medium leading-snug text-site-ink-700 hidden shadow-md group-hover:block group-focus-within:block`}
       >
         {title}
       </span>

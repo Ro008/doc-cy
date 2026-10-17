@@ -15,7 +15,7 @@ import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import {
-  FinderSearchRouteLoadingView,
+  ClinicsSearchRouteLoadingView,
   readProSessionHint,
 } from "@/components/finder/FinderSearchRouteLoading";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
@@ -206,7 +206,7 @@ export default async function ClinicsPage(props: ClinicsPageProps) {
     <SiteSchemeRoot>
       <Suspense
         fallback={
-          <FinderSearchRouteLoadingView proSessionHint={readProSessionHint()} scheme={scheme} />
+          <ClinicsSearchRouteLoadingView proSessionHint={readProSessionHint()} scheme={scheme} />
         }
       >
         <ClinicsPageContent {...props} />
@@ -517,7 +517,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           </div>
         ) : null}
 
-        <FinderResultsTransition>
+        <FinderResultsTransition skeletonVariant="clinics">
           <section className="mt-6">
             {matchingClinicCount === 0 && !dataWarning ? (
               <div className="rounded-2xl border border-dashed border-site-clinical-200 bg-site-white px-5 py-10 text-center">

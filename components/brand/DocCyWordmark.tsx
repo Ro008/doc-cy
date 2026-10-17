@@ -9,16 +9,16 @@ type DocCyWordmarkProps = {
   /** Surface the logo sits on: `dark` uses the reverse artwork (white "my"). */
   variant?: "light" | "dark";
   /**
-   * `md` = every header (user, 2026-10-15: one size site-wide, 32px from tablets up, 28px on
-   * a phone so "Join as a professional" still fits beside it); `xl` = the for-professionals
-   * sales page.
+   * `md` = the professional's own pages (32px from tablets up, 28px on a phone); `lg` =
+   * the public header, bigger so the brand stands out (user, 2026-10-17: 40px, 34px on a
+   * phone); `xl` = the for-professionals sales page.
    */
-  size?: "md" | "xl";
+  size?: "md" | "lg" | "xl";
 };
 
 /** The larger of each size's heights: the image file is fetched at least this tall. */
-const HEIGHT_PX = { md: 32, xl: 42 } as const;
-const HEIGHT_CLASS = { md: "h-7 sm:h-8", xl: "h-[42px]" } as const;
+const HEIGHT_PX = { md: 32, lg: 40, xl: 42 } as const;
+const HEIGHT_CLASS = { md: "h-7 sm:h-8", lg: "h-[34px] sm:h-10", xl: "h-[42px]" } as const;
 
 export function DocCyWordmark({
   className = "",

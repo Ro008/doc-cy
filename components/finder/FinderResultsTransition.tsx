@@ -23,13 +23,18 @@ import { shouldShowFinderResultsSkeleton } from "@/lib/public-search-navigation"
 
 type FinderResultsTransitionProps = {
   children: ReactNode;
+  /** Which placeholder cards to show: the Finder's (default) or the Clinics tab's. */
+  skeletonVariant?: "professionals" | "clinics";
 };
 
 /**
  * On filter / Professionals↔Clinics taps, replace the list with card skeletons
  * immediately so the click feels instant while the next page loads.
  */
-export function FinderResultsTransition({ children }: FinderResultsTransitionProps) {
+export function FinderResultsTransition({
+  children,
+  skeletonVariant = "professionals",
+}: FinderResultsTransitionProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,7 +83,13 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
   }, [pathname, searchParams]);
 
   if (showSkeleton) {
-    return <FinderResultsListSkeleton />;
+    return skeletonVariant === "clinics" ? (
+      <FinderResultsListSkeleton variant="clinics" />
+    ) : (
+      <div className="mt-6">
+        <FinderResultsListSkeleton />
+      </div>
+    );
   }
 
   return <>{children}</>;

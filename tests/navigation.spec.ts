@@ -62,7 +62,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     ]);
   });
 
-  test("doctor profile header links to Join as a professional register", async ({
+  test("profile header (R3 strip): the healthcare professional question and Professional login, no Join", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -81,10 +81,12 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
 
     const header = page.getByTestId("finder-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
-    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveAttribute(
+    await expect(header.getByTestId("finder-top-strip")).toBeVisible();
+    await expect(header.getByRole("link", { name: /are you a healthcare professional?/i })).toHaveAttribute(
       "href",
-      "/register",
+      "/for-professionals",
     );
+    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
     await expect(header.getByRole("link", { name: /professional login/i })).toHaveAttribute(
       "href",
       "/login",

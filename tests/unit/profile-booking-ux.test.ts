@@ -244,15 +244,16 @@ describe("profile polish round (user, 2026-10-14)", () => {
     assert.doesNotMatch(nav, /after:duration-300/);
   });
 
-  // Quieter than the search since the short hero (user, 2026-10-15): an outlined button,
-  // dark teal on white (#0A6B72, about 6.2:1; teal 700 is only about 4.1:1, under WCAG AA).
-  it("the header's join button is outlined, dark teal on white (pale teal on navy in dark), readable (WCAG AA)", () => {
+  // Quieter than the search: an outlined button, dark teal on white (#0A6B72, about 6.2:1;
+  // teal 700 is only about 4.1:1, under WCAG AA). Join left the public header with R3
+  // (user, 2026-10-17); Professional login keeps the outline.
+  it("the header's Professional login is outlined, dark teal on white, readable (WCAG AA)", () => {
     const header = read("components/finder/FinderPublicHeader.tsx");
-    const join = header.slice(header.indexOf("const joinLinkClass"), header.indexOf(";", header.indexOf("const joinLinkClass")));
-    assert.match(join, /border-clinical-500/);
-    assert.match(join, /bg-site-white/);
-    assert.match(join, /text-site-clinical-800/);
-    assert.doesNotMatch(join, /text-white|text-(site-)?clinical-[5-7]00|bg-clinical-500/);
+    const login = header.slice(header.indexOf("const stripLoginClass"), header.indexOf(";", header.indexOf("const stripLoginClass")));
+    assert.match(login, /border-\[#14B8A6\]/);
+    assert.match(login, /bg-site-white/);
+    assert.match(login, /text-\[#0A6B72\]/);
+    assert.doesNotMatch(login, /text-white|bg-clinical-500/);
   });
 
   it("clicking a service remembers it and takes the patient to the calendar, never to the form", () => {

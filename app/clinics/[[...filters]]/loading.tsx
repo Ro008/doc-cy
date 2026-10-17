@@ -1,1 +1,1 @@
-export { default } from "@/components/finder/FinderSearchRouteLoading";
+export { ClinicsRouteLoading as default } from "@/components/finder/FinderSearchRouteLoading";

@@ -75,11 +75,18 @@ describe("the default lives in app_settings.public_default_scheme", () => {
 
 describe("every public page paints the right mode from the first byte", () => {
   it("Finder (home and district pages too), Clinics and loading screens sit in one themed root", () => {
-    for (const file of ["app/finder/[[...filters]]/page.tsx", "app/clinics/[[...filters]]/page.tsx"]) {
+    for (const [file, view] of [
+      ["app/finder/[[...filters]]/page.tsx", "FinderSearchRouteLoadingView"],
+      ["app/clinics/[[...filters]]/page.tsx", "ClinicsSearchRouteLoadingView"],
+    ]) {
       // The fallback is the synchronous view: an async fallback left the page unhydrated.
       assert.match(
         read(file),
-        /<SiteSchemeRoot>\s*<Suspense\s+fallback=\{\s*<FinderSearchRouteLoadingView proSessionHint=\{readProSessionHint\(\)\} scheme=\{scheme\} \/>/,
+        new RegExp(
+          String.raw`<SiteSchemeRoot>\s*<Suspense\s+fallback=\{\s*<` +
+            view +
+            String.raw` proSessionHint=\{readProSessionHint\(\)\} scheme=\{scheme\} \/>`,
+        ),
         file,
       );
       assert.doesNotMatch(read(file), /fallback=\{<FinderSearchRouteLoading \/>\}/, file);
@@ -120,8 +127,8 @@ describe("the public header carries the Light / Dark switch", () => {
     }
   });
 
-  it("says For professionals and Professional login side by side (canvas comment)", () => {
-    assert.match(header, />\s*For professionals\s*</);
+  it("says Are you a healthcare professional? and Professional login side by side (R3, 2026-10-17)", () => {
+    assert.match(header, />\s*Are you a healthcare professional\?\s*</);
     assert.match(header, />\s*Professional login\s*</);
     assert.match(header, /href="\/for-professionals"/);
   });
