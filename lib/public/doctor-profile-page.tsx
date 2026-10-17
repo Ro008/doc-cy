@@ -979,13 +979,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       data-scheme={scheme}
       style={profileThemeStyle()}
     >
-      <div className="border-b border-profile-border bg-profile-surface">
-        <FinderPublicHeader
-          proSessionHint={proSessionHint}
-          scheme={scheme}
-          schemeLabels={{ group: t("schemeGroupLabel"), light: t("schemeLight"), dark: t("schemeDark") }}
-        />
-      </div>
+      <FinderPublicHeader
+        proSessionHint={proSessionHint}
+        scheme={scheme}
+        schemeLabels={{ group: t("schemeGroupLabel"), light: t("schemeLight"), dark: t("schemeDark") }}
+      />
       {!isOwnerView ? (
         <RecordRecentlyViewed
           item={{

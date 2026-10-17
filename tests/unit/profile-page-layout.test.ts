@@ -455,9 +455,10 @@ describe("public profile: all section tabs fit on a phone (user, 2026-10-14)", (
 });
 
 describe("the DocCy logo: one size in every header (user, 2026-10-15)", () => {
-  it("32px from tablets up, 28px on a phone; only the sales page keeps its large logo", () => {
+  it("32px from tablets up, 28px on a phone; the public header 40px (2026-10-17); the sales page its large logo", () => {
     const mark = read("components/brand/DocCyWordmark.tsx");
-    assert.match(mark, /size\?: "md" \| "xl";/);
+    assert.match(mark, /size\?: "md" \| "lg" \| "xl";/);
+    assert.match(mark, /lg: "h-\[34px\] sm:h-10"/);
     assert.match(mark, /md: "h-7 sm:h-8"/);
     for (const file of [
       "components/auth/ForgotPasswordForm.tsx",

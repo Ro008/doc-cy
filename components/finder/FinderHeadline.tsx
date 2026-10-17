@@ -9,9 +9,10 @@ const headlineFont = Plus_Jakarta_Sans({
 /**
  * The Finder's headline in the top strip (mockup R3; user, 2026-10-17): "Cyprus’ doctors,"
  * in navy and "in one search" in teal over a hand-drawn swoosh. Plus Jakarta Sans 800:
- * catches the eye, still sober for a medical site.
+ * catches the eye, still sober for a medical site. On the loading screen the swoosh draws
+ * itself in (`drawSwoosh`; still when the visitor asks for less motion).
  */
-export function FinderHeadline() {
+export function FinderHeadline({ drawSwoosh = false }: { drawSwoosh?: boolean }) {
   return (
     <p
       data-testid="finder-headline"
@@ -26,7 +27,14 @@ export function FinderHeadline() {
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          <path d="M3 10 C 45 3, 120 2, 197 7" fill="none" strokeWidth="4.5" strokeLinecap="round" />
+          <path
+            d="M3 10 C 45 3, 120 2, 197 7"
+            fill="none"
+            strokeWidth="4.5"
+            strokeLinecap="round"
+            pathLength={1}
+            className={drawSwoosh ? "finder-swoosh-draw" : undefined}
+          />
         </svg>
       </span>
     </p>
