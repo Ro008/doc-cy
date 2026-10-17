@@ -9,6 +9,7 @@ import { BookingSection } from "@/components/doctor/BookingSection";
 import { ProfileBookingStepProvider } from "@/components/doctor/profile/ProfileBookingStep";
 import { ProfileClinicChooser } from "@/components/doctor/profile/ProfileClinicChooser";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { HideInstallBanner } from "@/components/pwa/HideInstallBanner";
 import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButton";
 import {
   FINDER_POPUP_HISTORY_KEY,
@@ -20,6 +21,9 @@ import {
 import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { requestProfileServiceSelect } from "@/lib/public/profile-booking-events";
+
+/** Service chips shown before "Show all". */
+const FINDER_POPUP_SERVICES_SHOWN = 6;
 
 type OpenRequest = { locationId: string | null; slotKey: string | null };
 type Current = OpenRequest & { professional: FinderPopupProfessional };
@@ -185,6 +189,8 @@ function FinderProfilePopup({
   // The card's time is for the card's clinic, once: another clinic starts on its own next time.
   const [slotKey, setSlotKey] = React.useState<string | null>(current.slotKey);
   const [serviceId, setServiceId] = React.useState<string | null>(null);
+  // A long list of services would push her calendar down: the first few, then "Show all".
+  const [allServices, setAllServices] = React.useState(false);
 
   React.useEffect(() => {
     setHost(document.querySelector(".doccy-profile") ?? document.body);
@@ -258,6 +264,8 @@ function FinderProfilePopup({
         data-testid="finder-profile-popup"
         className="relative mx-auto max-w-[1040px] bg-profile-bg text-profile-body shadow-2xl outline-none max-sm:min-h-full sm:rounded-[28px]"
       >
+        {/* The "Add DocCy to your Home Screen" banner would cover the pop-up on a phone. */}
+        <HideInstallBanner />
         <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-6 sm:pt-5">
           <a
             href={profileHref}
@@ -351,7 +359,7 @@ function FinderProfilePopup({
                 </h3>
                 <p className="mt-0.5 text-sm text-profile-muted">Pick one, then a time. You can change it in the form.</p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
-                  {data.services.map((service) => {
+                  {(allServices ? data.services : data.services.slice(0, FINDER_POPUP_SERVICES_SHOWN)).map((service) => {
                     const picked = service.id === serviceId;
                     return (
                       <button
@@ -372,6 +380,16 @@ function FinderProfilePopup({
                       </button>
                     );
                   })}
+                  {!allServices && data.services.length > FINDER_POPUP_SERVICES_SHOWN ? (
+                    <button
+                      type="button"
+                      onClick={() => setAllServices(true)}
+                      data-testid="finder-popup-services-more"
+                      className="inline-flex min-h-10 items-center px-2 text-sm font-bold text-accent-link underline-offset-4 hover:underline"
+                    >
+                      Show all {data.services.length}
+                    </button>
+                  ) : null}
                 </div>
               </section>
             ) : null}

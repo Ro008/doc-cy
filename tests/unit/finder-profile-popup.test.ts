@@ -186,8 +186,14 @@ describe("the pop-up (mockup F, teal band kept: user, 2026-10-17)", () => {
     assert.match(source, /window\.history\.back\(\)/);
   });
 
-  it("fills the screen on a phone", () => {
+  it("fills the screen on a phone, without the install banner over it", () => {
     assert.match(popup(), /max-sm:min-h-full/);
+    assert.match(popup(), /<HideInstallBanner \/>/);
+  });
+
+  it("a long list of services shows the first few, then Show all (not to push the calendar down)", () => {
+    assert.match(popup(), /FINDER_POPUP_SERVICES_SHOWN = 6/);
+    assert.match(popup(), /Show all \{data\.services\.length\}/);
   });
 
   it("the booking form can refresh the pop-up's times instead of the page", () => {
