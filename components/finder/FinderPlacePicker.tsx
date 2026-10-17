@@ -13,6 +13,8 @@ type FinderPlacePickerProps = {
   locating: boolean;
   disabled?: boolean;
   triggerClass: string;
+  /** Classes for the wrapper (its place in the search row). */
+  className?: string;
   onPickDistrict: (district: string) => void;
   onPickTown: (option: CyprusTownOption) => void;
   onNearMe: () => void;
@@ -24,7 +26,8 @@ const rowClass =
 /**
  * One "District or town" picker (canvas mockup E, in G): Near me, the districts, then a
  * town or village search. Picking a district fills the field; a town or Near me searches
- * at once, as before.
+ * at once, as before. One line in the header (mockup R3): the place alone, its name for
+ * screen readers.
  */
 export function FinderPlacePicker({
   districts,
@@ -34,6 +37,7 @@ export function FinderPlacePicker({
   locating,
   disabled,
   triggerClass,
+  className = "relative min-w-0 flex-1 basis-[180px]",
   onPickDistrict,
   onPickTown,
   onNearMe,
@@ -82,7 +86,7 @@ export function FinderPlacePicker({
   };
 
   return (
-    <div ref={wrapRef} className="relative min-w-0 flex-1 basis-[180px]">
+    <div ref={wrapRef} className={className}>
       <button
         id="finder-place-filter"
         type="button"
@@ -91,17 +95,15 @@ export function FinderPlacePicker({
         aria-expanded={open}
         aria-controls="finder-place-listbox"
         data-testid="finder-place-trigger"
+        aria-label={`District or town: ${label}`}
         onClick={() => (open ? close() : setOpen(true))}
         onKeyDown={(event) => {
           if (event.key === "Escape") close();
         }}
         className={triggerClass}
       >
-        <MapPin className="h-[17px] w-[17px] shrink-0 text-site-clinical-700" strokeWidth={2} aria-hidden />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-site-ink-600">District or town</span>
-          <span className="truncate text-[15px] font-bold text-site-ink-900">{label}</span>
-        </span>
+        <MapPin className="h-[17px] w-[17px] shrink-0 text-[#0A6B72] [.doccy-profile[data-scheme=dark]_&]:text-[#7FE6EB]" strokeWidth={2} aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-site-ink-900">{label}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-site-ink-500 transition ${open ? "rotate-180" : ""}`}
           strokeWidth={2}
@@ -110,7 +112,7 @@ export function FinderPlacePicker({
       </button>
 
       {open ? (
-        <div className="absolute left-0 z-40 mt-2 sm:left-auto sm:right-0 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-site-ink-200 bg-site-white p-2.5 shadow-lg">
+        <div className="absolute inset-x-0 z-40 mt-2 rounded-2xl sm:left-auto sm:right-0 sm:w-[380px] border border-site-ink-200 bg-site-white p-2.5 shadow-lg">
           <button
             type="button"
             onClick={() => {

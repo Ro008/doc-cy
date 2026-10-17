@@ -26,29 +26,24 @@ describe("the place picker says what is searched (Finder G, step 2)", () => {
   });
 });
 
-describe("G's search sits in the header (user, 2026-10-16)", () => {
+describe("the search sits in the header (G step 2, then mockup R3)", () => {
   const page = read("app/finder/[[...filters]]/page.tsx");
   const header = read("components/finder/FinderPublicHeader.tsx").replace(/\r\n/g, "\n");
   const search = read("components/finder/FinderHeaderSearch.tsx");
 
-  it("the header takes the search between the logo and the links", () => {
+  it("the header takes the search in its own row under the strip", () => {
     assert.match(header, /search\?: React\.ReactNode/);
     assert.match(header, /data-testid="finder-header-search-slot"/);
     assert.match(page, /<FinderPublicHeader[\s\S]*?search=\{\s*<FinderHeaderSearch\b/);
   });
 
-  it("as in G: one row from xl with the switch, For professionals and Professional login; no Join", () => {
-    assert.match(header, /xl:order-2 xl:flex-\[999_1_480px\]/);
-    const finderNav = header.slice(header.indexOf("{search ? (\n          // G"), header.indexOf(") : (\n        <div"));
-    assert.ok(finderNav.length > 0, "the Finder's own nav");
-    assert.match(finderNav, /<SiteSchemeToggle\b/);
-    assert.match(finderNav, />\s*For professionals\s*</);
-    assert.match(finderNav, />\s*Professional login\s*</);
-    assert.doesNotMatch(finderNav, /Join as a professional|\/register/);
+  it("no Join on the Finder (user, 2026-10-16)", () => {
+    const finderChrome = header.slice(header.indexOf("if (search) {"), header.indexOf("\n  return (\n    <header"));
+    assert.ok(finderChrome.length > 0, "the Finder's own chrome");
+    assert.doesNotMatch(finderChrome, /Join as a professional|\/register/);
   });
 
-  it("specialty, one District or town picker with Near me, and Search", () => {
-    assert.match(search, /<FinderSpecialtyCombobox\b/);
+  it("one District or town picker with Near me and a town search, and Search", () => {
     assert.match(search, /<FinderPlacePicker\b/);
     assert.match(search, />\s*Search\s*</);
     const picker = read("components/finder/FinderPlacePicker.tsx");
@@ -57,21 +52,10 @@ describe("G's search sits in the header (user, 2026-10-16)", () => {
     assert.match(picker, /suggestFinderTowns\(/);
   });
 
-  it("no name field until the filter panel (step 3); a ?name= link still works", () => {
-    assert.doesNotMatch(search, /finder-name-filter/);
-    assert.match(search, /activeName/);
-  });
-
   it("the hero, its picture, the teal band and the Professionals / Clinics switch are gone", () => {
     for (const gone of ["FinderHeroSection", "FinderSearchBar", "FinderAudienceToggle", "FinderHeroBookOnlineLine"]) {
       assert.doesNotMatch(page, new RegExp(`<${gone}\\b`), gone);
     }
-  });
-
-  it("the intro line sits above the header and its search (user, 2026-10-16)", () => {
-    const intro = page.indexOf('data-testid="finder-intro"');
-    assert.ok(intro > 0, "finder-intro");
-    assert.ok(intro < page.indexOf("<FinderPublicHeader"), "intro before the header");
   });
 
   it("the heading with the count and Clear search under the header", () => {

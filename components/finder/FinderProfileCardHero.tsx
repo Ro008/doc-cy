@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Languages, Star, Users } from "lucide-react";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderCardPhotoZoom } from "@/components/finder/FinderCardPhotoZoom";
 import { FinderCardReviewsButton } from "@/components/finder/FinderCardReviewsButton";
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -18,6 +19,7 @@ export function FinderProfileCardHero({
   href,
   hrefLabel,
   photo,
+  zoomPhoto = null,
   rating = null,
   professionalId,
   specialties,
@@ -35,6 +37,8 @@ export function FinderProfileCardHero({
   hrefLabel: string;
   /** The photo, or the default avatar (an <img> filling the tile). */
   photo: ReactNode;
+  /** Her own photo, opened larger on a click (mockup R3); null for a default avatar. */
+  zoomPhoto?: { src: string } | null;
   rating?: FinderRating | null;
   professionalId: string;
   specialties: readonly string[];
@@ -62,7 +66,11 @@ export function FinderProfileCardHero({
       data-testid="finder-card-hero"
       className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)] content-start items-start gap-x-3 gap-y-3 rounded-[20px] bg-[#EEF6F7] p-4 text-[#3B4F63] [.doccy-profile[data-scheme=dark]_&]:bg-[#17335A] [.doccy-profile[data-scheme=dark]_&]:text-[#CBD5E1] sm:grid-cols-[96px_minmax(0,1fr)] sm:gap-x-5 sm:px-6 sm:py-[22px] lg:grid-cols-[72px_minmax(0,1fr)] lg:p-[22px]"
     >
-      {href ? (
+      {zoomPhoto ? (
+        <FinderCardPhotoZoom src={zoomPhoto.src} name={name} meta={pills.join(" · ")} className={tile}>
+          {photo}
+        </FinderCardPhotoZoom>
+      ) : href ? (
         <PendingLink
           href={href}
           navigationReason="profile"

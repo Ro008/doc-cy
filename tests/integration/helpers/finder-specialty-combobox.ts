@@ -1,7 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Opens the finder specialty combobox (labelled "Specialty"). */
+/** The "Specialty or name" field (mockup R3): an input that lists specialties on focus. */
 export function finderSpecialtyTrigger(page: Page): Locator {
   return page.getByTestId("finder-specialty-trigger");
 }
@@ -32,11 +32,11 @@ export async function selectFinderSpecialty(page: Page, slug: string): Promise<v
   await openFinderSpecialtyCombobox(page);
   const option = finderSpecialtyOption(page, slug);
   await expect(option).toHaveCount(1, { timeout: 20_000 });
-  await option.getByRole("button").click();
+  await option.click();
   await expect(finderSpecialtyTrigger(page)).toHaveAttribute("aria-expanded", "false");
 }
 
-/** Non-empty specialty slugs currently offered in the finder combobox. */
+/** Every specialty slug the field offers before anything is typed. */
 export async function listFinderSpecialtySlugs(page: Page): Promise<string[]> {
   await openFinderSpecialtyCombobox(page);
   const values = await page.locator('[role="option"][data-value]').evaluateAll((els) =>
@@ -75,10 +75,7 @@ export function finderClearSearch(page: Page): Locator {
   return page.getByTestId("finder-clear-search").getByRole("link", { name: "Clear search" });
 }
 
-/**
- * Name search returns with the filter panel (step 3); until then a ?name= link still
- * filters the current page.
- */
+/** A name search by URL (the field does the same through "Every professional named …"). */
 export async function gotoFinderName(page: Page, name: string): Promise<void> {
   const url = new URL(page.url());
   url.searchParams.set("name", name);

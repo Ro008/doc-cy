@@ -433,9 +433,11 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         "href",
         `/en/${created.slug}`,
       );
+      // Her own photo opens larger instead of linking to her page (mockup R3).
       await expect(
-        card.getByRole("link", { name: `View ${created.name} booking page` }),
-      ).toHaveAttribute("href", `/en/${created.slug}`);
+        card.getByRole("button", { name: `Show the photo of ${created.name} larger` }),
+      ).toBeVisible();
+      await expect(card.getByRole("link", { name: `View ${created.name} booking page` })).toHaveCount(0);
 
       const avatar = card.locator("img").first();
       await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));
@@ -546,10 +548,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
 
       const specialtySelect = page.getByTestId("finder-specialty-trigger");
       await selectFinderSpecialty(page, "dentist");
-      await expect(specialtySelect).toContainText("Dentist");
+      await expect(specialtySelect).toHaveValue("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
-      await expect(specialtySelect).toContainText("Dentist", {
+      await expect(specialtySelect).toHaveValue("Dentist", {
         timeout: 60_000,
       });
 

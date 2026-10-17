@@ -42,17 +42,16 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
 
-  test("finder header (G): For professionals and Professional login, no Join", async ({ page }) => {
+  test("finder header (R3): the healthcare professional question and Professional login, no Join", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
 
     const header = page.getByTestId("finder-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
 
-    await expect(header.getByRole("link", { name: /for professionals/i })).toHaveAttribute(
-      "href",
-      "/for-professionals",
-    );
+    await expect(
+      header.getByRole("link", { name: /are you a healthcare professional?/i }),
+    ).toHaveAttribute("href", "/for-professionals");
     const loginLink = header.getByRole("link", { name: /professional login/i });
     await expect(loginLink).toHaveAttribute("href", "/login");
     await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
@@ -92,7 +91,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     );
   });
 
-  test("finder header on a phone keeps Professional login; For professionals is desktop only", async ({
+  test("finder header on a phone keeps Professional login; the question sits beside the switch", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -105,7 +104,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     const loginLink = header.getByRole("link", { name: /professional login/i });
     await expect(loginLink).toBeVisible();
     await expect(loginLink).toHaveAttribute("href", "/login");
-    await expect(header.getByRole("link", { name: /for professionals/i })).toBeHidden();
+    await expect(header.getByTestId("finder-row-ask").getByRole("link")).toBeVisible();
     await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
   });
 
