@@ -101,8 +101,7 @@ export type FinderDayStripTimeGrid = {
 
 /**
  * How the chosen day's times fill the card's three rows (mockup L, 2026-10-16): every time while they
- * fit; when they no longer do, the last cell becomes All times (her profile until the
- * profile pop-up of step 5).
+ * fit; when they no longer do, the last cell becomes All times (it opens the profile pop-up).
  */
 export function finderDayStripTimeGrid(count: number): FinderDayStripTimeGrid {
   const fit = (cells: number) =>

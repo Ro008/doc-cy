@@ -74,10 +74,11 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
       .first();
     await expect(profileLink).toBeVisible({ timeout: 30_000 });
 
-    await Promise.all([
-      page.waitForURL(/\/(?:en|el)\/[^/?#]+\/?(?:[?#].*)?$/, { timeout: 30_000 }),
-      profileLink.click(),
-    ]);
+    // A registered card's name opens the pop-up over the Finder (mockup F), so go to the
+    // page its link points at, as a new tab would.
+    const href = await profileLink.getAttribute("href");
+    expect(href).toMatch(/^\/(?:en|el)\/[^/?#]+/);
+    await page.goto(href!);
 
     const header = page.getByTestId("finder-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });

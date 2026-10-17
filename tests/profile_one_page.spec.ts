@@ -65,36 +65,39 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(nav).toBeInViewport();
   });
 
-  test("opens in light; anyone can switch to dark and it is remembered", async ({ page }) => {
-    // Light by default, even on a device set to dark.
-    await page.emulateMedia({ colorScheme: "dark" });
+  test("opens in the site's default; anyone can switch and it is remembered", async ({ page }) => {
+    // The founders' default (light or dark: Testing is set to dark), whatever the device says.
+    const background = { light: "rgb(246, 250, 251)", dark: "rgb(8, 20, 42)" } as const;
+    await page.emulateMedia({ colorScheme: "light" });
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".doccy-profile")).toBeVisible({ timeout: 15000 });
-    expect(await profileBackground(page)).toBe("rgb(246, 250, 251)");
+    const initial = (await page.locator(".doccy-profile").first().getAttribute("data-scheme")) as "light" | "dark";
+    expect(["light", "dark"]).toContain(initial);
+    const other = initial === "light" ? "dark" : "light";
+    expect(await profileBackground(page)).toBe(background[initial]);
 
     const modes = page.getByRole("group", { name: "Colour mode" });
-    const dark = modes.getByRole("button", { name: "Dark" });
-    const light = modes.getByRole("button", { name: "Light" });
-    await expect(light).toHaveAttribute("aria-pressed", "true");
+    const button = (mode: "light" | "dark") => modes.getByRole("button", { name: mode === "light" ? "Light" : "Dark" });
+    await expect(button(initial)).toHaveAttribute("aria-pressed", "true");
 
     // Server-rendered: retry the click until hydration has wired it.
     await expect(async () => {
-      await dark.click();
-      await expect(dark).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+      await button(other).click();
+      await expect(button(other)).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
     }).toPass({ timeout: 15_000 });
-    await expect.poll(() => profileBackground(page)).toBe("rgb(8, 20, 42)");
+    await expect.poll(() => profileBackground(page)).toBe(background[other]);
 
-    // Remembered on reload (cookie read by the server: no flash of light).
+    // Remembered on reload (cookie read by the server: no flash of the default).
     await page.reload({ waitUntil: "domcontentloaded" });
-    expect(await profileBackground(page)).toBe("rgb(8, 20, 42)");
+    expect(await profileBackground(page)).toBe(background[other]);
 
-    await expect(dark).toHaveAttribute("aria-pressed", "true");
+    await expect(button(other)).toHaveAttribute("aria-pressed", "true");
     // Reloaded page: same hydration wait before the click counts.
     await expect(async () => {
-      await light.click();
-      await expect(light).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+      await button(initial).click();
+      await expect(button(initial)).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
     }).toPass({ timeout: 15_000 });
-    await expect.poll(() => profileBackground(page)).toBe("rgb(246, 250, 251)");
+    await expect.poll(() => profileBackground(page)).toBe(background[initial]);
   });
 
   test("stops animations when the patient reduces motion", async ({ page }) => {

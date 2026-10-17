@@ -35,13 +35,11 @@ import { RevealMobileButton } from "@/components/doctor/profile/RevealMobileButt
 import { ProfileStars } from "@/components/doctor/profile/ProfileStars";
 import { getSiteScheme } from "@/lib/site-default-scheme";
 import { SiteSchemeRoot } from "@/components/site/SiteSchemeRoot";
-import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
+import { bookingPropsForSettingsRow, clinicAvailabilityDays } from "@/lib/public/professional-booking-props";
+import { loadProfessionalTakenSlotTimes } from "@/lib/public/professional-taken-slots";
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
 import { buildBookingPanelClinics } from "@/lib/public/profile-booking-panel";
-import {
-  clinicChooserRows,
-  widestBookingHorizonDays,
-} from "@/lib/public/profile-clinic-availability";
+import { clinicChooserRows } from "@/lib/public/profile-clinic-availability";
 import { profileDistricts } from "@/lib/public/profile-districts";
 import { profileBreadcrumbs } from "@/lib/public/profile-breadcrumbs";
 import { buildProfileStructuredData } from "@/lib/public/profile-structured-data";
@@ -64,17 +62,11 @@ import { bookingViewerMode, loadBookingAccountKind } from "@/lib/booking-viewer"
 import { hasProAccess } from "@/lib/pro-access";
 import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
 import {
-  OCCUPIED_BATCH_RPC,
-  takenSlotTimesFor,
-  type OccupiedRow,
-} from "@/lib/public/load-doctor-next-available-slot";
-import {
   buildWeeklyScheduleFromSettings,
   settingsToWeeklySlots,
   type DayKey,
 } from "@/lib/doctor-settings";
-import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { Languages, MapPin, Users } from "lucide-react";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
@@ -89,7 +81,6 @@ import {
   profileShareCardPath,
   profileShareCardVersion,
 } from "@/lib/public/profile-share-card";
-import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
@@ -709,44 +700,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     (locationSettings as { break_end?: string | null } | null)?.break_end ??
     null;
 
-  // Busy instants only (RLS blocks direct reads on appointments for anon).
-  const nowUtc = new Date();
-  const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
   // Each clinic has its own limit (user, 2026-10-11); her busy times are loaded once,
   // far enough ahead for the longest one, because the hero shows every clinic's next time.
   const settingsRowFor = (location: (typeof practiceLocations)[number]) =>
     locationToSettingsRow(location, normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK);
-  const maxHorizonDays = widestBookingHorizonDays(
+  const takenSlotTimes = await loadProfessionalTakenSlotTimes(
+    supabase,
+    profile.id,
     practiceLocations.map((location) => settingsRowFor(location).booking_horizon_days),
-  );
-  const todayCyprus = utcToZonedTime(nowUtc, CY_TZ);
-  const lastBookableDay = addDays(todayCyprus, maxHorizonDays);
-  // End of the day after last bookable date (Cyprus): covers late slots + long visit durations vs POST /api/appointments.
-  const occupiedRangeEndCyprus = addDays(lastBookableDay, 1);
-  const toIso = zonedTimeToUtc(
-    `${format(occupiedRangeEndCyprus, "yyyy-MM-dd")}T23:59:59.999`,
-    CY_TZ,
-  ).toISOString();
-
-  // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
-  // No p_location_id: one professional, one agenda, so a visit in any clinic blocks the time.
-  const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
-    OCCUPIED_BATCH_RPC,
-    {
-      p_professional_ids: [profile.id],
-      p_from: fromIso,
-      p_to: toIso,
-    },
-  );
-
-  if (occupiedErr) {
-    console.error(`[DocCy] ${OCCUPIED_BATCH_RPC} failed:`, occupiedErr);
-  }
-
-  const takenSlotTimes: string[] = takenSlotTimesFor(
-    (occupiedRows ?? []) as OccupiedRow[],
-    { professionalId: profile.id, toIso },
   );
 
   if (servicesErr) {
@@ -801,26 +762,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   // BookingSection and that clinic's own schedule, notice and horizon.
   const clinicSources = practiceLocations.map((location, index) => {
       const row = settingsRowFor(location);
-      const paused = Boolean(row.pause_online_bookings);
       return {
         id: location.id,
         title: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
         place: String(location.town ?? "").trim() || String(location.district ?? "").trim() || null,
-        paused,
-        days:
-          paused || accessEnded
-            ? []
-            : computePublicAvailabilityCalendar({
-                weeklySlots: settingsToWeeklySlots(row),
-                takenSlotTimes,
-                breakStart: row.break_start ? row.break_start.slice(0, 5) : undefined,
-                breakEnd: row.break_end ? row.break_end.slice(0, 5) : undefined,
-                holidayModeEnabled,
-                holidayStartDate,
-                holidayEndDate,
-                bookingHorizonDays: row.booking_horizon_days ?? 90,
-                minimumNoticeHours: row.minimum_notice_hours ?? 2,
-              }).days,
+        paused: Boolean(row.pause_online_bookings),
+        // The same rules as the Finder's pop-up (lib/public/professional-booking-props).
+        days: clinicAvailabilityDays(bookingPropsForSettingsRow(row, { accessEnded }), takenSlotTimes),
       };
   });
   // "Choose a clinic": every clinic of hers, each with its next free time.

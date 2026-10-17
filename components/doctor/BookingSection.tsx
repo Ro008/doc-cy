@@ -150,6 +150,13 @@ type BookingSectionProps = {
   layout?: "page" | "panel";
   /** Panel only: shown next to the details form in the dialog ("What to expect"). */
   detailsAside?: React.ReactNode;
+  /**
+   * A refused time means the booked times are stale. The profile reloads the page; the
+   * Finder's pop-up reloads only its own times (the Finder under it stays as it is).
+   */
+  onTimesStale?: () => void;
+  /** One of her services already picked (the Finder pop-up's service chips). */
+  initialServiceId?: string | null;
 };
 
 type SlotOption = {
@@ -183,6 +190,8 @@ export function BookingSection({
   services = [],
   layout = "page",
   detailsAside = null,
+  onTimesStale,
+  initialServiceId = null,
 }: BookingSectionProps) {
   const panel = layout === "panel";
   // The panel is already a card: its states are plain blocks inside it.
@@ -226,8 +235,12 @@ export function BookingSection({
   const [visitReason, setVisitReason] = React.useState("");
   const serviceOptions = bookingServiceOptions(services, t("serviceOther"));
   /** null: no picker (she lists no services); "": nothing chosen yet; a service id or "other". */
-  const [serviceChoice, setServiceChoice] = React.useState<string | null>(
-    serviceOptions.length > 0 ? "" : null,
+  const [serviceChoice, setServiceChoice] = React.useState<string | null>(() =>
+    serviceOptions.length === 0
+      ? null
+      : initialServiceId && services.some((service) => service.id === initialServiceId)
+        ? initialServiceId
+        : "",
   );
   // The free text is optional once one of her services is picked; required with Other,
   // with nothing picked yet, or when she lists no services.
@@ -679,7 +692,8 @@ export function BookingSection({
               const refusedKey = selectedSlot.slotKey;
               setRefusedSlotKeys((hidden) => hideRefusedSlot(hidden, refusedKey, refusal));
               // Reload the booked times too: whatever else was taken meanwhile drops out as well.
-              router.refresh();
+              if (onTimesStale) onTimesStale();
+              else router.refresh();
               setSelectedSlot(null);
               setShowContactForm(false);
             }
