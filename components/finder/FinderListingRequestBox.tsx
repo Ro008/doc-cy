@@ -59,11 +59,12 @@ export function FinderListingRequestBox({
           </p>
         ) : null}
         <div className="mt-0.5 flex w-full max-w-[287px] flex-col gap-2">
+          {/* Pale teal, not the bright button (mockup R3; user, 2026-10-16: too strong). */}
           <button
             type="button"
             {...{ [FINDER_MANUAL_REQUEST_ATTR]: "" }}
             data-testid="finder-manual-request-online-booking"
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-[14px] border-b-[3px] border-[#0D8A94] bg-[#12B8C0] px-[18px] text-base font-extrabold text-[#062F61] shadow-[0_6px_16px_rgba(18,184,192,0.35)] transition-none hover:brightness-105 active:translate-y-px active:border-b-2"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-[14px] border border-[#9CD3D8] bg-[#E3F4F6] px-[18px] text-base font-bold text-[#0A5C63] transition-none hover:bg-[#D5EEF0] active:translate-y-px [.doccy-profile[data-scheme=dark]_&]:border-[#2E6E8E] [.doccy-profile[data-scheme=dark]_&]:bg-[#0E3358] [.doccy-profile[data-scheme=dark]_&]:text-[#7FE6EB] [.doccy-profile[data-scheme=dark]_&]:hover:bg-[#123E68]"
           >
             <CalendarPlus className="h-[18px] w-[18px] shrink-0" strokeWidth={2.2} aria-hidden />
             {REQUEST_ONLINE_BOOKING_BUTTON_LABEL}

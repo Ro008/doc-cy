@@ -546,10 +546,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
 
       const specialtySelect = page.getByTestId("finder-specialty-trigger");
       await selectFinderSpecialty(page, "dentist");
-      await expect(specialtySelect).toContainText("Dentist");
+      await expect(specialtySelect).toHaveValue("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
-      await expect(specialtySelect).toContainText("Dentist", {
+      await expect(specialtySelect).toHaveValue("Dentist", {
         timeout: 60_000,
       });
 

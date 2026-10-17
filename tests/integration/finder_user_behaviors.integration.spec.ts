@@ -245,7 +245,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
       // Scenario 2: District + specialty narrowing.
       await selectFinderSpecialty(page, "dentist");
-      await expect(specialtySelect).toContainText("Dentist");
+      await expect(specialtySelect).toHaveValue("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(
@@ -253,7 +253,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       ).toBeVisible({
         timeout: 60_000,
       });
-      await expect(specialtySelect).toContainText("Dentist", {
+      await expect(specialtySelect).toHaveValue("Dentist", {
         timeout: 60_000,
       });
       await expectRegisteredDoctorViaNameFilter(page, created[1].name);
@@ -304,7 +304,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
     const specialtySelect = page.getByTestId("finder-specialty-trigger");
     await selectFinderSpecialty(page, "otorhinolaryngology");
-    await expect(specialtySelect).toContainText("Otorhinolaryngology");
+    await expect(specialtySelect).toHaveValue("Otorhinolaryngology");
 
     await finderPlaceTrigger(page).click();
     await page.getByRole("button", { name: "Near me", exact: true }).click();
@@ -314,7 +314,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
     await expect(finderPlaceTrigger(page)).toContainText("Near me", {
       timeout: 20_000,
     });
-    await expect(specialtySelect).toContainText("Otorhinolaryngology");
+    await expect(specialtySelect).toHaveValue("Otorhinolaryngology");
 
     await finderClearSearch(page).click();
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 20_000 });

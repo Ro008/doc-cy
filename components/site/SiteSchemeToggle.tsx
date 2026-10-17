@@ -12,6 +12,8 @@ const ENGLISH: SiteSchemeLabels = { group: "Light or dark", light: "Light", dark
 type Props = {
   initial: ProfileScheme;
   labels?: SiteSchemeLabels;
+  /** Two icon buttons at every width, no words (the Finder, mockup R3; user, 2026-10-16). */
+  iconsOnly?: boolean;
 };
 
 /**
@@ -19,7 +21,7 @@ type Props = {
  * (every `.doccy-profile` root's `data-scheme`) and remembers it in a cookie for every
  * public page. Wide screens: two labelled buttons. Phones: one small button that flips.
  */
-export function SiteSchemeToggle({ initial, labels = ENGLISH }: Props) {
+export function SiteSchemeToggle({ initial, labels = ENGLISH, iconsOnly = false }: Props) {
   const [scheme, setScheme] = React.useState<ProfileScheme>(initial);
 
   const choose = (next: ProfileScheme) => {
@@ -35,6 +37,35 @@ export function SiteSchemeToggle({ initial, labels = ENGLISH }: Props) {
     { value: "dark", label: labels.dark, Icon: Moon },
   ];
   const other = scheme === "dark" ? options[0] : options[1];
+
+  if (iconsOnly) {
+    return (
+      <div
+        role="group"
+        aria-label={labels.group}
+        className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-profile-border bg-profile-surface p-[3px]"
+      >
+        {options.map(({ value, label, Icon }) => {
+          const pressed = scheme === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={pressed}
+              aria-label={label}
+              title={label}
+              onClick={() => choose(value)}
+              className={`inline-flex h-8 w-9 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                pressed ? "bg-accent-cta text-accent-on-cta" : "text-profile-muted hover:text-profile-text"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <>

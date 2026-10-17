@@ -13,7 +13,8 @@ export type PublicApiRateLimitBucket =
   | "clinicSearch"
   | "registerContactCheck"
   | "signIn"
-  | "profileReviews";
+  | "profileReviews"
+  | "professionalNameSuggest";
 
 type RateLimitConfig = {
   limit: number;
@@ -58,6 +59,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   signIn: { limit: 30, windowMs: 60 * 60 * 1000 },
   /** A professional's reviews opened from her finder card (reads of what her profile shows). */
   profileReviews: { limit: 120, windowMs: 60 * 60 * 1000 },
+  /** The Finder's name suggestions: one lookup per pause while typing a name. */
+  professionalNameSuggest: { limit: 300, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

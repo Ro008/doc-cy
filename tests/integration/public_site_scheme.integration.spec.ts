@@ -26,7 +26,7 @@ test.describe("public site Light / Dark", () => {
     await expect(root(page)).toHaveAttribute("data-scheme", "light", { timeout: 20_000 });
 
     const header = page.getByTestId("finder-public-header");
-    await expect(header.getByRole("link", { name: "For professionals" })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Are you a healthcare professional?" })).toBeVisible();
     await expect(header.getByRole("link", { name: "Professional login" })).toBeVisible();
 
     await expect(async () => {
