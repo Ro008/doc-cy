@@ -1,6 +1,6 @@
 "use client";
 
-import { PendingLink } from "@/components/navigation/PendingLink";
+import { FinderPopupLink } from "@/components/finder/FinderProfilePopup";
 import { finderCardTimesAreaClass } from "@/components/finder/finder-availability-layout";
 import { FinderCardWeek } from "@/components/finder/FinderCardWeek";
 import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
@@ -24,8 +24,9 @@ const softButtonClass =
 /**
  * The week of a clinic that takes online bookings (mockup L; user, 2026-10-16), then the
  * chosen day's times, which link straight to booking: three rows, 6 a row from sm and 4 on
- * a phone; when they no longer fit, the last cell is All times (her profile until the
- * profile pop-up of step 5). Holiday mode needs nothing of its own: Next free skips it.
+ * a phone; when they no longer fit, the last cell is All times. Inside a registered card
+ * every link opens the profile pop-up (a time: straight on the booking form), so the
+ * patient stays on the Finder (user, 2026-10-17). Holiday mode needs nothing of its own: Next free skips it.
  */
 export function FinderCardDayStrip({
   calendar,
@@ -55,28 +56,27 @@ export function FinderCardDayStrip({
         {state.kind === "times" ? (
           <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6" data-testid="finder-card-times">
             {state.slots.slice(0, grid.rendered).map((slot, index) => (
-              <PendingLink
+              <FinderPopupLink
                 key={slot.slotKey}
                 href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
-                navigationReason="profile"
+                slotKey={slot.slotKey}
                 aria-label={`Book ${selectedHeader ? finderDayStripLongDate(selectedHeader.dateKey) : ""} at ${slot.timeLabel}`}
                 className={`${timeClass} ${index >= grid.phone.times ? "max-sm:hidden" : ""} ${
                   index >= grid.wide.times ? "sm:hidden" : ""
                 }`}
               >
                 {slot.timeLabel}
-              </PendingLink>
+              </FinderPopupLink>
             ))}
             {grid.phone.allTimes || grid.wide.allTimes ? (
-              <PendingLink
+              <FinderPopupLink
                 href={profileHref}
-                navigationReason="profile"
                 className={`inline-flex min-h-[34px] items-center justify-center rounded-xl px-1 text-[13px] font-bold text-accent-link hover:underline ${
                   grid.phone.allTimes ? "" : "max-sm:hidden"
                 } ${grid.wide.allTimes ? "" : "sm:hidden"}`}
               >
                 All times
-              </PendingLink>
+              </FinderPopupLink>
             ) : null}
           </div>
         ) : state.kind === "none-this-day" ? (
@@ -89,9 +89,9 @@ export function FinderCardDayStrip({
         ) : (
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-sm text-profile-muted">No free times online in the coming weeks.</span>
-            <PendingLink href={profileHref} navigationReason="profile" className={softButtonClass}>
+            <FinderPopupLink href={profileHref} className={softButtonClass}>
               View profile
-            </PendingLink>
+            </FinderPopupLink>
           </div>
         )}
       </div>

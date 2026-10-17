@@ -43,6 +43,10 @@ import { FinderCardHeroMobile } from "@/components/finder/FinderCardHeroMobile";
 import { FinderCardNoOnlineBooking } from "@/components/finder/FinderCardNoOnlineBooking";
 import { FinderProfileCardHero } from "@/components/finder/FinderProfileCardHero";
 import { finderCardPatientsSeenText } from "@/lib/finder-profile-card";
+import { FinderCardPopupScope, FinderProfilePopupProvider } from "@/components/finder/FinderProfilePopup";
+import { EnglishIntlProvider } from "@/components/i18n/EnglishIntlProvider";
+import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
+import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { parsePatientAges, type PatientAges } from "@/lib/settings-profile-details";
 import { loadPublishedRatings } from "@/lib/public/load-profile-reviews";
 import type { FinderRating } from "@/lib/public/profile-reviews";
@@ -1081,6 +1085,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           ) : null}
 
           <section className="mt-6">
+            {/* A card link to more about a registered professional opens her profile over
+                the Finder, booking included (mockup F; user, 2026-10-17). */}
+            <EnglishIntlProvider namespaces={["BookingPage", "DoctorProfilePage"]}>
+            <FinderProfilePopupProvider
+              detailsAside={<WhatToExpectCard />}
+              professionalNotice={<ProfessionalBookingNotice mode="professional" />}
+              ownProfileNotice={<ProfessionalBookingNotice mode="own_profile" />}
+            >
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders} dayCount={FINDER_DAY_STRIP_DAY_COUNT}>
               <div className="flex flex-col gap-7">
                 {visibleCards.map((item, index) => {
@@ -1099,7 +1111,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                   const cardLocation =
                     row.locations.find((loc) => loc.id === item.place?.linkId) ?? null;
                   const cardAddress = cardLocation?.clinic_address ?? row.clinic_address;
-                  return (
+                  const rating = registeredRatings.get(row.id) ?? null;
+                  const card = (
                     // The card as a summary of her profile (mockup L; user, 2026-10-16): the
                     // profile's hero, then the clinic's week beside the clinic.
                     <article key={item.key} data-testid="finder-card" className={finderProfileCardClass}>
@@ -1116,7 +1129,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                           />
                         }
                         zoomPhoto={row.hasOwnPhoto ? { src: row.avatarUrl } : null}
-                        rating={registeredRatings.get(row.id) ?? null}
+                        rating={rating}
                         professionalId={row.id}
                         specialties={row.specialties}
                         specialty={row.specialty ?? "Specialty not set"}
@@ -1160,6 +1173,28 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         )}
                       </div>
                     </article>
+                  );
+                  if (!row.slug) return card;
+                  return (
+                    <FinderCardPopupScope
+                      key={item.key}
+                      locationId={item.place?.linkId ?? null}
+                      professional={{
+                        id: row.id,
+                        slug: row.slug,
+                        name: row.displayName,
+                        avatarUrl: row.avatarUrl,
+                        hasOwnPhoto: row.hasOwnPhoto,
+                        specialties: row.specialties,
+                        district: row.district ?? null,
+                        isGesy: row.isGesy,
+                        languages: finderCardLanguagesText(row.languages),
+                        patientsSeen: finderCardPatientsSeenText(row.patientsSeen),
+                        rating: rating ? { average: rating.average, count: rating.count } : null,
+                      }}
+                    >
+                      {card}
+                    </FinderCardPopupScope>
                   );
                 }
 
@@ -1253,6 +1288,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               ) : null}
               </div>
             </FinderResultsAvailabilityShell>
+            </FinderProfilePopupProvider>
+            </EnglishIntlProvider>
           </section>
 
           <footer className="mt-12 border-t border-site-ink-200 pt-6 pb-2">

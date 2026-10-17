@@ -14,7 +14,8 @@ export type PublicApiRateLimitBucket =
   | "registerContactCheck"
   | "signIn"
   | "profileReviews"
-  | "professionalNameSuggest";
+  | "professionalNameSuggest"
+  | "professionalBooking";
 
 type RateLimitConfig = {
   limit: number;
@@ -61,6 +62,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   profileReviews: { limit: 120, windowMs: 60 * 60 * 1000 },
   /** The Finder's name suggestions: one lookup per pause while typing a name. */
   professionalNameSuggest: { limit: 300, windowMs: 60 * 60 * 1000 },
+  /** The Finder's profile pop-up: one read per pop-up opened, again after a refused time. */
+  professionalBooking: { limit: 200, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

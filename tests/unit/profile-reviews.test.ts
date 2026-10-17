@@ -210,7 +210,7 @@ describe("the finder card shows the note", () => {
     const finder = read("app/finder/[[...filters]]/page.tsx");
     const visible = finder.indexOf("const visibleRegisteredIds =");
     const load = finder.indexOf("loadPublishedRatings(");
-    const card = finder.indexOf("rating={registeredRatings.get(");
+    const card = finder.indexOf("const rating = registeredRatings.get(");
     assert.ok(visible > 0 && load > visible, "loads after the page is cut to the visible cards");
     assert.ok(card > load, "the card uses what was loaded");
     assert.match(finder, /loadPublishedRatings\(\s*supabase,\s*visibleRegisteredIds,/);

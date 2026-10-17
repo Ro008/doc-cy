@@ -28,6 +28,11 @@ type Props = {
     callToBook: string;
     noTimes: string;
   };
+  /**
+   * The Finder's pop-up switches clinic in place (no page to load): each row is then a
+   * button. Without it, a row is a link to the profile for that clinic.
+   */
+  onSelect?: (id: string) => void;
 };
 
 const ROW_CLASS =
@@ -40,7 +45,7 @@ const ROW_CLASS =
  * page for it (`?location=`), with its next free time picked in the calendar below; the
  * chosen clinic's own row goes back to that time. Nothing with a single clinic.
  */
-export function ProfileClinicChooser({ rows, labels }: Props) {
+export function ProfileClinicChooser({ rows, labels, onSelect }: Props) {
   if (rows.length < 2) return null;
 
   return (
@@ -100,6 +105,14 @@ export function ProfileClinicChooser({ rows, labels }: Props) {
                     if (row.dateKey) requestProfileDaySelect(row.dateKey, row.slotKey);
                   }}
                   className={`${ROW_CLASS} border-accent-cta bg-profile-surface`}
+                >
+                  {body}
+                </button>
+              ) : onSelect ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(row.id)}
+                  className={`${ROW_CLASS} border-profile-border bg-profile-surface hover:border-accent-cta`}
                 >
                   {body}
                 </button>

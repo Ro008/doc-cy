@@ -4,7 +4,7 @@ import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderCardPhotoZoom } from "@/components/finder/FinderCardPhotoZoom";
 import { FinderCardReviewsButton } from "@/components/finder/FinderCardReviewsButton";
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
-import { PendingLink } from "@/components/navigation/PendingLink";
+import { FinderPopupLink } from "@/components/finder/FinderProfilePopup";
 import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 import type { FinderRating } from "@/lib/public/profile-reviews";
 
@@ -71,30 +71,21 @@ export function FinderProfileCardHero({
           {photo}
         </FinderCardPhotoZoom>
       ) : href ? (
-        <PendingLink
-          href={href}
-          navigationReason="profile"
-          fill
-          prefetch={false}
-          aria-label={hrefLabel}
-          className={tile}
-        >
+        <FinderPopupLink href={href} fill aria-label={hrefLabel} className={tile}>
           {photo}
-        </PendingLink>
+        </FinderPopupLink>
       ) : (
         <div className={tile}>{photo}</div>
       )}
 
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3.5 gap-y-1 self-center">
         {href ? (
-          <PendingLink
+          <FinderPopupLink
             href={href}
-            navigationReason="profile"
-            prefetch={false}
             className="text-xl font-bold leading-[1.15] tracking-[-0.015em] text-profile-text transition-none hover:underline sm:text-[26px] lg:text-[22px]"
           >
             {name}
-          </PendingLink>
+          </FinderPopupLink>
         ) : (
           <p className="text-xl font-bold leading-[1.15] tracking-[-0.015em] text-profile-text sm:text-[26px] lg:text-[22px]">{name}</p>
         )}

@@ -213,9 +213,12 @@ describe("public profile: one page with anchor tabs", () => {
   it("shows each clinic's next free time in \"Choose a clinic\"", () => {
     assert.match(page, /<ProfileClinicChooser\b/);
     assert.match(page, /clinicChooserRows\(/);
-    assert.match(page, /computePublicAvailabilityCalendar\(/);
+    // Each clinic's days by the rules the Finder's pop-up uses too.
+    assert.match(page, /clinicAvailabilityDays\(bookingPropsForSettingsRow\(/);
+    assert.match(read("lib/public/professional-booking-props.ts"), /computePublicAvailabilityCalendar\(/);
     // Her busy times are loaded far enough ahead for the clinic with the longest horizon.
-    assert.match(page, /widestBookingHorizonDays\(/);
+    assert.match(page, /loadProfessionalTakenSlotTimes\(/);
+    assert.match(read("lib/public/professional-taken-slots.ts"), /widestBookingHorizonDays\(/);
     const chooser = read("components/doctor/profile/ProfileClinicChooser.tsx");
     assert.match(chooser, /rows\.map\(/);
     assert.match(chooser, /data-location/);
